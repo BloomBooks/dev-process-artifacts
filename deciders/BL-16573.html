@@ -18,18 +18,45 @@ code,.mono{font-family:ui-monospace,Consolas,monospace;background:var(--code);pa
 table{border-collapse:collapse;width:100%;font-size:.9rem;margin:.4rem 0}
 td,th{border:1px solid var(--line);padding:.4rem .55rem;text-align:left;vertical-align:top}
 th{background:var(--code)}
-.opt{display:block;padding:.55rem .7rem;border:1px solid var(--line);border-radius:8px;margin:.4rem 0;cursor:pointer}
-.opt:hover{border-color:var(--accent)}
-.rec{border-color:var(--accent)}
-.tag{display:inline-block;background:var(--accent);color:#fff;font-size:.7rem;padding:.05rem .4rem;border-radius:4px;margin-left:.4rem;vertical-align:middle}
-.foot{font-size:.8rem;color:var(--mut);margin-left:1.7rem}
-textarea{width:100%;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:.5rem;font:.85rem ui-monospace,monospace;margin-top:.3rem}
-button{background:var(--accent);color:#fff;border:0;border-radius:7px;padding:.6rem 1.1rem;font-size:.95rem;cursor:pointer}
-.ok{color:#2e7d32;font-weight:600;margin-left:.6rem}
+a{color:var(--accent)}
+.ok{color:#2e7d32;font-weight:600}
 @media(prefers-color-scheme:dark){.ok{color:#7fd18a}}
 ul{margin:.3rem 0 .3rem 1.1rem;padding:0}li{margin:.25rem 0}
 .pill{display:inline-block;font-size:.72rem;padding:.1rem .5rem;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
 </style><script>
 (function(){try{var p=new URLSearchParams(location.search).get('theme');if(p)document.documentElement.setAttribute('data-theme',p);}catch(e){}})();
 </script></head>
-<body><div class=wrap><h1>Preflight report — BL-16573</h1><div class="sub">Filter benign unobserved-Task socket noise from Sentry (EQ4/E4J/E9K)</div><div class="meta"><span class="pill">BL-16573</span> &middot; Repo: <code>BloomBooks/BloomDesktop</code> &middot; <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16573">YouTrack BL-16573</a> &middot; Branch: <code>BL-16573-sentry-unobserved-socket-noise</code> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8080">PR #8080</a> &middot; 2026-07-19</div><h2>Sentry issues addressed</h2><table><tr><th>Sentry</th><th>90d events</th><th>Users</th><th>Notes</th></tr><tr><td class="mono">BLOOM-DESKTOP-EQ4</td><td>55687</td><td>0</td><td>UnobservedTaskException: I/O aborted (Fleck socket, shutdown)</td></tr><tr><td class="mono">BLOOM-DESKTOP-E4J</td><td>10179</td><td>0</td><td>same, Spanish-locale message</td></tr><tr><td class="mono">BLOOM-DESKTOP-E9K</td><td>5110</td><td>0</td><td>same, live on 6.4.104</td></tr></table><h2>What changed</h2><ul><li><code>Program.cs</code>: switched <code>SentrySdk.Init</code> to the options overload and added a narrow <code>BeforeSend</code> filter (<code>IsBenignUnobservedTaskSocketNoise</code>) that drops only UnobservedTaskException events whose exception chain is a benign socket/IO/cancel type. Decision is by exception TYPE + mechanism, never message text, so it covers all locale variants at once.</li><li><code>ProgramTests.cs</code>: 8 tests (match/drop, Spanish variant, cancellation types, non-match pass-through, empty).</li></ul><h2>Preflight outcome</h2><ul><li>Light review clean.</li><li>Devin: 0 bugs; 1 investigate (AggregateException-unwrap could no-op the filter) → refuted with a real captured event and resolved.</li><li>Greptile: 2 P2 (cancellation-branch tests; IOException breadth) → added tests + comment, both resolved.</li><li>CI green (the authority). Note: 9 local full-suite failures were environmental (PDF/XMatter) and unrelated to this change.</li></ul><div class="card">Status: <strong>draft PR, card in Ready For Work.</strong> A human reviews and un-drafts; this skill does not promote. Fix authored by Claude Opus 4.8; pipeline run by Claude Sonnet 5.</div></div></body></html>
+<body><div class=wrap><h1>Preflight report — BL-16573</h1><div class="sub">Filter benign unobserved-Task socket noise from Sentry (EQ4/E4J/E9K) — run 2, after tightening the filter</div><div class="meta"><span class="pill">BL-16573</span> &middot; Repo: <code>BloomBooks/BloomDesktop</code> &middot; <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16573" target="_blank" rel="noopener">YouTrack BL-16573</a> &middot; Branch: <code>BL-16573-sentry-unobserved-socket-noise</code> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8080" target="_blank" rel="noopener">PR #8080</a> &middot; 2026-07-24</div>
+
+<h2>Sentry issues addressed</h2><table><tr><th>Sentry</th><th>90d events</th><th>Users</th><th>Notes</th></tr><tr><td class="mono">BLOOM-DESKTOP-EQ4</td><td>55687</td><td>0</td><td>UnobservedTaskException: I/O aborted (Fleck socket, shutdown)</td></tr><tr><td class="mono">BLOOM-DESKTOP-E4J</td><td>10179</td><td>0</td><td>same, Spanish-locale message</td></tr><tr><td class="mono">BLOOM-DESKTOP-E9K</td><td>5110</td><td>0</td><td>same, live on 6.4.104</td></tr></table>
+
+<h2>What changed this run</h2><ul>
+<li><a href="https://github.com/BloomBooks/BloomDesktop/commit/3a6330806" target="_blank" rel="noopener"><code>3a63308</code></a> — the developer spotted that the filter's benign-type check used <em>Any</em>: an event whose exception chain mixed a real bug with socket noise would have been silently dropped. Now at least one benign socket/IO abort must be present <em>and</em> every exception in the chain must be benign (or the <code>AggregateException</code> wrapper) — see <a href="https://github.com/BloomBooks/BloomDesktop/blob/d39376ab52932fcce544060c4eac6667ce31b98f/src/BloomExe/Program.cs#L2163-L2183" target="_blank" rel="noopener">Program.cs:2163</a>. A comment documents why the <em>mechanism</em> check must stay <em>Any</em> (Sentry attaches the mechanism only to the wrapper). Two new tests: mixed-chain-with-real-bug is kept, bare-wrapper-only is kept.</li>
+<li><a href="https://github.com/BloomBooks/BloomDesktop/commit/d39376ab52932fcce544060c4eac6667ce31b98f" target="_blank" rel="noopener"><code>d39376a</code></a> — merge of <code>origin/master</code> (clean, no conflicts; large unrelated master changes folded in).</li>
+</ul>
+
+<h2>Quality gate</h2><table><tr><th>Check</th><th>Result</th></tr>
+<tr><td>C# build (agent wrapper)</td><td class="ok">pass</td></tr>
+<tr><td>C# ProgramTests (changed area)</td><td class="ok">18/18 pass</td></tr>
+<tr><td>C# full suite (<code>dotnet test</code>)</td><td>2924/2946 pass — the 9 failures are the <em>known environmental</em> set under the agent-dotnet wrapper (5 XMatter tests compute the repo root from the assembly path, which is one level deeper in the wrapper tree; 4 PdfMaker tests need the <code>BloomPdfMaker.exe</code> apphost the wrapper deliberately doesn't build). Same 9 as the 2026-07-15 run of PR #8067; logged in PAPERCUTS.md. Unrelated to this change.</td></tr>
+<tr><td>Front-end tests (vitest)</td><td><strong>hung locally, twice</strong> — the known Windows parallel-vitest hang recurred despite the committed <code>_SKIP_WEBSOCKET_CREATION_</code> fix (workers alive, CPU frozen, no output; logged in PAPERCUTS.md). Not treated as a blocker for this PR: the branch's own diff is C#-only, and all front-end changes in the tree came in from master, which was reviewed and preflighted on its own PRs.</td></tr>
+<tr><td>Merge with master</td><td class="ok">clean, mergeable</td></tr>
+</table>
+
+<h2>Reviewer outcomes (this run, HEAD <code>d39376a</code>)</h2><ul>
+<li><strong>Local review</strong> (light sub-agent pass): clean — verified the Any→All tightening logic and the two new tests.</li>
+<li><strong>Devin</strong>: complete — 0 bugs, 1 Investigate, 2 Informational. The Investigate flag is the same AggregateException-unwrapping question as the prior round; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8080#discussion_r3609554425" target="_blank" rel="noopener">its thread</a> was already refuted with a real captured event and is resolved. The two Informational notes restate trade-offs already documented in code comments. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8080#issuecomment-5063340834" target="_blank" rel="noopener">Consultation log</a> &middot; <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8080" target="_blank" rel="noopener">Devin review page</a>.</li>
+<li><strong>Greptile</strong>: complete — check passed, no new comments for this commit. (Prior round's two P2s were fixed and resolved.)</li>
+<li><strong>CI</strong>: green — Greptile Review, pr-automation, track/set-waiting all pass. The <code>code-review/reviewable</code> check stays pending only because the human reviewer (hatton) has 2 files left to mark reviewed at the new revision — that <em>is</em> the human review step. The mirrored Devin discussion in Reviewable was acknowledged (satisfied) and is resolved.</li>
+</ul>
+
+<h2>Prior round (2026-07-19, for reference)</h2><ul><li>Devin: 0 bugs; 1 investigate (AggregateException-unwrap could no-op the filter) → refuted with a real captured event and resolved.</li><li>Greptile: 2 P2 (cancellation-branch tests; IOException breadth) → added tests + comment, both resolved.</li></ul>
+
+<h2>Housekeeping</h2><ul>
+<li>QA test-ideas comment on the YouTrack card refreshed in place (risky-part wording updated for the tightened filter).</li>
+<li>PR link already on the card (not duplicated).</li>
+<li><code>PAPERCUTS.md</code> "seen again" note added for the 9 wrapper-environment test failures (uncommitted; rides with the next commit).</li>
+<li>Local <code>.claude/settings.json</code> (machine-specific permissions) left uncommitted — it does not belong in the shared repo.</li>
+</ul>
+
+<div class="card">Status: <strong>no decisions needed — nothing is waiting on the developer.</strong> Draft PR, all bot threads resolved, CI green. The developer has already self-reviewed, so the next step is <code>pr-ready-for-human</code>. Fix authored by Claude Opus 4.8; run 2 (tightening + this preflight) by Claude Fable 5.</div></div></body></html>
