@@ -218,16 +218,6 @@
     color: var(--ink-3); font-weight: 600; margin-bottom: 5px;
   }
 
-  .sendback .btn {
-    font: inherit; font-weight: 600; font-size: 14px;
-    background: var(--accent); color: #fff; border: none;
-    border-radius: 5px; padding: 9px 18px; cursor: pointer;
-  }
-  .sendback .btn:hover { filter: brightness(1.08); }
-  .sendback .row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-  .sendback .ok { font-size: 13px; color: var(--pass); font-weight: 600; opacity: 0; transition: opacity 0.15s; }
-  .sendback .ok.show { opacity: 1; }
-  .sendback textarea { min-height: 130px; font-family: var(--mono); font-size: 12px; line-height: 1.5; }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
   footer.page { margin-top: 34px; color: var(--ink-3); font-size: 13px; }
@@ -237,13 +227,13 @@
   <header class="page">
     <h1>Preflight — a preview for images the browser won't draw</h1>
     <p class="subtitle">
-      Both decisions from the first pass have been implemented and their review threads closed.
-      Every reviewer thread on the PR is resolved and nothing is waiting on you — the PR is a draft,
-      ready for your own read before it goes to a colleague.
+      Every decision has been implemented and every reviewer thread resolved. John has since run the
+      change by hand in a real Bloom — the Starry Night scan, a TIFF, and a transparent image all
+      preview correctly — and handed the PR to peer review.
     </p>
     <div class="facts">
-      <span class="pill draft">Draft</span>
-      <span class="pill clear">Nothing waiting on you</span>
+      <span class="pill clear">Ready for human review</span>
+      <span class="pill clear">Verified by hand</span>
       <span class="pill"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8111" target="_blank" rel="noopener">PR&nbsp;#8111</a></span>
       <span class="pill"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8111/files" target="_blank" rel="noopener">Files changed</a></span>
       <span class="pill"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16597" target="_blank" rel="noopener">BL-16597</a></span>
@@ -361,6 +351,13 @@
       <section class="card">
         <h2>Session notes</h2>
         <ul class="notes">
+          <li><strong>Checked by hand in a running Bloom, after all of the above.</strong> Everything
+            below this line was unit-level; John then imported the Starry Night scan and watched it
+            preview, previewed and imported a TIFF, and confirmed a transparent image comes out white.
+            The transparent fixtures had to be made, since a picture both over 40 megapixels
+            <em>and</em> carrying an alpha channel is a rare thing to have lying about — three are in
+            <span class="mono">Pictures\BL-16597 test images</span>, each captioned with black text that is
+            unreadable if the background were to come out black.</li>
           <li><strong>Devin re-lists findings it has already seen fixed.</strong> Its last three jobs each
             re-reported the transparency bug and the TIFF flag quoting pre-fix line numbers — the bug is still
             filed against <span class="mono">ImageGalleryApi.cs:630</span>, which at this commit is line 725 and is
@@ -428,190 +425,66 @@
               <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/d784d7f483" target="_blank" rel="noopener">d784d7f4</a>,
               per the papercut convention.</span>
           </li>
+          <li>
+            <span class="q">Three intermittently failing tests → log a papercut</span>
+            <span class="a">Its own entry, in
+              <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/6a28662fed" target="_blank" rel="noopener">6a28662f</a>.
+              <span class="mono">CheckAudioForAllText_SpansAudioMissing</span>,
+              <span class="mono">BringBookUpToDate_MovesMetaDataToJson</span> and
+              <span class="mono">InsertPageAfter_FromAnotherBook_CopiesWidget</span> — none near image handling,
+              all passing in isolation. The recorded cost is that a run showing 12 failures can no longer
+              be read at a glance: you have to run the suite twice to tell noise from signal.</span>
+          </li>
+          <li>
+            <span class="q">Rotation geometry untested → leave as is</span>
+            <span class="a">Recorded on the Devin thread, spelling out that reading the tag and swapping
+              width and height <em>are</em> tested across all eight orientations, and that only the transform
+              table's geometry — that 5 is a transpose and 7 a transverse rather than the reverse — rests on
+              two agreeing derivations. Testing it would need WPF types in the test project, which is a
+              build-configuration change better made on its own branch.</span>
+          </li>
         </ul>
       </section>
 
-      <section class="card decision">
-        <p class="kicker">Turned up since</p>
-        <h2>Three tests fail intermittently, and it isn't this branch</h2>
-        <p>One full C# run came back with 12 failures rather than the usual 9. The three extras were an audio
-          span check, <span class="mono">BringBookUpToDate_MovesMetaDataToJson</span> and
-          <span class="mono">InsertPageAfter_FromAnotherBook_CopiesWidget</span> — none of which touch image handling.
-          A second run at the identical commit gave 9 again, and all three passed when run on their own, so they
-          are flaky rather than broken.</p>
-        <p class="last">It matters mainly because it makes the suite harder to read: an agent or a developer
-          seeing 12 has to work out which three are noise before trusting the run, on top of the nine already
-          known to be environmental.</p>
-        <fieldset>
-          <div class="opt rec">
-            <input type="radio" id="e1a" name="e1" checked data-q="Three intermittently failing tests" data-v="Log as a papercut alongside the wrapper one">
-            <label for="e1a">Log as a papercut alongside the wrapper one
-              <span class="cost">No product code — one more entry, naming the three. Recommended because the cost is the same as the wrapper entry (time spent telling noise from signal) and the evidence is fresh; chasing three intermittent tests properly is its own piece of work.</span>
-            </label>
-            <span class="recflag">Recommended</span>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e1b" name="e1" data-q="Three intermittently failing tests" data-v="File a YouTrack card to investigate the flakiness">
-            <label for="e1b">File a YouTrack card to investigate them
-              <span class="cost">Treats it as real test-health work with an owner. More weight than a papercut, and it would need someone to reproduce intermittent failures.</span>
-            </label>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e1c" name="e1" data-q="Three intermittently failing tests" data-v="Leave as is">
-            <label for="e1c">Leave as is</label>
-            <span class="leaveco"><input type="checkbox" id="e1lc" data-q="Three intermittently failing tests" data-leavecomment="1"><label for="e1lc">Leave comment</label></span>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e1d" name="e1" data-q="Three intermittently failing tests" data-v="Other">
-            <label for="e1d">Other:</label>
-            <div class="otherbox"><input type="text" data-q="Three intermittently failing tests" data-other="1" placeholder="something else"></div>
-          </div>
-        </fieldset>
-        <div class="notesbox">
-          <label for="e1n">Notes</label>
-          <textarea id="e1n" rows="2" data-q="Three intermittently failing tests" data-note="1"></textarea>
-        </div>
-      </section>
-
-      <section class="card decision">
-        <p class="kicker">Turned up since</p>
-        <h2>One corner of the rotation code is still only proved on paper</h2>
-        <p>Devin asked whether rotating by hand was safe, given it would be wrong if WPF already applied EXIF
-          orientation itself. That is now settled by test: all eight orientations are checked against a JPEG with a
-          hand-built EXIF header, and if WPF were auto-rotating, the sideways cases would come back with their
-          width and height swapped twice and fail.</p>
-        <p class="last">What those tests do <em>not</em> cover is the geometry of the transforms — that orientation 5
-          really is a transpose and 7 a transverse, rather than each other. That rests on two independent algebraic
-          derivations agreeing (Devin's and mine). Asserting it properly means calling into the transform table from
-          a test, which needs WPF types available in the test project.</p>
-        <fieldset>
-          <div class="opt rec">
-            <input type="radio" id="e2a" name="e2" checked data-q="Rotation geometry untested" data-v="Leave as is">
-            <label for="e2a">Leave as is</label>
-            <span class="leaveco"><input type="checkbox" id="e2lc" data-q="Rotation geometry untested" data-leavecomment="1"><label for="e2lc">Leave comment</label></span>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e2b" name="e2" data-q="Rotation geometry untested" data-v="Add UseWPF to BloomTests and test the transform table">
-            <label for="e2b">Add <span class="mono">UseWPF</span> to BloomTests and test the transform table
-              <span class="cost">One line of csproj plus a short test mapping a corner point through each of the eight cases. Small, but it changes how the test project builds — worth its own branch rather than riding on this one.</span>
-            </label>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e2c" name="e2" data-q="Rotation geometry untested" data-v="Other">
-            <label for="e2c">Other:</label>
-            <div class="otherbox"><input type="text" data-q="Rotation geometry untested" data-other="1" placeholder="something else"></div>
-          </div>
-        </fieldset>
-        <p class="src" style="margin-top:12px;margin-bottom:0">Recommended to leave: transpose/transverse are the only two cases at issue, two derivations already agree on them, and getting a rotated photo wrong is visible the moment anyone looks at the preview. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8111#discussion_r3660029335" target="_blank" rel="noopener">Thread</a>.</p>
-        <div class="notesbox">
-          <label for="e2n">Notes</label>
-          <textarea id="e2n" rows="2" data-q="Rotation geometry untested" data-note="1"></textarea>
-        </div>
-      </section>
-
-      <section class="card decision next">
-        <p class="kicker">Next step</p>
-        <h2>Where does this go from here?</h2>
-        <p class="last">Nothing is blocking. The PR is a draft and no teammate has been asked to review — promoting
-          it is your call, via <span class="mono">pr-ready-for-human</span> once you have read the code yourself.</p>
-        <fieldset>
-          <div class="opt rec">
-            <input type="radio" id="e3a" name="e3" checked data-q="Next step" data-v="I will read it myself, then run pr-ready-for-human">
-            <label for="e3a">You read it, then run <span class="mono">pr-ready-for-human</span>
-              <span class="cost">Recommended: the branch is clean and every reviewer has been answered, so your own read is the only thing left before a colleague sees it.</span>
-            </label>
-            <span class="recflag">Recommended</span>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e3b" name="e3" data-q="Next step" data-v="Try it against the real Starry Night images in a running Bloom first">
-            <label for="e3b">Try it against the real Starry Night images first
-              <span class="cost">Drive a running Bloom and watch the actual preview pane. Nothing so far has exercised the real chooser end to end — every check has been at the unit level.</span>
-            </label>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e3c" name="e3" data-q="Next step" data-v="Leave as is">
-            <label for="e3c">Leave as is</label>
-            <span class="leaveco"><input type="checkbox" id="e3lc" data-q="Next step" data-leavecomment="1"><label for="e3lc">Leave comment</label></span>
-          </div>
-          <div class="opt">
-            <input type="radio" id="e3d" name="e3" data-q="Next step" data-v="Other">
-            <label for="e3d">Other:</label>
-            <div class="otherbox"><input type="text" data-q="Next step" data-other="1" placeholder="something else"></div>
-          </div>
-        </fieldset>
-        <div class="notesbox">
-          <label for="e3n">Notes</label>
-          <textarea id="e3n" rows="2" data-q="Next step" data-note="1"></textarea>
-        </div>
-      </section>
-
-      <section class="card sendback">
-        <h2>Send your answers back</h2>
-        <p class="lede">Copy this and paste it into the session.</p>
-        <div class="row">
-          <button class="btn" id="copyBtn" type="button">Copy answers</button>
-          <span class="ok" id="okMsg">Copied</span>
-        </div>
-        <textarea id="out" readonly rows="8" aria-label="Your answers, ready to paste"></textarea>
+      <section class="card">
+        <h2>Where it ended up</h2>
+        <p class="lede">Nothing outstanding; this page is now a record rather than a request.</p>
+        <ul class="outcome">
+          <li>
+            <span class="q">Tried in a real Bloom</span>
+            <span class="a">The Starry Night scan previews, a TIFF previews and imports, and a
+              transparent image comes out white. That closes the one gap the automated checks
+              couldn't cover.</span>
+          </li>
+          <li>
+            <span class="q">PR promoted</span>
+            <span class="a"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8111" target="_blank" rel="noopener">#8111</a>
+              is out of draft and sits in <strong>Ready for Human</strong> on the
+              <a href="https://github.com/orgs/BloomBooks/projects/2" target="_blank" rel="noopener">PR Review Tracker</a>.
+              No specific reviewer was requested — that stays John's call.</span>
+          </li>
+          <li>
+            <span class="q">BL-16597</span>
+            <span class="a">In <strong>Ready For Code Review</strong>, carrying the PR link, this
+              report, and QA test ideas written from the final diff.</span>
+          </li>
+          <li>
+            <span class="q">Still open, deliberately</span>
+            <span class="a">The geometry of the EXIF transform table is proved by two independent
+              derivations rather than by a test — left as is, with the reasoning recorded on
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8111#discussion_r3660029335" target="_blank" rel="noopener">its thread</a>.
+              And three unrelated C# tests are flaky; that is logged as a papercut, not fixed.</span>
+          </li>
+        </ul>
       </section>
     </div>
   </div>
 
   <footer class="page">
     Preflight run 2026-07-27 on <span class="mono">BL-16597LargeImagePreview</span>, final commit
-    <span class="mono">d784d7f483</span>. This page lives at
+    <span class="mono">6a28662fed</span>, promoted to human review the same day. This page lives at
     <a href="https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16597LargeImagePreview.html" target="_blank" rel="noopener">raw.githack.com/&hellip;/BloomDesktop-BL-16597LargeImagePreview.html</a>
     and is rewritten in place each time preflight runs on this branch.
   </footer>
 </div>
 
-<script>
-  (function () {
-    var out = document.getElementById("out");
-    var btn = document.getElementById("copyBtn");
-    var ok = document.getElementById("okMsg");
-
-    function build() {
-      var lines = ["Preflight answers — BL-16597LargeImagePreview (PR #8111, HEAD d784d7f483)", ""];
-      var any = false;
-      document.querySelectorAll('input[type="radio"]:checked').forEach(function (r) {
-        any = true;
-        var q = r.getAttribute("data-q");
-        var v = r.getAttribute("data-v");
-        if (v === "Other") {
-          var box = document.querySelector('input[data-other="1"][data-q="' + q + '"]');
-          var txt = box && box.value.trim();
-          v = "Other: " + (txt ? txt : "(nothing written)");
-        }
-        lines.push("- " + q + ": " + v);
-
-        var lc = document.querySelector('input[data-leavecomment="1"][data-q="' + q + '"]');
-        if (lc && lc.checked) lines.push("    Leave comment: record this decision as a code comment near the relevant code.");
-
-        var note = document.querySelector('textarea[data-note="1"][data-q="' + q + '"]');
-        var nv = note && note.value.trim();
-        if (nv) lines.push("    Notes: " + nv);
-      });
-      if (!any) lines.push("(nothing selected)");
-      return lines.join("\n");
-    }
-
-    function refresh() { out.value = build(); }
-
-    document.addEventListener("input", refresh);
-    document.addEventListener("change", refresh);
-    refresh();
-
-    btn.addEventListener("click", function () {
-      refresh();
-      var done = function () { ok.classList.add("show"); setTimeout(function () { ok.classList.remove("show"); }, 1800); };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(out.value).then(done, fallback);
-      } else { fallback(); }
-      function fallback() {
-        out.focus(); out.select();
-        try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
-      }
-    });
-  })();
-</script>
