@@ -359,6 +359,13 @@
             on the right.</li>
           <li><strong>Two things were posted to BL-16597:</strong> the PR link, and a manual test-ideas write-up
             for QA based on the final diff — including the two known gaps below, so a tester does not re-report them.</li>
+          <li><strong>TIFF import was verified by running it,</strong> not by reading the code — a throwaway probe
+            pushed a real TIFF through <span class="mono">PalasoImage</span> and
+            <span class="mono">ProcessAndSaveImageIntoFolder</span> and watched <span class="mono">scan.tif</span> come out as
+            a valid 300×200 <span class="mono">scan.png</span>. The probe has been deleted. Two things a tester should
+            confirm rather than take on trust: a multi-page TIFF almost certainly arrives as its first page only
+            (standard for the imaging library, but unverified), and a very large TIFF still gets fully decoded on
+            import with the memory cost that implies — neither changed by this PR.</li>
           <li><strong>Devin re-raised two findings after they were fixed</strong> (the cache key, and TIFF orientation),
             quoting line numbers from the pre-fix code. Both are genuinely fixed at HEAD; their threads are
             replied to and resolved.</li>
@@ -428,22 +435,30 @@
         <p>What it does do is make the behaviour odd: a TIFF over 40 megapixels now previews fine, because it gets
           converted to a JPEG stand-in on its way past the size threshold, while a smaller TIFF still shows
           nothing. So whether a TIFF previews now depends on how big it is, which is hard to explain to anyone.</p>
+        <p><strong>Importing a TIFF already works, and works on purpose.</strong> Checked by running the real
+          import path on one: Bloom loads it, sees a format browsers can't draw, and re-encodes it — so
+          <span class="mono">scan.tif</span> arrives in the book folder as <span class="mono">scan.png</span>. The comment
+          in that code says exactly why: <em>&ldquo;Non-web formats get saved as PNG so browsers can display
+          them.&rdquo;</em> Bloom's book-packaging code likewise lists <span class="mono">.tif</span>/<span class="mono">.tiff</span>
+          among the file types a book may contain. So a person can successfully put a TIFF in a book today —
+          they just have to choose it blind, which is the same complaint as this card.</p>
         <p class="last src">Raised by Devin ·
           <a href="https://github.com/BloomBooks/BloomDesktop/pull/8111#discussion_r3659684010" target="_blank" rel="noopener">open thread on the PR</a> ·
           <a href="https://github.com/BloomBooks/BloomDesktop/blob/407e275740ee386d43d4ac416a835ea108f44e84/src/BloomExe/web/controllers/ImageGalleryApi.cs#L383" target="_blank" rel="noopener">the file filter</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/407e275740ee386d43d4ac416a835ea108f44e84/src/BloomExe/web/controllers/ImageGalleryApi.cs#L590" target="_blank" rel="noopener">the size threshold</a></p>
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/407e275740ee386d43d4ac416a835ea108f44e84/src/BloomExe/web/controllers/ImageGalleryApi.cs#L590" target="_blank" rel="noopener">the size threshold</a> ·
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/407e275740ee386d43d4ac416a835ea108f44e84/src/BloomExe/ImageProcessing/ImageUtils.cs#L767-L769" target="_blank" rel="noopener">the convert-on-import rule</a></p>
         <fieldset>
           <div class="opt rec">
             <input type="radio" id="d2a" name="d2" checked data-q="TIFFs still do not preview" data-v="Fix it here: also make a stand-in when the format is one browsers cannot draw">
             <label for="d2a">Fix it here — also make a stand-in when the format is one browsers cannot draw
-              <span class="cost">~10 lines: widen the &ldquo;does this need a stand-in?&rdquo; test from size alone to size-or-format. Recommended because the machinery is already sitting right there, and the card is about the chooser failing to show a preview — which is what a TIFF does.</span>
+              <span class="cost">~10 lines: widen the &ldquo;does this need a stand-in?&rdquo; test from size alone to size-or-format. Recommended because this isn't new capability — Bloom already has the rule &ldquo;convert what browsers can't draw so they can draw it&rdquo; and already applies it on import; the preview pane is the one place that doesn't. The machinery is sitting right there, and it removes the size-dependent oddity rather than shipping it.</span>
             </label>
             <span class="recflag">Recommended</span>
           </div>
           <div class="opt">
             <input type="radio" id="d2b" name="d2" data-q="TIFFs still do not preview" data-v="Separate YouTrack card, keep this PR to the size problem">
             <label for="d2b">Separate YouTrack card, keep this PR to the size problem
-              <span class="cost">No code here. Keeps the PR tightly scoped to BL-16597, at the cost of shipping the size-dependent oddity above.</span>
+              <span class="cost">No code here. Keeps the PR tightly scoped to BL-16597, at the cost of shipping the size-dependent oddity above and leaving TIFF users choosing blind for another release.</span>
             </label>
           </div>
           <div class="opt">
