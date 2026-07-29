@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preflight report — BL-16518 spreadsheet export normalization (PR #8074)</title>
+<style>
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --border: #e6e0d6;
+    --border-strong: #d8d0c2;
+    --ink: #2a2622;
+    --muted: #6c6358;
+    --faint: #8b8175;
+    --accent: #3a6ea5;
+    --accent-soft: #eef3f9;
+    --good: #2e7d54;
+    --good-soft: #e9f4ee;
+    --warn: #a9741a;
+    --warn-soft: #f7efdf;
+    --crit: #b0413a;
+    --crit-soft: #f7e8e6;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  code, .mono { font-family: var(--mono); font-size: 0.86em; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  header.top { margin-bottom: 28px; }
+  .eyebrow-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1.15;
+    margin: 0 0 10px;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .sub { color: var(--muted); font-size: 15px; margin: 0; max-width: 68ch; }
+  .linkbar { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 16px; font-size: 14px; }
+  .linkbar a { display: inline-flex; align-items: center; gap: 5px; }
+
+  .cols { display: grid; grid-template-columns: 1.25fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+  }
+  .card h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 14px;
+    letter-spacing: -0.005em;
+  }
+  .card h3 { font-size: 15px; margin: 18px 0 8px; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
+    padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  }
+  .pill.mono { font-weight: 600; }
+  .pill.good { background: var(--good-soft); color: var(--good); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.crit { background: var(--crit-soft); color: var(--crit); }
+  .pill.info { background: var(--accent-soft); color: var(--accent); }
+  .pill.neutral { background: #efece5; color: var(--muted); }
+
+  table.gate { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.gate th { text-align: left; font-weight: 600; color: var(--faint); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; padding: 0 10px 8px 0; }
+  table.gate td { padding: 9px 10px 9px 0; border-top: 1px solid var(--border); vertical-align: top; }
+  table.gate td:first-child { font-weight: 600; white-space: nowrap; }
+  table.gate td.detail { color: var(--muted); }
+  .tnum { font-variant-numeric: tabular-nums; }
+
+  ul.tight { margin: 0; padding-left: 18px; }
+  ul.tight li { margin: 6px 0; }
+  .commit { display: flex; gap: 10px; align-items: baseline; margin: 10px 0; }
+  .commit .sha { font-family: var(--mono); font-size: 12px; color: var(--accent); flex: none; }
+  .commit .msg { font-size: 14px; }
+  .note { color: var(--muted); font-size: 13.5px; }
+
+  .rev { border-top: 1px solid var(--border); padding: 12px 0; }
+  .rev:first-of-type { border-top: none; }
+  .rev .rev-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .rev .rev-name { font-weight: 600; font-size: 14.5px; }
+  .rev .rev-body { color: var(--muted); font-size: 13.5px; margin-top: 5px; }
+
+  /* decisions */
+  .decision { border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 18px 20px; }
+  .decision + .decision { margin-top: 0; }
+  .decision .tag { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); }
+  .decision h3 { font-family: var(--serif); font-weight: 600; font-size: 17px; margin: 6px 0 10px; letter-spacing: -0.005em; }
+  .decision p { font-size: 14px; margin: 0 0 12px; color: #4a443d; }
+  .decision p:last-of-type { margin-bottom: 14px; }
+
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; margin: 7px 0; cursor: pointer; transition: border-color .12s, background .12s; }
+  .opt:hover { border-color: var(--border-strong); background: #fcfbf8; }
+  .opt input[type=radio] { margin-top: 3px; flex: none; accent-color: var(--accent); width: 15px; height: 15px; }
+  .opt .otext { font-size: 14px; }
+  .opt .otext .rec { color: var(--good); font-weight: 700; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; margin-left: 6px; }
+  .opt .foot { display: block; color: var(--faint); font-size: 12.5px; margin-top: 3px; }
+  .opt.leave-row { justify-content: space-between; }
+  .opt.leave-row .left { display: flex; align-items: flex-start; gap: 10px; }
+  .leave-comment { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+  .leave-comment input { accent-color: var(--accent); }
+  .otherline { display: flex; align-items: center; gap: 8px; }
+  .otherline input[type=text] { flex: 1; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    background: #fff; border: 1px solid var(--border-strong); border-radius: 7px; padding: 7px 9px;
+  }
+  textarea.notes { width: 100%; min-height: 44px; margin-top: 8px; resize: vertical; }
+  .notes-label { font-size: 12px; color: var(--faint); margin-top: 10px; display: block; }
+
+  .copyback { border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); padding: 18px 20px; }
+  .copyback h3 { font-family: var(--serif); font-weight: 600; font-size: 17px; margin: 0 0 4px; }
+  .copyback p { font-size: 13.5px; color: var(--muted); margin: 0 0 12px; }
+  button.copy { font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent); border: none; border-radius: 8px; padding: 9px 16px; cursor: pointer; }
+  button.copy:hover { background: #315d8c; }
+  textarea.serial { width: 100%; min-height: 150px; margin-top: 12px; font-family: var(--mono); font-size: 12px; background: #fff; }
+  .copied { color: var(--good); font-weight: 600; font-size: 13px; margin-left: 10px; }
+
+  footer.foot { margin-top: 28px; color: var(--faint); font-size: 12.5px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="eyebrow-row">
+      <span class="pill info mono">PR #8074</span>
+      <span class="pill neutral mono">BL-16518</span>
+      <span class="pill warn">Draft</span>
+      <span class="pill good">Gate green</span>
+      <span class="pill warn">1 decision + 3 FYIs</span>
+    </div>
+    <h1>Preflight report — spreadsheet export whitespace/&lt;br&gt; normalization</h1>
+    <p class="sub">Everything that could be done autonomously is done: the branch is committed, integrated with master, pushed, and re-reviewed by every bot. The PR is left as a <strong>draft</strong>. What remains below needs your judgment — chiefly that this run added an editor-side change on top of a PR John had already approved.</p>
+    <div class="linkbar">
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074" target="_blank" rel="noopener">↗ Pull request</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074/files" target="_blank" rel="noopener">↗ Files changed</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074/commits" target="_blank" rel="noopener">↗ Commits</a>
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8074" target="_blank" rel="noopener">↗ Devin review</a>
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16518" target="_blank" rel="noopener">↗ YouTrack card</a>
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- LEFT: the run -->
+    <div class="col">
+      <section class="card">
+        <h2>Quality gate</h2>
+        <table class="gate">
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Typecheck (TS)</td><td><span class="pill good">pass</span></td><td class="detail">tsc / scripts/typecheck.js — no blunder-class errors</td></tr>
+            <tr><td>Lint (eslint)</td><td><span class="pill good">pass</span></td><td class="detail">0 errors; 37 warnings, all pre-existing (none on changed lines)</td></tr>
+            <tr><td>Merge cleanliness</td><td><span class="pill good">clean</span></td><td class="detail">merged origin/master (50 commits) with the ort strategy — no conflicts</td></tr>
+            <tr><td>TypeScript tests<br><span class="note">vitest</span></td><td><span class="pill good">pass</span></td><td class="detail"><span class="tnum">568 passed, 5 skipped</span> (full suite). BloomField spec run directly on the branch: <span class="tnum">43 passed</span>.</td></tr>
+            <tr><td>C# tests<br><span class="note">dotnet test</span></td><td><span class="pill good">pass</span></td><td class="detail"><span class="tnum">2972 passed, 13 skipped</span> (full suite). Spreadsheet tests run directly on the branch, twice: <span class="tnum">390 passed</span> each.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <div class="commit">
+          <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/9736584f6" target="_blank" rel="noopener">9736584f6</a>
+          <span class="msg">Replace <code>&lt;br&gt;</code> with a space instead of removing it in paragraph fields — committed a pre-existing working-tree change on the branch.</span>
+        </div>
+        <div class="commit">
+          <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/3bee07f1b" target="_blank" rel="noopener">3bee07f1b</a>
+          <span class="msg">Merge <code>origin/master</code> into the branch (50 commits of base integration). This is the pushed HEAD.</span>
+        </div>
+        <h3>Other actions taken</h3>
+        <ul class="tight">
+          <li>Converted the PR back to <strong>draft</strong> (it had been marked ready-for-review; preflight means the work is pre-review again).</li>
+          <li>Posted a supplementary manual-test idea to the YouTrack card for the new editor behavior (the <code>add-test-ideas</code> skill isn't installed in this session, so the canonical test-ideas comment was not auto-regenerated).</li>
+          <li>Mirrored/reconciled Devin's findings on the PR and logged the consultation.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+
+        <div class="rev">
+          <div class="rev-head"><span class="rev-name">Local review</span><span class="pill neutral">light sub-agent pass</span><span class="pill good">clean — no findings</span></div>
+          <div class="rev-body">One general-purpose pass over the full branch diff (C# export normalization + the new <code>BloomField.ts</code> change). Confirmed the <code>replaceWith(" ")</code> and the nbsp-preserving whitespace handling are correct; nothing raised.</div>
+        </div>
+
+        <div class="rev">
+          <div class="rev-head"><span class="rev-name">Devin</span><span class="pill good">complete</span><span class="pill neutral mono">HEAD 3bee07f1b</span></div>
+          <div class="rev-body">
+            Re-review clean for the current HEAD. <strong>3 Bugs</strong> — all now marked resolved-by-Devin; their threads were already resolved in earlier rounds.
+            <strong>5 Investigate flags</strong> — 4 already have resolved threads with documented reasoning
+            (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8074#discussion_r3617404430" target="_blank" rel="noopener">soft break → space is deliberate</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074#discussion_r3661364584" target="_blank" rel="noopener">boundary Trim preserves NBSP</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074#discussion_r3661367246" target="_blank" rel="noopener">sample-shell edit</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074#discussion_r3616089475" target="_blank" rel="noopener">stale ProcessBook note</a>);
+            the 5th (<code>SpreadsheetApi.cs</code> reconcile) targets a file not in this PR's diff and was
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8074#issuecomment-5123810046" target="_blank" rel="noopener">assessed as not-an-issue and documented</a>.
+            <strong>8 Informational</strong> items skipped. Notably, Devin reviewed the new HEAD (including <code>BloomField.ts</code>) and raised nothing on the new editor change.
+          </div>
+        </div>
+
+        <div class="rev">
+          <div class="rev-head"><span class="rev-name">Greptile</span><span class="pill warn">timed out after ~31 min</span></div>
+          <div class="rev-body">Did not refresh its summary for the new HEAD within the cap. On this PR Greptile only ever posts a single summary comment (no inline findings), and its summaries on the prior commits carried no blocking findings. Late results, if any, fold in on a re-run of preflight.</div>
+        </div>
+
+        <div class="rev">
+          <div class="rev-head"><span class="rev-name">CodeRabbit</span><span class="pill neutral">not active here</span></div>
+          <div class="rev-body">A <code>.coderabbit.yml</code> exists in the repo, but CodeRabbit has never posted a review or comment on this PR across its whole history — treated as inactive on this repo.</div>
+        </div>
+
+        <div class="rev">
+          <div class="rev-head"><span class="rev-name">CI</span><span class="pill good">checks terminal</span></div>
+          <div class="rev-body"><code>pr-automation</code> pass · <code>track / set-waiting</code> pass · <code>code-review/reviewable</code> pending — that last one is Reviewable's human-discussion completeness gate (2 discussions left), not a build; see the FYI on the right.</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="tight">
+          <li><strong>Working copy is now on <code>master</code>.</strong> After the push, this shared checkout was switched to master and pulled (not by preflight). Your branch and PR are unaffected — the branch tip is <code>3bee07f1b</code>, matching origin. See the FYI on the right if that wasn't intentional.</li>
+          <li><strong>Full-suite branch-state.</strong> Because of that switch, the full-suite runs can't be pinned to the branch by timing alone — but the branch's entire delta (the 4 spreadsheet files and <code>BloomField.ts</code>) was exercised directly on the branch by the 390 spreadsheet tests and 43 BloomField tests (each run twice, green), and the merge was conflict-free over disjoint files, so coverage of the change set is complete either way.</li>
+          <li><strong>Mergeable:</strong> yes (<span class="mono">MERGEABLE</span>); state <span class="mono">UNSTABLE</span> only because the non-required Reviewable check is pending.</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- RIGHT: decisions -->
+    <div class="col" id="form">
+      <div class="decision" data-item="editor-change">
+        <span class="tag">Decision</span>
+        <h3>The editor change postdates John's approval — keep it in this PR, or split it out?</h3>
+        <p>On 2026-07-27 John Thomson reviewed and approved (LGTM) this PR when it contained only the <strong>spreadsheet-export</strong> normalization. This preflight run committed a change that had been sitting uncommitted in the working tree: a two-line edit to <a href="https://github.com/BloomBooks/BloomDesktop/blob/3bee07f1b/src/BloomBrowserUI/bookEdit/bloomField/BloomField.ts#L754" target="_blank" rel="noopener"><code>BloomField.ts:754</code></a>. It changes <strong>editor</strong> behavior: when Bloom prepares a paragraph text box, a stray <code>&lt;br&gt;</code> used to be deleted outright (which could run adjacent words together); it is now replaced with a space instead.</p>
+        <p>It's the same ticket (BL-16518) and the same <code>&lt;br&gt;</code>-handling theme as the export work, and Devin re-reviewed the new HEAD and flagged nothing on it — but no human has seen it, John's approval predates it, and the PR title still describes export only. So it needs a human look before this PR is promoted.</p>
+        <label class="opt">
+          <input type="radio" name="editor-change" value="keep" checked data-q="Editor change">
+          <span class="otext">Keep it in this PR; re-review the editor change and update the PR description to mention it.<span class="rec">Recommended</span><span class="foot">Same ticket, tightly related, two lines in one file — cheaper than a separate PR. (small: one description edit + John glancing at one file)</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="editor-change" value="split" data-q="Editor change">
+          <span class="otext">Split <code>BloomField.ts</code> into its own PR so the already-approved export PR proceeds untouched.<span class="foot">Cleaner scoping; editor change reviewed on its own. (moderate: new branch/PR, move the commit, re-run preflight there)</span></span>
+        </label>
+        <div class="opt leave-row">
+          <span class="left">
+            <input type="radio" name="editor-change" value="leave" data-q="Editor change">
+            <span class="otext">Leave as is</span>
+          </span>
+          <label class="leave-comment"><input type="checkbox" data-leave-comment="editor-change"> Leave comment</label>
+        </div>
+        <label class="opt otherline">
+          <input type="radio" name="editor-change" value="other" data-q="Editor change">
+          <input type="text" placeholder="Other:" data-other="editor-change" oninput="this.previousElementSibling.checked=true">
+        </label>
+        <label class="notes-label">Notes</label>
+        <textarea class="notes" data-notes="editor-change" placeholder="Any caveats or constraints…"></textarea>
+      </div>
+
+      <div class="decision" data-item="draft" style="margin-top:20px">
+        <span class="tag">FYI</span>
+        <h3>The PR was converted back to draft</h3>
+        <p>Preflight put PR #8074 back into <strong>draft</strong> because a preflight means the work is pre-review again. Marking it ready-for-review and requesting a teammate's review is deliberately left to you (via <code>pr-ready-for-human</code>) after your own final look.</p>
+        <div class="opt leave-row">
+          <span class="left">
+            <input type="radio" name="draft" value="leave" checked data-q="Draft status">
+            <span class="otext">Leave as is</span>
+          </span>
+        </div>
+        <label class="opt otherline">
+          <input type="radio" name="draft" value="other" data-q="Draft status">
+          <input type="text" placeholder="Other:" data-other="draft" oninput="this.previousElementSibling.checked=true">
+        </label>
+        <label class="notes-label">Notes</label>
+        <textarea class="notes" data-notes="draft" placeholder="…"></textarea>
+      </div>
+
+      <div class="decision" data-item="reviewable" style="margin-top:20px">
+        <span class="tag">FYI</span>
+        <h3>Reviewable shows "2 discussions left" — GitHub threads are all resolved</h3>
+        <p>Every GitHub review thread on this PR is resolved. The <code>code-review/reviewable</code> check is still pending because Reviewable tracks its own per-participant "satisfied" state, and JohnThomson and StephenMcConnel haven't marked their discussions done in Reviewable. That's a promotion-time step (handled with the <code>reviewable-replies</code> skill or by marking them in Reviewable), not a code fix — preflight leaves it for you.</p>
+        <div class="opt leave-row">
+          <span class="left">
+            <input type="radio" name="reviewable" value="leave" checked data-q="Reviewable discussions">
+            <span class="otext">Leave as is</span>
+          </span>
+        </div>
+        <label class="opt otherline">
+          <input type="radio" name="reviewable" value="other" data-q="Reviewable discussions">
+          <input type="text" placeholder="Other:" data-other="reviewable" oninput="this.previousElementSibling.checked=true">
+        </label>
+        <label class="notes-label">Notes</label>
+        <textarea class="notes" data-notes="reviewable" placeholder="…"></textarea>
+      </div>
+
+      <div class="decision" data-item="working-copy" style="margin-top:20px">
+        <span class="tag">FYI</span>
+        <h3>Your working copy is checked out on <code>master</code></h3>
+        <p>After the push, this shared working directory was switched to <code>master</code> and pulled — not by preflight. Nothing was lost: the branch <code>BL-16518-SSExportNotNormalized</code> is at <code>3bee07f1b</code> and matches origin. If you meant to keep editing on the branch, switch back with <code>git checkout BL-16518-SSExportNotNormalized</code>.</p>
+        <div class="opt leave-row">
+          <span class="left">
+            <input type="radio" name="working-copy" value="leave" checked data-q="Working copy">
+            <span class="otext">Leave as is</span>
+          </span>
+        </div>
+        <label class="opt otherline">
+          <input type="radio" name="working-copy" value="other" data-q="Working copy">
+          <input type="text" placeholder="Other:" data-other="working-copy" oninput="this.previousElementSibling.checked=true">
+        </label>
+        <label class="notes-label">Notes</label>
+        <textarea class="notes" data-notes="working-copy" placeholder="…"></textarea>
+      </div>
+
+      <div class="decision" data-item="next-step" style="margin-top:20px">
+        <span class="tag">Next step</span>
+        <h3>How should I proceed?</h3>
+        <p>Once you've answered the decision above, tell me whether to act on it right away or talk it through first.</p>
+        <label class="opt">
+          <input type="radio" name="next-step" value="implement" checked data-q="Next step">
+          <span class="otext">Implement my choices now, then re-run the gauntlet.<span class="rec">Recommended</span><span class="foot">Applies the editor-change decision and re-runs preflight (a new commit restarts the bots).</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="next-step" value="discuss" data-q="Next step">
+          <span class="otext">Let's discuss first.</span>
+        </label>
+        <div class="opt leave-row">
+          <span class="left">
+            <input type="radio" name="next-step" value="leave" data-q="Next step">
+            <span class="otext">Leave as is</span>
+          </span>
+        </div>
+        <label class="opt otherline">
+          <input type="radio" name="next-step" value="other" data-q="Next step">
+          <input type="text" placeholder="Other:" data-other="next-step" oninput="this.previousElementSibling.checked=true">
+        </label>
+        <label class="notes-label">Notes</label>
+        <textarea class="notes" data-notes="next-step" placeholder="…"></textarea>
+      </div>
+
+      <div class="copyback" style="margin-top:20px">
+        <h3>Send your answers back</h3>
+        <p>Copy this and paste it into the session — it captures every choice and note.</p>
+        <button class="copy" id="copyBtn" type="button">Copy my answers</button>
+        <span class="copied" id="copiedMsg" hidden>Copied ✓</span>
+        <textarea class="serial" id="serialOut" readonly aria-label="Serialized answers"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <footer class="foot">Preflight report for PR #8074 · HEAD 3bee07f1b · generated by Claude Opus 4.8 from Steve's machine.</footer>
+</div>
+
+<script>
+  var QLABEL = {
+    "editor-change": "Editor change (BloomField.ts) — keep in PR / split / leave",
+    "draft": "PR converted to draft",
+    "reviewable": "Reviewable discussions pending",
+    "working-copy": "Working copy on master",
+    "next-step": "Next step"
+  };
+  var VALTEXT = {
+    "keep": "Keep the editor change in this PR; re-review it and update the PR description",
+    "split": "Split BloomField.ts into its own PR",
+    "leave": "Leave as is",
+    "implement": "Implement my choices now, then re-run the gauntlet",
+    "discuss": "Discuss first",
+    "other": "Other"
+  };
+  function serialize() {
+    var items = document.querySelectorAll(".decision");
+    var lines = ["=== Preflight answers — PR #8074 / BL-16518 (HEAD 3bee07f1b) ===", ""];
+    items.forEach(function (item) {
+      var name = item.getAttribute("data-item");
+      var checked = item.querySelector('input[type=radio]:checked');
+      var label = QLABEL[name] || name;
+      var val = checked ? checked.value : "(none selected)";
+      var text = VALTEXT[val] || val;
+      if (val === "other") {
+        var o = item.querySelector('[data-other="' + name + '"]');
+        text = "Other: " + ((o && o.value.trim()) || "(blank)");
+      }
+      lines.push("• " + label);
+      lines.push("    → " + text);
+      var lc = item.querySelector('[data-leave-comment="' + name + '"]');
+      if (lc && lc.checked) lines.push("    Leave comment: record this decision as a code comment near BloomField.ts");
+      var notes = item.querySelector('[data-notes="' + name + '"]');
+      if (notes && notes.value.trim()) lines.push("    Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var out = document.getElementById("serialOut");
+  function refresh() { out.value = serialize(); }
+  document.getElementById("form").addEventListener("input", refresh);
+  document.getElementById("form").addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      var m = document.getElementById("copiedMsg");
+      m.hidden = false;
+      setTimeout(function () { m.hidden = true; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out.value).then(done, function () { out.select(); document.execCommand("copy"); done(); });
+    } else {
+      out.select(); document.execCommand("copy"); done();
+    }
+  });
+</script>
+</body>
+</html>
