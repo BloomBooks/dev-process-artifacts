@@ -1,0 +1,357 @@
+<title>Preflight — BL-16576 · BloomDesktop PR 8126</title>
+<style>
+    :root {
+        --ground: #faf8f4;
+        --card: #ffffff;
+        --rule: #e4dfd4;
+        --rule-soft: #efebe2;
+        --ink: #262218;
+        --ink-soft: #57503f;
+        --muted: #7d7563;
+        --accent: #2f6e68;
+        --accent-wash: #eaf2f0;
+        --pass: #3c7048;
+        --warn: #8d6512;
+        --fail: #a03828;
+        --serif: ui-serif, "Iowan Old Style", Georgia, "Times New Roman", serif;
+        --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+        --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    }
+    body {
+        background: var(--ground); color: var(--ink); font-family: var(--sans);
+        font-size: 15px; line-height: 1.6; margin: 0; padding: 0;
+        -webkit-font-smoothing: antialiased;
+    }
+    .shell { max-width: 1240px; margin: 0 auto; padding: 40px 24px 72px; }
+    .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 32px; }
+    .masthead h1 {
+        font-family: var(--serif); font-size: 30px; line-height: 1.15;
+        font-weight: 600; margin: 0 0 6px; text-wrap: balance;
+    }
+    .masthead .kicker {
+        font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.09em;
+        text-transform: uppercase; color: var(--muted); margin: 0 0 12px;
+    }
+    .masthead p.lede { margin: 10px 0 0; color: var(--ink-soft); max-width: 74ch; }
+    .metaline { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
+    a { color: var(--accent); }
+    .cols { display: grid; grid-template-columns: 1.25fr 1fr; gap: 34px; align-items: start; }
+    @media (max-width: 980px) { .cols { grid-template-columns: 1fr; } }
+    h2 {
+        font-family: var(--serif); font-size: 20px; font-weight: 600;
+        margin: 34px 0 14px; padding-bottom: 7px; border-bottom: 1px solid var(--rule);
+    }
+    h2:first-child { margin-top: 0; }
+    .card {
+        background: var(--card); border: 1px solid var(--rule);
+        border-radius: 8px; padding: 18px 20px; margin: 0 0 18px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+    th { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    .tag { display: inline-block; font-family: var(--mono); font-size: 11px; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+    .t-pass { background: #e9f1ea; color: var(--pass); }
+    .t-warn { background: #f8f0dc; color: var(--warn); }
+    .t-na { background: #f0ede6; color: var(--muted); }
+    code { font-family: var(--mono); font-size: 12.8px; background: #f4f1ea; padding: 1px 5px; border-radius: 4px; }
+    pre { background: #f4f1ea; border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; overflow-x: auto; font-family: var(--mono); font-size: 12.2px; }
+    ul.tight { margin: 8px 0 0; padding-left: 20px; }
+    ul.tight li { margin: 5px 0; }
+    .q { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; margin: 0 0 16px; }
+    .q > h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+    .q .why { color: var(--ink-soft); font-size: 14.2px; margin: 0 0 14px; }
+    .opt { display: flex; gap: 9px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--rule-soft); }
+    .opt:first-of-type { border-top: 1px solid var(--rule); }
+    .opt input[type="radio"], .opt input[type="checkbox"] { margin-top: 4px; flex: 0 0 auto; }
+    .opt label { font-size: 14.2px; }
+    .opt .fx { display: block; color: var(--muted); font-size: 12.8px; margin-top: 2px; }
+    .rec { background: var(--accent-wash); color: var(--accent); font-family: var(--mono); font-size: 10.5px; padding: 1px 6px; border-radius: 999px; margin-left: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .leaverow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .leaverow .lc { display: flex; gap: 6px; align-items: center; font-size: 12.6px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+    input[type="text"], textarea {
+        font-family: var(--sans); font-size: 13.6px; color: var(--ink);
+        border: 1px solid var(--rule); border-radius: 5px; padding: 6px 8px;
+        background: #fdfcfa; width: 100%; box-sizing: border-box;
+    }
+    .notes { margin-top: 12px; }
+    .notes span { display: block; font-size: 12.4px; color: var(--muted); margin-bottom: 4px; }
+    button { font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent); border: none; border-radius: 6px; padding: 9px 18px; cursor: pointer; }
+    button:hover { filter: brightness(1.08); }
+    #out { margin-top: 12px; min-height: 130px; font-family: var(--mono); font-size: 12.2px; }
+    .copied { color: var(--pass); font-size: 13px; margin-left: 10px; }
+</style>
+
+<div class="shell">
+    <div class="masthead">
+        <p class="kicker">Preflight report · 29 July 2026</p>
+        <h1>Stop reporting missing API endpoints that outside tools legitimately probe</h1>
+        <p class="lede">
+            One Sentry issue — 1115 events across 20 users — turned out to be three unrelated endpoints,
+            none of them a Bloom programming error, all shown to the user as the same alarming
+            “Cannot Find API Endpoint” toast. Bloom now returns the 404 and writes a log line, but stops
+            interrupting a user who may not even know another program is talking to Bloom.
+        </p>
+        <p class="metaline">
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8126" target="_blank" rel="noopener">BloomDesktop PR #8126</a> (draft) ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8126/files" target="_blank" rel="noopener">files changed</a> ·
+            <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16576" target="_blank" rel="noopener">BL-16576</a> ·
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8126" target="_blank" rel="noopener">Devin review</a> ·
+            <a href="https://github.com/BloomBooks/BloomBridge/pull/14" target="_blank" rel="noopener">the BloomBridge half</a>
+            · branch <code>BL-16576-cannot-find-api-endpoint</code> · HEAD <code>48d71ae</code>
+        </p>
+    </div>
+
+    <div class="cols">
+        <div class="left">
+            <h2>Quality gate</h2>
+            <div class="card">
+                <table>
+                    <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+                    <tr><td>C# build (is the typecheck)</td><td><span class="tag t-pass">pass</span></td><td>Via the isolated <code>build/agent-dotnet.sh</code> wrapper, so the developer’s running Bloom was never disturbed</td></tr>
+                    <tr><td>C# format</td><td><span class="tag t-pass">pass</span></td><td><code>csharpier</code> reported both changed files already formatted; the pre-commit hook re-ran it</td></tr>
+                    <tr><td>C# tests (<code>BloomTests</code>)</td><td><span class="tag t-pass">2969 pass / 0 fail</span></td><td>13 skipped, 7m10s. The <code>BloomServerTests</code> fixture — where this change lives — is 49/49, run four times across the session</td></tr>
+                    <tr><td>Front-end tests (Vitest)</td><td><span class="tag t-pass">567 pass / 1 flake</span></td><td>5 skipped, 6m44s. The one failure — <code>watchLess.test.ts &gt; rebuilds when dependency is newer on startup</code> — is a Windows file-locking flake (<code>EPERM: operation not permitted, rename …\.state.json.tmp</code> in a temp folder) in a LESS-watcher build script. Re-ran that file alone: <strong>8/8 green</strong>. Nothing a C#-only change can reach.</td></tr>
+                    <tr><td>Front-end typecheck / lint</td><td><span class="tag t-na">not implicated</span></td><td>This branch changes no front-end file; the only TS in the branch arrived with the clean <code>master</code> merge, and the Vitest row above exercises it</td></tr>
+                    <tr><td>Base integration</td><td><span class="tag t-pass">clean</span></td><td><code>origin/master</code> (8 commits, 29 files — branding badges and LESS) merged with no conflicts and <strong>no overlap</strong> with the two files this branch touches; gate re-run after</td></tr>
+                </table>
+            </div>
+
+            <h2>What changed</h2>
+            <div class="card">
+                <p style="margin-top:0">
+                    Two files, one commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/ba72669" target="_blank" rel="noopener">ba72669</a>) plus the master merge.
+                    <a href="https://github.com/BloomBooks/BloomDesktop/blob/48d71ae/src/BloomExe/web/BloomApiHandler.cs#L352" target="_blank" rel="noopener"><code>ShouldReportMissingApiEndpoint</code></a>
+                    became a documented if-chain. It still 404s everything; it only decides whether to
+                    <em>also</em> put a toast in front of the user.
+                </p>
+                <ul class="tight">
+                    <li><strong><code>edit/pageControls/cleanup</code> — suppressed.</strong> Registration was deliberately removed in BL-15934, and there is no caller left anywhere in the repo (<code>.ts/.tsx/.cs/.js/.html/.pug</code> all searched). Stale clients in the field still POST it and there is nothing anyone can do about that.</li>
+                    <li><strong>The external-tool surface — suppressed.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/48d71ae/src/BloomExe/web/BloomApiHandler.cs#L384" target="_blank" rel="noopener"><code>IsExternalToolEndpoint</code></a> covers <code>common/instanceInfo</code> and everything under <code>external/</code>. These exist for other processes, which discover what a possibly-older Bloom supports by asking and treat a non-2xx as “too old for that”. <a href="https://github.com/BloomBooks/BloomDesktop/blob/48d71ae/src/BloomExe/web/BloomApiHandler.cs#L326" target="_blank" rel="noopener">Logged instead</a>, so a silently no-op integration stays diagnosable.</li>
+                    <li><strong><code>branding/image</code> — untouched</strong>, already handled by BL-16300.</li>
+                    <li><strong>Three new tests</strong> beside the existing BL-16300 pair: <a href="https://github.com/BloomBooks/BloomDesktop/blob/48d71ae/src/BloomTests/web/BloomServerTests.cs#L256" target="_blank" rel="noopener">the cleanup case</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/48d71ae/src/BloomTests/web/BloomServerTests.cs#L288" target="_blank" rel="noopener">two external-surface cases</a>.</li>
+                </ul>
+            </div>
+
+            <h2>Reviewer outcomes</h2>
+            <div class="card">
+                <table>
+                    <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+                    <tr>
+                        <td>Local review<br><span style="color:var(--muted);font-size:12.6px">inline, in-session</span></td>
+                        <td><span class="tag t-pass">complete</span></td>
+                        <td>Run by me directly rather than dispatched to a sub-agent, because this session instructs me not to spawn agents unless asked. No correctness findings. It did surface one thing worth recording: an external tool polling a not-yet-existing <code>external/*</code> endpoint on a <em>future</em> Bloom would write a log line per poll. The log is a rolling buffer, so this was judged not worth guarding.</td>
+                    </tr>
+                    <tr>
+                        <td>Devin</td>
+                        <td><span class="tag t-pass">complete — clean</span></td>
+                        <td><strong>0 Bugs, 0 Investigate flags.</strong> One informational item, which is precisely the trade-off already documented in the PR description and the code comment (its own note says the PR “explicitly acknowledges and accepts” it) — see the decision at right. Auto-triggered on push by <code>pr-automation.yml</code> for this exact sha.</td>
+                    </tr>
+                    <tr>
+                        <td>CodeRabbit</td>
+                        <td><span class="tag t-na">not applicable</span></td>
+                        <td>Configured in the repo but <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it never reviews on its own. Recorded as a config fact rather than a timeout — waiting for it would have been waiting for something that cannot happen.</td>
+                    </tr>
+                    <tr><td>Greptile</td><td><span class="tag t-na">not configured</span></td><td>No config file and no check context in this repo (it <em>is</em> active on BloomBridge, where it caught the P1 on the other half)</td></tr>
+                    <tr><td>CI</td><td><span class="tag t-pass">pass</span></td><td><code>pr-automation</code> 29s, <code>track / set-waiting</code> 3s. Note this repo runs no C# tests as a PR check, which is why the full local suite above matters.</td></tr>
+                </table>
+            </div>
+
+            <h2>How this was verified beyond the tests</h2>
+            <div class="card">
+                <ul class="tight">
+                    <li><strong>The bug was reproduced first, on a real old build.</strong> An installed <strong>Bloom 6.3.2.0</strong>, asked once for <code>api/common/instanceInfo</code>, returned 404 and logged the card’s exact message:</li>
+                </ul>
+                <pre>9:33:53 AM  NonFatalProblem: Cannot Find API Endpoint
+Server could not find an API endpoint for /bloom/api/common/instanceInfo...
+   at Bloom.Api.BloomApiHandler.ReportMissingApiEndpoint(IRequestInfo info, String localPath)</pre>
+                <ul class="tight">
+                    <li><strong>The card’s diagnosis was wrong and is now corrected on the card.</strong> This is not a startup race: <code>common/instanceInfo</code> is registered at application level in <code>ApplicationContainer</code>’s constructor, before the server ever starts listening. It is version skew — the endpoint landed 2026-03-12 when master was <code>6.4.0.0</code>, and is not in Version6.3 at all.</li>
+                    <li><strong>The suppression tests can’t pass for the wrong reason.</strong> <code>MissingNonLegacyApiEndpoint_ReportsNonFatalProblem</code> still passes, proving the reporting path is intact and the new tests are exercising a real suppression.</li>
+                </ul>
+            </div>
+
+            <h2>Session notes</h2>
+            <div class="card">
+                <ul class="tight">
+                    <li><strong>This change is forward-only.</strong> Nothing shipped now can alter the 6.2/6.3/6.4 builds already installed, so it <em>cannot</em> retire the existing Sentry events — expect them until those releases age out. The half that stops what users see today is <a href="https://github.com/BloomBooks/BloomBridge/pull/14" target="_blank" rel="noopener">BloomBridge #14</a>, whose own preflight ran clean earlier in this session.</li>
+                    <li><strong>Two flaky tests observed, both recorded rather than quietly re-run.</strong> A single <code>BloomServerTests</code> run failed 1 of 49 with <code>There is an error in XML document (0, 0).</code> (two immediate re-runs and the full suite: green). And the front-end <code>watchLess</code> mtime test failed once on a Windows <code>EPERM</code> rename (re-run: 8/8). Neither message points anywhere near this change.</li>
+                    <li><strong>A stale project memory was corrected.</strong> My notes claimed the C# suite has 9 known environmental failures under the isolated build wrapper. It ran fully green (2969/0), matching what <code>AGENTS.md</code> now claims, so the note has been rewritten — otherwise a future session would dismiss nine real failures as noise.</li>
+                    <li><strong><code>.vscode/settings.json</code> left uncommitted</strong> in both repos: a pre-existing Peacock window-colour change, unrelated to this work.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="right">
+            <h2>Your call</h2>
+
+            <div class="q">
+                <h3>Is suppressing the whole <code>external/</code> namespace too broad?</h3>
+                <p class="why">
+                    The change stops Bloom warning the user about any missing endpoint whose name begins
+                    <code>external/</code>. That namespace is not empty — it currently holds a dozen
+                    live endpoints (<code>external/login</code>, <code>external/process-book</code>,
+                    <code>external/update-book</code> and so on). So if one of those ever failed to
+                    register — say a refactor dropped a registration — Bloom would quietly answer 404 and
+                    write a log line, where before it would have shown a developer a toast.
+                    <br><br>
+                    I judged that an acceptable trade and said so in the code: nothing inside Bloom calls
+                    these endpoints, so a broken registration surfaces immediately as a broken external
+                    tool rather than lying dormant. Devin raised the same point as informational and noted
+                    the PR already accepts it. It is flagged here because it is exactly the kind of call a
+                    second pair of eyes should get to overrule.
+                </p>
+                <div class="opt">
+                    <input type="radio" name="q1" id="q1a" data-q="external/ breadth" value="Leave as is — suppress the whole external/ namespace" checked>
+                    <label for="q1a">Keep the namespace-wide suppression<span class="rec">recommended</span>
+                        <span class="fx">Nothing in Bloom calls these, so a dropped registration shows up at once in the external tool; and it means the next endpoint added for BloomBridge is covered without another Sentry round-trip.</span>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q1" id="q1b" data-q="external/ breadth" value="Narrow to an explicit list of endpoint names">
+                    <label for="q1b">Narrow it to an explicit list of endpoint names
+                        <span class="fx">Small — a handful of lines in <code>IsExternalToolEndpoint</code>. Keeps the toast for a mis-registered endpoint, at the cost of coming back here each time BloomBridge’s contract grows.</span>
+                    </label>
+                </div>
+                <div class="opt leaverow">
+                    <span style="display:flex;gap:9px;align-items:flex-start">
+                        <input type="radio" name="q1" id="q1c" data-q="external/ breadth" value="Leave as is">
+                        <label for="q1c">Leave as is</label>
+                    </span>
+                    <span class="lc"><input type="checkbox" id="q1lc" data-q="external/ breadth — leave comment"> <label for="q1lc">Leave comment</label></span>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q1" id="q1d" data-q="external/ breadth" value="Other">
+                    <label for="q1d">Other:</label>
+                    <input type="text" id="q1other" data-q="external/ breadth — other" placeholder="your answer">
+                </div>
+                <div class="notes"><span>Notes</span><textarea rows="2" data-q="external/ breadth — notes"></textarea></div>
+            </div>
+
+            <div class="q">
+                <h3>FYI — this cannot quiet the Sentry issue by itself</h3>
+                <p class="why">
+                    <strong>No action needed unless you want the issue silenced sooner.</strong> Because the
+                    fix can only exist in builds from here on, the 6.2/6.3/6.4 Blooms already on people’s
+                    machines will keep producing these events whenever any tool probes them. The BloomBridge
+                    change stops <em>our</em> tool from doing the probing, which should account for most of
+                    it, but the issue will not go to zero until those releases age out. If you would rather
+                    it stopped showing up in triage now, that is a Sentry ignore-by-release rule rather than
+                    anything in code.
+                </p>
+                <div class="opt">
+                    <input type="radio" name="q2" id="q2a" data-q="sentry noise" value="Leave as is — let it age out" checked>
+                    <label for="q2a">Leave as is — let it age out<span class="rec">recommended</span></label>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q2" id="q2b" data-q="sentry noise" value="Add a Sentry ignore rule for pre-6.5 releases">
+                    <label for="q2b">Add a Sentry ignore rule for pre-6.5 releases
+                        <span class="fx">No code — a rule in Sentry’s UI. Worth it if this issue is crowding out real ones in triage.</span>
+                    </label>
+                </div>
+                <div class="opt leaverow">
+                    <span style="display:flex;gap:9px;align-items:flex-start">
+                        <input type="radio" name="q2" id="q2c" data-q="sentry noise" value="Leave as is">
+                        <label for="q2c">Leave as is</label>
+                    </span>
+                    <span class="lc"><input type="checkbox" id="q2lc" data-q="sentry noise — leave comment"> <label for="q2lc">Leave comment</label></span>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q2" id="q2d" data-q="sentry noise" value="Other">
+                    <label for="q2d">Other:</label>
+                    <input type="text" id="q2other" data-q="sentry noise — other" placeholder="your answer">
+                </div>
+                <div class="notes"><span>Notes</span><textarea rows="2" data-q="sentry noise — notes"></textarea></div>
+            </div>
+
+            <div class="q">
+                <h3>Next step</h3>
+                <p class="why">
+                    Both halves of BL-16576 are now clean draft PRs with every reviewer terminal, and the
+                    card carries the corrected diagnosis, the QA test ideas, and both PR links. Neither PR
+                    has been marked ready for review — that is your call to make after your own read
+                    (<code>pr-ready-for-human</code>).
+                </p>
+                <div class="opt">
+                    <input type="radio" name="q3" id="q3a" data-q="next step" value="Both PRs stay draft for the developer's own review" checked>
+                    <label for="q3a">Leave both as clean drafts for your own review<span class="rec">recommended</span>
+                        <span class="fx">Preflight deliberately never promotes a PR; the next move is your read-through, then <code>pr-ready-for-human</code>.</span>
+                    </label>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q3" id="q3b" data-q="next step" value="Promote both to human review now">
+                    <label for="q3b">Promote both to human review now</label>
+                </div>
+                <div class="opt leaverow">
+                    <span style="display:flex;gap:9px;align-items:flex-start">
+                        <input type="radio" name="q3" id="q3c" data-q="next step" value="Leave as is">
+                        <label for="q3c">Leave as is</label>
+                    </span>
+                    <span class="lc"><input type="checkbox" id="q3lc" data-q="next step — leave comment"> <label for="q3lc">Leave comment</label></span>
+                </div>
+                <div class="opt">
+                    <input type="radio" name="q3" id="q3d" data-q="next step" value="Other">
+                    <label for="q3d">Other:</label>
+                    <input type="text" id="q3other" data-q="next step — other" placeholder="your answer">
+                </div>
+                <div class="notes"><span>Notes</span><textarea rows="2" data-q="next step — notes"></textarea></div>
+            </div>
+
+            <div class="q">
+                <h3>Send your answers back</h3>
+                <p class="why">Copy this block and paste it into the session.</p>
+                <button id="copybtn">Copy answers</button><span class="copied" id="copied"></span>
+                <textarea id="out" readonly></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function build() {
+        var lines = ["BL-16576 preflight — decisions (BloomDesktop PR 8126)", ""];
+        var groups = {};
+        document.querySelectorAll('input[type=radio]').forEach(function (r) {
+            groups[r.name] = groups[r.name] || [];
+            groups[r.name].push(r);
+        });
+        Object.keys(groups).forEach(function (name) {
+            var rs = groups[name];
+            var chosen = rs.filter(function (r) { return r.checked; })[0];
+            if (!chosen) return;
+            var qLabel = chosen.getAttribute('data-q');
+            var val = chosen.value;
+            if (val === 'Other') {
+                var box = document.querySelector('[data-q="' + qLabel + ' — other"]');
+                val = 'Other: ' + ((box && box.value.trim()) || '(blank)');
+            }
+            lines.push('- ' + qLabel + ': ' + val);
+            var lc = document.querySelector('[data-q="' + qLabel + ' — leave comment"]');
+            if (lc && lc.checked) lines.push('  Leave comment: yes — record this decision as a code comment near the relevant code');
+            var notes = document.querySelector('textarea[data-q="' + qLabel + ' — notes"]');
+            if (notes && notes.value.trim()) lines.push('  Notes: ' + notes.value.trim());
+        });
+        return lines.join('\n');
+    }
+    var out = document.getElementById('out');
+    function refresh() { out.value = build(); }
+    document.addEventListener('input', refresh);
+    document.addEventListener('change', refresh);
+    refresh();
+    document.getElementById('copybtn').addEventListener('click', function () {
+        var text = build();
+        out.value = text;
+        function done() {
+            var c = document.getElementById('copied');
+            c.textContent = 'copied';
+            setTimeout(function () { c.textContent = ''; }, 2200);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { out.select(); document.execCommand('copy'); done(); });
+        } else {
+            out.select();
+            document.execCommand('copy');
+            done();
+        }
+    });
+</script>
