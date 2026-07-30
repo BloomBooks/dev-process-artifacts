@@ -1,0 +1,688 @@
+<title>Preflight — BL-16627 origami auto-fit</title>
+<style>
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --ink: #1e1c19;
+    --ink-soft: #5c574f;
+    --ink-faint: #857f74;
+    --rule: #e4ded2;
+    --accent: #8a5a2b;
+    --accent-soft: #f3ebe0;
+    --ok: #2f6b3c;
+    --warn: #9a6a12;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 2.2rem 1.4rem 4rem;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.62;
+  }
+  .wrap { max-width: 1340px; margin: 0 auto; }
+  h1, h2, h3 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
+  }
+  h1 { font-size: 1.85rem; margin: 0 0 .3rem; letter-spacing: -.01em; }
+  h2 { font-size: 1.16rem; margin: 0 0 .9rem; }
+  h3 { font-size: 1rem; margin: 0 0 .45rem; font-family: inherit; font-weight: 650; }
+  .sub { color: var(--ink-soft); margin: 0 0 1.6rem; font-size: .95rem; }
+  .sub a { color: var(--accent); }
+  a { color: var(--accent); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1.15rem; align-items: start; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 1.15rem; min-width: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 9px;
+    padding: 1.15rem 1.25rem;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: .42rem .5rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 650; color: var(--ink-faint); font-size: .77rem; text-transform: uppercase; letter-spacing: .05em; }
+  tr:last-child td { border-bottom: none; }
+  td.s { white-space: nowrap; font-weight: 650; }
+  .ok { color: var(--ok); }
+  .warn { color: var(--warn); }
+  .scroll { overflow-x: auto; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .855em; }
+  code { background: var(--accent-soft); padding: .08em .34em; border-radius: 3px; }
+  ul, ol { margin: .4rem 0 0; padding-left: 1.25rem; }
+  li { margin: .3rem 0; }
+  p { margin: .55rem 0; }
+  p:first-child { margin-top: 0; }
+  .commit { padding: .7rem 0; border-bottom: 1px solid var(--rule); }
+  .commit:last-child { border-bottom: none; padding-bottom: 0; }
+  .commit .h { font-weight: 650; }
+  .commit .m { font-size: .85rem; color: var(--ink-faint); }
+  .commit p { font-size: .9rem; color: var(--ink-soft); margin: .3rem 0 0; }
+  .item { border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1rem; }
+  .item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .opts { margin: .7rem 0 0; display: flex; flex-direction: column; gap: .1rem; }
+  .opt {
+    display: flex; align-items: flex-start; gap: .5rem;
+    padding: .42rem .55rem; border-radius: 6px;
+  }
+  .opt:hover { background: var(--ground); }
+  .opt input { margin-top: .34rem; flex: none; }
+  .opt .txt { flex: 1; min-width: 0; }
+  .fc { color: var(--ink-faint); font-size: .845rem; }
+  .tag {
+    display: inline-block; background: var(--accent-soft); color: var(--accent);
+    font-size: .69rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    padding: .08em .42em; border-radius: 3px; margin-left: .35rem; vertical-align: .1em;
+  }
+  .lc { flex: none; display: flex; align-items: center; gap: .3rem; font-size: .8rem; color: var(--ink-faint); }
+  .oth { width: 100%; margin-top: .3rem; }
+  input[type=text], textarea {
+    font-family: inherit; font-size: .875rem; color: var(--ink);
+    background: #fff; border: 1px solid var(--rule); border-radius: 5px; padding: .38rem .5rem;
+  }
+  input[type=text]:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .notes { width: 100%; margin-top: .55rem; }
+  .notes textarea { width: 100%; min-height: 2.6rem; resize: vertical; }
+  .notes label { display: block; font-size: .78rem; color: var(--ink-faint); margin-bottom: .2rem; }
+  button {
+    font: inherit; font-weight: 650; cursor: pointer;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: 6px; padding: .55rem 1.05rem;
+  }
+  button:hover { filter: brightness(1.08); }
+  #cbout { width: 100%; min-height: 8rem; margin-top: .7rem; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; }
+  .said { color: var(--ok); font-weight: 650; font-size: .85rem; margin-left: .6rem; }
+  .none { color: var(--ok); font-weight: 650; }
+  .fig { margin: .6rem 0 0; font-size: .875rem; }
+</style>
+
+<div class="wrap">
+  <h1>Preflight — origami auto-fit, in both directions and for nested stacks</h1>
+  <p class="sub">
+    BL-16627 &middot; branch <span class="mono">BL-16627-shrink-image-pane</span> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8129" target="_blank" rel="noopener">PR #8129 (draft)</a> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8129/files" target="_blank" rel="noopener">files changed</a> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8129/commits" target="_blank" rel="noopener">commits</a> &middot;
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16627" target="_blank" rel="noopener">BL-16627</a> &middot;
+    HEAD <span class="mono">8833fb4f</span>
+  </p>
+
+  <div class="cols">
+    <!-- ─────────── LEFT: the report ─────────── -->
+    <div class="col">
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <div class="scroll">
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          <tr><td>Typecheck (TypeScript)</td><td class="s ok">pass</td><td>Bloom's <span class="mono">pnpm typecheck</span> — no blunder-class errors</td></tr>
+          <tr><td>Lint (eslint)</td><td class="s ok">pass</td><td>0 errors on changed files. 6 pre-existing warnings in <span class="mono">bloomEditing.ts</span> (verified identical with my changes stashed)</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="s ok">586 pass</td><td>Full suite, 55 files, 5 skipped. Includes 16 new tests</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="s warn">not run</td><td>The only C# change is a <span class="mono">&lt;summary&gt;</span> doc comment in <span class="mono">BookProcessor.cs</span>; it compiled (the pre-commit C# formatter parsed and formatted it). See FYI 4</td></tr>
+          <tr><td>Base integration</td><td class="s ok">clean</td><td><span class="mono">origin/master</span> merged with no conflicts; gate re-run afterward</td></tr>
+          <tr><td>Mergeable</td><td class="s ok">yes</td><td>No conflicts with <span class="mono">master</span></td></tr>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>The bug, and what the fix does</h2>
+        <p>
+          Bloom's off-screen <span class="mono">process-book</span> pass auto-fits origami picture/text
+          splits, and BloomBridge asks it to on every import. It bailed on any nested split &mdash;
+          <span class="mono">// nested split: too complex, skip</span> &mdash; which excluded
+          <strong>text above / illustration / text below</strong>, one of the commonest shapes in a
+          scanned story book.
+        </p>
+        <p>
+          Nothing ever chose those dividers. BloomBridge emits the shape as a right-nested chain of
+          horizontal splits, and with no explicit percentages Bloom's 50/50-per-split CSS default
+          cascades into an effective <strong>50 / 25 / 25</strong>. Those numbers describe the nesting,
+          not the content: the top text block gets half the page for its one line, the illustration is
+          squeezed into a quarter, and the last (usually longest) block is clipped.
+        </p>
+        <p>
+          The fix keys off the fact that every pane in a top/bottom stack has the same <em>width</em>,
+          so each text block's required height is independent of where the dividers sit. Each text pane
+          is therefore measured on its own &mdash; give it a size, ask <span class="mono">OverflowChecker</span>
+          whether it overflows, binary-search the boundary &mdash; and the answers add up. The
+          illustration takes what's left, capped at the height where it already fills the page width;
+          any surplus goes back to the text panes in proportion to what each needed. Measured, never
+          estimated, same as the existing two-pane path.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Measured result</h2>
+        <p class="fig">
+          <span class="mono">FUV_Taale_Taale_Fulbe</span> (Fulfulde, Nigeria; A5Portrait, marginBox
+          469&times;703). <strong>9 of its 11 content pages</strong> are this shape, every one sitting at
+          351.5 / 175.75 / 175.75&nbsp;px. Pane heights in px, top to bottom:
+        </p>
+        <div class="scroll">
+        <table>
+          <tr><th>Page</th><th>Before</th><th>After</th></tr>
+          <tr><td>5</td><td>352 / 176 / <span class="warn">176 clipped</span></td><td>103 / <strong>334</strong> / 266</td></tr>
+          <tr><td>6</td><td>352 / 176 / <span class="warn">176 clipped</span></td><td>224 / 171 / 308</td></tr>
+          <tr><td>7</td><td>352 / 176 / 176</td><td>322 / 213 / 168</td></tr>
+          <tr><td>8</td><td>352 / 176 / <span class="warn">176 clipped</span></td><td>154 / <strong>325</strong> / 224</td></tr>
+          <tr><td>9</td><td><span class="warn">352 clipped</span> / 176 / 176</td><td>490 / 152 / 62</td></tr>
+          <tr><td>10</td><td><span class="warn">352 clipped</span> / 176 / 176</td><td>448 / 129 / 126</td></tr>
+          <tr><td>11</td><td>352 / 176 / <span class="warn">176 clipped</span></td><td>238 / 101 / 364</td></tr>
+          <tr><td>13</td><td><span class="warn">352 clipped</span> / 176 / 176</td><td>364 / 242 / 98</td></tr>
+          <tr><td>14</td><td>352 / 176 / <span class="warn">176 clipped</span></td><td>87 / <strong>397</strong> / 219</td></tr>
+          <tr><td>15</td><td><span class="warn">352 clipped</span> / 352 (no picture)</td><td>unchanged &mdash; out of scope</td></tr>
+        </table>
+        </div>
+        <p class="fig">
+          <strong>9 pages had clipped text before; 0 do after.</strong> Page 15 has two text panes and no
+          illustration, so it isn't in scope; its source page is genuinely over-full (see FYI 3).
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>How the geometry was verified</h2>
+        <p>
+          Bloom's test environment is jsdom, where there is no layout at all &mdash;
+          <span class="mono">offsetHeight</span> and <span class="mono">getBoundingClientRect</span> are
+          always 0, which is why <span class="mono">OverflowSpec</span> is skipped there. So the
+          measuring half of this code cannot be unit-tested in-repo.
+        </p>
+        <p>
+          Instead I loaded the <em>real saved book</em>, with its real Bloom CSS
+          (<span class="mono">basePage.css</span>, <span class="mono">origami.css</span>,
+          <span class="mono">appearance.css</span>, <span class="mono">defaultLangStyles.css</span>), in
+          Chromium and ran <span class="mono">fitImageOverTextSplits()</span> against it, dumping every
+          page's pane heights and overflow state before and after. That is where the table above comes
+          from. The 16 committed unit tests cover what jsdom <em>can</em> check: which pages are
+          recognized as a fittable stack, and the nested percentage arithmetic &mdash; including an
+          assertion that unset splits read as 50/25/25 rather than thirds, which pins the bug itself.
+        </p>
+        <p class="fc">
+          The harness lives in my scratchpad, not the repo &mdash; it needs a book from outside the
+          repo. See decision 1.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>What changed this run</h2>
+        <div class="commit">
+          <div class="h"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7bea4c7186" target="_blank" rel="noopener">7bea4c7</a> &mdash; let auto-fit shrink the image pane, not just grow it</div>
+          <div class="m">pre-existing on the branch, unpushed before this run</div>
+          <p>Replaced the grow-only ratchet with a symmetric deadband, so the divider moves whenever moving it is an improvement in either direction.</p>
+        </div>
+        <div class="commit">
+          <div class="h"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e455270be3" target="_blank" rel="noopener">e455270</a> &mdash; auto-fit nested text/image/text stacks</div>
+          <div class="m">the main change &middot; +662 / &minus;29</div>
+          <p>
+            New <a href="https://github.com/BloomBooks/BloomDesktop/blob/8833fb4f6b2ba1c6d3d3d823476d3bb4f866264d/src/BloomBrowserUI/bookEdit/js/autoFitImageOverTextSplits.ts#L302" target="_blank" rel="noopener"><span class="mono">collectSplitStack</span> (L302)</a>
+            recognizes the shape;
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/8833fb4f6b2ba1c6d3d3d823476d3bb4f866264d/src/BloomBrowserUI/bookEdit/js/autoFitImageOverTextSplits.ts#L438" target="_blank" rel="noopener"><span class="mono">fitImageTextStack</span> (L438)</a>
+            fits it; the old bail is now the
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/8833fb4f6b2ba1c6d3d3d823476d3bb4f866264d/src/BloomBrowserUI/bookEdit/js/autoFitImageOverTextSplits.ts#L89" target="_blank" rel="noopener">stack branch (L89)</a>.
+            Plus the new spec file.
+          </p>
+        </div>
+        <div class="commit">
+          <div class="h"><a href="https://github.com/BloomBooks/BloomDesktop/commit/496767bf2b" target="_blank" rel="noopener">496767b</a> &mdash; restore declined pages exactly, in the two-pane path too</div>
+          <div class="m">from Devin's informational flag</div>
+          <p>
+            Measuring rewrites the split styles repeatedly, so a page we then decline had already been
+            mutated. The old <span class="mono">setTextPercent(originalTextPercent)</span> write-back
+            stamped an explicit <span class="mono">50%</span> onto splits that had no style at all &mdash;
+            putting pages we chose <em>not</em> to touch into the saved HTML's diff. Both paths now restore
+            the captured style attributes
+            (<a href="https://github.com/BloomBooks/BloomDesktop/blob/8833fb4f6b2ba1c6d3d3d823476d3bb4f866264d/src/BloomBrowserUI/bookEdit/js/autoFitImageOverTextSplits.ts#L365" target="_blank" rel="noopener"><span class="mono">captureSplitStyles</span>, L365</a>).
+            No layout change.
+          </p>
+        </div>
+        <div class="commit">
+          <div class="h"><a href="https://github.com/BloomBooks/BloomDesktop/commit/8833fb4f6b" target="_blank" rel="noopener">8833fb4</a> &mdash; bring the doc comments up to date</div>
+          <div class="m">comment-only, no behavior change</div>
+          <p>
+            <span class="mono">captureContentForExternalProcessing</span> and
+            <span class="mono">ProcessBook</span>'s <span class="mono">&lt;summary&gt;</span> both still
+            described the feature as two-pane-only and grow-only. Also corrected a caveat that named
+            BloomBridge as emitting the background image at the full pane rect &mdash; measurement says
+            otherwise (see FYI 2).
+          </p>
+        </div>
+        <div class="commit">
+          <div class="h"><a href="https://github.com/BloomBooks/BloomDesktop/commit/ac2dcc647f" target="_blank" rel="noopener">ac2dcc6</a> &mdash; merge <span class="mono">origin/master</span></div>
+          <div class="m">clean; touched only StyleEditor and talkingBookChecksum</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="scroll">
+        <table>
+          <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+          <tr>
+            <td>Local review</td><td class="s ok">complete</td>
+            <td>
+              Ran <strong>in-session rather than as a sub-agent</strong> &mdash; this session carries a
+              standing rule against spawning agents unrequested, so I reviewed the diff myself instead.
+              1 finding raised, 1 fixed, 0 escalated, 0 dismissed: the image's fill-point cap was being
+              measured <em>after</em> the probing loop had squeezed that very pane, so it read the
+              picture's chrome out of a pane collapsed to its minimum. Now measured up front, at the
+              layout as saved.
+            </td>
+          </tr>
+          <tr>
+            <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8129" target="_blank" rel="noopener">Devin</a></td>
+            <td class="s ok">complete</td>
+            <td id="devin-cell">
+              Ran on all three pushed commits, each waited to completion for that exact sha. Final pass
+              on <span class="mono">8833fb4f</span>: <strong>0 bugs, 0 Investigate</strong> &mdash;
+              re-review clean. Informational flags only throughout (3, then 6, then 7 &mdash; they are not
+              mirrored as threads, but I read every one). Two were worth acting on and became commits
+              <a href="https://github.com/BloomBooks/BloomDesktop/commit/496767bf2b" target="_blank" rel="noopener">496767b</a>
+              and <a href="https://github.com/BloomBooks/BloomDesktop/commit/8833fb4f6b" target="_blank" rel="noopener">8833fb4</a>;
+              the rest were confirmations that the no-overflow invariant holds. Nothing mirrored as a
+              review thread, since Informational items are not posted.
+            </td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td><td class="s">n/a</td>
+            <td>
+              Configured but <strong>switched off</strong> in this repo &mdash;
+              <span class="mono">.coderabbit.yml</span> sets
+              <span class="mono">auto_review.enabled: false</span> and
+              <span class="mono">review_status: false</span>, and it has posted nothing on any of the six
+              most recent BloomDesktop PRs. Not a pending reviewer.
+            </td>
+          </tr>
+          <tr>
+            <td>CI</td><td class="s ok">complete</td>
+            <td>All checks terminal and green on <span class="mono">8833fb4f</span>: <span class="mono">pr-automation</span> pass, <span class="mono">track / set-waiting</span> pass.</td>
+          </tr>
+        </table>
+        </div>
+        <p class="fc">No human comments on the PR yet, so nothing was owed a reply.</p>
+      </div>
+
+      <div class="card">
+        <h2>Session notes</h2>
+        <ul>
+          <li>
+            <strong>The card.</strong> I first filed a separate card for the nested-stack bug
+            (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16634" target="_blank" rel="noopener">BL-16634</a>),
+            then you decided to fold the work into BL-16627 and its existing branch. BL-16634's analysis
+            and screenshots were copied onto BL-16627 as a comment, and BL-16634 is closed as a duplicate
+            and linked. Nothing is orphaned.
+          </li>
+          <li>
+            <strong>Stacked on unpushed work.</strong> BL-16627's own commit
+            (<span class="mono">7bea4c7</span>) had never been pushed and had no PR, so PR&nbsp;#8129
+            carries both changes. That's deliberate: my nested code builds directly on the bidirectional
+            behavior that commit introduced.
+          </li>
+          <li>
+            <strong>Posted to BL-16627:</strong> the nested-stack analysis with before/after screenshots,
+            the PR link, a QA test-ideas comment, and this report's link.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ─────────── RIGHT: decisions ─────────── -->
+    <div class="col">
+
+      <div class="card">
+        <h2>Nothing is blocking</h2>
+        <p>
+          Every gate is green and no reviewer raised a bug or an Investigate flag, so there is nothing
+          here you have to answer before this can go to your own review. What follows are judgment calls
+          and things worth knowing &mdash; all with a recommended default already selected.
+        </p>
+      </div>
+
+      <div class="card" id="decisions">
+        <h2>Decisions</h2>
+
+        <div class="item" data-item="harness">
+          <h3>1. Should the real-browser verification harness live in the repo?</h3>
+          <p>
+            The numbers in this report come from a small script that bundles the auto-fit module, loads a
+            real saved Bloom book in Chromium, runs the fitting, and reports each page's pane heights and
+            whether any text overflows. It is the only way to test this code's actual arithmetic, because
+            jsdom has no layout &mdash; the 16 committed tests can only check shape recognition and the
+            percentage maths.
+          </p>
+          <p>
+            Right now that script is in my scratchpad and will be thrown away. The awkward part is that it
+            needs a real book to run against, and the books live outside the repo, so it cannot simply
+            become part of <span class="mono">pnpm test</span>. The repo does already have Playwright
+            suites (<span class="mono">bookEdit/canvas-e2e-tests</span>), but those drive a running Bloom
+            rather than a saved book on disk.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-harness" value="commit-with-fixture" data-q="1. Verification harness">
+              <span class="txt">Commit it with a small checked-in fixture book, so the geometry is covered by an automated test from now on.<span class="fc"> (moderate &mdash; needs a trimmed fixture book plus its CSS committed, and a new runner entry point; the ongoing value is that this arithmetic never silently regresses)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-harness" value="commit-manual">
+              <span class="txt">Commit it as a developer-run tool that takes a book path as an argument, documented but not part of CI.<span class="fc"> (~small &mdash; mostly moving the script in and writing a short README; anyone changing this code later can re-run it against any book)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-harness" value="leave" checked>
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-harness" data-q="1. Verification harness — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-harness" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-harness" data-q="1. Verification harness — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-harness" data-q="1. Verification harness — notes"></textarea></div>
+          <p class="fc" style="margin-top:.5rem">
+            Recommended to leave it: committing a fixture book and a bespoke runner is real ongoing
+            maintenance for one function, and the no-overflow guarantee is the part that matters &mdash;
+            which is asserted by the committed tests plus the fact that a human sees clipped text
+            immediately. Worth revisiting if this code gets touched again.
+          </p>
+        </div>
+
+        <div class="item" data-item="bloombridge">
+          <h3>2. Should BloomBridge also emit sensible starting percentages?</h3>
+          <p>
+            BloomBridge currently emits these pages with <em>no</em> split percentages at all, which is
+            what leaves Bloom's CSS default cascading into 50/25/25. Bloom now fixes that during import,
+            so the books come out right &mdash; but BloomBridge's own page previews are generated
+            <em>before</em> Bloom processes the book, so its preview and its "text overflows" badge will
+            still show the bad 50/25/25 layout for these pages even though the delivered book is fine.
+          </p>
+          <p>
+            I deliberately did <strong>not</strong> change BloomBridge, and it's worth knowing why. Its
+            <span class="mono">fitImagePanes</span> heuristic estimates text height rather than measuring
+            it, and the estimate is deliberately pessimistic (it assumes ~16pt text and sums every
+            language). On the example page that estimate is roughly <em>twice</em> the real height, so
+            handing the three-pane case to it would have given the illustration about 16% of the page
+            &mdash; <em>smaller</em> than the 25% it gets today. Making it better means feeding it the
+            book's real font size and paragraph spacing, which is a change to the two-pane path as well,
+            with its own regression risk. Bloom measures real layout and cannot be wrong this way, so the
+            fix belongs where I put it.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-bb" value="card" checked data-q="2. BloomBridge follow-up">
+              <span class="txt">File a BloomBridge card for the preview/badge mismatch, so the false "text overflows" alarm on imported previews is tracked.<span class="tag">recommended</span><span class="fc"> (no code now &mdash; just a card capturing the estimator's calibration problem and the misleading preview)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-bb" value="fix-now">
+              <span class="txt">Fix BloomBridge's estimator now &mdash; feed it the real font size and paragraph spacing, then extend it to three-pane stacks.<span class="fc"> (moderate-to-large &mdash; touches the existing two-pane heuristic and its tests, and risks regressing books that currently fit; the overflow guard is the only safety net)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-bb" value="leave">
+              <span class="txt">Leave as is</span>
+              <label class="lc"><input type="checkbox" name="lc-bb" data-q="2. BloomBridge follow-up — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-bb" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-bb" data-q="2. BloomBridge follow-up — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-bb" data-q="2. BloomBridge follow-up — notes"></textarea></div>
+        </div>
+
+        <div class="item" data-item="sidebyside">
+          <h3>3. Side-by-side stacks of three or more panes are still skipped</h3>
+          <p>
+            The new code handles top-to-bottom stacks only. In a left/right stack the panes have
+            different <em>widths</em>, and a text block's required height depends on how wide its pane is
+            &mdash; so the panes stop being independent and the measure-each-one-separately trick this
+            fix rests on no longer works. Fitting those would need a genuinely two-dimensional search.
+          </p>
+          <p>
+            Such pages are left exactly as authored, which is what happened before this change too, so
+            nothing regresses. I have not seen one in the books we've imported.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-sbs" value="card">
+              <span class="txt">File a follow-up card so it's on the record as a known gap.<span class="fc"> (no code &mdash; a card only)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-sbs" value="implement">
+              <span class="txt">Handle them too, with a two-dimensional search.<span class="fc"> (large &mdash; a different algorithm from this one, and no known book that needs it)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-sbs" value="leave" checked data-q="3. Side-by-side stacks">
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-sbs" data-q="3. Side-by-side stacks — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-sbs" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-sbs" data-q="3. Side-by-side stacks — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-sbs" data-q="3. Side-by-side stacks — notes"></textarea></div>
+          <p class="fc" style="margin-top:.5rem">
+            Recommended to leave it: the code already declines these safely and documents why, and there
+            is no book asking for it. The reason is written down at the decision point, so whoever hits
+            such a page will find the explanation.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>For your information</h2>
+
+        <div class="item" data-item="fyi-local">
+          <h3>FYI 1. The local review ran in-session, not as a sub-agent</h3>
+          <p>
+            Preflight's default is to dispatch one general-purpose sub-agent over the diff. This session
+            carries a standing instruction not to spawn agents unless you ask, so I did the review myself
+            instead. It found and fixed one real issue (the fill-point cap being measured after the
+            probing loop had squeezed the pane). Flagging it so you know the review happened, but by a
+            different route than the skill describes &mdash; a second opinion from a fresh agent is still
+            available if you want one.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-local" value="rerun">
+              <span class="txt">Run a proper sub-agent review pass over the diff as a second opinion.<span class="fc"> (cheap &mdash; one agent over a ~700-line diff)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-local" value="leave" checked data-q="FYI 1. Local review route">
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-local" data-q="FYI 1. Local review route — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-local" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-local" data-q="FYI 1. Local review route — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-local" data-q="FYI 1. Local review route — notes"></textarea></div>
+        </div>
+
+        <div class="item" data-item="fyi-caveat">
+          <h3>FYI 2. A code comment on the branch was asserting something untrue</h3>
+          <p>
+            <span class="mono">7bea4c7</span> added a caveat saying BloomBridge "emits the background
+            element at the full PANE rect", which would make the image-fit cap useless on a freshly
+            imported book. Measurement contradicts it: on this book BloomBridge writes the pane's height
+            by the picture's proportional width, giving an aspect of 0.7869 against the picture's own
+            975&times;1239 = 0.7869 &mdash; exactly right. I kept the warning, since an importer that
+            <em>did</em> size the box to the pane would cost us whitespace, but restated it generically and
+            recorded what BloomBridge was actually measured to do. Mentioning it because the original
+            claim was yours and you may know a case where it does hold.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-caveat" value="revisit">
+              <span class="txt">I know of a case where it does emit the full pane rect &mdash; restore the specific warning.<span class="fc"> (tiny &mdash; a comment edit, but tell me the case so it's written down accurately)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-caveat" value="leave" checked data-q="FYI 2. Corrected caveat">
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-caveat" data-q="FYI 2. Corrected caveat — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-caveat" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-caveat" data-q="FYI 2. Corrected caveat — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-caveat" data-q="FYI 2. Corrected caveat — notes"></textarea></div>
+        </div>
+
+        <div class="item" data-item="fyi-p15">
+          <h3>FYI 3. One page in the sample book still has clipped text</h3>
+          <p>
+            Page 15 is two text panes with no illustration. It has no picture to reclaim space from, and
+            its text genuinely does not fit the page even with almost all of it &mdash; so the code
+            deliberately leaves it exactly as authored rather than shuffling dividers into something both
+            still clipped and now ugly. It is a property of that source page, not of this change, and it
+            behaved identically before. Noting it so the "0 pages clipped" claim above is not read as
+            "the whole book is clean".
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-p15" value="investigate">
+              <span class="txt">Look into over-full text-only pages separately (e.g. shrinking text, or splitting the page).<span class="fc"> (large and a different feature &mdash; changing text size or page flow, not divider positions)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-p15" value="leave" checked data-q="FYI 3. Over-full text-only page">
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-p15" data-q="FYI 3. Over-full text-only page — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-p15" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-p15" data-q="FYI 3. Over-full text-only page — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-p15" data-q="FYI 3. Over-full text-only page — notes"></textarea></div>
+        </div>
+
+        <div class="item" data-item="fyi-cs">
+          <h3>FYI 4. The C# test suite was not run</h3>
+          <p>
+            The one C# change is a <span class="mono">&lt;summary&gt;</span> doc comment on
+            <span class="mono">BookProcessor.ProcessBook</span>, describing the feature's new scope. No
+            executable C# changed. It does compile &mdash; the pre-commit hook's C# formatter parsed and
+            reformatted the file &mdash; but I did not run <span class="mono">dotnet test</span>, since
+            the repo's own guidance warns that building C# while Bloom is running fails on locked output,
+            and a comment cannot change behavior.
+          </p>
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-cs" value="run">
+              <span class="txt">Run the C# build and test suite anyway before this goes further.<span class="fc"> (slow but mechanical &mdash; needs Bloom closed, or the <span class="mono">build/agent-dotnet</span> wrapper)</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-cs" value="leave" checked data-q="FYI 4. C# suite not run">
+              <span class="txt">Leave as is<span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="lc-cs" data-q="FYI 4. C# suite not run — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-cs" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-cs" data-q="FYI 4. C# suite not run — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-cs" data-q="FYI 4. C# suite not run — notes"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Next step</h2>
+        <div class="item" data-item="next">
+          <div class="opts">
+            <div class="opt">
+              <input type="radio" name="q-next" value="implement" checked data-q="Next step">
+              <span class="txt">Go ahead and act on whatever I chose above, then stop.<span class="tag">recommended</span></span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-next" value="discuss">
+              <span class="txt">Let's talk through my answers first before you change anything.</span>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-next" value="nothing">
+              <span class="txt">Leave as is &mdash; nothing more to do; I'll review the PR myself now.</span>
+              <label class="lc"><input type="checkbox" name="lc-next" data-q="Next step — leave comment"> Leave comment</label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q-next" value="other">
+              <span class="txt">Other: <input type="text" class="oth" name="oth-next" data-q="Next step — other" placeholder="..."></span>
+            </div>
+          </div>
+          <div class="notes"><label>Notes</label><textarea name="notes-next" data-q="Next step — notes"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Send your answers back</h2>
+        <p>Copy this and paste it into the session.</p>
+        <button id="cbbtn" type="button">Copy my answers</button><span id="cbsaid" class="said" hidden>copied</span>
+        <textarea id="cbout" readonly></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var LABEL = {
+    "q-harness": "1. Verification harness",
+    "q-bb": "2. BloomBridge follow-up",
+    "q-sbs": "3. Side-by-side stacks",
+    "q-local": "FYI 1. Local review route",
+    "q-caveat": "FYI 2. Corrected caveat",
+    "q-p15": "FYI 3. Over-full text-only page",
+    "q-cs": "FYI 4. C# suite not run",
+    "q-next": "Next step"
+  };
+  function textFor(radio) {
+    var t = radio.parentElement.querySelector(".txt");
+    if (!t) return radio.value;
+    var c = t.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll(".fc, .tag, input, label"), function (n) { n.remove(); });
+    return c.textContent.replace(/\s+/g, " ").trim().replace(/:$/, "");
+  }
+  function build() {
+    var out = ["Preflight answers — BL-16627 (PR #8129)", ""];
+    Object.keys(LABEL).forEach(function (name) {
+      var sel = document.querySelector('input[name="' + name + '"]:checked');
+      if (!sel) return;
+      var suffix = name.replace(/^q-/, "");
+      var answer;
+      if (sel.value === "other") {
+        var box = document.querySelector('input[name="oth-' + suffix + '"]');
+        answer = "Other: " + ((box && box.value.trim()) || "(nothing written)");
+      } else {
+        answer = textFor(sel);
+      }
+      out.push(LABEL[name] + ": " + answer);
+      var lc = document.querySelector('input[name="lc-' + suffix + '"]');
+      if (lc && lc.checked && sel.value === "leave") out.push("  Leave comment: yes — record this decision as a code comment in the repo");
+      var notes = document.querySelector('textarea[name="notes-' + suffix + '"]');
+      if (notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim().replace(/\n+/g, " / "));
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+  function refresh() { document.getElementById("cbout").value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("cbbtn").addEventListener("click", function () {
+    var ta = document.getElementById("cbout");
+    refresh();
+    var said = document.getElementById("cbsaid");
+    function ok() { said.hidden = false; setTimeout(function () { said.hidden = true; }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(ok, function () { ta.select(); try { document.execCommand("copy"); ok(); } catch (e) {} });
+    } else {
+      ta.select();
+      try { document.execCommand("copy"); ok(); } catch (e) {}
+    }
+  });
+})();
+</script>
