@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — Leveled Reader orange numbers (BL-16408)</title>
+<style>
+:root {
+  color-scheme: light;
+  --ground: #f5f7f8;
+  --card: #ffffff;
+  --ink: #182026;
+  --muted: #5a6873;
+  --rule: #dde5e8;
+  --rule-soft: #eef3f5;
+  --accent: #0e6e7c;
+  --accent-soft: #b0dee4;
+  --over: #c25e00;
+  --over-bg: #fdf1e5;
+  --within: #2c7a55;
+  --within-bg: #eaf5ee;
+  --neutral-bg: #eef1f3;
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1360px; margin: 0 auto; padding: 32px 24px 72px; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; line-height: 1.25; letter-spacing: -0.01em; }
+h2 { font-size: 20px; }
+h3 { font-size: 16.5px; }
+p { margin: 0; }
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+code { background: var(--rule-soft); padding: 1px 5px; border-radius: 3px; }
+
+header.page { border-bottom: 1px solid var(--rule); padding-bottom: 22px; margin-bottom: 28px; }
+.eyebrow { font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; }
+
+.cols { display: grid; grid-template-columns: 1.45fr 1fr; gap: 26px; align-items: start; }
+@media (max-width: 1000px) { .cols { grid-template-columns: 1fr; } }
+.col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; }
+.card > * + * { margin-top: 14px; }
+.card h2 + p, .card h3 + p { margin-top: 10px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.scroll { overflow-x: auto; }
+th { text-align: left; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 0 10px 7px 0; border-bottom: 1px solid var(--rule); }
+td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pill { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.02em; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+.pill.ok { background: var(--within-bg); color: var(--within); }
+.pill.warn { background: var(--over-bg); color: var(--over); }
+.pill.neutral { background: var(--neutral-bg); color: var(--muted); }
+
+ul.plain { margin: 0; padding-left: 18px; }
+ul.plain li + li { margin-top: 7px; }
+.commit { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; }
+.commit .sha { font-family: var(--mono); font-size: 12.5px; padding-top: 2px; }
+.commit + .commit { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--rule-soft); }
+
+.statdemo { display: inline-grid; grid-template-columns: auto auto auto auto; gap: 4px 18px; font-size: 14px; align-items: baseline; }
+.statdemo .h { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.statdemo .v { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.statdemo .was { color: var(--within); }
+.statdemo .now { color: var(--over); font-weight: 600; }
+
+.item { border: 1px solid var(--rule); border-radius: 6px; background: var(--card); padding: 18px 20px; }
+.item > * + * { margin-top: 12px; }
+.item .tag { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+.opts { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.opt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 9px 10px; border-radius: 5px; font-size: 14px; }
+.opt:hover { background: var(--rule-soft); }
+.opt input[type=radio] { margin: 4px 0 0; accent-color: var(--accent); }
+.opt .fx { display: block; color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+.opt .rec { display: inline-block; margin-left: 7px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: #e8f5f7; padding: 1px 7px; border-radius: 999px; vertical-align: 1px; }
+.leavec { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+.leavec input { accent-color: var(--accent); margin: 0; }
+input[type=text], textarea {
+  width: 100%; font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+  background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 7px 9px;
+}
+input[type=text]::placeholder, textarea::placeholder { color: #93a1ab; }
+.notes { margin-top: 10px; }
+.notes label { display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+button {
+  font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff;
+  background: var(--accent); border: none; border-radius: 5px; padding: 9px 18px; cursor: pointer;
+}
+button:hover { background: #0b5b66; }
+#copyOut { margin-top: 12px; min-height: 130px; font-family: var(--mono); font-size: 12px; line-height: 1.5; }
+.copied { font-size: 13px; color: var(--within); margin-left: 12px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <div class="eyebrow">Preflight report</div>
+  <h1>Leveled Reader: restore orange for over-limit statistics</h1>
+  <div class="facts">
+    <span><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8131" target="_blank" rel="noopener">BloomDesktop #8131</a> · draft</span>
+    <span><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16408" target="_blank" rel="noopener">BL-16408</a>, <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16628" target="_blank" rel="noopener">BL-16628</a></span>
+    <span><b>Branch</b> <span class="mono">BL-16408-lr-orange-number-regression</span> → <span class="mono">master</span></span>
+    <span><b>HEAD</b> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/e38ccc662a" target="_blank" rel="noopener">e38ccc662a</a></span>
+    <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8131/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8131/commits" target="_blank" rel="noopener">Commits</a></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- ======================= LEFT: the run ======================= -->
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Typecheck (<span class="mono">pnpm typecheck</span>)</td><td><span class="pill ok">pass</span></td><td class="num">0 errors</td></tr>
+          <tr><td>Lint (<span class="mono">pnpm lint</span>)</td><td><span class="pill ok">pass</span></td><td>0 errors; 1 warning in the new spec (<code>any</code> on the settings fixture, matching the neighbouring <span class="mono">readerTools.spec.ts</span>)</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td><span class="pill ok">pass</span></td><td class="num" id="tsTests">577 passed · 5 skipped · 56 files</td></tr>
+          <tr><td>C# tests (<span class="mono">dotnet test</span>)</td><td><span class="pill neutral">not runnable here</span></td><td>This worktree has no populated <span class="mono">output\browser</span>, so 1094 of 2979 tests fail on <span class="mono">Could not find the directory output\browser\templates\xMatter</span>. Only the full <span class="mono">pnpm build</span> creates it, which project instructions forbid me from running. No C# file is touched by this change; CI covers it. See the FYI at right.</td></tr>
+          <tr><td>Merge with <span class="mono">origin/master</span></td><td><span class="pill ok">clean</span></td><td>Already up to date; no conflicts</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/5feda4660c" target="_blank" rel="noopener">5feda46</a></div>
+      <div><b>Restore orange for over-limit statistics.</b> The React conversion hardcoded the level maximum to <code>0</code> for two rows, which permanently disabled their over-the-limit test. They now get the real limits again — the same ones the pre-React <span class="mono">readerToolsModel.updateActualCount</span> used — and a new <code>hideMaxNum</code> prop keeps the Max cell blank on exactly those two rows, so the panel looks identical to 6.4. Averages are also compared at full precision instead of comparing the rounded string that is displayed.</div>
+    </div>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/411cca15d7" target="_blank" rel="noopener">411cca1</a></div>
+      <div><b>Assert on a class, not on stylesheet colours.</b> Devin pointed out the new test was reading the generated CSS to decide pass/fail, which <a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/src/BloomBrowserUI/AGENTS.md#L52" target="_blank" rel="noopener">the project's own test guidance</a> rules out. <span class="mono">StatsRow</span> now marks the value cell <code>tooLarge</code> or <code>acceptable</code> (the pre-React names) and the test checks that. The test also finds a row by its label instead of by the number it displays.</div>
+    </div>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e38ccc662a" target="_blank" rel="noopener">e38ccc6</a></div>
+      <div><b>Cover changing level.</b> The conversion had deleted the two tests that watched level maximums, and this fix depends on the limits being current every time the panel draws — so there is now a test that switches level, re-renders, and checks both the displayed limit and the flagged/not-flagged state follow the new level.</div>
+    </div>
+    <p style="color:var(--muted); font-size:13.5px">The two rows that were stuck green, at a level whose limits they exceed:</p>
+    <div class="scroll">
+      <div class="statdemo">
+        <div class="h">Row</div><div class="h">Limit it is judged against</div><div class="h">Before</div><div class="h">After</div>
+        <div>This Book → longest sentence</div><div><span class="mono">maxWordsPerSentence</span></div><div class="v was">16</div><div class="v now">16</div>
+        <div>Word Lengths → max in book</div><div><span class="mono">maxGlyphsPerWord</span></div><div class="v was">6</div><div class="v now">6</div>
+      </div>
+    </div>
+    <p style="font-size:13.5px"><a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/src/BloomBrowserUI/bookEdit/toolbox/readers/leveledReader/LeveledReaderToolControls.tsx#L249" target="_blank" rel="noopener">LeveledReaderToolControls.tsx:249</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/src/BloomBrowserUI/bookEdit/toolbox/readers/leveledReader/LeveledReaderToolControls.tsx#L284" target="_blank" rel="noopener">:284</a> (the two restored limits) · <a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/src/BloomBrowserUI/bookEdit/toolbox/readers/leveledReader/LeveledReaderToolControls.tsx#L183" target="_blank" rel="noopener">:183</a> (<span class="mono">isOverMax</span>) · <a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/src/BloomBrowserUI/bookEdit/toolbox/readers/leveledReader/LeveledReaderToolControls.spec.tsx#L193" target="_blank" rel="noopener">spec:193</a> (the level-change test)</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Local review<br><span style="color:var(--muted);font-size:12.5px">light sub-agent pass</span></td>
+            <td><span class="pill ok">clean</span></td>
+            <td>No findings. It independently re-derived the pre-React limit for all fourteen rows and matched them against the new code, checked the <span class="mono">Infinity</span> / <code>0</code> / undefined paths, and mutation-tested the spec (reverting each part of the fix in turn to confirm the tests fail).</td>
+          </tr>
+          <tr>
+            <td>Devin<br><span style="color:var(--muted);font-size:12.5px"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8131" target="_blank" rel="noopener">review page</a></span></td>
+            <td><span class="pill ok" id="devinState">complete</span></td>
+            <td id="devinOutcome">
+              1 Bug — the stylesheet-parsing test, a real breach of the project's test guidance. <b>Fixed</b> in <span class="mono">411cca1</span>; Devin now reports it resolved.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8131#discussion_r3685474881" target="_blank" rel="noopener">Thread</a> replied and resolved.<br>
+              1 Investigate — "a third row lost its over-limit check too". <b>Not an issue:</b> Devin compared against an April 2021 commit; <span class="mono">31e9f29703</span> ("Fix check for max number of sentences in a book", BL-9885) deliberately changed that comparison later, and 6.4 as shipped uses the same limit the React code does.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8131#discussion_r3685476463" target="_blank" rel="noopener">Thread</a> replied and resolved.<br>
+              10 informational items across three passes — not mirrored (low signal) but each assessed, and <b>3 acted on</b>: non-integer test data, the fixture-uniqueness coupling, and the missing level-change coverage. One (<span class="mono">Infinity</span> is treated as within-limit before level data loads) corroborates the French-collection analysis below. One I deliberately left: a statistic of <span class="mono">NaN</span> now counts as within-limit where 6.4 counted it as a violation — reaching it needs a book with no pages, and such a value renders as "NaN" on screen whatever colour it is.<br>
+              Waited 3 min, 3 min and 5 min for the three passes; each completed well inside the 30-minute cap. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8131#issuecomment-5135226794" target="_blank" rel="noopener">Consultation log</a>.
+            </td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td><span class="pill neutral">disabled in this repo</span></td>
+            <td>The repo's <a href="https://github.com/BloomBooks/BloomDesktop/blob/e38ccc662a/.coderabbit.yml" target="_blank" rel="noopener"><span class="mono">.coderabbit.yml</span></a> sets <span class="mono">reviews.auto_review.enabled: false</span>, so it does not review automatically and there is nothing to wait for. No Greptile config or history on this repo either.</td>
+          </tr>
+          <tr>
+            <td>CI</td>
+            <td><span class="pill ok">pass</span></td>
+            <td><span class="mono">pr-automation</span> and <span class="mono">track / set-waiting</span> both green on <span class="mono">e38ccc6</span>. (BloomDesktop runs no build/test workflow on PRs; <span class="mono">pr-automation</span> is what triggers Devin.)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What the French collection's settings told us</h2>
+    <p>Mid-run you sent <span class="mono">ReaderToolsSettings-fr.json</span> from the French Decodable Leveled pack, which settles a question the two screenshots on the card had left open. In that pack the levels limit quite different things: <b>levels 1–3</b> limit letters per word (6, 8, 10) and set no sentence limits at all, <b>levels 4–6</b> limit words per sentence (5, 10, 15) and set no word-length limit, and <b>level 7</b> limits only sentences per page.</p>
+    <p>I ran the real settings through the fixed component at every level. <b>LR2's case is fixed:</b> on levels 4, 5 or 6, the book's longest sentence of 16 words is now flagged orange, which is exactly what the tester expected. <b>LR1's case depends on which level the book is at:</b> on levels 1–3 its 11-letter word is now orange, but on levels 4–7 it stays green, and correctly so — those levels set no word-length limit, and 6.4 left it green too.</p>
+    <p>That matters because LR1's screenshot shows a <i>blank</i> Max cell on the "Word Lengths → this page" row, which only happens when the level has no word-length limit (4–7) — or when the tool has no level data at all. So either LR1 is on a level where green is the right answer, or something stopped the tool from seeing the level's limits. The first decision at right is about which.</p>
+  </section>
+
+  <section class="card">
+    <h2>Also done</h2>
+    <ul class="plain">
+      <li>The PR link and a refreshed QA test-ideas comment are both on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16408" target="_blank" rel="noopener">BL-16408</a>. The test ideas lead with how the Max/Actual colouring works, then walk the French quick test level by level and ask the tester to record the "Level N of M" reading, since that is what decides whether a number should be orange.</li>
+      <li>The PR is deliberately still a <b>draft</b>, and no teammate review has been requested — that is <span class="mono">/pr-ready-for-human</span>'s job, after your own review.</li>
+      <li>Both Devin threads carry a written outcome and are resolved, so a human reviewer sees why each was closed.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ======================= RIGHT: decisions ======================= -->
+<div class="col">
+
+  <section class="item">
+    <div class="tag">Decision</div>
+    <h3>Does LR1 in the French quick test need more work than this?</h3>
+    <p>The tester reported two numbers that should have been orange and weren't. This PR definitely fixes LR2's (the 16-word sentence). LR1's — an 11-letter word under "Word Lengths → max in book" — is only <i>supposed</i> to be orange if that book is sitting on level 1, 2 or 3, because those are the only levels in that pack that limit word length. On levels 4–7 green is the correct answer and always was.</p>
+    <p>The reason to look twice is that LR1's screenshot shows nothing in the Max column on the row above it ("this page"), and on levels 1–3 that cell should show 6, 8 or 10. Two things could explain that: the book is simply on a level with no word-length limit (nothing more to do), or the tool drew its panel before it knew the level's limits, in which case every limit reads as unknown, every Max cell goes blank, and nothing can ever be flagged — a different bug, in the same panel, that this PR does not address. Devin independently noticed that unknown limits are silently treated as within-limit, which is what that failure would look like.</p>
+    <div class="opts">
+      <div class="opt">
+        <label><input type="radio" name="q1" data-q="LR1 in the French quick test" value="Ask QA to re-test and report the level number" checked> Have QA re-run the quick test and report LR1's level number and whether its &quot;this page&quot; Max cell shows a number <span class="rec">recommended</span>
+          <span class="fx">No code. The test-ideas comment already asks for exactly this, and the answer decides whether there is a second bug at all — worth knowing before writing any code for it, recommended because a screenshot of the level indicator settles in one minute what could otherwise be an afternoon of speculative work.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q1" data-q="LR1 in the French quick test" value="Investigate the stale-limits path now, in this PR"> Investigate the stale-limits path now and fix it here if it's real
+          <span class="fx">Moderate — the panel reads the limits during render, and nothing re-renders it when the level number is set from code (only the level arrows and page changes do), so this means touching how the tool is told to refresh. Higher risk of regressions in a fix that is currently very contained.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q1" data-q="LR1 in the French quick test" value="Leave as is"> Leave as is
+          </label>
+        <span class="leavec"><input type="checkbox" data-q="LR1 in the French quick test — leave comment"> Leave comment</span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q1" data-q="LR1 in the French quick test" value="Other"> Other:
+          <input type="text" data-q="LR1 in the French quick test — other" placeholder="…"></label>
+        <span></span>
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="LR1 in the French quick test — notes" placeholder="Anything to add"></textarea></div>
+  </section>
+
+  <section class="item">
+    <div class="tag">Decision</div>
+    <h3>&quot;Sentence Counts → total in book&quot; can never turn orange</h3>
+    <p>While checking Devin's claim that a third row had lost its colouring, I found something slightly different and pre-existing. That row is judged against a limit called "maximum sentences per book", and although the setting exists in the data, <b>nothing in Bloom ever writes it</b> — the Set Up Levels dialog has no field for it. So the limit is always zero, which means "no limit", which means the number can never be flagged, no matter how many sentences a book has. The code already carries a comment saying as much.</p>
+    <p>This is not a regression: 6.4 behaves identically, and it is outside what this PR set out to fix. But it does mean the row is decoration — it shows a count that is never judged against anything.</p>
+    <div class="opts">
+      <div class="opt">
+        <label><input type="radio" name="q2" data-q="total in book can never turn orange" value="File a separate card" checked> File a separate card describing it, and leave this PR alone <span class="rec">recommended</span>
+          <span class="fx">No code here — one tracker card. Recommended because it is a real product gap worth deciding on deliberately (add the missing setting, or drop the limit column for that row), and neither of those belongs in a regression fix.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q2" data-q="total in book can never turn orange" value="Add the missing setting to Set Up Levels now"> Add the missing "maximum sentences per book" field to Set Up Levels now
+          <span class="fx">Moderate — a new control in the levels dialog plus its saving, its localized label, and a new user-facing limit. Beyond this PR's scope and worth its own review.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q2" data-q="total in book can never turn orange" value="Leave as is"> Leave as is
+          </label>
+        <span class="leavec"><input type="checkbox" data-q="total in book can never turn orange — leave comment"> Leave comment</span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q2" data-q="total in book can never turn orange" value="Other"> Other:
+          <input type="text" data-q="total in book can never turn orange — other" placeholder="…"></label>
+        <span></span>
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="total in book can never turn orange — notes" placeholder="Anything to add"></textarea></div>
+  </section>
+
+  <section class="item">
+    <div class="tag">FYI</div>
+    <h3>An average showing &quot;9.0&quot; can now be orange</h3>
+    <p>The average rows are displayed rounded to one decimal place. Before this change the colour was decided from that rounded text, so an average of 9.04 against a limit of 9 counted as within the limit. It is now decided from the real value, so that row goes orange while still displaying "9.0" — which is what 6.4 did, and why I changed it back. The cost is that an author can see an orange number that looks equal to its limit with no way to tell why. The QA notes already warn the tester not to file that as a bug.</p>
+    <div class="opts">
+      <div class="opt">
+        <label><input type="radio" name="q3" data-q="average showing 9.0 can be orange" value="Leave as is" checked> Leave as is <span class="rec">recommended</span>
+          </label>
+        <span class="leavec"><input type="checkbox" data-q="average showing 9.0 can be orange — leave comment"> Leave comment</span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q3" data-q="average showing 9.0 can be orange" value="Show more precision when the average is over the limit"> Show more precision on an average that is over its limit, so the orange explains itself
+          <span class="fx">Small — one formatting branch, about ten lines. But it is a visible change to a panel we have just been asked to make match 6.4, so it would want its own decision and a QA pass.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q3" data-q="average showing 9.0 can be orange" value="Other"> Other:
+          <input type="text" data-q="average showing 9.0 can be orange — other" placeholder="…"></label>
+        <span></span>
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="average showing 9.0 can be orange — notes" placeholder="Anything to add"></textarea></div>
+  </section>
+
+  <section class="item">
+    <div class="tag">FYI</div>
+    <h3>The C# test suite can't run in this worktree</h3>
+    <p>This change is entirely TypeScript — no C# file is touched — but the preflight checklist wants every language's suite run, so I tried. The build first failed for missing dependencies, which I fixed with <span class="mono">build/getDependencies-windows.sh</span>; after that the suite built and ran, but 1094 of its 2979 tests fail because there is no <span class="mono">output\browser</span> content in this worktree to find. The only thing that creates it is the full <span class="mono">pnpm build</span> that <span class="mono">init.sh</span> ends with, and the project instructions tell me not to run that (it wipes the shared output a running Bloom is using). So this worktree has never been fully initialized, and the C# result is environmental rather than anything about this branch.</p>
+    <div class="opts">
+      <div class="opt">
+        <label><input type="radio" name="q4" data-q="C# suite cannot run in this worktree" value="Leave as is" checked> Leave as is — rely on CI for C# on this branch <span class="rec">recommended</span>
+          </label>
+        <span class="leavec"><input type="checkbox" data-q="C# suite cannot run in this worktree — leave comment"> Leave comment</span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q4" data-q="C# suite cannot run in this worktree" value="Run init.sh yourself to finish initializing this worktree"> You run <span class="mono">./init.sh</span> yourself (stopping Bloom first) so future runs here can test C#
+          <span class="fx">No production code — a one-off setup step on your side, a few minutes. Worth it if you expect to keep working C# in this worktree.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q4" data-q="C# suite cannot run in this worktree" value="Other"> Other:
+          <input type="text" data-q="C# suite cannot run in this worktree — other" placeholder="…"></label>
+        <span></span>
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="C# suite cannot run in this worktree — notes" placeholder="Anything to add"></textarea></div>
+  </section>
+
+  <section class="item">
+    <div class="tag">Next step</div>
+    <h3>How should I proceed?</h3>
+    <div class="opts">
+      <div class="opt">
+        <label><input type="radio" name="q5" data-q="Next step" value="Implement my answers straight away" checked> Implement my answers straight away <span class="rec">recommended</span>
+          <span class="fx">Each answer above is self-contained, so there is nothing that needs talking through first.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q5" data-q="Next step" value="Discuss first"> Let's discuss before any of it lands
+          <span class="fx">No code until we've talked.</span></label>
+        <span></span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q5" data-q="Next step" value="Leave as is"> Leave as is
+          </label>
+        <span class="leavec"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span>
+      </div>
+      <div class="opt">
+        <label><input type="radio" name="q5" data-q="Next step" value="Other"> Other:
+          <input type="text" data-q="Next step — other" placeholder="…"></label>
+        <span></span>
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="Next step — notes" placeholder="Anything to add"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Send your answers back</h3>
+    <p style="color:var(--muted);font-size:13.5px">Copy this and paste it into the session.</p>
+    <div><button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>Copied</span></div>
+    <textarea id="copyOut" readonly aria-label="Your answers"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var out = document.getElementById("copyOut");
+  var btn = document.getElementById("copyBtn");
+  var msg = document.getElementById("copiedMsg");
+
+  function serialize() {
+    var lines = ["Preflight answers — BL-16408 / PR #8131", ""];
+    var groups = ["q1", "q2", "q3", "q4", "q5"];
+    groups.forEach(function (name) {
+      var radios = document.querySelectorAll('input[name="' + name + '"]');
+      if (!radios.length) return;
+      var label = radios[0].getAttribute("data-q");
+      var chosen = null;
+      radios.forEach(function (r) { if (r.checked) chosen = r.value; });
+      if (chosen === "Other") {
+        var otherBox = document.querySelector('input[type=text][data-q="' + label + ' — other"]');
+        var otherText = otherBox && otherBox.value.trim();
+        chosen = "Other: " + (otherText ? otherText : "(nothing written)");
+      }
+      lines.push("• " + label);
+      lines.push("  → " + chosen);
+      var leave = document.querySelector('input[type=checkbox][data-q="' + label + ' — leave comment"]');
+      if (leave && leave.checked) lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      var notes = document.querySelector('textarea[data-q="' + label + ' — notes"]');
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  function refresh() { out.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  btn.addEventListener("click", function () {
+    refresh();
+    var text = out.value;
+    function done() { msg.hidden = false; setTimeout(function () { msg.hidden = true; }, 2500); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      out.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
