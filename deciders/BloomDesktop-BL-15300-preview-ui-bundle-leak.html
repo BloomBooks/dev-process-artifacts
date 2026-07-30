@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BloomDesktop PR #8122</title>
+<style>
+  :root{
+    --paper:#FAF8F3; --card:#FFFFFF; --rule:#E3DDD2; --rule-soft:#EFEAE1;
+    --ink:#221F1A; --ink-2:#4A443B; --muted:#6E675C;
+    --accent:#146272; --accent-soft:#E4EFF1; --accent-line:#B9D5DA;
+    --ok:#2C6B44; --ok-soft:#E6F0E8;
+    --warn:#8A6510; --warn-soft:#F6EEDC;
+    --bad:#98301F; --bad-soft:#F7E7E3;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.55;
+  }
+  a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  code,.mono{font-family:var(--mono); font-size:0.87em}
+  .wrap{max-width:1400px; margin:0 auto; padding:32px 24px 64px}
+
+  header.masthead{
+    border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:28px;
+    display:flex; flex-wrap:wrap; gap:16px 32px; align-items:flex-end; justify-content:space-between;
+  }
+  .masthead h1{
+    font-family:var(--serif); font-weight:600; font-size:clamp(1.7rem,3.2vw,2.35rem);
+    margin:0 0 6px; letter-spacing:-0.01em; text-wrap:balance;
+  }
+  .masthead .sub{color:var(--muted); font-size:0.95rem; margin:0}
+  .facts{display:flex; flex-wrap:wrap; gap:8px 10px; align-items:center}
+
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:999px;
+    font-size:0.78rem; font-weight:600; letter-spacing:0.02em; border:1px solid var(--rule);
+    background:var(--card); color:var(--ink-2); white-space:nowrap;
+  }
+  .chip.ok{background:var(--ok-soft); border-color:#C4DCCC; color:var(--ok)}
+  .chip.warn{background:var(--warn-soft); border-color:#E3D3AE; color:var(--warn)}
+  .chip.bad{background:var(--bad-soft); border-color:#E8C6BE; color:var(--bad)}
+  .chip.info{background:var(--accent-soft); border-color:var(--accent-line); color:var(--accent)}
+
+  .cols{display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:28px; align-items:start}
+  @media (max-width:1040px){ .cols{grid-template-columns:minmax(0,1fr)} }
+  .col{display:flex; flex-direction:column; gap:22px; min-width:0}
+
+  .card{background:var(--card); border:1px solid var(--rule); border-radius:6px; padding:20px 22px}
+  .card > h2{
+    font-family:var(--serif); font-size:1.18rem; font-weight:600; margin:0 0 14px;
+    letter-spacing:-0.005em;
+  }
+  .card > h2 + .lede{margin-top:-8px}
+  .lede{color:var(--muted); font-size:0.92rem; margin:0 0 14px}
+
+  table{border-collapse:collapse; width:100%; font-size:0.9rem}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--rule-soft); vertical-align:top}
+  th{
+    font-size:0.72rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted);
+    font-weight:700; border-bottom:1px solid var(--rule);
+  }
+  tr:last-child td{border-bottom:none}
+  td.num{font-variant-numeric:tabular-nums; white-space:nowrap}
+  .tscroll{overflow-x:auto}
+
+  ul.tight{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:7px}
+  ul.tight li{padding-left:2px}
+
+  .commit{border-top:1px solid var(--rule-soft); padding:12px 0}
+  .commit:first-of-type{border-top:none; padding-top:0}
+  .commit:last-of-type{padding-bottom:0}
+  .commit h3{margin:0 0 4px; font-size:0.97rem; font-weight:650; line-height:1.35}
+  .commit p{margin:0; color:var(--ink-2); font-size:0.89rem}
+  .commit .sha{font-family:var(--mono); font-size:0.78rem; color:var(--muted)}
+
+  .rev{border-top:1px solid var(--rule-soft); padding:13px 0}
+  .rev:first-of-type{border-top:none; padding-top:0}
+  .rev:last-of-type{padding-bottom:0}
+  .rev-head{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:5px}
+  .rev-head strong{font-size:0.97rem}
+  .rev p{margin:0; font-size:0.89rem; color:var(--ink-2)}
+
+  .q{background:var(--card); border:1px solid var(--rule); border-radius:6px; padding:20px 22px}
+  .q.open{border-left:4px solid var(--accent)}
+  .q.fyi{border-left:4px solid var(--rule)}
+  .q h2{font-family:var(--serif); font-size:1.1rem; margin:0 0 4px; font-weight:600}
+  .q .kicker{
+    font-size:0.7rem; text-transform:uppercase; letter-spacing:0.09em; font-weight:700;
+    color:var(--muted); margin:0 0 8px;
+  }
+  .q p{margin:0 0 11px; font-size:0.93rem; color:var(--ink-2)}
+  .q p:last-of-type{margin-bottom:14px}
+
+  .opts{display:flex; flex-direction:column; gap:2px; margin-bottom:12px}
+  .opt{
+    display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:start;
+    padding:9px 10px; border-radius:5px; border:1px solid transparent; cursor:pointer;
+  }
+  .opt:hover{background:#FBF9F5; border-color:var(--rule-soft)}
+  .opt input[type=radio]{margin:3px 0 0; accent-color:var(--accent); width:15px; height:15px; flex:none}
+  .opt .body{min-width:0}
+  .opt .label{font-size:0.92rem; font-weight:600; line-height:1.4}
+  .opt .foot{display:block; margin-top:3px; font-size:0.82rem; color:var(--muted); font-weight:400}
+  .rec{
+    font-size:0.66rem; font-weight:800; letter-spacing:0.07em; text-transform:uppercase;
+    color:var(--accent); background:var(--accent-soft); border:1px solid var(--accent-line);
+    padding:1px 6px; border-radius:3px; margin-left:7px; white-space:nowrap; vertical-align:1px;
+  }
+  .leave-comment{
+    display:inline-flex; align-items:center; gap:6px; font-size:0.78rem; color:var(--muted);
+    white-space:nowrap; font-weight:500; cursor:pointer; padding-top:2px;
+  }
+  .leave-comment input{accent-color:var(--accent); width:14px; height:14px; margin:0}
+
+  input[type=text], textarea{
+    width:100%; font-family:var(--sans); font-size:0.89rem; color:var(--ink);
+    background:#FCFBF8; border:1px solid var(--rule); border-radius:4px; padding:7px 9px;
+  }
+  input[type=text]{margin-top:2px}
+  textarea{resize:vertical; min-height:56px}
+  .notes{margin-top:4px}
+  .notes label{
+    display:block; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em;
+    color:var(--muted); font-weight:700; margin-bottom:4px;
+  }
+
+  .sendback .btn{
+    font-family:var(--sans); font-size:0.92rem; font-weight:650; color:#fff; background:var(--accent);
+    border:1px solid #0F4F5C; border-radius:5px; padding:9px 18px; cursor:pointer;
+  }
+  .sendback .btn:hover{background:#10535F}
+  .sendback .row{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+  .sendback .said{font-size:0.85rem; color:var(--ok); font-weight:600; opacity:0; transition:opacity .18s}
+  .sendback .said.on{opacity:1}
+  .sendback textarea{min-height:150px; font-family:var(--mono); font-size:0.79rem; line-height:1.5}
+
+  footer{margin-top:36px; padding-top:16px; border-top:1px solid var(--rule); color:var(--muted); font-size:0.83rem}
+  @media (prefers-reduced-motion:reduce){*{transition:none !important; animation:none !important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div>
+    <h1>Preflight — stop Bloom's UI font reaching book content</h1>
+    <p class="sub">BloomDesktop PR
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8122" target="_blank" rel="noopener">#8122</a>
+      · <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16624" target="_blank" rel="noopener">BL-16624</a>
+      · branch <code>BL-15300-preview-ui-bundle-leak</code>
+      · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8122/files" target="_blank" rel="noopener">files changed</a>
+      · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8122/commits" target="_blank" rel="noopener">commits</a>
+    </p>
+  </div>
+  <div class="facts">
+    <span class="chip info">Draft</span>
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">CI green</span>
+    <span class="chip warn">1 decision for you</span>
+    <span class="chip">HEAD <code>fc42d94b50</code></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- ================= LEFT ================= -->
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <p class="lede">All figures are from the final HEAD <code>fc42d94b50</code> unless noted.</p>
+    <div class="tscroll">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>TypeScript typecheck</td>
+          <td class="num"><span class="chip ok">pass</span></td>
+          <td>No blunder-class type errors.</td>
+        </tr>
+        <tr>
+          <td>ESLint</td>
+          <td class="num"><span class="chip ok">0 errors</span></td>
+          <td>773 warnings, which is the repo-wide baseline and not from this branch.</td>
+        </tr>
+        <tr>
+          <td>Merge with <code>master</code></td>
+          <td class="num"><span class="chip ok">clean</span></td>
+          <td>Three commits folded in, no conflicts and no file overlap with this branch.</td>
+        </tr>
+        <tr>
+          <td>C# tests — <code>dotnet test</code></td>
+          <td class="num"><span class="chip ok">2974 passed</span></td>
+          <td>12 skipped, 2987 total, run to completion. One failure,
+              <code>SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>, which needs Reading
+              App Builder installed and fails identically on an unmodified tree.</td>
+        </tr>
+        <tr>
+          <td>TypeScript tests — Vitest</td>
+          <td class="num"><span class="chip ok">571 passed</span></td>
+          <td>5 skipped across 55 files. Run at <code>6c5a2cc4a4</code>; no front-end file has changed since,
+              so the result still stands for HEAD.</td>
+        </tr>
+        <tr>
+          <td>Visual regression — Playwright</td>
+          <td class="num"><span class="chip warn">not run</span></td>
+          <td>Deliberately skipped this session: it launches its own Bloom, and its baselines are already
+              stale on <code>master</code> for an unrelated reason. See the second decision.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p class="lede">The branch arrived as one squashed commit; everything below was added during preflight.</p>
+
+    <div class="commit">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/11704ebac772ddf544fa030e90daed96c43326db" target="_blank" rel="noopener">Stop Bloom's UI font reaching book content, and give <code>lang="*"</code> text a font</a></h3>
+      <p class="sha">11704ebac7 · pre-existing, carried in unchanged</p>
+      <p>Removes the dead <code>WireUpForWinforms</code> line that dragged React, MUI and
+        <code>bloomUI.css</code> into every book document, and gives language-independent text a real font via
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/fc42d94b5030f7e13ec3c05fc2894f39513b38e6/src/BloomExe/Collection/CollectionSettings.cs#L524" target="_blank" rel="noopener">a content-page-scoped rule</a>.
+        ePUB carries the font inline, using
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/fc42d94b5030f7e13ec3c05fc2894f39513b38e6/src/BloomExe/Publish/PublishHelper.cs#L779" target="_blank" rel="noopener">the font the browser actually measured</a>
+        so a user's own choice survives.</p>
+    </div>
+
+    <div class="commit">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/6c5a2cc4a43d8278425075e2f5f5d0ef3fe94970" target="_blank" rel="noopener">Merge <code>origin/master</code></a></h3>
+      <p class="sha">6c5a2cc4a4</p>
+      <p>MXB xmatter LESS tweaks and a branding-report cleanup. No overlap with anything here.</p>
+    </div>
+
+    <div class="commit">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/041d580b8e124350aaaa8886d4c67f0a866b5dd1" target="_blank" rel="noopener">Let the inline ePUB font take part in bad-font substitution</a></h3>
+      <p class="sha">041d580b8e · from Devin</p>
+      <p>When a font cannot be embedded, publishing swaps every reference to it for Andika — but nothing
+        looked at an element's own <code>style</code> attribute, which is exactly where this branch had started
+        writing the font. So the one piece of text we had just given a font to was the one piece that could go
+        on naming a font the book never packaged.
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/fc42d94b5030f7e13ec3c05fc2894f39513b38e6/src/BloomExe/Publish/PublishHelper.cs#L2003" target="_blank" rel="noopener">Inline styles now take part too</a>,
+        for BloomPub as well as ePUB.</p>
+    </div>
+
+    <div class="commit">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/fc42d94b5030f7e13ec3c05fc2894f39513b38e6" target="_blank" rel="noopener">Match whole font names inline, and drop an unreachable guard</a></h3>
+      <p class="sha">fc42d94b50 · from Devin and the local review</p>
+      <p>The new substitution matched a bare font name with no end boundary, so a bad “Andika” against
+        <code>font-family: Andika New Basic</code> produced <code>font-family: 'Andika' New Basic</code>. A bare
+        name must now end at a semicolon, a comma or the end of the attribute. Separately, the
+        <code>"*"</code> guard added to the retired-language scan could never fire — that scan only matches lines
+        starting <code>[lang='</code>, and the rule we write starts <code>.bloom-page</code> — so it and its
+        impossible-state test are gone, replaced by a test of the reachable invariant.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+
+    <div class="rev">
+      <div class="rev-head"><strong>Local review</strong><span class="chip">light sub-agent pass</span><span class="chip ok">complete</span></div>
+      <p>Two findings, both real. <em>Fixed:</em> the unreachable <code>"*"</code> guard and the test that
+        exercised a state Bloom cannot produce. <em>Escalated:</em> the selector-specificity problem below —
+        which Devin then reported independently in the same run. It also checked the risks I flagged for the
+        new inline-font mechanism (leaking into saved books, always being removed, ordering) and found none.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><strong>Devin</strong><span class="chip ok">complete</span><span class="chip">clean at HEAD</span></div>
+      <p>Four review cycles. Its final pass on <code>fc42d94b50</code> raised
+        <strong>no new bugs and no new Investigate flags</strong>; the four bugs still listed all belong to
+        superseded commits. Across the run it found four bugs — three now fixed, one open below — plus 20
+        informational items (not mirrored, low signal). It independently caught a stack-overflow recursion I
+        had introduced, at the same time as the test suite did.
+        <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8122" target="_blank" rel="noopener">Review page</a>.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><strong>CI</strong><span class="chip ok">complete</span></div>
+      <p><code>pr-automation</code> and <code>track / set-waiting</code> both green for HEAD.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><strong>Reviewable</strong><span class="chip warn">awaiting you</span></div>
+      <p><code>code-review/reviewable</code> reports “17 files, 4 discussions left (andrew-polk)”. This is
+        Reviewable's own tracking of your review pass, not a bot verdict — it will not clear by itself. All
+        nine GitHub threads are settled: eight replied-to and resolved, one deliberately left open for you.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><strong>Other comment-posting bots</strong><span class="chip">none detected</span></div>
+      <p>No Greptile or CodeRabbit configuration or activity on this repo.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <ul class="tight">
+      <li><strong>I introduced a stack overflow and nearly missed it.</strong> Restoring a file after a
+        non-vacuity check, a string replacement matched <code>var fixedSomething = false;</code> in both the
+        caller and the new helper, so the helper called itself. It presented deceptively:
+        <code>dotnet test</code> still printed a green-looking <code>Passed! Failed: 0, Passed: 1124</code>, and
+        only the total (1129 against the usual 2986) and a <code>Test Run Aborted.</code> line at the very end
+        gave it away. A green summary line is not evidence of a green suite unless the total matches.</li>
+      <li><strong>The two ePUB tests had to change fonts.</strong> They used invented font names, which are by
+        definition unembeddable, so the new substitution collapsed both onto Andika and the tests could no
+        longer tell which font had been chosen. They now use ABeeZee and Andika, both of which ship with Bloom,
+        and additionally assert the font written inline is one the ePUB really embeds.</li>
+      <li><strong>Every new test was verified to fail without its half of the change</strong>, including the
+        two added during this run.</li>
+      <li><strong>Two force-pushes</strong>, both to amend a commit of mine that had already been pushed — the
+        second removed the recursion so it never reaches <code>master</code>.</li>
+      <li><strong>The PR link was already on the card</strong> (in the description), so no duplicate link
+        comment was posted. The QA test-ideas comment was rewritten in place from the final diff.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ================= RIGHT ================= -->
+<div class="col">
+
+  <section class="q open">
+    <p class="kicker">Decision</p>
+    <h2>Custom stylesheets can no longer set the font for equations</h2>
+    <p>Bloom books can carry hand-written CSS — <code>customBookStyles.css</code> for one book, or
+      <code>customCollectionStyles.css</code> for a whole collection. These are meant to have the final say:
+      the generated font file even says so in its own header, telling the reader its rules “may be over-ridden
+      by rules in customCollectionStyles.css, appearance.css or customBookStyles[2].css”.</p>
+    <p>That promise holds for ordinary text because the per-language font rules are written weakly enough to
+      lose to a custom rule. The new rule for language-independent text is written much more strongly, because
+      it has to reach inside a page while excluding the cover and credits pages. The upshot is that a book
+      which sets a font for the Equation style through hand-written CSS will now silently render that text in
+      the collection's main-language font instead. Fonts chosen through Bloom's own Format dialog are
+      unaffected, because Bloom marks those as <code>!important</code>.</p>
+    <p>Both reviewers found this independently, which is why it is here rather than quietly fixed: each remedy
+      trades one risk for another, and choosing between them is a design call.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q1" value="where">
+        <span class="body"><span class="label">Weaken the rule with <code>:where()</code></span>
+          <span class="foot">Wraps the page scoping so the rule sits at the same strength as its per-language
+          siblings and custom CSS wins again. ~1 line, but a real compatibility risk: an older WebView that
+          does not understand <code>:where()</code> discards the <em>whole</em> rule, so the text would silently
+          lose its font again in Bloom Reader on older Android — the platform we can least observe.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q1" value="reset">
+        <span class="body"><span class="label">Weak rule plus a separate front/back-matter reset</span>
+          <span class="foot">Emit a plain rule for all such text, then a second rule putting the cover and
+          credits pages back. Restores the override on content pages with no new selector syntax. ~10 lines and
+          a test, low risk, but the reset rule is itself stronger than custom CSS, so it would newly outrank
+          custom styling inside the cover and credits pages.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q1" value="leave" checked>
+        <span class="body"><span class="label">Leave as is <span class="rec">Recommended</span></span></span>
+        <label class="leave-comment"><input type="checkbox" data-q="Q1 leave-comment"> Leave comment</label>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q1" value="other">
+        <span class="body"><span class="label">Other:</span>
+          <input type="text" data-q="Q1 other" placeholder="your own answer"></span>
+        <span></span>
+      </label>
+    </div>
+    <p style="font-size:0.86rem;color:var(--muted);margin:0 0 10px">Recommended because the affected case is
+      narrow — a book whose hand-written CSS sets a font on a style that language-independent text uses — while
+      both fixes push risk somewhere harder to see, and the <code>:where()</code> option in particular could
+      reintroduce the original bug on old Bloom Reader devices. It is also reversible later without touching
+      anything else.</p>
+    <div class="notes"><label for="n1">Notes</label>
+      <textarea id="n1" data-q="Q1 notes" placeholder="caveats, constraints, or a different framing"></textarea></div>
+  </section>
+
+  <section class="q open">
+    <p class="kicker">Decision</p>
+    <h2>Who refreshes the stale visual-regression baselines?</h2>
+    <p>The visual regression suite compares screenshots of built books against saved reference images. It is
+      currently failing on <code>master</code> itself — 11 of 12 cases — and has been since the BL-16370 work
+      added a “Made with Bloom” QR badge and a Local-Community layout without regenerating the references.
+      Every differing pixel sits in the back-cover badge area.</p>
+    <p>This branch inherits those failures; it does not cause them. It regenerates six A5 references, but only
+      for the arithmetic font change that is the point of the PR. Because the suite is red for an unrelated
+      reason, I did not run it during this preflight — a red result would have told us nothing new, and it
+      launches its own copy of Bloom.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q2" value="owner" checked>
+        <span class="body"><span class="label">Leave the baselines to whoever owns BL-16370 <span class="rec">Recommended</span></span>
+          <span class="foot">No code change here. Keeps this PR's reference-image diff honest — six images,
+          all explained by the font change — instead of mixing in a dozen unrelated badge updates that a
+          reviewer would have to take on trust.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q2" value="here">
+        <span class="body"><span class="label">Refresh all the stale baselines in this PR</span>
+          <span class="foot">Gets the suite green again sooner, but adds ~10 unrelated binary files to this
+          PR and asks the reviewer to accept badge rendering they did not sign up to review. Mechanical but
+          not small; also needs a run of the suite, which means launching Bloom.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q2" value="leave">
+        <span class="body"><span class="label">Leave as is</span></span>
+        <label class="leave-comment"><input type="checkbox" data-q="Q2 leave-comment"> Leave comment</label>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q2" value="other">
+        <span class="body"><span class="label">Other:</span>
+          <input type="text" data-q="Q2 other" placeholder="your own answer"></span>
+        <span></span>
+      </label>
+    </div>
+    <div class="notes"><label for="n2">Notes</label>
+      <textarea id="n2" data-q="Q2 notes" placeholder="e.g. file a card for the BL-16370 baselines"></textarea></div>
+  </section>
+
+  <section class="q fyi">
+    <p class="kicker">For your information</p>
+    <h2>The template question is still open</h2>
+    <p>This PR makes the arithmetic text render consistently, but it does not answer the question you raised
+      earlier: whether the Arithmetic template should keep marking its equations as “in no language” at all, or
+      should simply be given a real font of its own. Everything here works by giving that marking a meaning it
+      previously lacked; removing the marking later would be a separate, larger change to the template and to
+      any book already using it.</p>
+    <p>One smaller loose end sits underneath it. On an arithmetic page the digits and the equals sign are not
+      the same kind of element — the digits are editable text marked “in no language”, while the equals sign is
+      a fixed label that is not editable. They pick up their fonts by different routes, so if someone styles the
+      Equation style they can still drift apart. Nothing in this PR makes that worse, and nothing fixes it.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q3" value="card">
+        <span class="body"><span class="label">Open a follow-up card for the template question</span>
+          <span class="foot">No code — a card capturing the choice (keep the marking, or give the template its
+          own font) plus the digits/equals-sign mismatch, so it is not lost when this PR merges.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q3" value="leave" checked>
+        <span class="body"><span class="label">Leave as is <span class="rec">Recommended</span></span></span>
+        <label class="leave-comment"><input type="checkbox" data-q="Q3 leave-comment"> Leave comment</label>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q3" value="other">
+        <span class="body"><span class="label">Other:</span>
+          <input type="text" data-q="Q3 other" placeholder="your own answer"></span>
+        <span></span>
+      </label>
+    </div>
+    <p style="font-size:0.86rem;color:var(--muted);margin:0 0 10px">Recommended because it is already written
+      up at length in the BL-16624 description, so nothing is actually at risk of being lost — but say the word
+      and it becomes its own card.</p>
+    <div class="notes"><label for="n3">Notes</label>
+      <textarea id="n3" data-q="Q3 notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <p class="kicker">Next step</p>
+    <h2>How would you like to proceed?</h2>
+    <p>The PR is draft, mergeable, green, and every bot thread is settled. Nothing is blocked on me.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q4" value="review" checked>
+        <span class="body"><span class="label">You review it yourself next <span class="rec">Recommended</span></span>
+          <span class="foot">The normal path: it stays draft until you have read it, then
+          <code>/pr-ready-for-human</code> hands it to a teammate.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" value="implement">
+        <span class="body"><span class="label">Implement my answers above first, then re-run preflight</span>
+          <span class="foot">Any chosen fix is a new commit, which restarts the bot gauntlet.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" value="discuss">
+        <span class="body"><span class="label">Discuss the first decision with me before doing anything</span>
+          <span class="foot">Worth it if the custom-CSS override matters to a real project you know of.</span></span>
+        <span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" value="other">
+        <span class="body"><span class="label">Other:</span>
+          <input type="text" data-q="Q4 other" placeholder="your own answer"></span>
+        <span></span>
+      </label>
+    </div>
+    <div class="notes"><label for="n4">Notes</label>
+      <textarea id="n4" data-q="Q4 notes"></textarea></div>
+  </section>
+
+  <section class="q sendback">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the session.</p>
+    <div class="row">
+      <button class="btn" id="copyBtn" type="button">Copy answers</button>
+      <span class="said" id="said">Copied</span>
+    </div>
+    <textarea id="out" readonly aria-label="Your answers, ready to copy"></textarea>
+  </section>
+
+</div>
+</div>
+
+<footer>
+  Preflight report for <a href="https://github.com/BloomBooks/BloomDesktop/pull/8122" target="_blank" rel="noopener">BloomDesktop&nbsp;#8122</a>
+  at <code>fc42d94b50</code>. Regenerated at this same URL each time preflight runs on this branch.
+</footer>
+</div>
+
+<script>
+(function(){
+  var LABELS = {
+    q1: {
+      title: "Custom stylesheets can no longer set the font for equations",
+      opts: {
+        where: "Weaken the rule with :where()",
+        reset: "Weak rule plus a separate front/back-matter reset",
+        leave: "Leave as is",
+        other: "Other"
+      }
+    },
+    q2: {
+      title: "Who refreshes the stale visual-regression baselines?",
+      opts: {
+        owner: "Leave the baselines to whoever owns BL-16370",
+        here: "Refresh all the stale baselines in this PR",
+        leave: "Leave as is",
+        other: "Other"
+      }
+    },
+    q3: {
+      title: "The template question is still open",
+      opts: {
+        card: "Open a follow-up card for the template question",
+        leave: "Leave as is",
+        other: "Other"
+      }
+    },
+    q4: {
+      title: "Next step",
+      opts: {
+        review: "You review it yourself next",
+        implement: "Implement my answers above first, then re-run preflight",
+        discuss: "Discuss the first decision with me before doing anything",
+        other: "Other"
+      }
+    }
+  };
+
+  function val(sel){ var el = document.querySelector(sel); return el ? el.value.trim() : ""; }
+
+  function build(){
+    var lines = ["Preflight answers - BloomDesktop PR #8122 (fc42d94b50)", ""];
+    ["q1","q2","q3","q4"].forEach(function(name){
+      var meta = LABELS[name];
+      var picked = document.querySelector('input[name="'+name+'"]:checked');
+      var choice = picked ? meta.opts[picked.value] : "(no answer)";
+      if (picked && picked.value === "other") {
+        var otherText = val('input[data-q="'+name.toUpperCase()+' other"]');
+        choice = "Other: " + (otherText || "(blank)");
+      }
+      lines.push(meta.title);
+      lines.push("  -> " + choice);
+      var lc = document.querySelector('input[data-q="'+name.toUpperCase()+' leave-comment"]');
+      if (lc && lc.checked) {
+        lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      }
+      var notes = val('textarea[data-q="'+name.toUpperCase()+' notes"]');
+      if (notes) { lines.push("  Notes: " + notes); }
+      lines.push("");
+    });
+    return lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var out = document.getElementById("out");
+  var btn = document.getElementById("copyBtn");
+  var said = document.getElementById("said");
+
+  function refresh(){ out.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  btn.addEventListener("click", function(){
+    refresh();
+    function done(){ said.classList.add("on"); setTimeout(function(){ said.classList.remove("on"); }, 1800); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(out.value).then(done, fallback);
+    } else { fallback(); }
+    function fallback(){
+      out.focus(); out.select();
+      try { document.execCommand("copy"); done(); } catch(e){ /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
