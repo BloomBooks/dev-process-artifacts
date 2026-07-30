@@ -1,0 +1,413 @@
+<title>Preflight report — BL-16615</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --ground: #f6f3ec;
+    --card: #ffffff;
+    --ink: #23201b;
+    --ink-soft: #5b554c;
+    --ink-faint: #8a8377;
+    --line: #e3ddd0;
+    --line-strong: #d2caba;
+    --accent: #9a5b2e;        /* warm terracotta-brown, restrained */
+    --accent-soft: #f0e4d7;
+    --good: #2f7d4f;
+    --good-bg: #e5f0e8;
+    --warn: #9a7420;
+    --warn-bg: #f6ecd2;
+    --bad: #a23a34;
+    --bad-bg: #f4e0de;
+    --radius: 10px;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 40px 28px 72px; }
+  header.page { margin-bottom: 30px; }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 2.1rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+  .sub { color: var(--ink-soft); font-size: 1rem; }
+  .sub a { color: var(--accent); text-decoration: none; }
+  .sub a:hover { text-decoration: underline; }
+  .meta-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; align-items: center; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.8rem; font-weight: 600; letter-spacing: 0.02em;
+    padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line-strong);
+    background: var(--card); color: var(--ink-soft);
+  }
+  .pill.draft { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .pill.attention { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+
+  .cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 26px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    margin-bottom: 22px;
+  }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.22rem;
+    margin: 0 0 14px;
+    letter-spacing: -0.005em;
+  }
+  h3 { font-size: 1rem; margin: 0 0 6px; font-weight: 650; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  td.name { font-weight: 600; white-space: nowrap; }
+  .tag { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; letter-spacing: 0.02em; }
+  .tag.pass { background: var(--good-bg); color: var(--good); }
+  .tag.warn { background: var(--warn-bg); color: var(--warn); }
+  .tag.fail { background: var(--bad-bg); color: var(--bad); }
+  .tag.na   { background: #eee9df; color: var(--ink-faint); }
+  .muted { color: var(--ink-soft); }
+  .small { font-size: 0.86rem; }
+
+  ul.changes { list-style: none; margin: 0; padding: 0; }
+  ul.changes li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  ul.changes li:last-child { border-bottom: none; }
+  code, .mono { font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, monospace; font-size: 0.85em; }
+  .sha { color: var(--accent); text-decoration: none; }
+  .sha:hover { text-decoration: underline; }
+  a.inline { color: var(--accent); }
+
+  .reviewer { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .reviewer:last-child { border-bottom: none; }
+  .reviewer .top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .reviewer .top strong { font-size: 0.98rem; }
+  .reviewer p { margin: 6px 0 0; font-size: 0.9rem; color: var(--ink-soft); }
+  .reviewer a { color: var(--accent); }
+
+  /* Decisions */
+  .decision { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 20px; }
+  .decision.attention { border-color: var(--line-strong); border-left: 3px solid var(--accent); }
+  .decision .kind { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--ink-faint); margin-bottom: 4px; }
+  .decision p.desc { font-size: 0.92rem; color: var(--ink-soft); margin: 8px 0 14px; }
+  .opts { display: flex; flex-direction: column; gap: 2px; }
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 9px 10px; border: 1px solid transparent; border-radius: 8px; cursor: pointer; }
+  .opt:hover { background: #faf7f1; }
+  .opt input { margin-top: 3px; flex: none; }
+  .opt .lbl { font-size: 0.9rem; }
+  .opt .lbl .rec { display: inline-block; font-size: 0.68rem; font-weight: 700; color: var(--good); background: var(--good-bg); padding: 1px 7px; border-radius: 999px; margin-left: 6px; letter-spacing: 0.03em; vertical-align: middle; }
+  .opt .fx { display: block; color: var(--ink-faint); font-size: 0.8rem; margin-top: 2px; }
+  .leave-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .leave-comment { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink-faint); white-space: nowrap; padding-right: 4px; }
+  .other-wrap { display: flex; align-items: center; gap: 8px; padding: 4px 10px 0 40px; }
+  .other-wrap input[type=text] { flex: 1; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 0.88rem; color: var(--ink);
+    border: 1px solid var(--line-strong); border-radius: 7px; padding: 7px 9px; background: #fffdf9; width: 100%;
+  }
+  input[type=text]:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); font-weight: 700; margin-bottom: 5px; }
+  textarea { min-height: 52px; resize: vertical; }
+
+  .sendback { background: var(--accent-soft); border: 1px solid var(--line-strong); }
+  .sendback h2 { color: var(--accent); }
+  button {
+    font-family: var(--sans); font-size: 0.92rem; font-weight: 650; color: #fff; background: var(--accent);
+    border: none; border-radius: 8px; padding: 10px 18px; cursor: pointer;
+  }
+  button:hover { background: #83491f; }
+  button:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+  #copyout { margin-top: 12px; font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; min-height: 120px; background: #fffdf9; }
+  .copied { color: var(--good); font-weight: 700; font-size: 0.85rem; margin-left: 12px; opacity: 0; transition: opacity 0.2s; }
+  .copied.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header class="page">
+    <h1>Preflight report</h1>
+    <div class="sub">
+      BloomDesktop · BL-16615 “Reader Books From Template Stuck To Original Type” ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8128" target="_blank" rel="noopener">PR #8128</a>
+      (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8128/files" target="_blank" rel="noopener">files changed</a>)
+    </div>
+    <div class="meta-row">
+      <span class="pill draft">Draft PR</span>
+      <span class="pill">Branch integrated with master</span>
+      <span class="pill attention">1 decision · 2 FYIs for you</span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- LEFT: the report -->
+    <div class="report-col">
+      <section class="card">
+        <h2>Quality gate</h2>
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="name">Typecheck (TS)</td><td><span class="tag pass">pass</span></td><td class="muted small">No blunder-class type errors.</td></tr>
+            <tr><td class="name">Lint (TS)</td><td><span class="tag pass">pass</span></td><td class="muted small">0 errors on the changed file; one pre-existing unused-var warning elsewhere in the file, untouched by this change.</td></tr>
+            <tr><td class="name">Merge cleanliness</td><td><span class="tag pass">clean</span></td><td class="muted small">Merged <code>origin/master</code> with no conflicts; none of the merged files touch this branch's files.</td></tr>
+            <tr><td class="name">TypeScript tests (vitest)</td><td><span class="tag warn">569 pass · 1 fail*</span></td><td class="muted small">*The one failure (<code>talkingBookSpec.ts</code>, an audio-URL port mismatch) is a pre-existing, environment-specific harness issue — see FYI 1. 5 skipped.</td></tr>
+            <tr><td class="name">C# tests (dotnet)</td><td><span class="tag na">N/A</span></td><td class="muted small">This branch changes no C# — only front-end TypeScript and two page templates — so the C# suite is not affected and was not run.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <ul class="changes">
+          <li>
+            <a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/ec750b974809d4da01a465348c821d2688f41f64" target="_blank" rel="noopener">ec750b9</a>
+            &nbsp;Ignore <code>leveledReader</code>/<code>decodableReader</code> <code>data-tool-id</code> in the toolbox.
+            <div class="muted small" style="margin-top:6px">
+              In <a class="inline" href="https://github.com/BloomBooks/BloomDesktop/blob/3d72f0361333a1a3b3437c22c20246b121030350/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L143-L157" target="_blank" rel="noopener"><code>toolbox.ts</code> · adjustToolListForPage (L143–157)</a>:
+              when a page carries <code>data-tool-id="leveledReader"</code> or <code>"decodableReader"</code>, the value is now ignored, so the toolbox keeps showing the last tool the user had open instead of snapping back to the reader tool. This is the runtime half John Hatton asked for on the card — it fixes <em>existing</em> books, not just newly-made ones.
+            </div>
+          </li>
+          <li>
+            <a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/3d72f0361333a1a3b3437c22c20246b121030350" target="_blank" rel="noopener">3d72f03</a>
+            &nbsp;Merge <code>origin/master</code> into the branch (integration; no conflicts).
+          </li>
+        </ul>
+        <p class="muted small" style="margin-bottom:0">
+          Also on the branch from an earlier session:
+          <a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/e0289ddaeb03eaf2377c2902dfd73e5d9d332bed" target="_blank" rel="noopener">e0289dd</a>
+          removed the <code>pageToolId</code> meta from the Decodable/Leveled Reader templates (the fix for <em>new</em> books). Together the two commits fix both new and existing reader books.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+
+        <div class="reviewer">
+          <div class="top"><strong>Local review</strong> <span class="tag pass">clean</span> <span class="muted small">light sub-agent pass</span></div>
+          <p>One general-purpose agent reviewed the working diff for correctness. It traced <code>requiredToolId</code>/<code>newToolId</code> through the method and confirmed only the Game tool uses <code>requiresToolId()</code>, so nulling the two reader values removes no needed behavior and correctly falls back to the last-stored tool. No high-confidence correctness problems found.</p>
+        </div>
+
+        <div class="reviewer">
+          <div class="top"><strong>Devin</strong> <span class="tag pass">complete</span> <span class="muted small">0 bugs · 1 investigate · 1 informational</span></div>
+          <p>
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8128" target="_blank" rel="noopener">Review page</a>.
+            The <strong>Investigate</strong> flag (hardcoded reader denylist vs. generalizing to <code>requiresToolId()</code>) is a scope/design question — posted as an
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8128#discussion_r3685243989" target="_blank" rel="noopener">open review thread</a> and raised as Decision 1 on the right.
+            The <strong>Informational</strong> flag independently verified that removing the <code>pageToolId</code> meta from the templates is safe — the reader tool still auto-opens on first edit because that is driven by the template's <code>meta.json</code> <code>currentTool</code>, not the per-page tag.
+          </p>
+        </div>
+
+        <div class="reviewer">
+          <div class="top"><strong>CodeRabbit</strong> <span class="tag na">inactive</span> <span class="muted small">nothing to wait for</span></div>
+          <p>A <code>.coderabbit.yml</code> exists in the repo, but CodeRabbit has posted zero reviews or comments on this PR and on the four most recent PRs checked — the bot is not currently active, so there was nothing to await.</p>
+        </div>
+
+        <div class="reviewer">
+          <div class="top"><strong>CI</strong> <span class="tag pass">green</span> <span class="muted small">all required checks terminal</span></div>
+          <p>
+            <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/30570073046/job/90964262579" target="_blank" rel="noopener"><code>pr-automation</code></a> pass ·
+            <code>track / set-waiting</code> pass. (The front-end unit-test suite is not one of the PR's required checks; it was run locally — see the quality-gate table.)
+          </p>
+        </div>
+      </section>
+    </div>
+
+    <!-- RIGHT: decisions -->
+    <div class="decision-col">
+
+      <div class="decision attention" data-item="Decision 1 — generalize the tool-id fix, or keep it narrow?">
+        <div class="kind">Decision · from Devin (Investigate)</div>
+        <h3>Generalize the fix to <code>requiresToolId()</code>, or keep the narrow reader-only guard?</h3>
+        <p class="desc">
+          The fix ignores two specific page tags by name: <code>"leveledReader"</code> and <code>"decodableReader"</code>. Devin points out that Bloom already has a general rule for “this page belongs to a particular tool” — a tool method called <code>requiresToolId()</code> — and today only the Games tool returns <em>true</em> for it. So an alternative is to ignore the page tag <em>unless</em> some tool actually claims it via that method, instead of naming the two reader tools explicitly.
+          The upside: it would also cover other legacy tags — Devin specifically names <code>"signLanguage"</code>, which appears on pages in existing sign-language books and today would still get “stuck” the same way. The downside: it changes behavior for sign-language books too, which is beyond what BL-16615 and John Hatton asked for, and that path has no test coverage here. This is a design/scope call, not a bug — the current code works correctly for the reader case the card is about.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="d1" data-q="Decision 1 (generalize vs narrow)" value="Generalize to requiresToolId() — ignore the page tag unless a tool claims it" />
+            <span class="lbl">Generalize to the <code>requiresToolId()</code> rule — also fixes signLanguage and any future tag.
+              <span class="fx">~10–15 lines in the same method; broader, self-maintaining, but changes sign-language behavior with no test coverage and expands scope past the card.</span>
+            </span>
+          </label>
+          <div class="leave-row">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="d1" data-q="Decision 1 (generalize vs narrow)" value="Leave as is (narrow reader-only guard)" checked />
+              <span class="lbl">Leave as is<span class="rec">recommended</span>
+                <span class="fx">Keeps the change scoped to exactly what BL-16615 and John Hatton asked for; broadening to sign-language is a separate, untested behavior change better handled as its own card if wanted.</span>
+              </span>
+            </label>
+            <label class="leave-comment"><input type="checkbox" data-q="Decision 1 — leave code comment" /> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="d1" data-q="Decision 1 (generalize vs narrow)" value="Other" />
+            <span class="lbl">Other:</span>
+          </label>
+          <div class="other-wrap"><input type="text" data-q="Decision 1 — other" placeholder="your own direction…" /></div>
+        </div>
+        <div class="notes"><label>Notes</label><textarea data-q="Decision 1 — notes" placeholder="caveats, constraints, or a follow-up card id…"></textarea></div>
+      </div>
+
+      <div class="decision" data-item="FYI 1 — pre-existing failing test">
+        <div class="kind">FYI · pre-existing test failure</div>
+        <h3>One front-end test fails, unrelated to this change</h3>
+        <p class="desc">
+          <code>talkingBookSpec.ts</code> fails on an audio-URL check: it expects <code>http://localhost:63315/…</code> but gets <code>http://localhost:3000/…</code> — the jsdom test environment's default host. This branch changes only three files (the toolbox logic and two page templates); it touches nothing in the talking-book code, its test helpers, or the test config, so there is no mechanism by which this change causes the failure. It is a pre-existing, environment-specific harness quirk. I did not “fix” it, since that would be unrelated work bundled into this card.
+        </p>
+        <div class="opts">
+          <div class="leave-row">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="f1" data-q="FYI 1 (pre-existing test failure)" value="Leave as is (out of scope for this card)" checked />
+              <span class="lbl">Leave as is<span class="rec">recommended</span>
+                <span class="fx">It is pre-existing and unrelated; folding an environment/harness fix into this reader-tool card would muddy the change. Worth its own card if it bothers people locally.</span>
+              </span>
+            </label>
+            <label class="leave-comment"><input type="checkbox" data-q="FYI 1 — leave code comment" /> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="f1" data-q="FYI 1 (pre-existing test failure)" value="Other" />
+            <span class="lbl">Other:</span>
+          </label>
+          <div class="other-wrap"><input type="text" data-q="FYI 1 — other" placeholder="e.g. file a separate card, or investigate now…" /></div>
+        </div>
+        <div class="notes"><label>Notes</label><textarea data-q="FYI 1 — notes" placeholder="optional…"></textarea></div>
+      </div>
+
+      <div class="decision" data-item="FYI 2 — stale test-ideas comment on the card">
+        <div class="kind">FYI · tracker housekeeping</div>
+        <h3>The old QA test-ideas comment couldn't be edited in place</h3>
+        <p class="desc">
+          The QA test-ideas comment on BL-16615 was refreshed to describe the new behavior (existing books are fixed too, so the old “new books only” caveat no longer applies). The previous test-ideas comment was authored by a different YouTrack account, so the Bot account is forbidden from editing it (HTTP 403) — I posted a fresh Bot-authored comment instead. The stale earlier comment still sits above it in the card's history and describes the superseded “new-books-only” approach.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="f2" data-q="FYI 2 (stale test-ideas comment)" value="Delete/edit the old comment manually" />
+            <span class="lbl">I'll delete or edit the old comment myself
+              <span class="fx">No code — a quick manual tidy on the YouTrack card so testers don't see two, one stale.</span>
+            </span>
+          </label>
+          <div class="leave-row">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="f2" data-q="FYI 2 (stale test-ideas comment)" value="Leave as is (fresh comment supersedes it)" checked />
+              <span class="lbl">Leave as is<span class="rec">recommended</span>
+                <span class="fx">The fresh comment is the most-recent marked one and clearly states it supersedes the earlier approach; the old one is harmless history.</span>
+              </span>
+            </label>
+            <label class="leave-comment"><input type="checkbox" data-q="FYI 2 — leave code comment" /> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="f2" data-q="FYI 2 (stale test-ideas comment)" value="Other" />
+            <span class="lbl">Other:</span>
+          </label>
+          <div class="other-wrap"><input type="text" data-q="FYI 2 — other" placeholder="…" /></div>
+        </div>
+        <div class="notes"><label>Notes</label><textarea data-q="FYI 2 — notes" placeholder="optional…"></textarea></div>
+      </div>
+
+      <div class="decision" data-item="Next step">
+        <div class="kind">Next step</div>
+        <h3>After you decide, what should I do?</h3>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="next" data-q="Next step" value="Implement my choices now" checked />
+            <span class="lbl">Implement my choices now<span class="rec">recommended</span>
+              <span class="fx">If you keep the recommendations, there's nothing to code — I'll just record the Devin decision on its thread and, if you ticked it, leave a code comment.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next" data-q="Next step" value="Discuss first" />
+            <span class="lbl">Let's discuss first</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next" data-q="Next step" value="Other" />
+            <span class="lbl">Other:</span>
+          </label>
+          <div class="other-wrap"><input type="text" data-q="Next step — other" placeholder="…" /></div>
+        </div>
+        <div class="notes"><label>Notes</label><textarea data-q="Next step — notes" placeholder="optional…"></textarea></div>
+      </div>
+
+      <section class="card sendback">
+        <h2>Send your answers back</h2>
+        <p class="small muted" style="margin-top:0">Click to copy, then paste the block into the session.</p>
+        <button id="copybtn" type="button">Copy answers</button>
+        <span class="copied" id="copied">copied ✓</span>
+        <textarea id="copyout" readonly aria-label="Answers to copy back"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var STABLE_URL = "https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16615-ReaderBooksFromTemplateStuckToOriginalType.html";
+
+    function serialize() {
+      var out = [];
+      out.push("Preflight decisions — BL-16615 (PR #8128)");
+      out.push("Report: " + STABLE_URL);
+      out.push("");
+      var items = document.querySelectorAll(".decision");
+      items.forEach(function (item) {
+        var title = item.getAttribute("data-item");
+        out.push("## " + title);
+        // chosen radio
+        var radios = item.querySelectorAll('input[type=radio]');
+        var chosen = null, group = null;
+        radios.forEach(function (r) { if (r.checked) { chosen = r.value; group = r.getAttribute("data-q"); } });
+        if (chosen !== null) {
+          if (chosen === "Other") {
+            var oth = item.querySelector('input[type=text][data-q$="other"]');
+            var v = oth && oth.value.trim() ? oth.value.trim() : "(no text entered)";
+            out.push("Choice: Other — " + v);
+          } else {
+            out.push("Choice: " + chosen);
+          }
+        }
+        // leave comment (only when ticked)
+        var lc = item.querySelector('input[type=checkbox][data-q$="leave code comment"]');
+        if (lc && lc.checked) out.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+        // notes
+        var notes = item.querySelector('textarea[data-q$="notes"]');
+        if (notes && notes.value.trim()) out.push("Notes: " + notes.value.trim());
+        out.push("");
+      });
+      return out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+    }
+
+    var out = document.getElementById("copyout");
+    var btn = document.getElementById("copybtn");
+    var copied = document.getElementById("copied");
+
+    function refresh() { out.value = serialize(); }
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    btn.addEventListener("click", function () {
+      out.value = serialize();
+      var done = function () { copied.classList.add("show"); setTimeout(function () { copied.classList.remove("show"); }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(out.value).then(done, function () { out.select(); document.execCommand("copy"); done(); });
+      } else {
+        out.select(); document.execCommand("copy"); done();
+      }
+    });
+  })();
+</script>
