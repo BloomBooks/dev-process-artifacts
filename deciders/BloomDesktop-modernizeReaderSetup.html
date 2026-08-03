@@ -1,5 +1,5 @@
 <meta charset="utf-8" />
-<title>Preflight round 3 — Decodable Reader setup dialog (BL-16607)</title>
+<title>Preflight (rebased) — Decodable Reader setup dialog (BL-16607)</title>
 <style>
   :root {
     --ink: #23201c;
@@ -80,10 +80,11 @@
 </style>
 
 <div class="wrap">
-  <h1>Preflight round 3 — Decodable Reader setup dialog</h1>
+  <h1>Preflight after rebase — Decodable Reader setup dialog</h1>
   <p class="sub">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">PR&nbsp;#8132</a> (draft) ·
-    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/8a7f5c602317a3f19157db3041d743616f4c560c" target="_blank" rel="noopener"><code>8a7f5c6</code></a> ·
+    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/6e3e7797bd" target="_blank" rel="noopener"><code>6e3e7797bd</code></a> ·
+    9 commits, linear on master ·
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16607" target="_blank" rel="noopener">BL-16607</a> ·
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/files" target="_blank" rel="noopener">Files changed</a>
   </p>
@@ -91,169 +92,157 @@
   <div class="cols">
     <div>
       <div class="card">
-        <h2>Your round-2 decisions</h2>
-        <table>
-          <tr><th>Decision</th><th>Outcome</th></tr>
-          <tr><td>A. Drop empty stages on save</td><td class="ok">implemented + renumbering; verified live</td></tr>
-          <tr><td>B. Kept words carry old segmentation</td><td class="ok">accepted; documented where the split happens</td></tr>
-          <tr><td>C. Different Synphony query</td><td class="ok">investigated — nothing to fix, see below</td></tr>
-          <tr><td>D. Unexpected file types vanish</td><td class="warnt">for discussion — analysis below</td></tr>
-        </table>
-      </div>
-
-      <div class="card">
-        <h2>C — the answer is "leave as is", with a reason</h2>
+        <h2>The rebase</h2>
         <p style="margin-top:0;font-size:14.5px">
-          You asked me to make sure the logic is correct. It is, and the two entry points only
-          <em>look</em> different. <code>selectGPCWordNamesWithArrayCompare</code> and
-          <code>selectGPCWordsFromCache</code> both call libSynphony's
-          <code>selectGPCWordsWithArrayCompare</code> <strong>with identical arguments</strong>; the
-          first then plucks <code>Name</code> off the results, the second memoizes them through
-          <code>theOneWordCache</code>. Same selection routine — which is why the dialog's list and
-          the toolbox's panel produced the same five words when I compared them.
-        </p>
-        <p style="font-size:14.5px">
-          The only practical difference is caching: the dialog's path is uncached, so it always
-          reflects current data. No change made; recorded in a comment on
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/8a7f5c602317a3f19157db3041d743616f4c560c/src/BloomBrowserUI/bookEdit/toolbox/readers/readerTools.ts#L519" target="_blank" rel="noopener">getDecodableStageMatchingWords</a>
-          so it is not re-raised.
-        </p>
-      </div>
-
-      <div class="card">
-        <h2>Master's tests were red, and this branch had to unbreak them</h2>
-        <p style="margin-top:0;font-size:14.5px">
-          Merging master brought in 7 failures in its own
-          <code>LeveledReaderToolControls.spec.tsx</code>. They fail the same way on
-          <code>origin/master</code> — nothing to do with this PR — but the branch could not be
-          green while they were there. Two separate causes:
+          Rebased onto master and force-pushed (with <code>--force-with-lease</code>). The two merge
+          commits are gone; the branch is now <strong>9 linear commits</strong> on top of master.
+          A local <code>backup-before-rebase-8a7f5c6</code> branch holds the old history if you
+          ever want it — safe to delete.
         </p>
         <ul style="font-size:14.5px">
-          <li><code>LeveledReaderStats</code> was declared without <code>export</code>, though
-            master's own spec imports it by name, so every test in the file died on render. Added
-            the export.</li>
-          <li>The spec expected an <em>empty</em> Max cell where there is no limit to show.
-            BL-16585 (<code>e6b66aad</code>, 3&nbsp;Aug) changed that cell to render an em dash so
-            the column stays aligned, and did not update the spec, which predates it
-            (<code>e38ccc66</code>, 30&nbsp;Jul). I updated the two expectations and the
-            now-inaccurate test name to match the newer behavior.</li>
+          <li><strong>Master's test fix is in, and mine dropped out.</strong> Master's
+            <code>246991f8b0</code> did exactly what I had done — added the missing
+            <code>export</code> and introduced <code>kNoMaxShown = "—"</code>, even renaming the
+            same test. My commit became redundant and was skipped during the replay.</li>
+          <li><strong>That settles item E from the last round.</strong> You were asked to confirm
+            whether the em dash was intended; the BL-16585 author independently reached the same
+            conclusion, so there is nothing left to decide.</li>
+          <li><strong>The ReaderSetupButton reconciliation had to be redone.</strong> It had lived
+            only in a merge commit's conflict resolution, and rebase drops merges. It now sits in
+            the conversion commit where it belongs. Re-verified live afterwards: the decodable
+            button opens the React dialog with all 13 stages; Set Up Levels still opens the legacy
+            jQuery dialog.</li>
         </ul>
-        <p style="font-size:14.5px">
-          <strong>That second one deserves a second pair of eyes</strong> — it assumes the em dash
-          is the intended display, which is what the component does today. If blank was intended,
-          the component needs changing, not the spec. It is item E on the right.
-        </p>
       </div>
 
       <div class="card">
-        <h2>Master also moved the button we were rewiring</h2>
+        <h2>Two more bugs, found and fixed on the rebased branch</h2>
         <p style="margin-top:0;font-size:14.5px">
-          BL-16585 extracted the Set Up Stages/Levels button into a shared
-          <code>ReaderSetupButton</code> at the same time this branch was rewiring it to open the
-          React dialog — a genuine conflict. Resolved by taking master's component and its new
-          styling wholesale and giving it an optional <code>onClick</code>: the Decodable Reader
-          passes the action that opens the React dialog; the Leveled Reader, not yet converted,
-          keeps falling back to the legacy href.
+          Devin reviewed the rebased head and found a genuine dead-end, then a hole in my fix for
+          it. Both are now fixed and verified.
         </p>
+        <div class="commit">
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/025fc051cf" target="_blank" rel="noopener"><code>025fc05</code></a>
+          — <strong>The edit view could be left locked with no way out.</strong>
+          <p style="font-size:14.5px;margin:6px 0 0">
+            Opening the dialog locked the edit view <em>before</em> the dialog was rendered, while
+            the only code that unlocks lives inside the dialog. If the render failed, the user was
+            left unable to touch the book, with no dialog to dismiss, until Bloom restarted — and
+            it was reachable, because clicking Set Up Stages before the reader settings finish
+            loading makes the component throw. The lock is now set from a mount effect, so a failed
+            render never locks anything.
+          </p>
+        </div>
+        <div class="commit">
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/6e3e7797bd" target="_blank" rel="noopener"><code>6e3e779</code></a>
+          — <strong>Closing could later unlock the edit view spuriously.</strong>
+          <p style="font-size:14.5px;margin:6px 0 0">
+            <code>close()</code> tried to disarm itself, but the handle was re-armed by the very
+            re-render that closing triggers, so a later close request re-ran the unlock. Closing is
+            now idempotent, and the handle is published from an effect instead of during render
+            (which also removes the assign-module-state-while-rendering pattern Devin had flagged
+            from its first review).
+          </p>
+        </div>
         <p style="font-size:14.5px">
-          Verified both live: the decodable button is now a <code>&lt;button&gt;</code> with no
-          href and opens the React dialog with all 13 stages, while Set Up Levels is still an
-          <code>&lt;a&gt;</code> with the legacy
-          <code>showSetupDialog('levels')</code> href and still opens the old jQuery
-          "Set up Leveled Reader Tool" dialog.
+          Both verified in a running Bloom by counting the actual <code>setModalState</code>
+          requests: one on open, a second on Cancel, and <strong>still only two</strong> after a
+          further close request — where previously a third would have fired.
         </p>
       </div>
 
       <div class="card">
-        <h2>Quality gate at <code>8a7f5c6</code></h2>
+        <h2>Quality gate at <code>6e3e7797bd</code></h2>
         <table>
           <tr><th>Check</th><th>Result</th></tr>
           <tr><td>TypeScript typecheck</td><td class="ok">pass</td></tr>
           <tr><td>ESLint</td><td class="ok">pass — 0 errors</td></tr>
-          <tr><td>TypeScript tests (Vitest)</td><td class="ok">615 passed, 5 skipped, 0 failed</td></tr>
-          <tr><td>C# tests (BloomTests)</td><td class="na">not re-run since the earlier full run (2981 passed; 1 environment-only failure needing Reading App Builder's build tools). Nothing since touches C#; the XLF change is unchanged from round&nbsp;1.</td></tr>
-          <tr><td>Merge with <code>origin/master</code></td><td class="ok">conflict resolved and verified; PR mergeable</td></tr>
+          <tr><td>TypeScript tests (Vitest)</td><td class="ok">618 passed, 5 skipped, 0 failed</td></tr>
+          <tr><td>C# tests (BloomTests)</td><td class="na">not re-run since the earlier full run (2981 passed; 1 environment-only failure needing Reading App Builder's build tools). Nothing on this branch touches C#.</td></tr>
+          <tr><td>Rebase onto <code>origin/master</code></td><td class="ok">clean, linear, force-pushed; PR mergeable</td></tr>
           <tr><td>CI</td><td class="ok"><code>pr-automation</code> pass · <code>track / set-waiting</code> pass</td></tr>
-          <tr><td>Devin</td><td class="ok">complete — <strong>no new bugs</strong> against <code>8a7f5c6</code></td></tr>
-          <tr><td>Reviewable</td><td class="na">shows "9 discussions left" — those are the 9 review threads I opened, mirrored; 8 are now replied-to and resolved</td></tr>
+          <tr><td>Devin</td><td class="ok">complete — <strong>no new bugs</strong> against <code>6e3e7797bd</code></td></tr>
+          <tr><td>Reviewable</td><td class="na">"9 discussions left" — the review threads I opened, mirrored. 8 replied-to and resolved; 1 open (below).</td></tr>
         </table>
         <p style="font-size:13.5px;color:var(--muted);margin:12px 0 0">
-          Front-end tests across this preflight: <strong>574 → 615</strong>. The branch started with
-          none covering any of the new code.
+          Front-end tests across this whole preflight: <strong>574 → 618</strong>. The branch began
+          with none covering any of the new code.
         </p>
+      </div>
+
+      <div class="card">
+        <h2>Everything decided so far</h2>
+        <table>
+          <tr><th>Item</th><th>Outcome</th></tr>
+          <tr><td>Sample words corrupted by line breaks</td><td class="ok">fixed (the severe one)</td></tr>
+          <tr><td>Lost de-duplication; cleaned-vs-raw comparison</td><td class="ok">fixed</td></tr>
+          <tr><td>Hard-coded English hint; missing accessible names</td><td class="ok">fixed</td></tr>
+          <tr><td>Deleted letters ignored in allowed-words mode</td><td class="ok">fixed</td></tr>
+          <tr><td>Special language symbols always empty</td><td class="ok">fixed</td></tr>
+          <tr><td>Duplicate grapheme splitter</td><td class="ok">removed</td></tr>
+          <tr><td>Array-valued <code>AlwaysMatch</code> dropped</td><td class="ok">fixed</td></tr>
+          <tr><td>Empty stages saved / not renumbered</td><td class="ok">legacy rule restored</td></tr>
+          <tr><td>Edit view lockable / spurious unlock</td><td class="ok">both fixed</td></tr>
+          <tr><td>Single-line sample words; tab-switch pruning</td><td class="ok">accepted deliberately</td></tr>
+          <tr><td>Kept-vocabulary limitations</td><td class="ok">accepted, documented</td></tr>
+          <tr><td>Two Synphony entry points</td><td class="ok">investigated — same routine</td></tr>
+          <tr><td>Master's leveled tests / em dash</td><td class="ok">master fixed it identically</td></tr>
+          <tr><td>Unreadable sample-text files vanish</td><td class="warnt">still open — right</td></tr>
+        </table>
       </div>
     </div>
 
     <div>
       <div class="card" style="background:var(--accent-soft);border-color:#cfe2e6">
-        <h2 style="margin-bottom:6px">Two things left</h2>
+        <h2 style="margin-bottom:6px">One item left</h2>
         <p style="margin:0;font-size:14.5px">
-          D is the discussion you asked for, with the pre-PR comparison you wanted. E is the
-          master breakage I had to touch, which is not really this PR's to decide.
+          Everything else is either fixed or explicitly decided. This is the discussion you asked
+          for, with the pre-PR comparison.
         </p>
       </div>
 
       <div class="item">
-        <h3>D. Unexpected file types vanish — what actually changed</h3>
-        <p class="whence">Your round-2 request: focus on behavior changes from pre-PR code ·
+        <h3>Unreadable sample-text files vanish without explanation</h3>
+        <p class="whence">Your request: focus on behavior changes from pre-PR code ·
           <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3706432512" target="_blank" rel="noopener">PR thread</a> (open) ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/8a7f5c602317a3f19157db3041d743616f4c560c/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableStagesSetup.tsx#L33" target="_blank" rel="noopener">DecodableStagesSetup.tsx:33</a>
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/6e3e7797bd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableStagesSetup.tsx#L33" target="_blank" rel="noopener">DecodableStagesSetup.tsx:33</a>
         </p>
         <p style="font-size:14.5px">
-          I read the legacy handler. <strong>The extension list itself is not a change</strong> — the
-          old dialog used exactly <code>["txt","js","json"]</code>, the same as the new dialog and the
-          same as the model's <code>getReadableFileExtensions</code>. And it compared
-          case-sensitively too, so a <code>.TXT</code> file was rejected before this PR as well.
-          Devin framed both as defects; neither is a regression.
+          <strong>Not</strong> changes from pre-PR code: the extension list is identical
+          (<code>txt</code>/<code>js</code>/<code>json</code> — same as the model's
+          <code>getReadableFileExtensions</code>), and the old dialog compared case-sensitively
+          too, so a <code>.TXT</code> file was rejected before this PR as well. Devin framed both
+          as defects; neither is a regression.
         </p>
         <p style="font-size:14.5px">
-          <strong>What genuinely changed is that the old dialog told the user, and the new one says
-          nothing.</strong> Pre-PR it listed <em>every</em> file in the folder and annotated the ones
-          it could not use: "Cannot read this format" for an unsupported extension, "File needs .TXT
-          extension" for a file with no extension at all. When any such file was present it also
-          revealed a help link, "Help exporting and converting files to use as sample texts". An
-          empty folder got a "please add texts" message. The new dialog filters those files out
-          silently and has no empty-state message, so a user who drops a <code>.docx</code> in the
-          folder now gets no hint why it is being ignored.
+          <strong>What did change is that the old dialog explained itself and the new one is
+          silent.</strong> Pre-PR it listed <em>every</em> file in the Sample Texts folder and
+          annotated the ones it could not use — "Cannot read this format" for an unsupported
+          extension, "File needs .TXT extension" for one with no extension — and when any were
+          present it revealed a help link, "Help exporting and converting files to use as sample
+          texts". An empty folder got a "please add texts" message. The new dialog filters those
+          files out silently and shows nothing for an empty folder, so someone who drops a
+          <code>.docx</code> in there gets no hint why it is ignored.
         </p>
         <p style="font-size:14.5px">
-          The three strings for those messages still exist in <code>Bloom.xlf</code>
+          All the strings still exist in <code>Bloom.xlf</code> and are already translated
           (<code>ReaderSetup.FormatNotSupported</code>, <code>.FileNeedsTxtExtension</code>,
-          <code>.HowToExport</code>) but are now referenced only from the legacy
-          <code>ReaderSetup.pug</code>, so they are effectively orphaned for the decodable path.
+          <code>.HowToExport</code>), but are now referenced only from the legacy
+          <code>ReaderSetup.pug</code> — orphaned for this path.
         </p>
-        <div class="opt"><input type="radio" name="qd" id="qda" checked /><label class="txt" for="qda">Restore the explanation: list unsupported files with the existing "Cannot read this format" / "File needs .TXT extension" labels, plus the help link and the empty-folder message<span class="rec">Recommended</span><span class="fx">Moderate UI work, but all four strings already exist and are already translated — this is restoring a deliberate affordance rather than inventing one.</span></label></div>
-        <div class="opt"><input type="radio" name="qd" id="qdb" /><label class="txt" for="qdb">Just the empty-folder message and the help link; keep hiding unusable files<span class="fx">Smaller — the user gets pointed at help, but still no per-file explanation.</span></label></div>
-        <div class="opt"><input type="radio" name="qd" id="qdc" /><label class="txt" for="qdc">Deliberately accept the quieter listing as part of the redesign, and mark the three strings obsolete<span class="fx">No UI work; the XLF entries should then be marked obsolete so translators stop maintaining them.</span></label></div>
+        <div class="opt"><input type="radio" name="qd" id="qda" checked /><label class="txt" for="qda">Restore the explanation — list unusable files with the existing labels, plus the help link and the empty-folder message<span class="rec">Recommended</span><span class="fx">Moderate UI work, but all four strings exist and are translated; this restores a deliberate affordance rather than inventing one.</span></label></div>
+        <div class="opt"><input type="radio" name="qd" id="qdb" /><label class="txt" for="qdb">Just the empty-folder message and the help link; keep hiding unusable files<span class="fx">Smaller — points the user at help, but still no per-file explanation.</span></label></div>
+        <div class="opt"><input type="radio" name="qd" id="qdc" /><label class="txt" for="qdc">Accept the quieter listing as part of the redesign, and mark the three strings obsolete<span class="fx">No UI work; the XLF entries should then be marked obsolete so translators stop maintaining them.</span></label></div>
         <div class="opt leaverow"><input type="radio" name="qd" id="qdd" /><label class="txt" for="qdd">Leave as is</label><span class="lc"><input type="checkbox" id="qdlc" /><label for="qdlc">Leave comment</label></span></div>
         <div class="opt"><input type="radio" name="qd" id="qde" /><label class="txt" for="qde">Other:&nbsp;<input type="text" id="qdother" placeholder="your answer" /></label></div>
         <div class="notes"><label for="qdnotes">Notes</label><textarea id="qdnotes" rows="2"></textarea></div>
       </div>
 
       <div class="item">
-        <h3>E. I changed master's stale test expectations — please confirm</h3>
-        <p class="whence">Not this PR's code; needed to get the branch green</p>
-        <p style="font-size:14.5px">
-          Master's leveled-reader spec expected the Max cell to be empty where a level sets no
-          limit. The component renders an em dash there, and has done since BL-16585 four days
-          after the spec was written. I updated the spec to expect the em dash, on the reading that
-          the newer component is the intended behavior and the spec simply was not updated with it.
-          If the intent was actually a blank cell, then the component is what should change and my
-          spec edit should be reverted.
-        </p>
-        <div class="opt"><input type="radio" name="qe" id="qea" checked /><label class="txt" for="qea">The em dash is intended — my spec update stands<span class="rec">Recommended</span><span class="fx">Already done. The component treats zero, infinite and shared-limit rows identically, which reads like a deliberate placeholder choice.</span></label></div>
-        <div class="opt"><input type="radio" name="qe" id="qeb" /><label class="txt" for="qeb">Blank was intended — revert my spec edit and fix the component instead<span class="fx">Small, but it is a BL-16585 UI decision, so it belongs to whoever made it.</span></label></div>
-        <div class="opt"><input type="radio" name="qe" id="qec" /><label class="txt" for="qec">Take both fixes out of this PR and report them to the BL-16585 author separately<span class="fx">Leaves this branch's suite red until master is fixed, so the gate could not be trusted meanwhile.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="qe" id="qed" /><label class="txt" for="qed">Leave as is</label><span class="lc"><input type="checkbox" id="qelc" /><label for="qelc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="qe" id="qee" /><label class="txt" for="qee">Other:&nbsp;<input type="text" id="qeother" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="qenotes">Notes</label><textarea id="qenotes" rows="2"></textarea></div>
-      </div>
-
-      <div class="item">
         <h3>Next step</h3>
-        <div class="opt"><input type="radio" name="qf" id="qfa" checked /><label class="txt" for="qfa">Implement what I chose, then re-run preflight<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="qf" id="qfb" /><label class="txt" for="qfb">Good enough — promote it to human review</label></div>
-        <div class="opt"><input type="radio" name="qf" id="qfc" /><label class="txt" for="qfc">Let's talk before any more code changes</label></div>
+        <div class="opt"><input type="radio" name="qf" id="qfa" checked /><label class="txt" for="qfa">Settle the item above, then promote to human review<span class="rec">Recommended</span><span class="fx">The gate is green and Devin is quiet; this is the last thing outstanding.</span></label></div>
+        <div class="opt"><input type="radio" name="qf" id="qfb" /><label class="txt" for="qfb">Promote to human review now; handle that separately</label></div>
+        <div class="opt"><input type="radio" name="qf" id="qfc" /><label class="txt" for="qfc">Let's talk before any more changes</label></div>
         <div class="opt"><input type="radio" name="qf" id="qfd" /><label class="txt" for="qfd">Hand it back to the intern with these notes</label></div>
         <div class="opt"><input type="radio" name="qf" id="qfe" /><label class="txt" for="qfe">Other:&nbsp;<input type="text" id="qfother" placeholder="your answer" /></label></div>
         <div class="notes"><label for="qfnotes">Notes</label><textarea id="qfnotes" rows="2"></textarea></div>
@@ -264,7 +253,7 @@
         <p style="font-size:14px;color:var(--muted);margin-top:0">Copy this and paste it into the session.</p>
         <button id="copyBtn">Copy answers</button>
         <span id="copied" style="margin-left:10px;color:var(--good);font-weight:600;display:none">Copied</span>
-        <textarea id="out" rows="10" readonly style="margin-top:12px"></textarea>
+        <textarea id="out" rows="8" readonly style="margin-top:12px"></textarea>
       </div>
     </div>
   </div>
@@ -272,13 +261,12 @@
 
 <script>
   var QS = [
-    { n: "qd", t: "D. Unexpected file types vanish silently" },
-    { n: "qe", t: "E. Master's stale test expectation (em dash vs blank)" },
+    { n: "qd", t: "Unreadable sample-text files vanish without explanation" },
     { n: "qf", t: "Next step" }
   ];
 
   function build() {
-    var lines = ["Preflight round-3 answers - BloomDesktop PR #8132 (BL-16607)", ""];
+    var lines = ["Preflight (post-rebase) answers - BloomDesktop PR #8132 (BL-16607)", ""];
     QS.forEach(function (q) {
       var sel = document.querySelector('input[name="' + q.n + '"]:checked');
       var label = "(no answer)";
