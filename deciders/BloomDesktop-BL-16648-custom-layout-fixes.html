@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preflight — BL-16648 custom layout fixes</title>
+<style>
+  :root{
+    --ground:#faf8f4; --card:#ffffff; --rule:#e2dcd1; --rule-soft:#efeae1;
+    --ink:#292723; --ink-soft:#4d4842; --muted:#6b655d;
+    --accent:#146b78; --accent-soft:#e6f1f2;
+    --pass:#2c6e49; --warn:#8a6410; --fail:#9e3521;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    --mono:ui-monospace,"Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:16px; line-height:1.6;
+  }
+  .wrap{max-width:1360px; margin:0 auto; padding:40px 28px 72px}
+  header.top{border-bottom:1px solid var(--rule); padding-bottom:22px; margin-bottom:32px}
+  header.top h1{
+    font-family:var(--serif); font-weight:600; font-size:2rem; line-height:1.2;
+    margin:0 0 8px; text-wrap:balance; letter-spacing:-.01em;
+  }
+  .sub{color:var(--muted); font-size:.94rem; margin:0}
+  .sub a{color:var(--accent)}
+  .cols{display:grid; grid-template-columns:1fr; gap:28px}
+  @media (min-width:1040px){ .cols{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:34px} }
+  .card{
+    background:var(--card); border:1px solid var(--rule); border-radius:6px;
+    padding:22px 24px; margin:0 0 22px;
+  }
+  .card > h2{
+    font-family:var(--serif); font-weight:600; font-size:1.18rem; margin:0 0 14px;
+    letter-spacing:-.005em;
+  }
+  .card > h2:not(:first-child){margin-top:26px}
+  h3{font-family:var(--sans); font-size:.95rem; font-weight:650; margin:20px 0 8px}
+  p{margin:0 0 12px}
+  p:last-child{margin-bottom:0}
+  a{color:var(--accent); text-decoration-thickness:1px; text-underline-offset:2px}
+  code,.mono{font-family:var(--mono); font-size:.88em}
+  .scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse; width:100%; font-size:.93rem}
+  th,td{text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule-soft); vertical-align:top}
+  th{font-size:.76rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:650; white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .pill{
+    display:inline-block; font-size:.74rem; font-weight:650; letter-spacing:.04em;
+    text-transform:uppercase; padding:2px 8px; border-radius:99px; white-space:nowrap;
+    border:1px solid currentColor;
+  }
+  .pill.ok{color:var(--pass)} .pill.warn{color:var(--warn)} .pill.bad{color:var(--fail)}
+  .pill.na{color:var(--muted)}
+  ul{margin:0 0 12px; padding-left:20px} li{margin:0 0 7px} li:last-child{margin-bottom:0}
+  .note{font-size:.9rem; color:var(--ink-soft)}
+  .stripe{border-left:3px solid var(--accent); background:var(--accent-soft); padding:12px 14px; border-radius:0 4px 4px 0; font-size:.92rem}
+  /* decisions */
+  .q{border:1px solid var(--rule); border-radius:6px; background:var(--card); padding:20px 22px; margin:0 0 20px}
+  .q h3{font-family:var(--serif); font-size:1.08rem; font-weight:600; margin:0 0 10px}
+  .qbody{font-size:.94rem; color:var(--ink-soft); margin-bottom:14px}
+  .opt{display:flex; gap:10px; align-items:flex-start; padding:9px 0; border-top:1px solid var(--rule-soft)}
+  .opt:first-of-type{border-top:1px solid var(--rule)}
+  .opt input[type=radio]{margin-top:4px; flex:0 0 auto; accent-color:var(--accent)}
+  .opt label{flex:1 1 auto; font-size:.93rem; cursor:pointer}
+  .rec{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--accent); border:1px solid var(--accent); border-radius:99px; padding:1px 6px; margin-left:6px; vertical-align:1px}
+  .fx{display:block; font-size:.83rem; color:var(--muted); margin-top:3px}
+  .leaverow{display:flex; align-items:center; gap:8px; margin-left:auto; flex:0 0 auto; font-size:.82rem; color:var(--muted); white-space:nowrap}
+  .leaverow input{accent-color:var(--accent)}
+  .otherwrap{display:flex; gap:8px; align-items:center; flex:1 1 auto}
+  input[type=text],textarea{
+    font-family:var(--sans); font-size:.9rem; color:var(--ink);
+    background:var(--ground); border:1px solid var(--rule); border-radius:4px; padding:6px 9px; width:100%;
+  }
+  textarea{resize:vertical; min-height:56px; line-height:1.5}
+  .notes{margin-top:13px}
+  .notes span{display:block; font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:5px}
+  button{
+    font-family:var(--sans); font-size:.92rem; font-weight:600; color:#fff; background:var(--accent);
+    border:1px solid var(--accent); border-radius:5px; padding:9px 16px; cursor:pointer;
+  }
+  button:hover{filter:brightness(1.08)}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+  #copied{margin-left:10px; font-size:.86rem; color:var(--pass); font-weight:600}
+  #payload{margin-top:12px; font-family:var(--mono); font-size:.8rem; min-height:120px}
+  footer{margin-top:34px; padding-top:18px; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — custom layout fixes for the Inside Back Cover</h1>
+  <p class="sub">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8143" target="_blank" rel="noopener">PR #8143</a> (draft)
+    &middot; branch <span class="mono">BL-16648-custom-layout-fixes</span>
+    &middot; base <span class="mono">Version6.4</span>
+    &middot; <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16648" target="_blank" rel="noopener">BL-16648</a>
+    &middot; HEAD <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/8fbcc761abc04cc83daa09ce533906472927aa5c" target="_blank" rel="noopener">8fbcc76</a>
+    &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8143/files" target="_blank" rel="noopener">Files changed</a>
+    &middot; <a href="https://app.devin.ai/review/BloomBooks/BloomDesktop/pull/8143" target="_blank" rel="noopener">Devin review</a>
+  </p>
+</header>
+
+<div class="cols">
+
+<!-- ======================= LEFT: the run ======================= -->
+<div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Typecheck (TypeScript)</td>
+            <td><span class="pill warn">pre-existing red</span></td>
+            <td>13 errors across 10 files, <strong>none in any file this branch touches</strong>. The repo ships no <span class="mono">typecheck</span> script and builds through vite; the errors are vite/vitest type conflicts and the bundled jquery/ckeditor typings. Not a regression.</td>
+          </tr>
+          <tr>
+            <td>Lint (eslint)</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="num">0 errors, 775 warnings (all pre-existing, repo-wide)</td>
+          </tr>
+          <tr>
+            <td>Merge cleanliness</td>
+            <td><span class="pill ok">clean</span></td>
+            <td>Base unmoved during the run; GitHub reports <span class="mono">MERGEABLE</span> / <span class="mono">CLEAN</span>. Nothing to integrate.</td>
+          </tr>
+          <tr>
+            <td>Tests — TypeScript (vitest)</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="num">509 passed, 5 skipped (46 files)</td>
+          </tr>
+          <tr>
+            <td>Tests — C# (dotnet test)</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="num">2816 passed, 0 failed, 14 skipped &mdash; 11m 09s</td>
+          </tr>
+          <tr>
+            <td>Tests — LESS / XLF</td>
+            <td><span class="pill na">n/a</span></td>
+            <td>No test runner for stylesheets or localization files in this repo; the CSS behavior was verified by measurement instead (below).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <p class="note">No new commits were produced. Nothing in the gauntlet asked for a code change, so the branch is still the single commit it started as; this run was verification and publishing.</p>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Commit</th><th>Summary</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="num"><a href="https://github.com/BloomBooks/BloomDesktop/commit/8fbcc761abc04cc83daa09ce533906472927aa5c" target="_blank" rel="noopener">8fbcc76</a></td>
+            <td>Fix margins, branding CSS, and localization for custom layout pages &mdash; 5 files, +102 / &minus;4</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <h3>The five files</h3>
+    <ul class="note">
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/src/content/bookLayout/canvasElement.less#L356-L360" target="_blank" rel="noopener">canvasElement.less:356–360</a> — zero <span class="mono">--page-margin-*</span> and <span class="mono">--page-gutter</span> on custom-layout pages.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/src/content/branding/branding-base.less#L145-L149" target="_blank" rel="noopener">branding-base.less:145–149</a> — the generalized un-hide rule, kept at specificity (0,6,0).</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/src/BloomBrowserUI/bookEdit/js/CanvasElementContextControls.tsx#L1256" target="_blank" rel="noopener">CanvasElementContextControls.tsx:1256</a> — the new <span class="mono">labelL10nId</span> field, <a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/src/BloomBrowserUI/bookEdit/js/CanvasElementContextControls.tsx#L1406" target="_blank" rel="noopener">consumed at :1406</a>.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/DistFiles/localization/en/BloomLowPriority.xlf#L356-L365" target="_blank" rel="noopener">BloomLowPriority.xlf:356–365</a> — the two new entries.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/8fbcc761abc04cc83daa09ce533906472927aa5c/src/BloomTests/Book/XMatterHelperTests.cs#L87" target="_blank" rel="noopener">XMatterHelperTests.cs:87</a> — the shared-custom-layout-id test.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Findings</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Local review<br /><span class="note">light sub-agent pass</span></td>
+            <td><span class="pill ok">clean</span></td>
+            <td>0 raised, 0 fixed, 0 escalated, 0 dismissed. It independently confirmed the (0,6,0) specificity claim, that the outside back cover still matches the generalized selector, that both reused localization ids exist with English matching the menu labels exactly, and that the new C# test fails rather than passes vacuously if the attribute is missing.</td>
+          </tr>
+          <tr>
+            <td>Devin</td>
+            <td><span class="pill ok">complete</span></td>
+            <td>
+              1 Bug, 0 Investigate, 3 Informational, for this exact commit.
+              The Bug — the new localization entries lack <span class="mono">translate="no"</span> — was
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8143#discussion_r3708057393" target="_blank" rel="noopener">posted as a thread</a>,
+              answered and resolved: the omission is deliberate for the beta, and it turns out
+              <span class="mono">BloomLowPriority.xlf</span> uses that marker nowhere at all (0 of its 77 entries).
+              The 3 informational items had all been considered when the change was designed, and Devin's own analysis agreed with those conclusions.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8143#issuecomment-5172345733" target="_blank" rel="noopener">Consultation log</a>.
+            </td>
+          </tr>
+          <tr>
+            <td>CI</td>
+            <td><span class="pill ok">pass</span></td>
+            <td><span class="mono">pr-automation</span> and <span class="mono">track / set-waiting</span> both green at this commit.</td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td><span class="pill na">not active here</span></td>
+            <td>Present in the repo but <span class="mono">.coderabbit.yml</span> sets <span class="mono">auto_review.enabled: false</span>, so it does not review this repo. Nothing was waited for.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>How the fixes were verified</h2>
+    <p>Two of the three fixes are pure CSS, which no test in this repo covers, so they were measured instead — once against the compiled stylesheets in Chromium using Bloom's real link order, and then in the running application.</p>
+    <h3>In the running app, on an A4 Portrait book</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th></th><th>Standard layout</th><th>Custom layout</th></tr></thead>
+        <tbody>
+          <tr><td>page padding top&nbsp;/&nbsp;right&nbsp;/&nbsp;bottom&nbsp;/&nbsp;left</td><td class="num">56.7 / 56.7 / 56.7 / <strong>94.5</strong></td><td class="num">0 / 0 / 0 / 0</td></tr>
+          <tr><td><span class="mono">--page-gutter</span></td><td class="num">10mm</td><td class="num">0px</td></tr>
+          <tr><td><span class="mono">.bloom-canvas</span> inset</td><td class="num">&mdash;</td><td class="num">L0 T0 R0 B0</td></tr>
+          <tr><td>background canvas element</td><td class="num">&mdash;</td><td class="num">794&times;1123 = the whole page</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note" style="margin-top:12px">The standard-layout column is the defect: the inside back cover was a <span class="mono">side-right</span> page there, so the 10mm gutter landed on its left, making a "full page" picture both inset and <strong>off-centre by 37.8px</strong>. The cover colour was confirmed visually to run edge to edge after the fix.</p>
+    <h3>The branding fix</h3>
+    <p class="note">Against the real compiled RobotsMali stylesheet, a translation group on a custom inside back cover goes from <span class="mono">display:none</span> (reproducing the bug in the standard-layout control) to <span class="mono">display:flex</span>. RobotsMali is the only branding that hides that group with <span class="mono">!important</span>, which is why the selector needs its (0,6,0) specificity.</p>
+    <h3>Also confirmed</h3>
+    <p class="note">An <em>existing</em> book gains <span class="mono">data-custom-layout-id</span> when opened for editing, so the feature is not limited to newly created books — which matters for the Vanuatu conversion work that drove the card.</p>
+  </div>
+
+  <div class="card">
+    <h2>Session notes</h2>
+    <ul class="note">
+      <li>This worktree needed a full environment build first: yarn-1 install (React 17, not master's pnpm/React 18), <span class="mono">getDependencies-windows.sh</span> for the native/binary dependencies, then both builds. The <span class="mono">react/no-deprecated</span> false positive that blocked committing earlier is gone now that eslint detects React 17.</li>
+      <li>The original PR #8136 merged while this work was in progress, so the fixes were rebased onto the merged tip as a new branch. This branch contains <strong>no pug change</strong> — the capability itself came from #8136.</li>
+      <li>Three comments were posted to BL-16648 this run: the PR link, the master follow-up list, and the QA test-ideas write-up.</li>
+      <li>The Bloom instance launched for the in-app verification has been shut down again.</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ======================= RIGHT: decisions ======================= -->
+<div>
+
+  <div class="q">
+    <h3>Three local cleanups are blocked by the permission classifier</h3>
+    <div class="qbody">
+      <p>Part of the housekeeping could not be completed. Deleting a git stash and two stale local branches was refused by Claude Code's auto-mode classifier ("Blocked by classifier"), and per its own instruction I did not attempt to route around it. Nothing is broken by leaving them; they are just clutter that will confuse the next person who looks at this work.</p>
+      <p>The three items, all verified safe before I tried: <span class="mono">stash@{1}</span> in the main checkout, whose contents I confirmed byte-for-byte identical to what is now committed; local branch <span class="mono">BL-16648-custom-layout-inside-back-cover</span>, an intermediate of mine whose five files match the pushed branch exactly; and local branch <span class="mono">BL-16648-inside-back-cover-image</span>, whose only unique commit is an amended message for a commit GitHub has already merged in its pre-amend form.</p>
+      <p>The scratch folder <span class="mono">_BL-16648-handoff</span> is the fourth item; it is backed up and ready to remove, and removing it is not blocked.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1a" data-q="Blocked cleanups" value="Add a permissions.allow rule so I can finish it" checked />
+      <label for="q1a">Add the <span class="mono">permissions.allow</span> entry from the team-skills README, then I finish all four deletions<span class="rec">recommended</span>
+      <span class="fx">No code; a one-time settings change that also unblocks future preflight runs.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1b" data-q="Blocked cleanups" value="You run the three git commands yourself" />
+      <label for="q1b">You run the three commands yourself and I remove the folder
+      <span class="fx">Two minutes of your time, no settings change.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1c" data-q="Blocked cleanups" value="Leave as is" />
+      <label for="q1c">Leave as is</label>
+      <span class="leaverow"><input type="checkbox" id="q1lc" data-q="Blocked cleanups — leave comment" /><label for="q1lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1d" data-q="Blocked cleanups" value="Other" />
+      <label for="q1d"><span class="otherwrap">Other: <input type="text" id="q1other" data-q="Blocked cleanups — other" placeholder="…" /></span></label>
+    </div>
+    <div class="notes"><span>Notes</span><textarea data-q="Blocked cleanups — notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h3>The full-bleed case has still never been looked at</h3>
+    <div class="qbody">
+      <p>Bloom books can be set to print with "bleed" — the page content deliberately runs past the trim line so there is no white edge after cutting. This change zeroes the page margins on custom-layout pages, and nobody has yet opened a bleed-enabled book with a full-page picture on a custom Inside Back Cover to see what that looks like.</p>
+      <p>It is expected to be fine: the Front Cover has done the equivalent for a while via the cover-margin variables (<span class="mono">.bloom-page.outsideFrontCover.cover-is-image</span>) and behaves correctly. But "expected to be fine" is exactly the phrase that precedes surprises at a trim edge, and it is the one item from the original plan that has no evidence behind it. It is written into the QA test-ideas comment on the card as the first thing a tester should look at.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2a" data-q="Full-bleed check" value="I verify it in the app now" checked />
+      <label for="q2a">I launch Bloom again and check it before this goes to human review<span class="rec">recommended</span>
+      <span class="fx">No code unless it turns up a problem; ~10 minutes and it removes the last unknown.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2b" data-q="Full-bleed check" value="Leave it to QA via the test-ideas comment" />
+      <label for="q2b">Leave it to QA — it is already flagged as the top item in the test-ideas comment
+      <span class="fx">No work now; the risk is that it surfaces later, after review.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2c" data-q="Full-bleed check" value="Leave as is" />
+      <label for="q2c">Leave as is</label>
+      <span class="leaverow"><input type="checkbox" id="q2lc" data-q="Full-bleed check — leave comment" /><label for="q2lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2d" data-q="Full-bleed check" value="Other" />
+      <label for="q2d"><span class="otherwrap">Other: <input type="text" id="q2other" data-q="Full-bleed check — other" placeholder="…" /></span></label>
+    </div>
+    <div class="notes"><span>Notes</span><textarea data-q="Full-bleed check — notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h3>For information — the master port is recorded but not started</h3>
+    <div class="qbody">
+      <p>All three fixes in this PR were originally scoped as "6.4 and master", and the Inside Back Cover capability is heading to master separately as part of BL-16627. So master will get the ability to put a custom layout on the Inside Back Cover <em>without</em> these three fixes unless they are ported.</p>
+      <p>You asked for nothing on master yet, so nothing has been done there. The full list — the three fixes plus the two-custom-pages-in-one-book test, the missing <span class="mono">&amp;attributes</span> on the device mixin, the MXB note, and the stale-hint cleanup — is now written up as a comment on BL-16648 so it survives this session. This item needs no decision unless you want to change that.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3a" data-q="Master port" value="Leave as is" checked />
+      <label for="q3a">Leave as is — recorded on the card, revisit after 6.4 lands<span class="rec">recommended</span></label>
+      <span class="leaverow"><input type="checkbox" id="q3lc" data-q="Master port — leave comment" /><label for="q3lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3b" data-q="Master port" value="Start the master port now" />
+      <label for="q3b">Start the master port now
+      <span class="fx">Moderate — a second branch and PR, and the three fixes may not apply cleanly to master's newer code.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3c" data-q="Master port" value="Other" />
+      <label for="q3c"><span class="otherwrap">Other: <input type="text" id="q3other" data-q="Master port — other" placeholder="…" /></span></label>
+    </div>
+    <div class="notes"><span>Notes</span><textarea data-q="Master port — notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h3>Next step</h3>
+    <div class="qbody">
+      <p>Preflight deliberately stops short of promoting anything: the PR is still a draft, no teammate has been asked to review it, and the board has not been moved. The intended sequence is that you review your own work next, and run <span class="mono">/pr-ready-for-human</span> when you are satisfied.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4a" data-q="Next step" value="Stop here; John reviews, then runs pr-ready-for-human" checked />
+      <label for="q4a">Stop here — you review the PR yourself, then run <span class="mono">/pr-ready-for-human</span><span class="rec">recommended</span>
+      <span class="fx">No further work from me; this is the sequence the review skills expect.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4b" data-q="Next step" value="Run pr-ready-for-human now" />
+      <label for="q4b">You have seen enough — run <span class="mono">/pr-ready-for-human</span> now
+      <span class="fx">No code; marks the PR ready and moves the boards.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4c" data-q="Next step" value="Leave as is" />
+      <label for="q4c">Leave as is</label>
+      <span class="leaverow"><input type="checkbox" id="q4lc" data-q="Next step — leave comment" /><label for="q4lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4d" data-q="Next step" value="Other" />
+      <label for="q4d"><span class="otherwrap">Other: <input type="text" id="q4other" data-q="Next step — other" placeholder="…" /></span></label>
+    </div>
+    <div class="notes"><span>Notes</span><textarea data-q="Next step — notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h3>Send your answers back</h3>
+    <p class="qbody" style="margin-bottom:12px">Copy this and paste it into the session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+
+<footer>
+  Preflight run 2026-08-03 for <span class="mono">BL-16648-custom-layout-fixes</span> @ <span class="mono">8fbcc76</span>.
+  Every reviewer reached a terminal state; no reviewer timed out. Report page:
+  <span class="mono">deciders/BloomDesktop-BL-16648-custom-layout-fixes.html</span>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  var URL_SELF = "https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16648-custom-layout-fixes.html";
+
+  function build(){
+    var out = [];
+    out.push("Preflight answers — BL-16648-custom-layout-fixes (PR #8143)");
+    out.push(URL_SELF);
+    out.push("");
+    var groups = ["q1","q2","q3","q4"];
+    groups.forEach(function(name){
+      var picked = document.querySelector('input[name="'+name+'"]:checked');
+      if(!picked) return;
+      var qlabel = picked.getAttribute("data-q") || name;
+      var val = picked.value;
+      if(val === "Other"){
+        var oth = document.getElementById(name+"other");
+        var t = oth && oth.value.trim();
+        val = "Other: " + (t ? t : "(nothing written)");
+      }
+      out.push(qlabel + ": " + val);
+      var lc = document.getElementById(name+"lc");
+      if(lc && lc.checked){
+        out.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+      }
+      var notes = document.querySelector('textarea[data-q="'+qlabel+' — notes"]');
+      if(notes && notes.value.trim()){
+        out.push("  Notes: " + notes.value.trim());
+      }
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/,"\n");
+  }
+
+  var ta = document.getElementById("payload");
+  var btn = document.getElementById("copybtn");
+  var flag = document.getElementById("copied");
+
+  function refresh(){ ta.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  btn.addEventListener("click", function(){
+    refresh();
+    var done = function(){ flag.hidden = false; setTimeout(function(){ flag.hidden = true; }, 2200); };
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(ta.value).then(done, function(){ fallback(); });
+    } else { fallback(); }
+    function fallback(){
+      ta.focus(); ta.select();
+      try{ document.execCommand("copy"); done(); }catch(e){ flag.hidden = false; flag.textContent = "Select the text below and press Ctrl+C"; }
+    }
+  });
+})();
+</script>
+</body>
+</html>
