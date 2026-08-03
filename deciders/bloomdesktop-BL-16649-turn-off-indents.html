@@ -1,0 +1,844 @@
+<title>Preflight — BL-16649 No Indent (PR 8144)</title>
+<style>
+  :root {
+    --paper: #f8f7f4;
+    --card: #ffffff;
+    --rule: #e3e0d9;
+    --ink: #2b2a27;
+    --muted: #6d6a62;
+    --accent: #1d94a4;
+    --accent-deep: #14707d;
+    --good: #3f7d4e;
+    --warn: #9a6d18;
+    --bad: #a63a2e;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px 28px 72px;
+  }
+
+  header.top {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 22px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 30px;
+  }
+  header.top h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 2.05rem;
+    line-height: 1.15;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.735rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+  }
+  .subhead { color: var(--muted); max-width: 68ch; margin: 0; }
+  .toplinks { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.9rem; }
+
+  a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .cols { display: grid; grid-template-columns: 1.15fr 1fr; gap: 30px; align-items: start; }
+  @media (max-width: 980px) { .cols { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 1.22rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+  .card > .note { color: var(--muted); font-size: 0.9rem; margin: 0 0 14px; }
+  .card p { margin: 0 0 10px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.925rem; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .chip.pass { color: var(--good); }
+  .chip.na { color: var(--muted); }
+  .chip.hold { color: var(--warn); }
+  .chip.stop { color: var(--bad); }
+
+  code, .sha { font-family: var(--mono); font-size: 0.86em; }
+  .sha { color: var(--accent-deep); }
+
+  ol.commits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 13px; }
+  ol.commits li { padding-left: 13px; border-left: 2px solid var(--rule); }
+  ol.commits li.mine { border-left-color: var(--accent); }
+  ol.commits .msg { font-weight: 600; }
+  ol.commits .why { color: var(--muted); font-size: 0.9rem; }
+
+  dl.reviewers { margin: 0; display: flex; flex-direction: column; gap: 14px; }
+  dl.reviewers dt { display: flex; align-items: center; gap: 9px; font-weight: 600; flex-wrap: wrap; }
+  dl.reviewers dd { margin: 3px 0 0; color: var(--muted); font-size: 0.925rem; }
+
+  .item { background: var(--card); border: 1px solid var(--rule); border-radius: 3px; padding: 20px 22px; }
+  .item.fyi { background: #fcfbf9; }
+  .item h3 {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0 0 3px;
+    text-wrap: balance;
+  }
+  .item .where { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); margin: 0 0 11px; }
+  .item .body p { font-size: 0.945rem; }
+
+  fieldset { border: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .opt { display: flex; gap: 9px; align-items: baseline; padding: 7px 9px; border-radius: 2px; }
+  .opt:hover { background: #f4f3ef; }
+  .opt input[type="radio"] { margin: 3px 0 0; flex: none; }
+  .opt .lab { font-size: 0.94rem; }
+  .opt .fix { display: block; color: var(--muted); font-size: 0.845rem; }
+  .rec { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--accent-deep); border: 1px solid currentColor; border-radius: 2px; padding: 1px 5px; margin-left: 6px; white-space: nowrap; }
+
+  .leaverow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .leaverow .lc { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+  .otherrow { display: flex; align-items: center; gap: 9px; padding: 7px 9px; }
+  .otherrow input[type="text"] { flex: 1; min-width: 0; }
+
+  input[type="text"], textarea {
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    color: var(--ink);
+    background: #fdfdfc;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 6px 8px;
+  }
+  textarea { width: 100%; resize: vertical; }
+  .notes { margin-top: 10px; }
+  .notes label { display: block; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+
+  button.copy {
+    font-family: var(--sans);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent-deep);
+    border: none;
+    border-radius: 2px;
+    padding: 10px 18px;
+    cursor: pointer;
+  }
+  button.copy:hover { background: #0f5b66; }
+  #copied { margin-left: 11px; font-size: 0.88rem; color: var(--good); }
+  #payload { margin-top: 12px; min-height: 130px; font-family: var(--mono); font-size: 0.8rem; }
+
+  .divider { border: none; border-top: 1px solid var(--rule); margin: 4px 0; }
+  h2.sectionhead { font-family: var(--serif); font-size: 1.35rem; margin: 6px 0 0; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="kicker">Preflight report &middot; BloomDesktop</span>
+    <h1>BL-16649 — “No Indent”, and headings without a forced paragraph</h1>
+    <p class="subhead">
+      Draft PR 8144 against <code>Version6.4</code>. Five commits, quality gate green, Devin ran four
+      times and found no bugs. Four things below want your judgment; the rest is for information.
+    </p>
+    <div class="toplinks">
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8144" target="_blank" rel="noopener">PR 8144 (draft)</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8144/files" target="_blank" rel="noopener">Files changed</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8144/commits" target="_blank" rel="noopener">Commits</a>
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8144" target="_blank" rel="noopener">Devin review</a>
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16649" target="_blank" rel="noopener">BL-16649</a>
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- LEFT: the run -->
+    <div class="col">
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="note">Run against the final commit, <span class="sha">4531bdf512</span>.</p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Type check (TypeScript)</td>
+                <td><span class="chip pass">pass</span></td>
+                <td>No errors in the files this branch touches. <code>Version6.4</code> has 1,107 pre-existing errors project-wide, so I confirmed via <code>--listFiles</code> that our three new files really are in the compilation rather than silently excluded.</td>
+              </tr>
+              <tr>
+                <td>Lint (eslint)</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="num">0 errors, 37 pre-existing warnings in touched files</td>
+              </tr>
+              <tr>
+                <td>Tests — TypeScript (vitest)</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="num">523 passed, 5 skipped, 47 files</td>
+              </tr>
+              <tr>
+                <td>Tests — C# (dotnet test)</td>
+                <td><span class="chip na">not run</span></td>
+                <td>This branch changes no C# at all, and no C# test reads the XLF files (I checked). <code>Version6.4</code> also lacks the isolated-build wrapper that exists on master, so running it would mean a slow shared-output build for zero coverage of this change. Instead I validated the XLF directly: well-formed, 314 entries, our entry present with <code>translate="no"</code> and a translator note.</td>
+              </tr>
+              <tr>
+                <td>LESS compiles</td>
+                <td><span class="chip pass">pass</span></td>
+                <td>All three affected stylesheets compile and emit the rule: <code>basePage</code>, <code>basePage-legacy-5-6</code>, and <code>baseEPUB</code> — so the fix reaches published ePubs too.</td>
+              </tr>
+              <tr>
+                <td>Merge cleanliness</td>
+                <td><span class="chip pass">pass</span></td>
+                <td>Branch sits on the current <code>Version6.4</code> tip; GitHub reports <code>MERGEABLE</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed</h2>
+        <p class="note">Oldest first. The bottom four are this session; the top one was already on the branch.</p>
+        <ol class="commits">
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/54051854d3" target="_blank" rel="noopener"><span class="sha">54051854d3</span></a> — Minimal heading support: don’t auto-insert a paragraph above a heading</div>
+            <div class="why">Pre-existing on the branch; this is problem 2 on the card. A text box that starts with a heading no longer gets an empty paragraph pushed in above it.</div>
+          </li>
+          <li class="mine">
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/215aea1d75" target="_blank" rel="noopener"><span class="sha">215aea1d75</span></a> — Add a “No Indent” command to a new text right-click menu</div>
+            <div class="why">The feature: a right-click menu in the edit view, one item, a <code>bloom-noIndent</code> class on the clicked paragraph, and the CSS that cancels the indent.</div>
+          </li>
+          <li class="mine">
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e2ccc89739" target="_blank" rel="noopener"><span class="sha">e2ccc89739</span></a> — Make the rule out-specify custom book stylesheets</div>
+            <div class="why">From Devin, and a real catch. Details in the reviewer notes below.</div>
+          </li>
+          <li class="mine">
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/cbc1259f71" target="_blank" rel="noopener"><span class="sha">cbc1259f71</span></a> — Correct the comment about why the menu root is not saved</div>
+            <div class="why">The conclusion was right, the stated mechanism was wrong.</div>
+          </li>
+          <li class="mine">
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/4531bdf512" target="_blank" rel="noopener"><span class="sha">4531bdf512</span></a> — Show the check the way other checkable menu items do</div>
+            <div class="why">Your call during the run: drop the icon, use the existing selectable menu item. This also reverted the <code>checked</code> prop, so <a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/react_components/localizableMenuItem.tsx" target="_blank" rel="noopener">localizableMenuItem.tsx</a> is now untouched by this branch.</div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="card">
+        <h2>How it works, in one paragraph</h2>
+        <p>
+          Right-clicking a paragraph in an ordinary text box opens a small menu
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/bookEdit/textContextMenu/TextContextMenu.tsx#L105" target="_blank" rel="noopener">TextContextMenu.tsx:105</a>,
+          wired in at <a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L1096" target="_blank" rel="noopener">bloomEditing.ts:1096</a>).
+          Plain right-click was dead air there before; ctrl+right-click still reaches the developer menu, and text in a
+          canvas element keeps its own menu. The single item toggles a class
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/bookEdit/textContextMenu/noIndent.ts#L48" target="_blank" rel="noopener">noIndent.ts:48</a>),
+          is checked when on and disabled when the paragraph has no indent to remove
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/bookEdit/textContextMenu/noIndent.ts#L37" target="_blank" rel="noopener">noIndent.ts:37</a>).
+          The class is cancelled by one rule
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/content/bookLayout/basePage-sharedRules.less#L209" target="_blank" rel="noopener">basePage-sharedRules.less:209</a>,
+          copied at <a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/content/bookLayout/basePage-legacy-5-6.less#L129" target="_blank" rel="noopener">basePage-legacy-5-6.less:129</a>).
+          Pressing Enter in a marked paragraph strips the class from the new half
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/4531bdf512f50ed61fe5b1f3ead3a277a00502ef/src/BloomBrowserUI/bookEdit/bloomField/BloomField.ts#L280" target="_blank" rel="noopener">BloomField.ts:280</a>).
+        </p>
+        <p>
+          One deliberate subtlety worth remembering: the rule zeroes <code>text-indent</code> but leaves
+          <code>margin-left</code> alone. A hanging indent is <code>text-indent:-20pt</code> plus
+          <code>margin-left:20pt</code>, so a marked paragraph in a hanging style lines up with the
+          wrapped lines of a hanging paragraph — which is what a continuation should do — while an
+          ordinary first-line indent goes flush.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <p class="note">Every remote reviewer reached a terminal state for the final commit.</p>
+        <dl class="reviewers">
+          <dt>Local review <span class="chip stop">agent failed</span></dt>
+          <dd>
+            A light sub-agent pass was dispatched over the branch diff. The agent went idle three
+            times without ever delivering findings, despite two direct prompts, so there is no
+            sub-agent result to report. I reviewed the diff myself instead and verified, against
+            <code>Version6.4</code>’s own code: the specificity claim, that ckeditor really registers an
+            <code>enter</code> command, that <code>OneTimeSetup</code> runs once per page load, that repeated
+            renders reuse one React root, that the menu’s root div follows an existing pattern that keeps
+            it out of saved books, and that the save path applies page content unconditionally.
+            <strong>This is the run’s weakest link — an independent pass over this code never happened.</strong>
+          </dd>
+
+          <dt>Devin <span class="chip pass">complete</span></dt>
+          <dd>
+            Four passes, one per commit; final pass on <span class="sha">4531bdf512</span>.
+            <strong>0 bugs</strong> every time. It found the custom-stylesheet specificity hole (fixed,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8144#discussion_r3708350424" target="_blank" rel="noopener">thread resolved</a>)
+            and an inaccurate comment (fixed). Three flags are open for you, each with my assessment as
+            a reply. 14 informational items on the final pass were not mirrored; two of them were worth
+            acting on and are folded into the fixes above.
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8144#issuecomment-5172964338" target="_blank" rel="noopener">Consultation log</a>.
+          </dd>
+
+          <dt>CodeRabbit <span class="chip na">disabled</span></dt>
+          <dd>Configured on this repo, but <code>.coderabbit.yml</code> sets <code>auto_review: enabled: false</code>, so it does not post. Nothing to wait for.</dd>
+
+          <dt>Greptile <span class="chip na">absent</span></dt>
+          <dd>No configuration and no activity on recent PRs.</dd>
+
+          <dt>CI <span class="chip pass">pass</span></dt>
+          <dd><code>pr-automation</code> and <code>track / set-waiting</code> both green on the final commit.</dd>
+
+          <dt>Reviewable <span class="chip hold">pending by design</span></dt>
+          <dd><code>code-review/reviewable</code> tracks <em>human</em> review, so it stays pending until a person reviews. It is the reason GitHub calls the PR <code>UNSTABLE</code>; it is not a preflight failure.</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Tracker</h2>
+        <p>
+          BL-16649 covers both problems, and this branch covers both. Posted to the card: the PR link,
+          and test ideas written for a semi-technical tester (updated in place after the specificity fix
+          to add a custom-CSS book as a case worth trying). The card’s existing comment claims this may
+          duplicate BL-16635 — untouched, see the notes on the right.
+        </p>
+      </section>
+    </div>
+
+    <!-- RIGHT: decisions -->
+    <div class="col">
+      <h2 class="sectionhead">Your call</h2>
+
+      <div class="item" data-item="live-verification">
+        <h3>Nobody has run this in a real Bloom yet</h3>
+        <p class="where">the whole feature</p>
+        <div class="body">
+          <p>
+            Everything above is static checking: unit tests over the logic, a stylesheet that compiles,
+            a type check, and a code review. No one has actually right-clicked a paragraph in a running
+            Bloom and watched the indent disappear. So the parts that only exist at runtime are unproven —
+            whether the menu appears where you clicked, whether the check reads correctly, whether the
+            indent visibly changes, and whether it survives a save-and-reopen.
+          </p>
+          <p>
+            Two things make this more than routine caution. The branch moved to <code>Version6.4</code>
+            mid-run, so this code now runs on React 17 through <code>ReactDOM.render</code> rather than the
+            React 18 path it was written against. And the visible effect depends on a stylesheet that only
+            gets rebuilt by a real build, not by the dev server.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Live verification</legend>
+          <label class="opt">
+            <input type="radio" name="live-verification" value="I verify it live now and report back" checked>
+            <span class="lab">I launch Bloom, exercise the menu, and report what I see<span class="rec">recommended</span>
+              <span class="fix">Moderate: needs a build so the CSS is present, then driving the app. Recommended because it is the only gap the rest of the gate cannot close, and a runtime break here would be invisible to every check that has run.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="live-verification" value="You will try it yourself">
+            <span class="lab">You try it yourself before review
+              <span class="fix">No work for me; you see it first-hand, which is also the fastest way to judge whether the menu feels right.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="live-verification" value="Leave as is">
+              <span class="lab">Leave as is</span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="live-verification"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="live-verification" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="live-verification" placeholder="something else">
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n-live">Notes</label>
+          <textarea id="n-live" data-note="live-verification" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="heading-styleeditor">
+        <h3>Format dialog on a text box that holds only a heading</h3>
+        <p class="where">StyleEditor.ts:1003 · from Devin, open thread</p>
+        <div class="body">
+          <p>
+            The heading commit means a text box no longer always contains a paragraph: a box that starts
+            with a heading keeps just the heading. But the Format dialog works out which paragraph
+            spacing and indent buttons to show by finding a paragraph in the box and reading its actual
+            spacing and indent. With no paragraph to read, those values come back as nothing and the
+            paragraph-spacing control ends up with no selection.
+          </p>
+          <p>
+            What the user sees: opening Format on a heading-only box shows a blank paragraph-spacing
+            setting. Nothing is corrupted and nothing bad is written — if they pick a value it works
+            normally. The comment sitting in that code already predicted this (“will be a problem if
+            there are no paragraph boxes in the div. I don’t think this should happen”); this branch is
+            what makes it happen. It only arises in converted books, which is exactly the material this
+            card came from.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Heading-only boxes</legend>
+          <label class="opt">
+            <input type="radio" name="heading-styleeditor" value="Harden StyleEditor to cope with no paragraph" checked>
+            <span class="lab">Give the Format dialog a sensible fallback when there is no paragraph<span class="rec">recommended</span>
+              <span class="fix">Small — a guard plus a chosen default in one function, low risk. Recommended because the branch created the case, the books in question are the ones this card is about, and a blank control invites someone to file it as a bug.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="heading-styleeditor" value="Fix it separately on its own card">
+            <span class="lab">Split it out onto its own card
+              <span class="fix">No code here; keeps this PR to the two problems on the card, at the cost of shipping a known rough edge.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="heading-styleeditor" value="Leave as is">
+              <span class="lab">Leave as is</span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="heading-styleeditor"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="heading-styleeditor" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="heading-styleeditor" placeholder="something else">
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n-heading">Notes</label>
+          <textarea id="n-heading" data-note="heading-styleeditor" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="undo">
+        <h3>Ctrl+Z will not undo a “No Indent” toggle</h3>
+        <p class="where">noIndent.ts:48 · from Devin, open thread</p>
+        <div class="body">
+          <p>
+            Toggling the command changes the paragraph directly rather than going through the text
+            editor, so it is not on the editor’s undo stack. A user who sets No Indent and then presses
+            ctrl+Z will see their previous typing undone instead, with the indent change left alone.
+            Choosing the menu item again does reverse it, so nothing is stuck.
+          </p>
+          <p>
+            Devin also worried the toggle might be lost if Bloom skipped saving a page it thought
+            unchanged. I traced that and it is not so: Bloom asks the browser for the page and applies
+            whatever comes back, with no “was it modified?” gate — the dirty logic only chooses between
+            saving the whole book and saving just the page. The class does get written.
+          </p>
+          <p>
+            The canvas element menu commands have lived with the same undo limitation for a long time,
+            which is the argument for leaving it.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Undo</legend>
+          <label class="opt">
+            <input type="radio" name="undo" value="Wire the toggle into the editor undo stack">
+            <span class="lab">Put the toggle on the editor’s undo stack
+              <span class="fix">Moderate and somewhat fiddly: the change has to be made through ckeditor’s undo machinery rather than by touching the class directly, and it is easy to get half-working.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="undo" value="Leave as is" checked>
+              <span class="lab">Leave as is<span class="rec">recommended</span></span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="undo"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="undo" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="undo" placeholder="something else">
+          </label>
+        </fieldset>
+        <p class="body" style="margin-top:8px;color:var(--muted);font-size:0.875rem">
+          Recommended as-is because the command is its own undo, the existing canvas menus set the
+          precedent, and the alternative adds real complexity for a rarely-used escape hatch.
+        </p>
+        <div class="notes">
+          <label for="n-undo">Notes</label>
+          <textarea id="n-undo" data-note="undo" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="xlf-file">
+        <h3>Which localization file the new string went in</h3>
+        <p class="where">DistFiles/localization/en/BloomMediumPriority.xlf</p>
+        <div class="body">
+          <p>
+            The repo’s localization procedure says to ask you which priority file a new string belongs in
+            rather than choosing silently. I put “No Indent” in the medium-priority file, on the grounds
+            that it is a secondary, feature-specific command rather than something every user must
+            understand to get started. It has a translator note explaining what it does, since the phrase
+            alone is thin. Flagging it so the choice is yours rather than mine by default.
+          </p>
+        </div>
+        <fieldset>
+          <legend>XLF priority file</legend>
+          <label class="opt">
+            <input type="radio" name="xlf-file" value="Keep it in BloomMediumPriority.xlf" checked>
+            <span class="lab">Keep it in <code>BloomMediumPriority.xlf</code><span class="rec">recommended</span>
+              <span class="fix">No work — already there. Recommended because a right-click command on one paragraph is squarely a secondary option.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="xlf-file" value="Move it to Bloom.xlf (high priority)">
+            <span class="lab">Move it to <code>Bloom.xlf</code>
+              <span class="fix">Trivial — move the entry, keep the id. Worth it only if you expect this to become a command people meet early.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="xlf-file" value="Leave as is">
+              <span class="lab">Leave as is</span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="xlf-file"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="xlf-file" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="xlf-file" placeholder="something else">
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n-xlf">Notes</label>
+          <textarea id="n-xlf" data-note="xlf-file" rows="2"></textarea>
+        </div>
+      </div>
+
+      <h2 class="sectionhead">For information</h2>
+
+      <div class="item fyi" data-item="css-residual">
+        <h3>A determined custom stylesheet could still beat the rule</h3>
+        <p class="where">basePage-sharedRules.less:209 · from Devin, thread resolved</p>
+        <div class="body">
+          <p>
+            Devin caught that the original rule could lose to hand-written CSS in a book, which is now
+            fixed: the selector requires the editable box as well, so it beats both what the Format
+            dialog writes and the realistic custom-CSS shapes. This matters because <code>basePage</code>
+            is deliberately loaded <em>before</em> a book’s custom stylesheets, so among equally specific
+            rules the book’s own would win.
+          </p>
+          <p>
+            What remains is narrow: a custom rule crafted at least as specifically as ours would still
+            win, and then “No Indent” would look enabled and do nothing. The only way to be immune is to
+            write the style straight onto the paragraph instead of using a class, which trades a clean,
+            greppable class for inline styling in saved books. Recorded rather than pursued.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Residual specificity risk</legend>
+          <label class="opt">
+            <input type="radio" name="css-residual" value="Switch to an inline style for certainty">
+            <span class="lab">Set the style on the paragraph itself instead of using a class
+              <span class="fix">Moderate, and a design change: immune to any stylesheet, but puts inline styling into saved books and loses the class as a marker.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="css-residual" value="Leave as is" checked>
+              <span class="lab">Leave as is<span class="rec">recommended</span></span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="css-residual"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="css-residual" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="css-residual" placeholder="something else">
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n-css">Notes</label>
+          <textarea id="n-css" data-note="css-residual" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item fyi" data-item="mui-modal">
+        <h3>The open menu briefly alters the page document</h3>
+        <p class="where">TextContextMenu.tsx:41 · from Devin, open thread</p>
+        <div class="body">
+          <p>
+            While the menu is open, the MUI menu machinery stops the page scrolling and marks its
+            siblings hidden from screen readers, undoing both on close. If a save happened during that
+            window, the saved markup could pick up a stray hidden marker. In practice the first click
+            lands on the menu’s own backdrop, so clicking away closes the menu rather than triggering a
+            save. The canvas element menu already behaves this way, so this is not new here.
+          </p>
+        </div>
+        <fieldset>
+          <legend>MUI modal side effects</legend>
+          <label class="opt">
+            <input type="radio" name="mui-modal" value="Add disableScrollLock">
+            <span class="lab">Turn off the scroll lock
+              <span class="fix">One line, low risk. Removes the page-scrolling half of it; the screen-reader marker is separate.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="mui-modal" value="Leave as is" checked>
+              <span class="lab">Leave as is<span class="rec">recommended</span></span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="mui-modal"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="mui-modal" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="mui-modal" placeholder="something else">
+          </label>
+        </fieldset>
+        <p class="body" style="margin-top:8px;color:var(--muted);font-size:0.875rem">
+          Recommended as-is because it predates this PR and changing it here would diverge from the
+          canvas menus for no user-visible gain.
+        </p>
+        <div class="notes">
+          <label for="n-mui">Notes</label>
+          <textarea id="n-mui" data-note="mui-modal" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item fyi" data-item="housekeeping">
+        <h3>Loose ends from moving the branch to Version6.4</h3>
+        <p class="where">branch, card fields, and one pre-existing oddity</p>
+        <div class="body">
+          <p>
+            <strong>A backup branch exists.</strong> Before rebasing I kept
+            <code>BL-16649-master-based-backup</code> pointing at the master-based version of the work. It
+            is local only. Delete it whenever you are happy with the rebase.
+          </p>
+          <p>
+            <strong>The card’s board field still says Bloom 6.5</strong> while its summary is prefixed
+            <code>[6.4]</code> and the PR now targets <code>Version6.4</code>. Its State is “In Progress”.
+            I did not change either — moving cards between boards is your call.
+          </p>
+          <p>
+            <strong>The duplicate claim is untouched.</strong> A comment on the card says this looks like
+            the same thing as BL-16635. I left it alone rather than merging or closing anything.
+          </p>
+          <p>
+            <strong>A pre-existing duplicate string id.</strong> While validating the XLF I noticed
+            <code>EditTab.Toolbox.DragActivity.None</code> appears twice in
+            <code>BloomMediumPriority.xlf</code>. It is on <code>Version6.4</code> already, not from this
+            work, so I left it — mentioning it in case it is news.
+          </p>
+          <p>
+            <strong>The worktree is now a yarn tree.</strong> Moving to <code>Version6.4</code> meant
+            reinstalling dependencies with yarn (that branch predates the pnpm switch), so this folder’s
+            <code>node_modules</code> is no longer master’s. Nothing was running against it at the time.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Housekeeping</legend>
+          <label class="opt">
+            <input type="radio" name="housekeeping" value="Delete the backup branch now" >
+            <span class="lab">Delete <code>BL-16649-master-based-backup</code> now
+              <span class="fix">One command. Only once you are satisfied the rebase kept everything.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="housekeeping" value="Also move the card to the 6.4 board">
+            <span class="lab">Also switch the card’s board field to 6.4
+              <span class="fix">No code — one tracker field. Say the word and I will set it.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="housekeeping" value="Leave as is" checked>
+              <span class="lab">Leave as is<span class="rec">recommended</span></span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="housekeeping"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="housekeeping" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="housekeeping" placeholder="something else">
+          </label>
+        </fieldset>
+        <p class="body" style="margin-top:8px;color:var(--muted);font-size:0.875rem">
+          Recommended as-is because none of it blocks review, and the backup branch is cheap insurance
+          until you have looked at the rebase yourself.
+        </p>
+        <div class="notes">
+          <label for="n-house">Notes</label>
+          <textarea id="n-house" data-note="housekeeping" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="next-step">
+        <h3>What next</h3>
+        <p class="where">after you have read the above</p>
+        <div class="body">
+          <p>
+            The PR stays a draft and no teammate has been asked to look at it. Nothing here promotes it
+            to peer review — that is yours to do.
+          </p>
+        </div>
+        <fieldset>
+          <legend>Next step</legend>
+          <label class="opt">
+            <input type="radio" name="next-step" value="Implement my choices above, then re-run preflight" checked>
+            <span class="lab">Act on my choices above, then re-run preflight<span class="rec">recommended</span>
+              <span class="fix">Any code choice means a new commit, which restarts Devin and CI, so a re-run is the honest way to land it.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next-step" value="Discuss first before changing anything">
+            <span class="lab">Talk it through first
+              <span class="fix">No code moves until we have agreed.</span>
+            </span>
+          </label>
+          <div class="leaverow">
+            <label class="opt" style="flex:1">
+              <input type="radio" name="next-step" value="Leave as is">
+              <span class="lab">Leave as is</span>
+            </label>
+            <label class="lc"><input type="checkbox" data-lc="next-step"> Leave comment</label>
+          </div>
+          <label class="otherrow">
+            <input type="radio" name="next-step" value="Other">
+            <span class="lab">Other:</span>
+            <input type="text" data-other="next-step" placeholder="something else">
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n-next">Notes</label>
+          <textarea id="n-next" data-note="next-step" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Send your answers back</h2>
+        <p class="note">Copies a plain-text block; paste it into the session and I will act on it.</p>
+        <button class="copy" id="copybtn" type="button">Copy my answers</button>
+        <span id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var TITLES = {
+      "live-verification": "Nobody has run this in a real Bloom yet",
+      "heading-styleeditor": "Format dialog on a heading-only text box",
+      "undo": "Ctrl+Z will not undo a No Indent toggle",
+      "xlf-file": "Which localization file the new string went in",
+      "css-residual": "A determined custom stylesheet could still beat the rule",
+      "mui-modal": "The open menu briefly alters the page document",
+      "housekeeping": "Loose ends from moving the branch to Version6.4",
+      "next-step": "What next"
+    };
+    var ORDER = ["live-verification", "heading-styleeditor", "undo", "xlf-file",
+                 "css-residual", "mui-modal", "housekeeping", "next-step"];
+
+    function build() {
+      var out = ["Preflight answers — BL-16649 / PR 8144 (final commit 4531bdf512)",
+                 "Report: https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/bloomdesktop-BL-16649-turn-off-indents.html",
+                 ""];
+      ORDER.forEach(function (key) {
+        var picked = document.querySelector('input[name="' + key + '"]:checked');
+        if (!picked) return;
+        var answer = picked.value;
+        if (answer === "Other") {
+          var box = document.querySelector('[data-other="' + key + '"]');
+          var txt = box && box.value.trim();
+          answer = txt ? "Other: " + txt : "Other: (nothing written)";
+        }
+        out.push("## " + TITLES[key]);
+        out.push("Answer: " + answer);
+        var lc = document.querySelector('[data-lc="' + key + '"]');
+        if (lc && lc.checked) out.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+        var note = document.querySelector('[data-note="' + key + '"]');
+        if (note && note.value.trim()) out.push("Notes: " + note.value.trim());
+        out.push("");
+      });
+      return out.join("\n");
+    }
+
+    var payload = document.getElementById("payload");
+    var btn = document.getElementById("copybtn");
+    var flag = document.getElementById("copied");
+
+    function refresh() { payload.value = build(); }
+
+    document.addEventListener("change", refresh);
+    document.addEventListener("input", refresh);
+    refresh();
+
+    btn.addEventListener("click", function () {
+      refresh();
+      function done() {
+        flag.hidden = false;
+        setTimeout(function () { flag.hidden = true; }, 2600);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload.value).then(done, fallback);
+      } else {
+        fallback();
+      }
+      function fallback() {
+        payload.focus();
+        payload.select();
+        try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is selected for a manual copy */ }
+      }
+    });
+  })();
+</script>
