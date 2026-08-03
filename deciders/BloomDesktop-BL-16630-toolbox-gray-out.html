@@ -1,0 +1,831 @@
+<title>Preflight — BL-16630 toolbox gray-out (PR 8139)</title>
+
+<style>
+  :root {
+    --ground: #f1f4f4;
+    --card: #ffffff;
+    --ink: #17201f;
+    --ink-soft: #56625f;
+    --ink-faint: #7d8785;
+    --rule: #dae1e0;
+    --rule-soft: #e8eded;
+    --accent: #12717e;
+    --accent-deep: #0b4f59;
+    --accent-wash: #e2eff0;
+    --good: #1c6f47;
+    --good-wash: #e2f0e9;
+    --warn: #7f6210;
+    --warn-wash: #f6efdb;
+    --crit: #9c3527;
+    --crit-wash: #f7e6e3;
+    --na: #6f7a78;
+    --na-wash: #e9eded;
+
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px 24px 72px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-bottom: 22px;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 30px;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+  }
+  .masthead .deck {
+    font-size: 16px;
+    color: var(--ink-soft);
+    max-width: 66ch;
+    margin: 0;
+  }
+  .masthead .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+  }
+  .masthead .meta a { color: var(--accent); }
+
+  /* ---------- columns ---------- */
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 1000px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+  }
+  .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+
+  /* ---------- cards ---------- */
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 22px 24px;
+    min-width: 0;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    letter-spacing: -0.005em;
+  }
+  .card > .sub {
+    margin: 0 0 16px;
+    font-size: 13.5px;
+    color: var(--ink-faint);
+  }
+  .card h3 {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    margin: 20px 0 8px;
+  }
+  .card p { margin: 0 0 12px; max-width: 68ch; }
+  .card p:last-child { margin-bottom: 0; }
+
+  a { color: var(--accent-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  code, .mono { font-family: var(--mono); font-size: 0.88em; }
+  code {
+    background: var(--accent-wash);
+    padding: 1px 4px;
+    border-radius: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- tables ---------- */
+
+  .tablewrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-faint);
+    font-weight: 700;
+    padding: 0 12px 7px 0;
+    border-bottom: 1px solid var(--rule);
+    white-space: nowrap;
+  }
+  td {
+    padding: 10px 12px 10px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.what { font-weight: 600; white-space: nowrap; }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .pill.pass { background: var(--good-wash); color: var(--good); }
+  .pill.hold { background: var(--warn-wash); color: var(--warn); }
+  .pill.fail { background: var(--crit-wash); color: var(--crit); }
+  .pill.na   { background: var(--na-wash);   color: var(--na); }
+  .pill.done { background: var(--accent-wash); color: var(--accent-deep); }
+
+  .note { font-size: 13px; color: var(--ink-soft); display: block; margin-top: 3px; }
+
+  /* ---------- z-index strata diagram ---------- */
+
+  .strata {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 6px 0 4px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  .stratum {
+    display: grid;
+    grid-template-columns: 4.5em minmax(0, 1fr);
+    gap: 12px;
+    align-items: baseline;
+    padding: 7px 10px;
+    border-left: 3px solid var(--rule);
+    background: var(--ground);
+  }
+  .stratum .z { color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+  .stratum.above { border-left-color: var(--accent); }
+  .stratum.above .z { color: var(--accent-deep); font-weight: 700; }
+  .stratum.sheet { border-left-color: var(--ink-soft); background: #e6eaea; }
+  .stratum.was-broken { border-left-color: var(--crit); }
+  .stratum .lbl { color: var(--ink); font-family: var(--sans); font-size: 13px; }
+
+  /* ---------- commit list ---------- */
+
+  .commit { display: flex; flex-direction: column; gap: 3px; }
+  .commit .sha { font-family: var(--mono); font-size: 12.5px; }
+  .commit .subject { font-weight: 600; }
+
+  /* ---------- decisions ---------- */
+
+  .decision { border-left: 3px solid var(--accent); }
+  .decision.fyi { border-left-color: var(--ink-faint); }
+  .decision .kicker {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin-bottom: 6px;
+  }
+
+  fieldset { border: none; margin: 14px 0 0; padding: 0; }
+  legend { padding: 0; }
+
+  .opt {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    align-items: start;
+    padding: 10px 12px;
+    border: 1px solid var(--rule-soft);
+    border-radius: 3px;
+    margin-bottom: 7px;
+    background: #fbfcfc;
+    cursor: pointer;
+  }
+  .opt:hover { border-color: var(--rule); background: #f7f9f9; }
+  .opt:has(input[type="radio"]:checked) {
+    border-color: var(--accent);
+    background: var(--accent-wash);
+  }
+  .opt input[type="radio"] { margin: 4px 0 0; accent-color: var(--accent); }
+  .opt .body { min-width: 0; }
+  .opt .label { font-weight: 600; }
+  .opt .fixnote {
+    display: block;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-top: 2px;
+  }
+  .rec {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent-deep);
+    background: #cfe4e6;
+    padding: 1px 6px;
+    border-radius: 100px;
+    margin-left: 7px;
+    vertical-align: 1.5px;
+  }
+  .leavecomment {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .leavecomment input { accent-color: var(--accent); margin: 0; }
+
+  .opt .otherbox {
+    grid-column: 2 / -1;
+    width: 100%;
+    margin-top: 6px;
+    font-family: var(--sans);
+    font-size: 14px;
+    padding: 7px 9px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: #fff;
+    color: var(--ink);
+  }
+
+  .notes {
+    width: 100%;
+    margin-top: 4px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 8px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: #fff;
+    color: var(--ink);
+    resize: vertical;
+  }
+  .noteslabel {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+    color: var(--ink-faint);
+    margin: 12px 0 4px;
+  }
+
+  /* ---------- copy back ---------- */
+
+  .copyback { border-left: 3px solid var(--ink); }
+  .btn {
+    font-family: var(--sans);
+    font-size: 14.5px;
+    font-weight: 650;
+    color: #fff;
+    background: var(--accent-deep);
+    border: none;
+    border-radius: 3px;
+    padding: 10px 18px;
+    cursor: pointer;
+  }
+  .btn:hover { background: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  #copystate {
+    margin-left: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--good);
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+  #copystate.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    #copystate { transition: none; }
+    .btn:active { transform: none; }
+  }
+  #payload {
+    width: 100%;
+    margin-top: 14px;
+    min-height: 190px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    padding: 10px;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: #fbfcfc;
+    color: var(--ink);
+    resize: vertical;
+  }
+
+  ul.tight { margin: 0 0 12px; padding-left: 20px; }
+  ul.tight li { margin-bottom: 6px; max-width: 66ch; }
+
+  footer.foot {
+    margin-top: 34px;
+    padding-top: 16px;
+    border-top: 1px solid var(--rule);
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    font-family: var(--mono);
+  }
+  footer.foot a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — BL-16630, the toolbox that wouldn&rsquo;t gray out</h1>
+    <p class="deck">A two-file CSS-layering fix on the <code>Version6.4</code> release branch. Everything automatable is done: the branch is committed, pushed, integrated with its base, published as a draft PR, and every reviewer has reached a terminal state. Two decisions and two FYIs are waiting on you.</p>
+    <div class="meta">
+      <span>branch <strong>BL-16630-toolbox-gray-out</strong></span>
+      <span>base <strong>Version6.4</strong></span>
+      <span>HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/624bdbc7f35f93f1689011aae6178ec278345334" target="_blank" rel="noopener">624bdbc</a></span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8139" target="_blank" rel="noopener">PR&nbsp;8139 (draft)</a></span>
+      <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16630" target="_blank" rel="noopener">BL-16630</a></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT: the run ================= -->
+    <div class="col">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="sub">One row per check and per test runner, so nothing looks silently skipped.</p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">Prettier</td>
+                <td><span class="pill pass">clean</span></td>
+                <td>Both changed files already formatted &mdash; <code>--write</code> reported no changes.</td>
+              </tr>
+              <tr>
+                <td class="what">Lint (eslint)</td>
+                <td><span class="pill pass">clean</span></td>
+                <td>Exit 0 on <code>ToolboxRoot.tsx</code>. The pre-commit hook also ran eslint over the staged set and passed.</td>
+              </tr>
+              <tr>
+                <td class="what">Typecheck (tsc)</td>
+                <td><span class="pill hold">baseline</span></td>
+                <td>
+                  <code>tsc --noEmit</code> exits 2 with about 18 errors, <strong>all pre-existing and none in the two changed files</strong>.
+                  <span class="note">Mostly a vite/vitest duplicate-types clash plus stale hand-written <code>typings/</code>; the repo builds with Vite (esbuild, no typecheck), so this baseline is red before this branch. See FYI on the right.</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests<br><span class="note">vitest &mdash; <code>yarn test</code></span></td>
+                <td><span class="pill na">skipped</span></td>
+                <td>Skipped at your request (&ldquo;skip all the tests&rdquo;). Nothing was run, so nothing is claimed.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests<br><span class="note"><code>dotnet test</code></span></td>
+                <td><span class="pill na">skipped</span></td>
+                <td>Skipped at your request. Independently, no C# file is touched by this change.</td>
+              </tr>
+              <tr>
+                <td class="what">Base integrated</td>
+                <td><span class="pill pass">yes</span></td>
+                <td><code>origin/Version6.4</code> is an ancestor of HEAD &mdash; the branch was cut from it after fetching, so there was nothing to merge.</td>
+              </tr>
+              <tr>
+                <td class="what">Mergeable</td>
+                <td><span class="pill pass">clean</span></td>
+                <td>GitHub reports <code>MERGEABLE</code> / <code>mergeStateStatus: CLEAN</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p class="sub">One commit, two files, +17 / &minus;2.</p>
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/624bdbc7f35f93f1689011aae6178ec278345334" target="_blank" rel="noopener">624bdbc7f3</a></span>
+          <span class="subject">Fix BL-16630 [6.4 regression] Right side of tool not grayed out when &ldquo;Show playback order buttons&rdquo; enabled</span>
+        </div>
+
+        <h3>The two edits</h3>
+        <ul class="tight">
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/624bdbc7f35f93f1689011aae6178ec278345334/src/BloomBrowserUI/bookEdit/toolbox/ToolboxRoot.tsx#L826-L827" target="_blank" rel="noopener"><code>ToolboxRoot.tsx:826&ndash;827</code></a> &mdash; the tool headers get <code>position: relative; z-index: 1005</code> back, so they sit above the Talking Book tool&rsquo;s disabling sheet again.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/624bdbc7f35f93f1689011aae6178ec278345334/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/audioRecording.less#L502-L513" target="_blank" rel="noopener"><code>audioRecording.less:502&ndash;513</code></a> &mdash; the sheet becomes <code>width: 100%</code> (was <code>calc(100% - 20px)</code>) with an explicit <code>top: 0</code> in place of <code>top: inherit</code>.</li>
+        </ul>
+
+        <h3>Why it broke</h3>
+        <p>The disabling sheet has always been a <code>position: fixed</code> element covering the <em>whole</em> toolbox viewport at <code>z-index: 1001</code>, headers included. What kept the headers looking and behaving normally was a rule in <a href="https://github.com/BloomBooks/BloomDesktop/blob/624bdbc7f35f93f1689011aae6178ec278345334/src/BloomBrowserUI/bookEdit/toolbox/toolbox.less#L271" target="_blank" rel="noopener"><code>toolbox.less:271</code></a> targeting <code>#toolbox h3</code>. When the toolbox root became React/MUI in 6.4, the headers turned into <code>AccordionSummary</code> elements and that selector stopped matching them &mdash; the legacy <code>#toolbox</code> is now <code>display: none</code>, so the rule is dead code.</p>
+        <p>That is what made the long-standing <code>calc(100% - 20px)</code> suddenly <em>visible</em>: the 20&nbsp;px it leaves uncovered started landing on the bright teal active header instead of on the panel-colored tool body. The gap itself was there in 6.3 too &mdash; measurable in the dark band above the headers &mdash; it just never fell on anything colorful.</p>
+
+        <h3>The intended stack, restored</h3>
+        <div class="strata">
+          <div class="stratum above"><span class="z">1005</span><span class="lbl">Tool headers &mdash; clickable, undimmed <em>(this fix puts them back here)</em></span></div>
+          <div class="stratum above"><span class="z">1002</span><span class="lbl">Show playback order switch, and the Help link</span></div>
+          <div class="stratum sheet"><span class="z">1001</span><span class="lbl">The translucent disabling sheet &mdash; 70% panel gray, swallows clicks</span></div>
+          <div class="stratum"><span class="z">1000</span><span class="lbl">Microphone device list</span></div>
+          <div class="stratum"><span class="z">auto</span><span class="lbl">Everything else in the tool &mdash; dimmed and inert while the mode is on</span></div>
+        </div>
+
+        <h3>Pixel evidence from the bug report</h3>
+        <p>The sheet composites as 0.7&nbsp;&times;&nbsp;<code>#2E2E2E</code> over whatever is beneath, which makes the diagnosis measurable rather than a matter of opinion. Sampling the reporter&rsquo;s own two screenshots:</p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Region</th><th>6.3 &mdash; under / clear</th><th>6.4 &mdash; under / clear</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">Dark band above headers</td>
+                <td class="num mono">#282828 / #1A1A1A</td>
+                <td class="num mono">#282828 / #1A1A1A</td>
+              </tr>
+              <tr>
+                <td class="what">&ldquo;Canvas Tool&rdquo; header</td>
+                <td class="num mono">#404040 / #404040</td>
+                <td class="num mono"><strong>#333333</strong> / #404040</td>
+              </tr>
+              <tr>
+                <td class="what">&ldquo;Talking Book Tool&rdquo; header</td>
+                <td class="num mono">#1D94A4 / #1D94A4</td>
+                <td class="num mono"><strong>#294C51</strong> / #1D94A4</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">In 6.3 the two columns agree, so the sheet was not on the headers. In 6.4 they diverge by exactly the composite, which is the regression &mdash; and the divergence is the bright stripe.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <p class="sub">Every reviewer is terminal for HEAD <code>624bdbc</code>. No row says &ldquo;pending&rdquo;.</p>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">Local review<br><span class="note">light level (default)</span></td>
+                <td><span class="pill pass">clean</span></td>
+                <td>
+                  No findings.
+                  <span class="note"><strong>Deviation worth knowing:</strong> the light level normally dispatches one general-purpose sub-agent. This session is configured not to spawn agents unless you ask, so I ran the pass inline instead &mdash; re-reading the 17-line diff plus the surrounding stacking context, the <code>#audio-devlist</code> ordering, and the emotion <code>//</code>-comment precedent in the same file.</span>
+                </td>
+              </tr>
+              <tr>
+                <td class="what">Devin</td>
+                <td><span class="pill done">complete</span></td>
+                <td>
+                  0 Bugs, <strong>2 Investigate</strong>, 0 Informational. Job completed for the correct head sha within about one minute of the push.
+                  <span class="note">
+                    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8139" target="_blank" rel="noopener">Devin review page</a> &middot;
+                    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139#discussion_r3706410772" target="_blank" rel="noopener">flag 1 (resolved)</a> &middot;
+                    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139#discussion_r3706410919" target="_blank" rel="noopener">flag 2 (open)</a> &middot;
+                    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139#issuecomment-5169804487" target="_blank" rel="noopener">consultation log</a>
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td class="what">Comment-posting bots</td>
+                <td><span class="pill na">none</span></td>
+                <td>No Greptile or CodeRabbit configuration in the repo, no bot review comments, and no bot check contexts &mdash; nothing to wait for.</td>
+              </tr>
+              <tr>
+                <td class="what">CI</td>
+                <td><span class="pill pass">2 / 2 pass</span></td>
+                <td>
+                  <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/30837466795/job/91766051396" target="_blank" rel="noopener"><code>pr-automation</code></a> (53s, and it is what triggers Devin) and
+                  <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/30837470559/job/91766064534" target="_blank" rel="noopener"><code>track / set-waiting</code></a> (3s). Both terminal.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>How Devin&rsquo;s two flags were handled</h3>
+        <ul class="tight">
+          <li><strong>Flag 1 &mdash; &ldquo;the Help link&rsquo;s z-index has no effect&rdquo;: refuted and resolved.</strong> Devin reasoned that <code>.help-link</code> is a statically positioned <code>&lt;a&gt;</code>, so its <code>z-index</code> is ignored. But it is a <em>flex item</em> of <a href="https://github.com/BloomBooks/BloomDesktop/blob/624bdbc7f35f93f1689011aae6178ec278345334/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/audioRecording.less#L108" target="_blank" rel="noopener"><code>.ui-audioBody</code></a>, which is <code>display: flex; flex-direction: column</code> &mdash; and the Flexbox spec makes a non-<code>auto</code> <code>z-index</code> take effect on a flex item regardless of <code>position</code>. The <code>margin-top: auto</code> beside it (what pushes Help to the bottom) only works on a flex item, so it corroborates. Decisive evidence: in the reporter&rsquo;s 6.4 screenshot, taken with the sheet showing, the word &ldquo;Help&rdquo; measures <code>#FFFFFF</code>, while white text that <em>is</em> under the sheet measures <code>#6C6B6B</code> in that same image.</li>
+          <li><strong>Flag 2 &mdash; &ldquo;headers stay clickable, including the Talking Book header&rdquo;: mostly answered, one residual left open for you.</strong> The route Devin asked about is handled by design: <a href="https://github.com/BloomBooks/BloomDesktop/blob/624bdbc7f35f93f1689011aae6178ec278345334/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/audioRecording.ts#L582" target="_blank" rel="noopener"><code>removeRecordingSetup()</code></a> checks the mode flag and tears the UI down when you switch tools or pages, deliberately leaving the switch checked so the mode resumes. And this fix does not newly enable the scenario &mdash; the un-dimmed 20&nbsp;px strip <em>is</em> inside the header and clickable today, so it was already reachable. What is left is a genuine pre-existing gap; it is the first decision on the right.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <h3>Posted on your behalf</h3>
+        <ul class="tight">
+          <li>The PR link on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16630" target="_blank" rel="noopener">BL-16630</a>, after checking no PR link was already there.</li>
+          <li>A QA test-ideas comment on the same card (comment <code>102-74763</code>), carrying the <code>test-ideas</code> marker so later preflight runs refresh it in place rather than stacking.</li>
+          <li>Both Devin flags mirrored as inline review threads on the PR, each with a reply documenting the outcome; flag 1 resolved, flag 2 left open pending your decision.</li>
+          <li>The Devin consultation log comment, recording what ran and up to which commit.</li>
+        </ul>
+        <h3>Deliberately not done</h3>
+        <ul class="tight">
+          <li><strong>Not marked ready for review</strong>, and no teammate&rsquo;s review requested &mdash; that is <code>pr-ready-for-human</code>&rsquo;s job, after your own review.</li>
+          <li><strong>No board moves</strong> &mdash; no personal board skill is installed in this session, so those steps were skipped silently rather than guessed at.</li>
+          <li><strong>The change was not verified in the running app.</strong> You asked to keep that yourself. Everything above is static analysis plus measurements taken from the reporter&rsquo;s screenshots; nothing here is a claim that the fixed build was observed working.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT: decisions ================= -->
+    <div class="col">
+
+      <section class="card decision" data-item="collapse-gap">
+        <span class="kicker">Decision &middot; from Devin flag 2</span>
+        <h2>Collapsing the tool panel leaves the on-page number buttons behind</h2>
+        <p>With <strong>Show playback order buttons</strong> switched on, the page shows a small numbered button on each text box, and the Talking Book tool panel is grayed out until you switch the mode back off. Because this fix makes the tool headers clickable again, you can now click the &ldquo;Talking Book Tool&rdquo; header itself to <em>collapse</em> the panel while that mode is still on.</p>
+        <p>If you then pick a different tool, everything cleans up properly. But if you simply collapse the panel and leave it collapsed, nobody tells the older toolbox code that the tool was put away &mdash; the React toolbox only notifies it when a <em>different</em> tool is opened, not when a section closes to nothing. So the numbered buttons stay sitting on the page with no tool open beside them. Re-opening the Talking Book tool, or choosing another tool, clears it up.</p>
+        <p>This is not new to your change. It arrived with the 6.4 React toolbox and applies to every tool in it &mdash; the old jQuery toolbox physically could not close a section to nothing, so 6.3 never had the situation. And the specific route was already reachable in 6.4, because the un-dimmed 20&nbsp;px strip this PR removes is itself part of the clickable header. What your change does is make it obvious rather than accidental.</p>
+        <fieldset>
+          <label class="opt">
+            <input type="radio" name="q-collapse" value="Fix it in this PR — have ToolboxRoot notify the legacy code when a section collapses to nothing">
+            <span class="body">
+              <span class="label">Fix it here, in this PR</span>
+              <span class="fixnote">Roughly 10&ndash;20 lines in <code>ToolboxRoot.tsx</code>&rsquo;s <code>onChange</code>, but it changes shared toolbox behavior for every tool on a release branch &mdash; moderate risk, and it widens a targeted regression fix into a behavioral change.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-collapse" value="File a follow-up card for 6.5 and leave 6.4 alone" checked>
+            <span class="body">
+              <span class="label">File a follow-up card for 6.5, leave 6.4 alone<span class="rec">recommended</span></span>
+              <span class="fixnote">No code &mdash; one new YouTrack card. Recommended because the gap is pre-existing, generic to the React toolbox rather than to this tool, self-correcting the moment the user touches the toolbox again, and out of scope for a release-branch regression fix.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-collapse" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <span class="leavecomment" onclick="event.stopPropagation()">
+              <input type="checkbox" data-q="Leave comment (collapse gap)" id="lc-collapse">
+              <span>Leave comment</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-collapse" value="Other">
+            <span class="body"><span class="label">Other:</span></span>
+            <input class="otherbox" type="text" data-q="Other (collapse gap)" placeholder="Your answer" onclick="event.stopPropagation()">
+          </label>
+          <span class="noteslabel">Notes</span>
+          <textarea class="notes" rows="2" data-q="Notes (collapse gap)" placeholder="Caveats, constraints, or which milestone the card should go on"></textarea>
+        </fieldset>
+      </section>
+
+      <section class="card decision" data-item="scrollbar">
+        <span class="kicker">Decision &middot; new consequence of this fix</span>
+        <h2>The sheet now covers the panel&rsquo;s scroll bar, so it can&rsquo;t be dragged while dimmed</h2>
+        <p>Widening the sheet from <code>calc(100% - 20px)</code> to the full panel width means it now also lies over the right-hand edge where the tool panel&rsquo;s vertical scroll bar appears on a short window. While Show playback order buttons is on, that scroll bar can no longer be dragged with the mouse, because the sheet swallows the click.</p>
+        <p>Mouse-wheel scrolling still works &mdash; a wheel event over a covering element still scrolls the scrollable container underneath it &mdash; so the panel remains reachable, including the switch you need in order to leave the mode. That 20&nbsp;px inset was almost certainly there to keep the scroll bar usable in the first place, and this is the trade for closing it. I recommend keeping the full width: it is what makes the reported stripe impossible to come back even if the header layering shifts again, and it leaves no strip of the panel that looks disabled but still accepts clicks.</p>
+        <fieldset>
+          <label class="opt">
+            <input type="radio" name="q-scroll" value="Narrow the sheet again on the right so the scroll bar stays draggable">
+            <span class="body">
+              <span class="label">Narrow the sheet again so the scroll bar stays draggable</span>
+              <span class="fixnote">Small, one CSS value &mdash; but it restores the un-dimmed, still-clickable strip that caused this bug, and CSS cannot tell whether a scroll bar is actually present, so the inset would apply always.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-scroll" value="Leave as is" checked>
+            <span class="body"><span class="label">Leave as is<span class="rec">recommended</span></span></span>
+            <span class="leavecomment" onclick="event.stopPropagation()">
+              <input type="checkbox" data-q="Leave comment (scroll bar)" id="lc-scroll">
+              <span>Leave comment</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-scroll" value="Other">
+            <span class="body"><span class="label">Other:</span></span>
+            <input class="otherbox" type="text" data-q="Other (scroll bar)" placeholder="Your answer" onclick="event.stopPropagation()">
+          </label>
+          <span class="noteslabel">Notes</span>
+          <textarea class="notes" rows="2" data-q="Notes (scroll bar)" placeholder="e.g. ask QA to specifically try a short window before deciding"></textarea>
+        </fieldset>
+      </section>
+
+      <section class="card decision fyi" data-item="tsc-baseline">
+        <span class="kicker">FYI</span>
+        <h2>The repo&rsquo;s typecheck baseline is already red</h2>
+        <p>Running <code>tsc --noEmit</code> over <code>src/BloomBrowserUI</code> fails with about 18 errors. None of them are in the files this PR touches, and none are caused by it &mdash; the project builds through Vite (esbuild), which does not typecheck, and the quality gate here is eslint. The errors are mostly two duplicate copies of Vite&rsquo;s types (one nested under <code>vitest</code>) disagreeing with each other, plus old hand-written declarations under <code>typings/</code> for jQuery, CKEditor and Underscore. A handful look like genuine small type problems in <code>publish/Apps</code> and <code>react_components</code>.</p>
+        <p>Worth knowing mainly because it means a future preflight cannot use &ldquo;typecheck is green&rdquo; as a gate on this repo, and it is why the row above says <em>baseline</em> rather than <em>pass</em>.</p>
+        <fieldset>
+          <label class="opt">
+            <input type="radio" name="q-tsc" value="Open a card to clean up the typecheck baseline">
+            <span class="body">
+              <span class="label">Open a card to clean up the typecheck baseline</span>
+              <span class="fixnote">No code now &mdash; one YouTrack card. The cleanup itself would be moderate and touches unrelated areas, so it does not belong on this branch.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-tsc" value="Leave as is" checked>
+            <span class="body"><span class="label">Leave as is<span class="rec">recommended</span></span></span>
+            <span class="leavecomment" onclick="event.stopPropagation()">
+              <input type="checkbox" data-q="Leave comment (typecheck baseline)" id="lc-tsc">
+              <span>Leave comment</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-tsc" value="Other">
+            <span class="body"><span class="label">Other:</span></span>
+            <input class="otherbox" type="text" data-q="Other (typecheck baseline)" placeholder="Your answer" onclick="event.stopPropagation()">
+          </label>
+          <span class="noteslabel">Notes</span>
+          <textarea class="notes" rows="2" data-q="Notes (typecheck baseline)" placeholder="Optional"></textarea>
+        </fieldset>
+      </section>
+
+      <section class="card decision fyi" data-item="tests">
+        <span class="kicker">FYI</span>
+        <h2>No tests were run at all, at your request</h2>
+        <p>You asked to skip all the tests, so neither the TypeScript suite (<code>vitest</code>) nor <code>dotnet test</code> was run &mdash; not the fast changed-files pass and not the full suites. The gate that <em>did</em> run was Prettier and eslint, plus the pre-commit hook.</p>
+        <p>For this particular change that is a defensible trade: it is 17 lines of CSS layering with no unit-test coverage, and the meaningful verification is visual, which you are doing yourself. Flagging it only so the skip is a recorded decision rather than a gap, and so nobody later reads this PR as &ldquo;tests passed&rdquo;.</p>
+        <fieldset>
+          <label class="opt">
+            <input type="radio" name="q-tests" value="Run the full test suites now, before review">
+            <span class="body">
+              <span class="label">Run the full suites now, before review</span>
+              <span class="fixnote">No code &mdash; just time. Note it needs a build, which risks disturbing a watch build if one is running.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-tests" value="Leave as is" checked>
+            <span class="body"><span class="label">Leave as is<span class="rec">recommended</span></span></span>
+            <span class="leavecomment" onclick="event.stopPropagation()">
+              <input type="checkbox" data-q="Leave comment (tests skipped)" id="lc-tests">
+              <span>Leave comment</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-tests" value="Other">
+            <span class="body"><span class="label">Other:</span></span>
+            <input class="otherbox" type="text" data-q="Other (tests skipped)" placeholder="Your answer" onclick="event.stopPropagation()">
+          </label>
+          <span class="noteslabel">Notes</span>
+          <textarea class="notes" rows="2" data-q="Notes (tests skipped)" placeholder="Optional"></textarea>
+        </fieldset>
+      </section>
+
+      <section class="card decision" data-item="next-step">
+        <span class="kicker">Next step</span>
+        <h2>What should I do with your answers?</h2>
+        <p>Whatever you pick above, the PR stays a draft and no teammate is asked to review until you run <code>pr-ready-for-human</code>.</p>
+        <fieldset>
+          <label class="opt">
+            <input type="radio" name="q-next" value="Implement the chosen answers now" checked>
+            <span class="body"><span class="label">Implement the chosen answers now<span class="rec">recommended</span></span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-next" value="Discuss first — don't touch the code yet">
+            <span class="body"><span class="label">Discuss first &mdash; don&rsquo;t touch the code yet</span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q-next" value="Other">
+            <span class="body"><span class="label">Other:</span></span>
+            <input class="otherbox" type="text" data-q="Other (next step)" placeholder="Your answer" onclick="event.stopPropagation()">
+          </label>
+          <span class="noteslabel">Notes</span>
+          <textarea class="notes" rows="2" data-q="Notes (next step)" placeholder="Optional"></textarea>
+        </fieldset>
+      </section>
+
+      <section class="card copyback">
+        <h2>Send your answers back</h2>
+        <p class="sub">Copies everything you selected and typed as plain text &mdash; paste it into the session.</p>
+        <button class="btn" id="copybtn" type="button">Copy my answers</button>
+        <span id="copystate">Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers, as plain text"></textarea>
+      </section>
+
+    </div>
+  </div>
+
+  <footer class="foot">
+    Preflight report for BL-16630 &middot; BloomDesktop PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139" target="_blank" rel="noopener">8139</a> &middot; HEAD 624bdbc7f3 &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139/files" target="_blank" rel="noopener">files changed</a> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8139/commits" target="_blank" rel="noopener">commits</a>
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var ITEMS = [
+      { name: "q-collapse", title: "Collapsing the tool panel leaves the on-page number buttons behind", lc: "lc-collapse", other: "Other (collapse gap)", notes: "Notes (collapse gap)" },
+      { name: "q-scroll", title: "Sheet now covers the panel's scroll bar", lc: "lc-scroll", other: "Other (scroll bar)", notes: "Notes (scroll bar)" },
+      { name: "q-tsc", title: "FYI - typecheck baseline is already red", lc: "lc-tsc", other: "Other (typecheck baseline)", notes: "Notes (typecheck baseline)" },
+      { name: "q-tests", title: "FYI - no tests were run, at your request", lc: "lc-tests", other: "Other (tests skipped)", notes: "Notes (tests skipped)" },
+      { name: "q-next", title: "Next step", lc: null, other: "Other (next step)", notes: "Notes (next step)" }
+    ];
+
+    function val(sel) {
+      var el = document.querySelector(sel);
+      return el && el.value ? el.value.trim() : "";
+    }
+
+    function build() {
+      var out = [];
+      out.push("Preflight decisions - BL-16630 / PR 8139 (HEAD 624bdbc7f3)");
+      out.push("");
+
+      ITEMS.forEach(function (item) {
+        var picked = document.querySelector('input[name="' + item.name + '"]:checked');
+        var answer = picked ? picked.value : "(no answer)";
+        var otherText = item.other ? val('[data-q="' + item.other + '"]') : "";
+        if (answer === "Other" || (picked && picked.value.indexOf("Other") === 0)) {
+          answer = otherText ? "Other: " + otherText : "Other: (nothing typed)";
+        } else if (otherText) {
+          answer = answer + "  [also typed under Other: " + otherText + "]";
+        }
+
+        out.push("## " + item.title);
+        out.push("Answer: " + answer);
+
+        if (item.lc) {
+          var box = document.getElementById(item.lc);
+          if (box && box.checked) {
+            out.push("Leave comment: yes - record this decision as a code comment near the relevant code");
+          }
+        }
+
+        var notes = item.notes ? val('[data-q="' + item.notes + '"]') : "";
+        if (notes) { out.push("Notes: " + notes); }
+        out.push("");
+      });
+
+      return out.join("\n");
+    }
+
+    var payload = document.getElementById("payload");
+    var state = document.getElementById("copystate");
+
+    function refresh() { payload.value = build(); }
+
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    document.getElementById("copybtn").addEventListener("click", function () {
+      refresh();
+      var text = payload.value;
+      function ok() {
+        state.classList.add("on");
+        window.setTimeout(function () { state.classList.remove("on"); }, 2200);
+      }
+      function fallback() {
+        payload.focus();
+        payload.select();
+        try { document.execCommand("copy"); ok(); } catch (e) { /* user can Ctrl+C from the box */ }
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok, fallback);
+      } else {
+        fallback();
+      }
+    });
+  })();
+</script>
