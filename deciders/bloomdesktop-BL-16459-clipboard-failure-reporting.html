@@ -146,7 +146,7 @@
         <tr><td>Lint (eslint)</td><td><span class="pill pass">pass</span></td><td class="num">0 errors, 6 warnings — all pre-existing <code>any</code>/unused-arg warnings in <code>bloomEditing.ts</code>, none on changed lines</td></tr>
         <tr><td>Formatting</td><td><span class="pill pass">pass</span></td><td>prettier + csharpier clean; pre-commit hooks ran on every commit</td></tr>
         <tr><td>Tests — TypeScript (vitest)</td><td><span class="pill pass">pass</span></td><td class="num">597 passed, 5 skipped, 56 files — 19 of them new, covering the clipboard work</td></tr>
-        <tr><td>Tests — C# (dotnet test)</td><td><span class="pill pass" id="csPill">pass</span></td><td class="num" id="csDetail">2981 passed, 0 failed, 13 skipped (2994 total). Run at <span class="mono">331129dc</span>; the only C# change after that was a comment, which cannot alter behaviour.</td></tr>
+        <tr><td>Tests — C# (dotnet test)</td><td><span class="pill pass" id="csPill">pass</span></td><td class="num" id="csDetail">2989 passed, 0 failed, 13 skipped (3002 total), including 8 new tests for clipboard line endings. Run at <span class="mono">f5d24744</span>; the commit after it touched only TypeScript.</td></tr>
         <tr><td>Merge cleanliness</td><td><span class="pill pass">clean</span></td><td><code>origin/master</code> merged before publishing — already up to date, no conflicts</td></tr>
       </tbody>
     </table>
@@ -179,6 +179,21 @@
       <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/8bf3de6b16f6fd260618dc9fe3a2b5c494829976" target="_blank" rel="noopener">8bf3de6b</a></div>
       <div class="msg">Correct an overclaiming comment about the clipboard probe</div>
       <div>Comment only. Mine had argued the probe could not disturb the browser's copy; Devin showed the reasoning was wrong, so it now records the race honestly instead of waving it away. Decision 2 opposite.</div>
+    </div>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/062e7bdee58a68ef777e5b67e903165fd94d900e" target="_blank" rel="noopener">062e7bde</a></div>
+      <div class="msg">Show a repeated clipboard failure again, and record what the probe measurement showed</div>
+      <div>Your two decisions: clipboard messages now opt out of duplicate-suppression, so a second failed attempt visibly reacts; and the probe-race comment records the 7.4-million-grab measurement instead of speculating.</div>
+    </div>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/f5d24744c471f9b75a1c34bec9bac0aa00c46b49" target="_blank" rel="noopener">f5d24744</a></div>
+      <div class="msg">Fix the last number-like-clipboard call site, and keep pasted line endings as they were</div>
+      <div>Two more of Devin's: the paste-hyperlink check still read the clipboard through the raw helper (so a clipboard holding <code>42</code> threw during page load), and reading through C# was handing Windows CRLF straight into the editor where the browser used to normalise it.</div>
+    </div>
+    <div class="commit">
+      <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7ccf91421d880f4235043ab6dd04ec5cd33a16b8" target="_blank" rel="noopener">7ccf9142</a></div>
+      <div class="msg">Don't let the Cut button do nothing when the selection has no text</div>
+      <div>The abort-on-failed-copy also fired when there was simply nothing to copy, so cutting a picture on its own did nothing at all. Third defect from that one overloaded <code>false</code>.</div>
     </div>
   </section>
 
@@ -226,6 +241,15 @@
             <strong>This was the fourth fix-and-re-review cycle, which is preflight's cap</strong>, so the three open threads go to you rather than into another round.</td>
         </tr>
         <tr>
+          <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8140" target="_blank" rel="noopener">Devin</a><br /><span class="hint" style="margin:0">passes 5&ndash;7 &mdash; after your decisions</span></td>
+          <td><span class="pill pass">complete</span></td>
+          <td>Re-running preflight earned its keep: three more real regressions, all mine, all fixed &mdash;
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3707921361" target="_blank" rel="noopener">number-like clipboard content broke the paste-hyperlink check</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3707921460" target="_blank" rel="noopener">pasted text silently changed line endings</a>, and
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3707976829" target="_blank" rel="noopener">the Cut button did nothing when the selection had no text</a>.
+            A further pass on the last commit found a <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3708022732" target="_blank" rel="noopener">ninth</a>: a pointless 50&nbsp;ms sleep after the probe's final attempt, on the UI thread, so a busy clipboard froze the window longer than it needed to. The sleep is fixed; the fact that the check runs on the UI thread at all is left open. <strong>Nine bugs across the run, every one introduced by this branch.</strong></td>
+        </tr>
+        <tr>
           <td>CodeRabbit</td>
           <td><span class="pill info">n/a</span></td>
           <td>Configured but switched off in this repo: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, and it has posted nothing on recent PRs either. Nothing to wait for — this is a settled state, not a timeout.</td>
@@ -255,243 +279,75 @@
 </div>
 <div class="col">
 
-  <section class="item">
-    <h3>1. A failed Ctrl+X still loses the text — it just says so now</h3>
-    <div class="meta">The one thing you asked for that this PR does not deliver · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3706757417" target="_blank" rel="noopener">Devin bug</a> + <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3706588941" target="_blank" rel="noopener">Investigate flag</a></div>
-    <p>You singled this out: Ctrl+X deletes the text and, when the clipboard write fails, that text is gone from both the page and the clipboard. I did fix it mid-run, by having Ctrl+X go through Bloom's own cut — which copies first and only deletes if the copy worked.</p>
-    <p><strong>Then Devin showed that fix was worse than the bug.</strong> Bloom's own cut can only put <em>plain text</em> on the clipboard, so cutting a phrase containing bold, a link, or an inline picture threw all of that away — and unlike the original bug, this happened on <em>every</em> cut, not only ones where the clipboard failed. So I took it out. Ctrl+X is back to the browser's own cut, which carries everything, and the change now simply tells the user when a cut failed so they know to press Ctrl+Z.</p>
-    <p>So the honest state is: nothing is worse than before, failures are now reported everywhere, and the text-loss-on-failure you originally pointed at is still there.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d1" value="both-flavors" data-q="1. Failed Ctrl+X still loses the text" checked />
-        <span><span class="tag">RECOMMENDED</span> Teach the copy path to carry several clipboard formats at once, then protect the cut again — the only option that gets both the formatting and the text. Recommended because it's the only real fix; everything else is choosing which loss to accept.
-          <span class="fx">Moderate, and fiddlier than it sounds: Windows' HTML clipboard format needs a byte-offset header that .NET does not write for you, so this needs care and hands-on testing rather than a quick patch.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d1" value="plain-only-when-plain" data-q="1. Failed Ctrl+X still loses the text" />
-        <span>Protect the cut only when the selection is plain text, and leave formatted selections to the browser — most cuts get protected, no formatting is ever lost.
-          <span class="fx">Small-to-moderate, but it needs a judgement I couldn't make safely from the code: Bloom wraps text in paragraphs, and recorded audio adds its own markup, so "is this selection plain?" decides how often the protection applies at all.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d1" value="leave" data-q="1. Failed Ctrl+X still loses the text" />
-        <span>Leave as is — report the failure, accept that Ctrl+Z is the remedy</span>
-        <span class="leaveComment"><input type="checkbox" data-q="1. Failed Ctrl+X still loses the text" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d1" value="other" data-q="1. Failed Ctrl+X still loses the text" />
-        <span>Other: <input type="text" data-q="1. Failed Ctrl+X still loses the text" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
+  <section class="card">
+    <h2>Your decisions, and what was done</h2>
+    <div class="hint">Answered from the previous report; this run implemented them.</div>
+    <div class="tableScroll">
+    <table>
+      <thead><tr><th>Decision</th><th>Your call</th><th>Done</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>A failed Ctrl+X still loses the text</td>
+          <td>Leave the code; fix it when CKEditor is replaced</td>
+          <td>Code untouched. Noted on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-6681" target="_blank" rel="noopener">BL-6681 &ldquo;Remove ckeditor?&rdquo;</a> &mdash; the one card that is about removing it &mdash; describing the cut/fidelity trade, what a fix needs, and the question to ask of any replacement: can Bloom supply the clipboard payload and learn whether the write succeeded? Linked back to this card.</td>
+        </tr>
+        <tr>
+          <td>Does retrying protect against our momentary grab?</td>
+          <td>Leave as is; check the reasoning and adjust comments</td>
+          <td><strong>You were right, and it is now measured rather than argued.</strong> A helper process opened and closed the clipboard continuously &mdash; 7.4&nbsp;million times in ten seconds &mdash; while Chromium wrote twenty times; all twenty writes landed. The comment records that; Devin's escalation of this to a bug is answered with the data.</td>
+        </tr>
+        <tr>
+          <td>A busy clipboard now pastes nothing</td>
+          <td>Leave as is</td>
+          <td>Unchanged. Thread closed with the reasoning: pasting stale text silently is the worse failure, because the user cannot tell it happened.</td>
+        </tr>
+        <tr>
+          <td>Repeated identical toast suppressed</td>
+          <td>Add a parameter so just this toast bypasses it &mdash; unless risky</td>
+          <td>Implemented; it was small. Toasts can opt out via <code>showEvenIfDuplicate</code>, which refreshes the message and restarts its 15 seconds rather than dropping it. Only the clipboard failures opt in, so nothing else changes. Four new tests in <code>ToastHost.test.tsx</code>, because showing versus refreshing is invisible in the DOM.</td>
+        </tr>
+        <tr>
+          <td>Image copy still uses a modal dialog</td>
+          <td>Leave as is</td>
+          <td>Unchanged.</td>
+        </tr>
+        <tr>
+          <td>The clipboard-locking test tool</td>
+          <td>Keep out of the repo; replace the attachment</td>
+          <td>Still untracked. You had already replaced the attachment on the card.</td>
+        </tr>
+        <tr>
+          <td>Two verification round trips per Ctrl+C</td>
+          <td>Leave as is</td>
+          <td>Unchanged.</td>
+        </tr>
+      </tbody>
+    </table>
     </div>
-    <label class="notes">Notes <textarea rows="2" data-q="1. Failed Ctrl+X still loses the text" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>2. The check takes the clipboard, and might spoil the copy it's checking</h3>
-    <div class="meta">Devin Investigate · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3706766436" target="_blank" rel="noopener">thread left open</a></div>
-    <p>To find out whether the clipboard is usable, Bloom asks the operating system for it and immediately hands it back. That is the only truthful way to ask — but for those microseconds Bloom itself holds the clipboard.</p>
-    <p>The check runs just after the browser's copy, and Devin's point is that "just after" isn't guaranteed: the browser does its actual clipboard write in a separate process, on its own schedule. If the check wins that race, the browser's write fails — silently, because it discards clipboard errors — which means <strong>the check could occasionally cause the very failure it then reports</strong>.</p>
-    <p>I have not seen this happen, and I have not measured how wide the window is. My code comment originally waved it away; it now says plainly that the window exists and is unmeasured.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d2b" value="leave" data-q="2. The check may race with the browser's write" checked />
-        <span><span class="tag">RECOMMENDED</span> Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="2. The check may race with the browser's write" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d2b" value="delay" data-q="2. The check may race with the browser's write" />
-        <span>Wait a little longer before checking, to let the browser finish.
-          <span class="fx">Small, but it trades one uncertainty for another: too short and the race remains, too long and a genuine failure is reported late or missed.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d2b" value="measure" data-q="2. The check may race with the browser's write" />
-        <span>Measure it first — hammer copy in a loop and see whether the check ever provokes a failure.
-          <span class="fx">No product change; an afternoon of instrumented testing that would turn a hypothesis into a number.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d2b" value="other" data-q="2. The check may race with the browser's write" />
-        <span>Other: <input type="text" data-q="2. The check may race with the browser's write" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <p class="hint" style="margin-bottom:0">Recommended to leave it for now: the failure mode is a spurious message rather than lost work, the window is microseconds against a check that only runs on an actual copy, and adding a delay without measuring would be guessing — which has already cost this ticket a lot of time.</p>
-    <label class="notes">Notes <textarea rows="2" data-q="2. The check may race with the browser's write" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>3. A busy clipboard now pastes nothing, where it used to paste something</h3>
-    <div class="meta">Devin Investigate · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8140#discussion_r3706766595" target="_blank" rel="noopener">thread left open</a> · affects the link editor and the subscription code</div>
-    <p>This is the deliberate trade at the heart of the fix, and Devin is right that it deserves your eyes rather than mine.</p>
-    <p>When another program holds the clipboard, Bloom's own read of it usually still <em>succeeds</em> — Windows quietly serves the copy Bloom last saw. That is precisely what hid this bug for so long. The fix asks the operating system first and, if the clipboard is genuinely unavailable, reports a failure and pastes nothing rather than pasting something that may be out of date.</p>
-    <p>The cost: for about a fifth of a second while another program is busy, a paste that would previously have inserted the (usually still-correct) text now inserts nothing and shows a message. That applies to the paste button in the link editor and to pasting the subscription code in Collection Settings as well as to ordinary pasting.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d3b" value="leave" data-q="3. A busy clipboard now pastes nothing" checked />
-        <span><span class="tag">RECOMMENDED</span> Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="3. A busy clipboard now pastes nothing" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d3b" value="fall-back" data-q="3. A busy clipboard now pastes nothing" />
-        <span>Fall back to the cached text when the clipboard is unavailable, and paste that rather than nothing.
-          <span class="fx">Small — but it reinstates exactly the behaviour that made this bug invisible, and can paste content the user has since replaced.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d3b" value="other" data-q="3. A busy clipboard now pastes nothing" />
-        <span>Other: <input type="text" data-q="3. A busy clipboard now pastes nothing" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <p class="hint" style="margin-bottom:0">Recommended to leave it: pasting stale content silently is the worse failure — the user cannot tell it happened — whereas a message they can act on costs them one retry. But it is a product call, and the two named paste buttons are the places a user would most likely notice.</p>
-    <label class="notes">Notes <textarea rows="2" data-q="3. A busy clipboard now pastes nothing" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>4. A second identical failure gives no new feedback</h3>
-    <div class="meta">Found while testing · affects every toast in Bloom, not just clipboard ones</div>
-    <p>When a message is already on screen, an identical one that arrives within its 15-second life is suppressed rather than shown again (<a href="https://github.com/BloomBooks/BloomDesktop/blob/8bf3de6b16f6fd260618dc9fe3a2b5c494829976/src/BloomBrowserUI/toast/ToastHost.tsx#L130" target="_blank" rel="noopener">ToastHost</a> only replaces a live message if the new one would last longer).</p>
-    <p>What the user sees: a copy fails and they get told. They try again a few seconds later, it fails again, and nothing visibly happens — which reads as &ldquo;the second attempt worked&rdquo; or as the app ignoring them. This is genuinely how the bug looked twice during this session: a Copy-button toast was still on screen, so a following Ctrl+C appeared to report nothing.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d2" value="refresh" data-q="2. Repeated identical toast is suppressed" checked />
-        <span><span class="tag">RECOMMENDED</span> Show it again — treat a repeat as a fresh message and restart its timer, so every failed attempt visibly reacts. Recommended because a repeated attempt is a new user action, and silence is the one response that reads as success.
-          <span class="fx">Small — one branch in <code>enqueueToasts</code>. It does change every toast in the app, so a chatty repeated notice elsewhere would become more visible.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d2" value="leave" data-q="2. Repeated identical toast is suppressed" />
-        <span>Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="2. Repeated identical toast is suppressed" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d2" value="other" data-q="2. Repeated identical toast is suppressed" />
-        <span>Other: <input type="text" data-q="2. Repeated identical toast is suppressed" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <label class="notes">Notes <textarea rows="2" data-q="2. Repeated identical toast is suppressed" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>5. Copying an <em>image</em> still interrupts with a dialog</h3>
-    <div class="meta">Pre-existing, not touched by this PR · now inconsistent with the text paths</div>
-    <p>Copying a picture has its own clipboard error handling, which puts up a modal dialog saying &ldquo;Bloom had problems using your computer's clipboard. Some other program may be interfering&rdquo; plus advice to close other programs and restart (<a href="https://github.com/BloomBooks/BloomDesktop/blob/8bf3de6b16f6fd260618dc9fe3a2b5c494829976/src/BloomExe/Edit/EditingView.cs#L966" target="_blank" rel="noopener">EditingView</a>).</p>
-    <p>That predates this work and is arguably the better message — it names the likely cause. But it now sits alongside text copy/paste, which after this PR reports the same class of problem as a passing toast the user can ignore. The same underlying failure interrupts you for a picture and doesn't for a sentence.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d3" value="leave" data-q="3. Image copy still uses a modal dialog" checked />
-        <span><span class="tag">RECOMMENDED</span> Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="3. Image copy still uses a modal dialog" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d3" value="toast-it" data-q="3. Image copy still uses a modal dialog" />
-        <span>Route it through the same toast, so all clipboard trouble is reported one way.
-          <span class="fx">Small in code, but it retires two localized strings and takes away a message that explains the cause better than the toast does.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d3" value="other" data-q="3. Image copy still uses a modal dialog" />
-        <span>Other: <input type="text" data-q="3. Image copy still uses a modal dialog" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <p class="hint" style="margin-bottom:0">Recommended to leave it: it is outside this PR's scope, the dialog's wording is genuinely more useful than the toast's, and changing it would be a user-facing decision of its own rather than a tidy-up.</p>
-    <label class="notes">Notes <textarea rows="2" data-q="3. Image copy still uses a modal dialog" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>6. The clipboard-locking test tool</h3>
-    <div class="meta">Untracked at the repo root · deliberately not in either commit</div>
-    <p><code>Lock-Clipboard.ps1</code> is what made this bug reproducible at all: it holds the Windows clipboard so copy and paste fail on demand. It is not in the PR, per your call to keep it local and attach a copy to the card instead.</p>
-    <p>Two things changed since that call, which is why it's worth a second look. The tool turned out to be <strong>wrong</strong> in a way that silently invalidated test results (<code>OpenClipboard(NULL)</code> grants no exclusivity), and the fixed version now <strong>self-tests</strong> before locking. The copy currently attached to BL-16459 is the broken one, so anyone who picks it up will get misleading results.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d4" value="replace-attachment" data-q="4. Lock-Clipboard.ps1" checked />
-        <span><span class="tag">RECOMMENDED</span> Keep it out of the repo, but replace the attachment on the card with the fixed, self-testing version — recommended because the danger here isn't where the file lives, it's that the copy QA would reach for reports success while locking nothing.
-          <span class="fx">No code — swap one attachment.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d4" value="check-in" data-q="4. Lock-Clipboard.ps1" />
-        <span>Check it in as a QA tool (e.g. under <code>scripts/</code>) so it is versioned and reviewable, and the next person doesn't rediscover the exclusivity trap.
-          <span class="fx">No product code — adds one script plus a line of documentation.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d4" value="leave" data-q="4. Lock-Clipboard.ps1" />
-        <span>Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="4. Lock-Clipboard.ps1" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d4" value="other" data-q="4. Lock-Clipboard.ps1" />
-        <span>Other: <input type="text" data-q="4. Lock-Clipboard.ps1" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <label class="notes">Notes <textarea rows="2" data-q="4. Lock-Clipboard.ps1" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item fyi">
-    <h3>7. Each Ctrl+C asks the desktop side twice</h3>
-    <div class="meta">Devin, informational · you already accepted the duplication</div>
-    <p>One Ctrl+C reaches C# twice — once from the keydown handler and once from the browser's own copy event — because neither route alone covers every case. You called this fine for the message, and the duplicate <em>reporting</em> is suppressed (one entry in the log and in Sentry). The duplication that remains is the checking: when the clipboard is genuinely locked each check spends up to 200ms on a server thread before giving up.</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="d6" value="leave" data-q="6. Two verification round trips per Ctrl+C" checked />
-        <span><span class="tag">RECOMMENDED</span> Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="6. Two verification round trips per Ctrl+C" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d6" value="dedupe-probe" data-q="6. Two verification round trips per Ctrl+C" />
-        <span>Collapse the duplicate check too, by having the browser send only one verification per gesture.
-          <span class="fx">Small — but it means picking one route as authoritative, which is what the belt-and-braces pair was avoiding.</span></span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="d6" value="other" data-q="6. Two verification round trips per Ctrl+C" />
-        <span>Other: <input type="text" data-q="6. Two verification round trips per Ctrl+C" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <p class="hint" style="margin-bottom:0">Recommended to leave it: 200ms twice, only when the clipboard is already broken, on a non-blocking endpoint — and the redundancy is what makes the feature work across CKEditor's interference.</p>
-    <label class="notes">Notes <textarea rows="2" data-q="6. Two verification round trips per Ctrl+C" data-notes="1"></textarea></label>
-  </section>
-
-  <section class="item">
-    <h3>Next step</h3>
-    <p>The PR is a clean draft with nothing outstanding from the reviewers. What would you like to happen with the answers above?</p>
-    <div class="opts">
-      <label class="opt">
-        <input type="radio" name="next" value="implement" data-q="Next step" checked />
-        <span><span class="tag">RECOMMENDED</span> Implement whatever you've chosen, then re-run preflight so the reviewers see the result.</span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="next" value="discuss" data-q="Next step" />
-        <span>Talk through decision 1 first — the formatting trade-off is the one with a real product judgement in it.</span>
-        <span></span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="next" value="leave" data-q="Next step" />
-        <span>Leave as is</span>
-        <span class="leaveComment"><input type="checkbox" data-q="Next step" data-leavecomment="1" /> Leave comment</span>
-      </label>
-      <label class="opt">
-        <input type="radio" name="next" value="other" data-q="Next step" />
-        <span>Other: <input type="text" data-q="Next step" data-other="1" placeholder="your answer" /></span>
-        <span></span>
-      </label>
-    </div>
-    <label class="notes">Notes <textarea rows="2" data-q="Next step" data-notes="1"></textarea></label>
   </section>
 
   <section class="card">
-    <h2>Send your answers back</h2>
-    <div class="hint">Copies your choices as plain text; paste it into the session.</div>
+    <h2>One thing left, and a caveat worth your attention</h2>
+    <p><strong>Open:</strong> the clipboard availability check runs synchronously on the thread that
+      draws the window, so when another program is holding the clipboard, clicking Paste hitches
+      Bloom for about 150&nbsp;ms before the message appears. Not data loss, and only when the
+      clipboard is already busy &mdash; but it is a freeze, and taking the check off the UI thread is
+      a design change to how the paste command works rather than a tidy-up.</p>
+    <p><strong>The caveat matters more than that item.</strong> This review found <strong>nine
+      bugs on this branch and every single one was introduced by it</strong> &mdash; not by existing
+      code. Each fix was small and I believe correct, and the tests and measurements behind them are
+      real. But they clustered on one seam: the single <code>false</code> returned by the copy, which
+      means both &ldquo;the clipboard refused this&rdquo; and &ldquo;there was nothing to
+      copy&rdquo;. That one overloaded value produced three of the nine on its own.</p>
+    <p>So the most useful thing you can do when reviewing is not to read the eight fixes: it is to
+      look at that contract, and at whether reporting clipboard failures is worth the number of
+      places it has to be threaded through. Everything else in this report is evidence that the
+      individual pieces work; this is the part no amount of review passes has settled.</p>
+  </section>
+
+  <section class="card">
+    <h2>Send further notes back</h2>
+    <div class="hint">The decisions above are already implemented. Use this only if you want to send another round of answers.</div>
     <button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>Copied</span>
     <textarea id="copyOut" readonly aria-label="Your answers, ready to copy"></textarea>
   </section>
