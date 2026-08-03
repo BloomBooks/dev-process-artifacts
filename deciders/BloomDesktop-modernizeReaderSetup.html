@@ -1,5 +1,5 @@
 <meta charset="utf-8" />
-<title>Preflight — Decodable Reader setup dialog (BL-16607)</title>
+<title>Preflight round 2 — Decodable Reader setup dialog (BL-16607)</title>
 <style>
   :root {
     --ink: #23201c;
@@ -80,352 +80,187 @@
 </style>
 
 <div class="wrap">
-  <h1>Preflight — Decodable Reader setup dialog converted to React</h1>
+  <h1>Preflight round 2 — Decodable Reader setup dialog</h1>
   <p class="sub">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">PR&nbsp;#8132</a> (draft) ·
     branch <code>modernizeReaderSetup</code> ·
-    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd" target="_blank" rel="noopener"><code>3e0c297</code></a> ·
+    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7" target="_blank" rel="noopener"><code>91864be</code></a> ·
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16607" target="_blank" rel="noopener">BL-16607</a> ·
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/files" target="_blank" rel="noopener">Files changed</a>
   </p>
 
   <div class="cols">
-    <!-- ================= LEFT: the report ================= -->
     <div>
       <div class="card">
-        <h2>Quality gate</h2>
+        <h2>Your round-1 decisions are implemented</h2>
         <table>
-          <tr><th>Check</th><th>Result</th></tr>
-          <tr><td>TypeScript typecheck</td><td class="ok">pass</td></tr>
-          <tr><td>ESLint</td><td class="ok">pass — 0 errors (777 warnings, all pre-existing repo-wide)</td></tr>
-          <tr><td>TypeScript tests (Vitest)</td><td class="ok">602 passed, 5 skipped, 0 failed</td></tr>
-          <tr>
-            <td>C# tests (BloomTests, via <code>build/agent-dotnet.sh</code>)</td>
-            <td class="warnt">2981 passed, 12 skipped, 1 failed — environmental, not this branch
-              <span class="fx">The one failure is <code>RabRealBuildTests.SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>:
-              <em>"Reading App Builder's build tools are not installed (buildapp.bat is not on the PATH). Install them
-              before running this test."</em> It needs an external tool this machine doesn't have, and touches nothing
-              this branch changed. Run because the branch edits <code>Bloom.xlf</code>, which C# localization tests can
-              read.</span>
-            </td>
-          </tr>
-          <tr><td>Merge with <code>origin/master</code></td><td class="ok">clean, already integrated; PR mergeable</td></tr>
+          <tr><th>Decision</th><th>Outcome</th></tr>
+          <tr><td>1. Sample words on one line</td><td class="ok">adopted deliberately — no code change; QA told to expect it</td></tr>
+          <tr><td>2. Deleted letters in allowed-words mode</td><td class="ok">fixed — grapheme side now always rebuilt</td></tr>
+          <tr><td>3. Special language symbols</td><td class="ok">fixed — now read from the toolbox bundle</td></tr>
+          <tr><td>4. Tab switching prunes letters</td><td class="ok">left as is; decision recorded as a code comment</td></tr>
+          <tr><td>5. Persisted settings shape</td><td class="warnt">open for discussion — evidence below</td></tr>
+          <tr><td>6. Duplicate grapheme splitting</td><td class="ok">duplicate removed — and it was easy, see below</td></tr>
+          <tr><td>FYI. XLF file choice</td><td class="ok">kept in <code>Bloom.xlf</code></td></tr>
+          <tr><td>FYI. PR draft state</td><td class="ok">still a draft</td></tr>
         </table>
-        <p style="font-size:13.5px;color:var(--muted);margin:12px 0 0">
-          New this run: <strong>26 tests</strong> in
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/decodableStagesUtilsSpec.ts" target="_blank" rel="noopener"><code>decodableStagesUtilsSpec.ts</code></a>,
-          covering the save-normalization path, settings cloning, and grapheme matching. The branch previously had
-          <strong>no</strong> tests for any of the new code.
+      </div>
+
+      <div class="card">
+        <h2>Answering your question on #5</h2>
+        <p style="font-size:14.5px;margin-top:0">
+          You said you were confident we don't want to change what gets persisted, and asked what the complication
+          was in going back to what we had. <strong>The honest answer is that I overstated it, and for the part you
+          care about there is nothing to go back to — the shape already matches.</strong>
+        </p>
+        <p style="font-size:14.5px">
+          I inspected the reader settings files of all <strong>25 collections</strong> on this machine, including the
+          one this new dialog had just written. Every stage in every file has exactly the keys
+          <code>name</code>, <code>letters</code>, <code>sightWords</code>, <code>allowedWordsFile</code> — the file
+          the React dialog wrote is key-for-key identical to the ones the legacy dialog wrote. The reason is that the
+          dialog clones <code>model.synphony.source</code>, whose <code>stages</code> are the raw objects parsed from
+          the settings file; the <code>words</code> and <code>allowedWords</code> arrays live on separate
+          <code>ReaderStage</code> instances that are never cloned. So the "extra runtime fields could leak into the
+          file" half of the finding does not happen.
+        </p>
+        <p style="font-size:14.5px">
+          That leaves exactly one real difference, which is the only thing left to decide (item&nbsp;A on the right):
+          the legacy dialog <em>dropped</em> a stage with no letters, no sight words and no word-list file, and
+          renumbered the rest. The new dialog saves it.
         </p>
       </div>
 
       <div class="card">
-        <h2>What changed this run</h2>
+        <h2>And on #6 — my estimate was wrong</h2>
+        <p style="font-size:14.5px;margin-top:0">
+          I had called this moderate work, on the grounds that typed words aren't in the language data yet so there'd
+          be nothing to segment them against. That was mistaken. Synphony's
+          <code>LanguageData.getGpcForm</code> takes the grapheme list as an <em>argument</em> and reads no state off
+          the instance — the alphabet currently in the dialog is exactly what that argument is for. So the dialog
+          now calls Synphony's own routine directly: a few lines added, about 24 lines of duplicated logic deleted.
+          Your instinct was right and it was cheaper than I said.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>What changed this round</h2>
         <div class="commit">
-          <a href="https://github.com/BloomBooks/BloomDesktop/commit/341619f2060a74c2b919a969e30b676049b0a88e" target="_blank" rel="noopener"><code>341619f</code></a>
-          — <strong>Fix sample-word corruption and review findings.</strong>
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/6e3e086fc19bab4be9803298f2c40f080d734dc7" target="_blank" rel="noopener"><code>6e3e086</code></a>
+          — <strong>Your decisions 2, 3, 4 and 6.</strong>
           <ul>
-            <li><strong>The real bug:</strong> typed sample words were saved with their line breaks intact. Because the
-              stored string is later re-split on plain spaces, words typed one per line became a single run-together
-              word and silently stopped counting as decodable. The dialog's own preview hid it, because the preview
-              cleaned the value before matching. Now normalized on save, as the legacy dialog did.</li>
-            <li>Extracted that normalization into <code>prepareSettingsForSave()</code> so it is unit-testable, and added
-              the new spec — including tests that pin this dialog's grapheme splitter against Synphony's own
-              <code>LanguageData.getGpcForm</code>, with a guard so the comparison cannot pass vacuously.</li>
-            <li>Localized the hard-coded <em>"Separate words with spaces."</em> hint (new XLF entry in
-              <code>Bloom.xlf</code>), gave the three text boxes localized accessible names, restored the doc comment
-              dropped when the word-list cleaner moved files, made the toolbox lookup fail fast, inlined the props type
-              aliases per <code>AGENTS.md</code>, and switched the tabs to MUI's <code>onChange</code>.</li>
+            <li><strong>Deleted letters (#2).</strong> Split the reset in two: a new <code>ResetLanguageDataGraphemes</code> clears only the letter side, so the alphabet is rebuilt on every save even in allowed-words mode, while the sample words the preview needs survive.</li>
+            <li><strong>Special symbols (#3).</strong> Now fetched from the toolbox frame via a new <code>getSynphonyAlwaysMatchSymbols</code>, and passed in as an argument instead of read from a module global.</li>
+            <li><strong>Duplicate splitter (#6).</strong> Removed; the dialog calls Synphony's <code>getGpcForm</code>. The old tests would now compare one thing with itself, so they assert the decodability outcomes outright instead.</li>
+            <li><strong>Pruning (#4).</strong> Left as is, with your reasoning recorded as a comment where it happens.</li>
           </ul>
         </div>
         <div class="commit">
-          <a href="https://github.com/BloomBooks/BloomDesktop/commit/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd" target="_blank" rel="noopener"><code>3e0c297</code></a>
-          — <strong>Two things Devin caught in my own first commit.</strong>
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7" target="_blank" rel="noopener"><code>91864be</code></a>
+          — <strong>A bug Devin caught in my own round-1 work.</strong>
           <ul>
-            <li>Restored the legacy de-duplication of typed sample words (each duplicate is fed to
-              <code>addWord</code>, which counts repeats as higher word frequency).</li>
-            <li><code>save()</code> was comparing the normalized values it was about to write against the raw values it
-              had loaded, so any stored setting containing a comma or doubled space looked changed even when nothing was
-              edited — forcing a needless reload of every sample text file.</li>
+            <li><code>getSynphonyAlwaysMatchSymbols</code> filtered on <code>typeof symbol === "string"</code>, which silently dropped an <em>array</em>-valued <code>AlwaysMatch</code> — the exact symptom the function was added to remove. Synphony <code>concat</code>s that field (so it may be a string or an array) and <code>push</code>es the other three. Now flattened with concat, with four tests; the array case fails against the previous implementation.</li>
           </ul>
         </div>
       </div>
 
       <div class="card">
-        <h2>Reviewer outcomes</h2>
+        <h2>Quality gate at <code>91864be</code></h2>
         <table>
-          <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
-          <tr>
-            <td>Local review<br /><span class="na" style="font-size:12.5px">thorough, read in full by me</span></td>
-            <td class="ok">complete</td>
-            <td>Read the entire 1,875-line diff plus the legacy dialog it replaces. Raised 6 items beyond Devin's:
-              one fixed (English text in code not matching the XLF source for
-              <code>ReaderSetup.ClickLetter</code>), and five checked and <em>cleared</em> as non-issues — see
-              "Things I checked that turned out fine".</td>
-          </tr>
-          <tr>
-            <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">Devin</a></td>
-            <td class="ok">complete</td>
-            <td>Ran on all three commits. 9 bugs + 22 flags across passes. 6 fixed by me, 4 were stale re-reports of
-              things already fixed on the branch, 1 was a false positive, and
-              <strong>6 remain open</strong> — each mirrored to the PR as its own thread (linked below).</td>
-          </tr>
-          <tr>
-            <td>CodeRabbit</td>
-            <td class="na">did not run</td>
-            <td>Disabled by repo config: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>.</td>
-          </tr>
-          <tr>
-            <td>Greptile</td>
-            <td class="na">did not run</td>
-            <td>No Greptile review exists on this PR, and no Greptile config in the repo. See the note below.</td>
-          </tr>
-          <tr>
-            <td>CI</td>
-            <td class="ok">complete</td>
-            <td><code>pr-automation</code> pass · <code>track / set-waiting</code> pass. No other required checks.</td>
-          </tr>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>TypeScript typecheck</td><td class="ok">pass</td></tr>
+          <tr><td>ESLint</td><td class="ok">pass — 0 errors</td></tr>
+          <tr><td>TypeScript tests (Vitest)</td><td class="ok">612 passed, 5 skipped, 0 failed</td></tr>
+          <tr><td>C# tests (BloomTests)</td><td class="na">not re-run — nothing since the earlier run touches C# or the XLF files. That run: 2981 passed, 12 skipped, 1 failed (needs Reading App Builder's build tools, absent on this machine)</td></tr>
+          <tr><td>Merge with <code>origin/master</code></td><td class="ok">clean; PR mergeable</td></tr>
+          <tr><td>CI</td><td class="ok"><code>pr-automation</code> pass · <code>track / set-waiting</code> pass</td></tr>
+          <tr><td>Devin</td><td class="ok">complete — <strong>no new bugs</strong> against <code>91864be</code></td></tr>
         </table>
-        <p style="font-size:13.5px;color:var(--muted);margin:14px 0 0">
-          <strong>On the Greptile review you mentioned:</strong> I could not find one. PR #8132 has zero reviews, zero
-          issue comments and zero review threads from any bot (checked via both the REST and GraphQL APIs, including
-          resolved and outdated threads), and no recent BloomDesktop PR has a Greptile or CodeRabbit comment. Devin was
-          the only completed bot review, and I worked through all of it.
+        <p style="font-size:13.5px;color:var(--muted);margin:12px 0 0">
+          Tests went from <strong>574</strong> at the start of preflight to <strong>612</strong> — 38 added, where the
+          branch previously had none for any of the new code.
         </p>
       </div>
 
       <div class="card">
         <h2>Verified by hand in a running Bloom</h2>
-        <p style="margin-top:0;font-size:14.5px">Launched from this worktree with <code>go.sh</code> and driven over CDP.</p>
         <ul style="font-size:14.5px">
-          <li><strong>The fix works end to end.</strong> Typed <code>zebra</code> / <code>quokka</code> on separate
-            lines → saved as <code>"zebra quokka"</code>, and both appear as <em>separate</em> matching words after
-            reopening. Later <code>cat / dog / cat / bird,dog</code> → saved as <code>"cat dog bird"</code>, proving
-            newlines, commas and duplicates are all handled.</li>
-          <li><strong>Matching words are correct.</strong> The dialog's Stage&nbsp;3 list
-            (<code>dog, frog, in, log</code>) exactly matches what the toolbox reports for the same stage.</li>
-          <li>Tab switching, stage selection, letter toggling, Cancel-discards-changes, and keyboard tab navigation
-            (arrow moves focus, Enter activates) all behave correctly. No "Bloom had a problem" dialogs and no console
-            errors during the session.</li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <h2>Things I checked that turned out fine</h2>
-        <ul style="font-size:14.5px">
-          <li><strong>The dialog has 3 tabs where the old one had 5.</strong> Not a regression — the legacy dialog
-            already disabled the Punctuation and Reader Levels tabs whenever it was opened in "stages" mode
-            (<code>tabs("option","disabled",[3,4])</code>). Those two tabs remain reachable from the Leveled Reader
-            tool, which still uses the old dialog.</li>
-          <li><strong>Localization is in better shape than Devin implied.</strong> I checked all 33
-            <code>l10nKey</code>s used by the new components against <code>Bloom.xlf</code>: every one already exists
-            with matching source text. Exactly one string was genuinely missing, and it is now added.</li>
-          <li><strong>A letter can be added to a stage even when a later stage also teaches it.</strong> The legacy
-            <code>selectLetter</code> behaved identically (it only locked <em>previous</em> letters), so this matches.</li>
-          <li><strong>Devin's "legacy save now always reloads every sample text file" is a false positive.</strong>
-            The code guards with <code>previousUseAllowedWords !== undefined</code>, so the 3-argument legacy caller
-            keeps exactly its old behavior.</li>
-          <li><strong>Stage-removal file cleanup, the stacked ternaries, and the dead LESS / <code>reactHost</code>
-            block</strong> were all reported by Devin from an earlier, superseded commit and are already fixed on the
-            branch.</li>
+          <li><strong>#2, both halves.</strong> Switched the collection to allowed-word lists, saved, switched back —
+            all ten matching words returned immediately, <em>with no restart</em>. That is the preview data the
+            original guard was protecting, so the fix rebuilds graphemes without sacrificing it. The reset itself is
+            pinned by three unit tests.</li>
+          <li><strong>#6 is behavior-preserving.</strong> After routing through Synphony's splitter, the dialog's
+            Stage&nbsp;3 list is <code>bird, dog, frog, in, log</code> — exactly what the toolbox independently
+            reports — and <code>cat</code> still correctly appears only from Stage&nbsp;13, where its <code>t</code>
+            is taught.</li>
+          <li><strong>#3 crosses the frame boundary.</strong> Confirmed over CDP that the dialog's frame can call the
+            new toolbox export (it returns an empty list here, correct for a collection defining no such symbols).</li>
+          <li>No "Bloom had a problem" dialogs and no console errors throughout.</li>
         </ul>
       </div>
     </div>
 
-    <!-- ================= RIGHT: decisions ================= -->
     <div>
       <div class="card" style="background:var(--accent-soft);border-color:#cfe2e6">
-        <h2 style="margin-bottom:6px">Six things need your call</h2>
+        <h2 style="margin-bottom:6px">Four things left</h2>
         <p style="margin:0;font-size:14.5px">
-          None of these block the PR mechanically — the gate is green and everything safe has been fixed. Each is
-          open as its own thread on the PR, and each will get a reply recording whatever you decide.
+          One is the discussion you asked for, narrowed to a single concrete question. The other three came out of
+          Devin's later passes; all three are pre-existing on the branch rather than anything preflight introduced,
+          so I left them alone rather than widening the change myself.
         </p>
       </div>
 
-      <!-- 1 -->
       <div class="item">
-        <h3>1. Sample words come back on one line instead of one per line</h3>
-        <p class="whence">Devin (Investigate) · confirmed by hand ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353391" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableStagesSetup.tsx#L438" target="_blank" rel="noopener">DecodableStagesSetup.tsx:438</a>
-        </p>
-        <p style="font-size:14.5px">
-          On the Sample Words tab there is a box called "Type Words Here". People naturally type one word per line.
-          The old dialog deliberately displayed the saved list that way too: it stored the words space-separated but
-          converted the spaces back to line breaks when filling the box. The new dialog shows the stored value
-          verbatim, so after you press OK and reopen the dialog, a list you typed down the page comes back as one long
-          wrapped line. Nothing is lost — the words are saved correctly either way now — but it looks different and it
-          makes a long list harder to read and edit. This is purely about presentation.
-        </p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" checked /><label class="txt" for="q1a">Restore the old one-per-line display — show the saved words with line breaks in the box, and keep collapsing them on save<span class="rec">Recommended</span><span class="fx">~3 lines in the textarea's value binding; low risk, and it matches what existing users are used to.</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b" /><label class="txt" for="q1b">Deliberately adopt the single-line display as part of the redesign<span class="fx">No code change; just record the decision.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q1" id="q1c" /><label class="txt" for="q1c">Leave as is</label><span class="lc"><input type="checkbox" id="q1lc" /><label for="q1lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q1" id="q1d" /><label class="txt" for="q1d">Other:&nbsp;<input type="text" id="q1other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q1notes">Notes</label><textarea id="q1notes" rows="2"></textarea></div>
+        <h3>A. Should an empty stage still be saved?</h3>
+        <p class="whence">Your #5, narrowed · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353397" target="_blank" rel="noopener">PR thread</a> (left open) · <a href="https://github.com/BloomBooks/BloomDesktop/blob/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableReaderSetupDialog.tsx#L73" target="_blank" rel="noopener">DecodableReaderSetupDialog.tsx:73</a></p>
+        <p style="font-size:14.5px">As above, the persisted field shape already matches the legacy dialog exactly, so nothing needs reverting there. The one genuine behavior difference is that the legacy dialog silently dropped a stage that had nothing in it — no letters, no sight words, no word-list file — and renumbered what was left, whereas the new dialog saves it. Related: the new dialog deliberately creates an empty Stage 1 for a collection that has no stages at all, so that a user always sees a row to work with. If we restore the drop-empty-stages rule, that materialized Stage 1 would not survive a save — which is exactly what the old dialog did (one collection on this machine has zero saved stages, so it really did happen).</p>
+        <div class="opt"><input type="radio" name="qa" id="qaa" checked /><label class="txt" for="qaa">Keep saving empty stages, and note in a comment that this differs from the legacy rule on purpose<span class="rec">Recommended</span><span class="fx">No behavior change — the always-shows-a-row design implies a stage can legitimately be empty, and an empty stage is harmless to load.</span></label></div>
+        <div class="opt"><input type="radio" name="qa" id="qab" /><label class="txt" for="qab">Restore the legacy rule: drop stages with no data on save, and renumber<span class="fx">Small — a filter in prepareSettingsForSave, but needs a decision about the deliberately-created empty Stage 1.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="qa" id="qac" /><label class="txt" for="qac">Leave as is</label><span class="lc"><input type="checkbox" id="qalc" /><label for="qalc">Leave comment</label></span></div>
+        <div class="opt"><input type="radio" name="qa" id="qad" /><label class="txt" for="qad">Other:&nbsp;<input type="text" id="qaother" placeholder="your answer" /></label></div>
+        <div class="notes"><label for="qanotes">Notes</label><textarea id="qanotes" rows="2"></textarea></div>
       </div>
 
-      <!-- 2 -->
       <div class="item">
-        <h3>2. Deleting a letter has no effect until restart, in allowed-words mode</h3>
-        <p class="whence">Devin (Bug, non-severe) ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353383" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerTools.ts#L398" target="_blank" rel="noopener">readerTools.ts:398</a>
-        </p>
-        <p style="font-size:14.5px">
-          This branch changed a shared function so that Bloom's language data is rebuilt from scratch only when the
-          collection defines its stages by <em>letters</em>, not when it defines them by <em>allowed-word lists</em>.
-          The change is deliberate: skipping the rebuild is what lets the setup dialog still show a matching-words
-          preview if the user flips back to the letters approach without saving. The side effect is that the rebuild
-          was also the only thing that ever <em>removed</em> letters — the load path only ever adds them. So in a
-          collection using allowed-word lists, a letter combination the user deletes from the alphabet stays
-          registered for the rest of the session. Bloom decides word length by counting letter combinations, so a
-          deleted combination keeps counting as a single letter and the Leveled Reader's word-length checks and page
-          markup can be wrong until Bloom is restarted. Narrow, but it is a wrong answer shown to the user.
-        </p>
-        <div class="opt"><input type="radio" name="q2" id="q2a" checked /><label class="txt" for="q2a">Fix now: rebuild the letter/grapheme side of the language data even in allowed-words mode, while keeping the loaded sample words the preview needs<span class="rec">Recommended</span><span class="fx">Moderate — needs splitting one reset into "letters" and "words" halves in shared reader code, and re-testing both reader tools. Worth it because it produces visibly wrong numbers.</span></label></div>
-        <div class="opt"><input type="radio" name="q2" id="q2b" /><label class="txt" for="q2b">File a separate follow-up card and land this PR as is<span class="fx">No code change here; a few minutes to write the card.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q2" id="q2c" /><label class="txt" for="q2c">Leave as is</label><span class="lc"><input type="checkbox" id="q2lc" /><label for="q2lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q2" id="q2d" /><label class="txt" for="q2d">Other:&nbsp;<input type="text" id="q2other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q2notes">Notes</label><textarea id="q2notes" rows="2"></textarea></div>
+        <h3>B. Kept sample words still carry the old alphabet's segmentation</h3>
+        <p class="whence">Devin (Investigate), about my #2 fix · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3706432502" target="_blank" rel="noopener">PR thread</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7/src/BloomBrowserUI/bookEdit/toolbox/readers/libSynphony/synphony_lib.ts#L40" target="_blank" rel="noopener">synphony_lib.ts:40</a></p>
+        <p style="font-size:14.5px">A fair critique of the fix you approved. Clearing the grapheme list stops a deleted letter combination from being miscounted, which was the reported bug. But the sample words we deliberately keep were each split into letters when they were loaded, and they store that split. So after the alphabet changes in allowed-words mode, those stored splits still reflect the old alphabet until something reloads the words. It is strictly better than before, and it only surfaces if someone changes the alphabet in allowed-words mode and then switches back to stages mode without saving. Fully resolving it means re-splitting the kept words, or giving up the preview by doing the full reset again — which would undo the trade-off you just settled.</p>
+        <div class="opt"><input type="radio" name="qb" id="qba" checked /><label class="txt" for="qba">Accept this as a known limitation and record it in a comment<span class="rec">Recommended</span><span class="fx">No code change. The reported bug is fixed; what remains is narrower and self-corrects as soon as the words reload.</span></label></div>
+        <div class="opt"><input type="radio" name="qb" id="qbb" /><label class="txt" for="qbb">Re-split the kept vocabulary against the new alphabet after clearing the graphemes<span class="fx">Moderate — needs a re-segmentation pass over the loaded words, in shared reader code used by both reader tools.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="qb" id="qbc" /><label class="txt" for="qbc">Leave as is</label><span class="lc"><input type="checkbox" id="qblc" /><label for="qblc">Leave comment</label></span></div>
+        <div class="opt"><input type="radio" name="qb" id="qbd" /><label class="txt" for="qbd">Other:&nbsp;<input type="text" id="qbother" placeholder="your answer" /></label></div>
+        <div class="notes"><label for="qbnotes">Notes</label><textarea id="qbnotes" rows="2"></textarea></div>
       </div>
 
-      <!-- 3 -->
       <div class="item">
-        <h3>3. Special language symbols are ignored in the dialog, so some typed words vanish from the preview</h3>
-        <p class="whence">Devin (Bug, non-severe) · confirmed by reading the code ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353387" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/decodableStagesUtils.ts#L103" target="_blank" rel="noopener">decodableStagesUtils.ts:103</a>
-        </p>
-        <p style="font-size:14.5px">
-          Some languages define special marks — a syllable break, a stress mark, a morpheme break — that Synphony
-          treats as always acceptable inside a word, whatever stage the reader is at. The new dialog tries to honour
-          them, but it reads them from its own copy of the Synphony data, and that copy is always empty: the fields
-          are not part of the data class at all, and the dialog runs in a different bundle from the one where the real
-          data lives. (That bundle split is exactly why the dialog fetches its matching words from the toolbox rather
-          than computing them locally.) The visible effect, only for collections that define such a mark: a word the
-          user <em>typed</em> containing that mark is dropped from the "matching words" list, while a word containing
-          the same mark that came from a sample text is kept — so one list disagrees with itself.
-        </p>
-        <div class="opt"><input type="radio" name="q3" id="q3a" checked /><label class="txt" for="q3a">Fix now: get these values from the toolbox bundle, the same way matching words already are<span class="rec">Recommended</span><span class="fx">Small — one more function exported across the bundle boundary, mirroring what is already there for matching words.</span></label></div>
-        <div class="opt"><input type="radio" name="q3" id="q3b" /><label class="txt" for="q3b">Drop the special-symbol handling entirely, since it has never actually worked here, and note why<span class="fx">Smallest change — deletes dead code, but gives up the behavior for languages that use these marks.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q3" id="q3c" /><label class="txt" for="q3c">Leave as is</label><span class="lc"><input type="checkbox" id="q3lc" /><label for="q3lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q3" id="q3d" /><label class="txt" for="q3d">Other:&nbsp;<input type="text" id="q3other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q3notes">Notes</label><textarea id="q3notes" rows="2"></textarea></div>
+        <h3>C. The dialog asks Synphony a different question than the rest of the code</h3>
+        <p class="whence">Devin (Investigate) · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3706432507" target="_blank" rel="noopener">PR thread</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7/src/BloomBrowserUI/bookEdit/toolbox/readers/readerTools.ts#L520" target="_blank" rel="noopener">readerTools.ts:520</a></p>
+        <p style="font-size:14.5px">The new dialog's matching-words helper passes <code>true</code> as the first argument, which routes to one libSynphony function; the legacy dialog and the toolbox's own stage-words call both pass <code>false</code>, which routes to a different one. So the dialog's list is computed by a different routine than the rest of the reader code uses. In testing they agreed exactly — the dialog and the toolbox panel produced the same five words for the same stage — so there is no visible discrepancy today. But I could not cheaply prove the two routines are equivalent in general, and this is pre-existing on the branch rather than something preflight introduced.</p>
+        <div class="opt"><input type="radio" name="qc" id="qca" checked /><label class="txt" for="qca">Leave it, since the two agree in testing, but file a follow-up to confirm the routines are equivalent<span class="rec">Recommended</span><span class="fx">No code change now; a few minutes to write the card.</span></label></div>
+        <div class="opt"><input type="radio" name="qc" id="qcb" /><label class="txt" for="qcb">Switch it to the same call the toolbox uses and map the results to names<span class="fx">Small — but changes the dialog's word list, so it wants a careful re-test against several collections.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="qc" id="qcc" /><label class="txt" for="qcc">Leave as is</label><span class="lc"><input type="checkbox" id="qclc" /><label for="qclc">Leave comment</label></span></div>
+        <div class="opt"><input type="radio" name="qc" id="qcd" /><label class="txt" for="qcd">Other:&nbsp;<input type="text" id="qcother" placeholder="your answer" /></label></div>
+        <div class="notes"><label for="qcnotes">Notes</label><textarea id="qcnotes" rows="2"></textarea></div>
       </div>
 
-      <!-- 4 -->
       <div class="item">
-        <h3>4. Switching tabs can silently drop a letter from your stages</h3>
-        <p class="whence">Devin (Investigate) ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353388" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableStagesSetup.tsx#L562" target="_blank" rel="noopener">DecodableStagesSetup.tsx:562</a>
-        </p>
-        <p style="font-size:14.5px">
-          Keeping the stages consistent with the alphabet is clearly intended: if a letter is no longer in the
-          alphabet, it should not remain assigned to a stage. The concern is <em>when</em> it happens. Only the active
-          tab is rendered, so every time the user leaves the Decodable Stages tab and comes back, this reconciliation
-          runs again and quietly removes any letter that is not in the alphabet box <em>at that moment</em>. If
-          someone is midway through retyping a letter on the Letters tab and clicks back to Stages to check something,
-          that letter is stripped from every stage, with no warning and no undo. I have not reproduced this by hand —
-          it is a code-reading finding — so it is worth a tester confirming before deciding how far to go.
-        </p>
-        <div class="opt"><input type="radio" name="q4" id="q4a" checked /><label class="txt" for="q4a">Reconcile only when the alphabet actually changes (or on OK), rather than on every remount<span class="rec">Recommended</span><span class="fx">Small–moderate — move the logic out of a mount effect into a change-driven one; needs care not to miss the legitimate case.</span></label></div>
-        <div class="opt"><input type="radio" name="q4" id="q4b" /><label class="txt" for="q4b">Have QA try to reproduce it first, then decide<span class="fx">No code change now; it is already called out in the test-ideas comment on the card.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q4" id="q4c" /><label class="txt" for="q4c">Leave as is</label><span class="lc"><input type="checkbox" id="q4lc" /><label for="q4lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q4" id="q4d" /><label class="txt" for="q4d">Other:&nbsp;<input type="text" id="q4other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q4notes">Notes</label><textarea id="q4notes" rows="2"></textarea></div>
+        <h3>D. Sample text files of an unexpected type vanish silently</h3>
+        <p class="whence">Devin (Bug, non-severe) · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3706432512" target="_blank" rel="noopener">PR thread</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/91864be5fd4e27a36d7f2fcb17176fd58b5a5eb7/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableStagesSetup.tsx#L33" target="_blank" rel="noopener">DecodableStagesSetup.tsx:33</a></p>
+        <p style="font-size:14.5px">The dialog filters the Sample Texts folder listing against its own hard-coded list of file extensions, so a file of any other type simply does not appear — with no message explaining why. Two wrinkles: the model already has its own idea of which files are readable (<code>getReadableFileExtensions</code>), so two separate lists can drift apart; and the dialog's list is case-sensitive as written, so a <code>.TXT</code> file would be filtered out. Which extensions ought to show is a product question, so I have not changed it.</p>
+        <div class="opt"><input type="radio" name="qd" id="qda" checked /><label class="txt" for="qda">Reuse the model's readable-extensions list, and compare case-insensitively<span class="rec">Recommended</span><span class="fx">Small — deletes the duplicate list; the case fix is a one-liner. Keeps the dialog honest about which files Bloom actually reads.</span></label></div>
+        <div class="opt"><input type="radio" name="qd" id="qdb" /><label class="txt" for="qdb">Leave the list but make it case-insensitive<span class="fx">One line.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="qd" id="qdc" /><label class="txt" for="qdc">Leave as is</label><span class="lc"><input type="checkbox" id="qdlc" /><label for="qdlc">Leave comment</label></span></div>
+        <div class="opt"><input type="radio" name="qd" id="qdd" /><label class="txt" for="qdd">Other:&nbsp;<input type="text" id="qdother" placeholder="your answer" /></label></div>
+        <div class="notes"><label for="qdnotes">Notes</label><textarea id="qdnotes" rows="2"></textarea></div>
       </div>
 
-      <!-- 5 -->
-      <div class="item">
-        <h3>5. The settings file now records more than the old dialog wrote</h3>
-        <p class="whence">Devin (Investigate) ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353397" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/DecodableReaderSetupDialog.tsx#L73" target="_blank" rel="noopener">DecodableReaderSetupDialog.tsx:73</a>
-        </p>
-        <p style="font-size:14.5px">
-          The old dialog rebuilt the settings from scratch out of the form fields, so only the handful of things it
-          knew about were ever written to disk. The new dialog copies the live settings object and saves the whole
-          copy. Two consequences worth an explicit yes or no. First, any extra working data that happens to be hanging
-          off a stage at that moment would now be written into the settings file. Second, the old rule "don't save a
-          stage that has no data in it" is gone, so an empty stage the user created is saved — and the dialog now
-          deliberately creates an empty Stage 1 for a collection that had none. Both look like intentional
-          consequences of the new always-shows-a-row design, but they change the shape of a file Bloom writes, so it
-          is worth confirming rather than discovering later.
-        </p>
-        <div class="opt"><input type="radio" name="q5" id="q5a" checked /><label class="txt" for="q5a">Confirm it is intended and record why, in a code comment next to the save<span class="rec">Recommended</span><span class="fx">No behavior change — a comment so the next reader isn't puzzled by the difference from the legacy file shape.</span></label></div>
-        <div class="opt"><input type="radio" name="q5" id="q5b" /><label class="txt" for="q5b">Restore the legacy behavior: write only the known fields, and skip stages with no data<span class="fx">Moderate — reintroduces an explicit field-by-field mapping, and needs thought about the deliberate empty Stage 1.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q5" id="q5c" /><label class="txt" for="q5c">Leave as is</label><span class="lc"><input type="checkbox" id="q5lc" /><label for="q5lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q5" id="q5d" /><label class="txt" for="q5d">Other:&nbsp;<input type="text" id="q5other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q5notes">Notes</label><textarea id="q5notes" rows="2"></textarea></div>
-      </div>
-
-      <!-- 6 -->
-      <div class="item">
-        <h3>6. The dialog re-implements Synphony's word-splitting (now pinned by tests)</h3>
-        <p class="whence">Devin (Investigate) · mitigated ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r3688353401" target="_blank" rel="noopener">PR thread</a> ·
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/3e0c2978f3dd2048f97d9fac21aaeb946752e2cd/src/BloomBrowserUI/bookEdit/toolbox/readers/readerSetup/decodableStagesUtils.ts#L67" target="_blank" rel="noopener">decodableStagesUtils.ts:67</a>
-        </p>
-        <p style="font-size:14.5px">
-          Deciding whether a word is decodable means splitting it into the letter combinations the language teaches.
-          Synphony already does this. The new dialog contains a second copy of that logic, used for words the user
-          types (sample-text words still go through Synphony's). Two copies means the same word can in principle get
-          two different answers within a single list. I added tests that run both implementations over the same words
-          and assert they agree, with a guard so the comparison cannot pass trivially — so any future drift will fail
-          the build. Comparing them line by line I found one genuine difference today: the new copy lower-cases the
-          alphabet before matching and Synphony's does not, which makes the new one slightly more forgiving for an
-          alphabet typed with capitals. Harmless in practice, but it is a real divergence rather than a perfect copy.
-        </p>
-        <div class="opt"><input type="radio" name="q6" id="q6a" checked /><label class="txt" for="q6a">Keep the second copy with its pinning tests, and accept the lower-casing difference<span class="rec">Recommended</span><span class="fx">No further work — the tests already fail on drift, and typed words genuinely cannot use Synphony's path because they are not saved yet.</span></label></div>
-        <div class="opt"><input type="radio" name="q6" id="q6b" /><label class="txt" for="q6b">Remove the duplicate and route typed words through Synphony's splitter instead<span class="fx">Moderate — the typed words are not in the language data yet, so this needs a way to split against a provisional alphabet.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q6" id="q6c" /><label class="txt" for="q6c">Leave as is</label><span class="lc"><input type="checkbox" id="q6lc" /><label for="q6lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q6" id="q6d" /><label class="txt" for="q6d">Other:&nbsp;<input type="text" id="q6other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q6notes">Notes</label><textarea id="q6notes" rows="2"></textarea></div>
-      </div>
-
-      <!-- FYI A -->
-      <div class="item fyi">
-        <h3>FYI — I put the new translatable string in <code>Bloom.xlf</code></h3>
-        <p class="whence">The XLF skill asks me to check the priority file with you</p>
-        <p style="font-size:14.5px">
-          The hint "Separate words with spaces." under the sight-words box was hard-coded English. I added it as
-          <code>ReaderSetup.SeparateWordsWithSpaces</code>, marked <code>translate="no"</code> as the skill requires
-          for new entries, with a translator note explaining where it appears. I chose <code>Bloom.xlf</code> because
-          all 76 existing <code>ReaderSetup.*</code> strings live there, including the directly comparable hint
-          "Click on letters to add them to this stage." The skill's own table would arguably put help text in
-          <code>BloomMediumPriority.xlf</code>, so this is worth a moment's confirmation.
-        </p>
-        <div class="opt"><input type="radio" name="q7" id="q7a" checked /><label class="txt" for="q7a">Keep it in <code>Bloom.xlf</code> alongside the other ReaderSetup strings<span class="rec">Recommended</span><span class="fx">Already done; consistency with the 76 sibling strings.</span></label></div>
-        <div class="opt"><input type="radio" name="q7" id="q7b" /><label class="txt" for="q7b">Move it to <code>BloomMediumPriority.xlf</code><span class="fx">Trivial — move one entry between files.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q7" id="q7c" /><label class="txt" for="q7c">Leave as is</label><span class="lc"><input type="checkbox" id="q7lc" /><label for="q7lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q7" id="q7d" /><label class="txt" for="q7d">Other:&nbsp;<input type="text" id="q7other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q7notes">Notes</label><textarea id="q7notes" rows="2"></textarea></div>
-      </div>
-
-      <!-- FYI B -->
-      <div class="item fyi">
-        <h3>FYI — I converted the PR back to draft</h3>
-        <p style="font-size:14.5px">
-          PR #8132 was open for review; preflight puts a PR back into draft because the work is pre-review again.
-          Since this is the intern's PR and you may not want it un-readied on their behalf, flagging it. Promoting it
-          to human review is a separate step (<code>pr-ready-for-human</code>), which I have not run.
-        </p>
-        <div class="opt"><input type="radio" name="q8" id="q8a" checked /><label class="txt" for="q8a">Fine — leave it as a draft until the decisions above are settled<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="q8" id="q8b" /><label class="txt" for="q8b">Put it straight back to ready-for-review<span class="fx">One command.</span></label></div>
-        <div class="opt leaverow"><input type="radio" name="q8" id="q8c" /><label class="txt" for="q8c">Leave as is</label><span class="lc"><input type="checkbox" id="q8lc" /><label for="q8lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q8" id="q8d" /><label class="txt" for="q8d">Other:&nbsp;<input type="text" id="q8other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q8notes">Notes</label><textarea id="q8notes" rows="2"></textarea></div>
-      </div>
-
-      <!-- next step -->
       <div class="item">
         <h3>Next step</h3>
-        <div class="opt"><input type="radio" name="q9" id="q9a" checked /><label class="txt" for="q9a">Implement the options I chose above, then re-run preflight<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="q9" id="q9b" /><label class="txt" for="q9b">Let's talk through some of these before any more code changes</label></div>
-        <div class="opt"><input type="radio" name="q9" id="q9c" /><label class="txt" for="q9c">Nothing more for now — hand it back to the intern with these notes</label></div>
-        <div class="opt"><input type="radio" name="q9" id="q9d" /><label class="txt" for="q9d">Other:&nbsp;<input type="text" id="q9other" placeholder="your answer" /></label></div>
-        <div class="notes"><label for="q9notes">Notes</label><textarea id="q9notes" rows="2"></textarea></div>
+        <div class="opt"><input type="radio" name="qe" id="qea" checked /><label class="txt" for="qea">Implement what I chose above, then re-run preflight<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="qe" id="qeb" /><label class="txt" for="qeb">This is good enough — promote it to human review</label></div>
+        <div class="opt"><input type="radio" name="qe" id="qec" /><label class="txt" for="qec">Let's talk before any more code changes</label></div>
+        <div class="opt"><input type="radio" name="qe" id="qed" /><label class="txt" for="qed">Hand it back to the intern with these notes</label></div>
+        <div class="opt"><input type="radio" name="qe" id="qee" /><label class="txt" for="qee">Other:&nbsp;<input type="text" id="qeother" placeholder="your answer" /></label></div>
+        <div class="notes"><label for="qenotes">Notes</label><textarea id="qenotes" rows="2"></textarea></div>
       </div>
 
       <div class="card">
@@ -441,28 +276,26 @@
 
 <script>
   var QS = [
-    { n: "q1", t: "1. Sample words display (one per line vs one line)" },
-    { n: "q2", t: "2. Deleted letters still counted in allowed-words mode" },
-    { n: "q3", t: "3. Special language symbols ignored in the dialog" },
-    { n: "q4", t: "4. Tab switching drops letters from stages" },
-    { n: "q5", t: "5. Settings file records more than the old dialog" },
-    { n: "q6", t: "6. Duplicate grapheme splitting (pinned by tests)" },
-    { n: "q7", t: "FYI. XLF priority file for the new string" },
-    { n: "q8", t: "FYI. PR converted to draft" },
-    { n: "q9", t: "Next step" }
+    { n: "qa", t: "A. Should an empty stage still be saved?" },
+    { n: "qb", t: "B. Kept sample words carry the old alphabet's segmentation" },
+    { n: "qc", t: "C. Dialog asks Synphony a different question" },
+    { n: "qd", t: "D. Sample text files of an unexpected type vanish" },
+    { n: "qe", t: "Next step" }
   ];
 
   function build() {
-    var lines = ["Preflight answers - BloomDesktop PR #8132 (BL-16607)", ""];
+    var lines = ["Preflight round-2 answers - BloomDesktop PR #8132 (BL-16607)", ""];
     QS.forEach(function (q) {
       var sel = document.querySelector('input[name="' + q.n + '"]:checked');
       var label = "(no answer)";
       if (sel) {
         var lab = document.querySelector('label[for="' + sel.id + '"]');
         label = lab ? lab.textContent.replace(/\s+/g, " ").replace(/Recommended/g, "").trim() : "(selected)";
-        var other = document.getElementById(q.n + "other");
-        if (other && sel.id === q.n + "d") {
-          label = "Other: " + (other.value || "(blank)");
+        // If the chosen option is the "Other:" one, its label holds the text box.
+        var lab2 = document.querySelector('label[for="' + sel.id + '"]');
+        var inlineText = lab2 ? lab2.querySelector('input[type=text]') : null;
+        if (inlineText) {
+          label = "Other: " + (inlineText.value.trim() || "(blank)");
         }
       }
       lines.push(q.t);
