@@ -229,9 +229,22 @@
         the branch <code>BL-16632-stale-button-state-answers</code>, which still holds it (that branch is
         commit <code>542de72750</code> on top of <code>1559a3dc96</code>). Decision 1 asks what should
         happen to it.</li>
-      <li>Your comment on the card — “I could not reproduce this by switching to a new page, but I could by
-        clicking into a second text box on the same page which had not yet been recorded” — matches what
-        the tests show: the same-page path fails deterministically, the new-page path depends on a race.</li>
+      <li><strong>This is not a 6.5 regression.</strong> The card is labelled “[6.5 regression]” and a comment
+        guesses it came from BL-16410 (the React conversion). It didn't: the developer reproduced the reported
+        state in <strong>6.4</strong> with two sequences —
+        <em>(1)</em> type in box 1, record it By Whole Text Box, click the still-empty box 2, type → bad state,
+        and it stays; and
+        <em>(2)</em> with box 2 already holding text: record box 1, click box 2 → bad state appears, then typing
+        cleared it.
+        Sequence 1 is the <code>disableInteraction</code> hole (clicking a box with no text means “nothing
+        recordable selected”, which disabled every button while the Advanced section went on reporting box 1's
+        recording); sequence 2 is the highlight-move refresh publishing the previous box's audio state before the
+        server answers for the new box. Both are fixed here. Supporting the same conclusion from the code: the
+        disabled condition, all twelve <code>updateDisplay</code> call sites, and
+        <code>talkingBookAdvancedSection.tsx</code> are identical between <code>Version6.4</code> and master
+        (that file byte-for-byte), and 6.4's <code>setStatus</code> did not re-render the Advanced section
+        either. The label is worth correcting on the card, since it changes 6.5 release triage — and it raises
+        the question of whether this fix should also go to the 6.4 line.</li>
       <li><strong>Not verified live in Bloom.</strong> Reproducing this by hand needs an actual microphone
         recording, which the agent can't drive. The change is covered by five unit tests, each confirmed to
         fail without its fix, and the QA test-ideas comment on the card gives a tester the exact sequence.</li>
@@ -345,18 +358,20 @@
   <section class="card">
     <h2>FYI — the tool now re-checks the page's text more often</h2>
     <p>
-      Devin noted this twice, as an observation rather than a problem. Working out whether the page has
-      anything recordable means looking at the text of every visible text box, and that now happens on every
-      button refresh — including the ones that follow typing — where before it happened only at a few points.
-      Pages have few text boxes, so this is very likely unnoticeable, and the QA notes ask a tester to type
-      continuously on a text-heavy page and watch for stutter. Nothing to change unless that test finds
-      something.
+      Devin noted this twice, as an observation rather than a problem, and an earlier version of this report
+      repeated its framing more darkly than the numbers deserve. Working out whether the page has anything
+      recordable is one <code>getElementsByClassName</code> plus a text check per visible text box, and it now
+      happens on every button refresh rather than at a few points. For scale: that same refresh already makes
+      <strong>two HTTP round trips to the Bloom server per keystroke</strong> — <code>updateMarkup</code> runs on
+      most keypresses and ends in a refresh, which asks <code>checkForAnyRecording</code> once for the page and
+      once for the current box. The added DOM work is noise beside that. The QA notes still ask a tester to type
+      continuously on a text-heavy page and watch for stutter.
     </p>
     <fieldset data-q="Recompute cost FYI">
       <div class="opt">
         <input type="radio" name="q3" id="q3a" value="Cache or throttle the check" />
         <label class="lbl" for="q3a">Cache or throttle the check now
-          <span class="fix-note">Moderate — needs an invalidation rule for when the page's text changes, which is the kind of cache that goes stale and causes exactly this class of bug again.</span>
+          <span class="fix-note">Moderate — needs an invalidation rule for when the page's text changes, which is the kind of cache that goes stale and causes exactly this class of bug again. It would also be dwarfed by the two per-keystroke HTTP requests already on that path, so it buys little.</span>
         </label>
       </div>
       <div class="opt">
