@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight — BL-16612 sound registration (PR #8155)</title>
+<title>Preflight round 2 — BL-16612 sound registration (PR #8155)</title>
 <style>
   :root{
     --paper:#FAF8F5; --card:#FFFFFF; --ink:#23282B; --muted:#5A6569; --faint:#8B9499;
@@ -169,12 +169,12 @@
 <div class="wrap">
 
 <header class="top">
-  <h1>Preflight — make the blocked-worker registration sound</h1>
-  <p class="sub">Everything on the branch is green and published. Two commits landed, three review findings were dealt with, and <strong>one real defect found by two independent reviewers is left for you</strong> because fixing it properly reaches beyond this branch's deliberate scope.</p>
+  <h1>Preflight, round two — your decisions are implemented</h1>
+  <p class="sub">All six answers are in the branch, the suite is green, and Devin has run to a terminal state four times. It found <strong>two new things on the last pass</strong>, one of which punched a hole in a comment I had just written — those are the only items left for you.</p>
   <div class="meta">
     <span class="chip">branch <b>BL-16612-sound-registration</b></span>
     <span class="chip">base <b>master</b></span>
-    <span class="chip">HEAD <b>55ffdd1059</b></span>
+    <span class="chip">HEAD <b>0ab354bcc9</b></span>
     <span class="chip draft">PR #8155 · draft</span>
     <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8155" target="_blank" rel="noopener">pull request</a></span>
     <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8155/files" target="_blank" rel="noopener">files changed</a></span>
@@ -184,22 +184,60 @@
 </header>
 
 <div class="cols">
-
-<!-- ================= LEFT: the report ================= -->
 <div>
 
   <section class="card">
+    <h2>What your answers turned into</h2>
+    <div class="tblwrap">
+    <table class="gate">
+      <thead><tr><th>Your answer</th><th>State</th><th>What happened</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Fix the pairing contract properly, on this branch</td>
+          <td><span class="pill pass">done</span></td>
+          <td><code>RegisterThreadBlocking</code>/<code>Unblocked</code> are gone. <a href="https://github.com/BloomBooks/BloomDesktop/blob/0ab354bcc9b5d6fc745415383af7ab37e3b401fc/src/BloomExe/web/BloomServer.cs#L2405" target="_blank" rel="noopener"><code>ReportThreadBlocking()</code></a> returns a disposable scope that closes over whether the block counted, so it can no longer be re-derived from whichever thread happens to be running at the end. All five call sites use <code>using</code>.</td>
+        </tr>
+        <tr>
+          <td>No bound on the off-screen browser</td>
+          <td><span class="pill na">nothing to do</span></td>
+          <td>Left exactly as it was. The registration fix stands as the whole answer to BL-16612.</td>
+        </tr>
+        <tr>
+          <td>Record the shutdown dependency in a comment</td>
+          <td><span class="pill attn">done, then corrected</span></td>
+          <td>Written at <a href="https://github.com/BloomBooks/BloomDesktop/blob/0ab354bcc9b5d6fc745415383af7ab37e3b401fc/src/BloomExe/web/BloomServer.cs#L2688" target="_blank" rel="noopener">both ends</a> — and then Devin found the safety argument in it was incomplete. See decision 2.</td>
+        </tr>
+        <tr>
+          <td>Leave the catch-all as is · <em>leave comment</em></td>
+          <td><span class="pill pass">done</span></td>
+          <td>A <code>REVIEWED DECISION (BL-16612)</code> comment records that it is a deliberate exception to <code>AGENTS.md</code>'s fail-fast rule, why failing fast would be worse here, and not to narrow it without revisiting that.</td>
+        </tr>
+        <tr>
+          <td>Leave pool growth as is · <em>leave comment</em></td>
+          <td><span class="pill pass">done</span></td>
+          <td>A comment at <a href="https://github.com/BloomBooks/BloomDesktop/blob/0ab354bcc9b5d6fc745415383af7ab37e3b401fc/src/BloomExe/web/BloomServer.cs#L2519" target="_blank" rel="noopener"><code>SpinUpAWorker</code></a> records that workers are never retired, that growth is bounded by how many requests actually wait, and that retiring idle workers is the real but much larger fix.</td>
+        </tr>
+        <tr>
+          <td>Implement straight away</td>
+          <td><span class="pill pass">done</span></td>
+          <td>Three commits, gate re-run after each, Devin re-run to terminal after each.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
     <h2>Quality gate</h2>
-    <p class="lede">Run against the branch after <code>origin/master</code> was merged in, so these are the results for the code as it would actually merge.</p>
     <div class="tblwrap">
     <table class="gate">
       <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
       <tbody>
         <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors.</td></tr>
-        <tr><td>ESLint</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0 errors</span>, <span class="numeral">764 warnings</span> — all pre-existing; no TypeScript was touched.</td></tr>
-        <tr><td>Merge with base</td><td><span class="pill pass">clean</span></td><td>Base had moved 10 commits; merged with no conflicts, and the gate was re-run afterwards.</td></tr>
-        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pill attn">1 environment failure</span></td><td><span class="numeral">3024 passed · 12 skipped · 1 failed</span>. The failure is <code>RabRealBuildTests</code>, which needs Reading App Builder's <code>buildapp.bat</code> on the PATH; it is not installed on this machine and the test says so itself. Nothing to do with this change.</td></tr>
-        <tr><td>TypeScript tests (vitest)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">664 passed · 5 skipped</span>, across 61 files.</td></tr>
+        <tr><td>ESLint</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0 errors</span> — no TypeScript was touched in this round.</td></tr>
+        <tr><td>Merge with base</td><td><span class="pill pass">clean</span></td><td>Still mergeable against <code>master</code>, state <code>CLEAN</code>.</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pill attn">1 environment failure</span></td><td><span class="numeral">3026 passed · 12 skipped · 1 failed</span> — two more passing than last round, from the new tests. The failure is <code>RabRealBuildTests</code>, which needs Reading App Builder's <code>buildapp.bat</code> on the PATH; it is not installed here and the test says so itself.</td></tr>
+        <tr><td>TypeScript tests (vitest)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">664 passed · 5 skipped</span> — unchanged, and nothing in this round touches the front end.</td></tr>
         <tr><td>Visual-regression suite</td><td><span class="pill na">not run</span></td><td>Needs a built, running Bloom driving real books; it runs in the nightly, not in preflight.</td></tr>
       </tbody>
     </table>
@@ -207,21 +245,21 @@
   </section>
 
   <section class="card">
-    <h2>What changed this run</h2>
+    <h2>The three commits added this round</h2>
     <div class="commit">
-      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/eafc229adc" target="_blank" rel="noopener">eafc229adc</a></span>
-      <span class="msg">Make reporting a blocked server worker always top up the pool</span>
-      <span class="why">Moves the add-a-worker check <em>into</em> <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/BloomServer.cs#L2405" target="_blank" rel="noopener"><code>RegisterThreadBlocking</code></a> so no caller can register a block and miss it, has <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/BloomServer.cs#L1934" target="_blank" rel="noopener"><code>QueueRequest</code></a> call the same helper so the rule lives in one place, and adds the missing report in <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/Publish/OffScreenBrowser.cs#L308" target="_blank" rel="noopener"><code>RunAndBlock</code></a>. Plus <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomTests/web/BloomServerWorkerPoolTests.cs#L26" target="_blank" rel="noopener">two tests</a>.</span>
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/6607a4f28a" target="_blank" rel="noopener">6607a4f28a</a></span>
+      <span class="msg">Make a reported block impossible to leak, by returning a scope</span>
+      <span class="why">Your decision 1. Fixes both leaks at <a href="https://github.com/BloomBooks/BloomDesktop/blob/0ab354bcc9b5d6fc745415383af7ab37e3b401fc/src/BloomExe/web/controllers/ApiRequest.cs#L342" target="_blank" rel="noopener"><code>ApiRequest</code></a>: the cross-thread one, and the one where any exception out of <code>Invoke</code> other than <code>ObjectDisposedException</code> skipped both halves. Three new tests.</span>
     </div>
     <div class="commit">
-      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7af8e40778" target="_blank" rel="noopener">7af8e40778</a></span>
-      <span class="msg">Merge <code>origin/master</code></span>
-      <span class="why">Brought in BL-16656, which switches the C# suite to <code>dotnet test</code> and removes the WPF-native workaround from <code>SetUpFixture</code>. No overlap with the files this branch touches.</span>
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/3a56a7e97f" target="_blank" rel="noopener">3a56a7e97f</a></span>
+      <span class="msg">Put the top-up's fast path inside its own must-not-throw region</span>
+      <span class="why">Devin raised this as informational. The method promises nothing in it can throw, but two reads sat above the <code>try</code>, so the promise rested on an argument about what <code>ConcurrentDictionary.Count</code> can do rather than on the structure. Costs nothing to make it structural.</span>
     </div>
     <div class="commit">
-      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/55ffdd1059" target="_blank" rel="noopener">55ffdd1059</a></span>
-      <span class="msg">Keep the whole worker top-up non-throwing, and correct two comments</span>
-      <span class="why">The review fixes — see the reviewer outcomes below.</span>
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/0ab354bcc9" target="_blank" rel="noopener">0ab354bcc9</a></span>
+      <span class="msg">Correct the shutdown note: signalling <code>_stop</code> is not guaranteed</span>
+      <span class="why">Comment only. The note I wrote for your FYI 1 asserted a guarantee the code does not actually provide — see decision 2.</span>
     </div>
   </section>
 
@@ -230,140 +268,141 @@
 
     <div class="rev">
       <div class="rev-head"><span class="rev-name">Local review — light sub-agent pass</span><span class="pill pass">complete</span></div>
-      <p><strong>2 findings raised, 1 fixed, 1 escalated to you.</strong> It confirmed the logging defect Devin found (already fixed), and independently found the pre-existing blocked-count leak that is decision 1 below. It also worked through each risk I asked it to check — lock ordering, leaks, unbounded growth, the lock-free fast path, <code>QueueRequest</code> equivalence, and whether the tests can pass for the wrong reason — and cleared all of them, verifying that the first test genuinely fails without the fix. One footnote from it changed a claim of mine; see session notes.</p>
+      <p>From round one, and it earned its keep: it found the blocked-count leak independently of Devin, which is the main reason that finding was treated as real rather than speculative. It also cleared lock ordering, unbounded growth, the lock-free fast path, and <code>QueueRequest</code> equivalence, and confirmed the publish endpoints run on a worker thread rather than the UI thread.</p>
     </div>
 
     <div class="rev">
-      <div class="rev-head"><span class="rev-name">Devin</span><span class="pill pass">complete</span><span class="pill attn">ran twice</span></div>
-      <p>First pass on <code>7af8e40778</code>: 1 Bug, 1 Investigate, 3 Informational. Re-review on <code>55ffdd1059</code> after the fixes: 1 Bug (a stale repeat — its text still quotes the pre-fix code), 2 Investigate, 8 Informational. Three threads posted, each with a documented outcome:
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724062887" target="_blank" rel="noopener">the logging bug</a> (fixed, resolved),
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063022" target="_blank" rel="noopener">the understated comment</a> (verified and reworded, resolved), and
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063205" target="_blank" rel="noopener">the blocked-count leak</a> — <strong>left open for you</strong>. Logged in the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#issuecomment-5197422745" target="_blank" rel="noopener">consultation comment</a>.</p>
+      <div class="rev-head"><span class="rev-name">Devin</span><span class="pill pass">complete</span><span class="pill attn">4 runs</span></div>
+      <p>Terminal for every pushed commit. Six threads, each with a documented outcome — four resolved, two left open for you:
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724062887" target="_blank" rel="noopener">logging bug</a> (fixed),
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063022" target="_blank" rel="noopener">understated comment</a> (verified, reworded),
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063205" target="_blank" rel="noopener">blocked-count leak</a> (fixed, per your decision),
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724499281" target="_blank" rel="noopener">test singleton</a> (assessed, not worth acting on),
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724496990" target="_blank" rel="noopener">dead workers</a> (<strong>open</strong>), and
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724497109" target="_blank" rel="noopener">shutdown signal</a> (<strong>open</strong>).
+        Logged in the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#issuecomment-5198096818" target="_blank" rel="noopener">consultation comment</a>.</p>
     </div>
 
     <div class="rev">
       <div class="rev-head"><span class="rev-name">CodeRabbit</span><span class="pill na">disabled by repo config</span></div>
-      <p>Configured on this repo, but <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review on push. I did not summon it manually — that would override the repo's own deliberate setting. Not a timeout; there is nothing pending from it.</p>
+      <p><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review on push. Not summoned manually — that would override the repo's own deliberate setting. Nothing pending from it.</p>
     </div>
 
     <div class="rev">
       <div class="rev-head"><span class="rev-name">CI</span><span class="pill pass">complete</span></div>
-      <p><code>pr-automation</code> passed for this HEAD (it is also what triggers Devin). That is the whole PR check set on this repo — the heavy builds run on TeamCity and in the nightly, not as PR checks.</p>
+      <p><code>pr-automation</code> passed for this HEAD. That is the entire PR check set on this repo.</p>
     </div>
   </section>
 
   <section class="card">
     <h2>Session notes</h2>
     <ul class="tight">
-      <li><strong>A correction to something I told you.</strong> I described the new fast path as "two unsynchronized reads and an early return — no lock". <code>ConcurrentDictionary.Count</code> in fact takes every one of the dictionary's internal locks, so it is not free. It is still markedly cheaper than joining the queue behind the listener and the workers, and <code>QueueRequest</code> already read <code>Count</code> on every request, so the design choice stands — but the code comment overstated it and now says so accurately.</li>
-      <li><strong><code>init.sh</code> was run</strong> to populate <code>output/browser</code>, which is what let the previously-uncompletable fixtures run in full. <code>BloomServerTests</code> (47 tests, the fixture that actually drives the server this change modifies) and both <code>OffScreenBrowserTests</code> now pass; before, the test host crashed on a missing <code>favicon.ico</code>. I verified that crash occurred identically on unmodified master.</li>
-      <li><strong>The second new test is weak</strong> — <code>RegisterThreadBlocking_FromAThreadThatIsNotAWorker_DoesNotAddAWorker</code> would pass even if the top-up code did not exist. It still guards the early return, and it cannot hide a bug in the new code, but it is not load-bearing. Neither test asserts on the blocked count itself, only on the worker count.</li>
-      <li><strong>The QA test-ideas note went on the card as a new comment, not an update.</strong> The most recent one there is explicitly "refreshed for PR #8110" — a different candidate fix that is still open — so overwriting it would have erased the guidance for a variant still in play. The new note opens by telling the tester which build it is for and which of the old items no longer apply.</li>
-      <li><strong>Nothing was promoted.</strong> The PR is still a draft, no teammate review was requested, and the card's state was not moved.</li>
+      <li><strong>The re-review cycle hit its cap of four.</strong> That is why the two findings opposite are being handed to you rather than fixed in a fifth round. One exception: the last commit is comment-only, correcting a claim I had made that was not true, which I judged worth doing rather than leaving a false guarantee in the code for the next person to build on. <strong>Devin has not re-reviewed that comment-only commit</strong> — stating that plainly rather than implying a clean pass it did not give.</li>
+      <li><strong>Devin repeats stale findings.</strong> On every run after the first it re-reported the logging bug and two earlier Investigate items, with text still citing <code>RegisterThreadBlocking</code>/<code>RegisterThreadUnblocked</code> and the old comment wording — none of which exist in the tree any more. I checked each against the code instead of taking the repeat at face value; the resolved threads stay resolved.</li>
+      <li><strong>The regression test was verified to fail without the fix.</strong> With the old thread-identity check temporarily restored in <code>Dispose</code>, the cross-thread test fails; with the fix it passes. So it pins the bug, not the implementation.</li>
+      <li><strong><code>IBloomServer</code> changed shape.</strong> It is a public interface, so if BloomHarvester calls the old methods it needs the same one-line update. Per <code>AGENTS.md</code> I did not add a compatibility shim.</li>
+      <li><strong>Nothing was promoted.</strong> PR still draft, no teammate review requested, card state not moved.</li>
     </ul>
   </section>
 
 </div>
 
-<!-- ================= RIGHT: decisions ================= -->
 <div>
 
-  <section class="card item" data-q="Pre-existing blocked-count leak in the UI-thread marshalling path">
+  <section class="card item" data-q="Dead worker threads counting toward the pool size">
     <p class="kind">Decision 1 of 2</p>
-    <h3>A second unsoundness in the same mechanism — one this branch does not fix</h3>
-    <p class="src">Found independently by Devin and by the local review · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063205" target="_blank" rel="noopener">open thread</a></p>
+    <h3>The safeguard counts workers that may already be dead</h3>
+    <p class="src">Devin, new on the final pass · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724496990" target="_blank" rel="noopener">open thread</a></p>
 
-    <p>Bloom's server counts how many of its helper threads are stuck waiting. Both halves of that bookkeeping — "I am about to wait" and "I have finished waiting" — decide whether to count by looking at the <em>name of the thread they happen to be running on</em>. So the pair only balances when both halves run on the same helper thread.</p>
-    <p>In <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/controllers/ApiRequest.cs#L342" target="_blank" rel="noopener"><code>ApiRequest.cs:342</code></a> they do not. The first half runs on a helper thread, but the <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/controllers/ApiRequest.cs#L374" target="_blank" rel="noopener">matching second half</a> runs after an <code>await</code>. A helper thread carries no synchronization context, so unless that work happened to finish instantly, execution resumes on a completely different thread — whose name is not a helper's — and the count is silently never brought back down. It stays one too high, permanently, every time it happens. The local review traced a real route to it through uploading a book to Bloom Library after a book-id change, and noted that an unexpected error out of that call skips both halves entirely.</p>
-    <p><strong>This is pre-existing and this branch does not cause it.</strong> What the branch does is make it matter more: previously a wrong count only added a helper when a new request arrived, whereas now every reported wait re-checks the count — so a steadily leaking count means a steadily growing set of helper threads that are never retired. It also directly undermines the counter this fix now leans on.</p>
-    <p>Worth being clear about the shape of the real fix: the lesson is about the contract, not this one call site. A register/unregister pair should not straddle an <code>await</code>, and should not re-ask "am I on a helper thread?" the second time — it should remember what it did the first time. That means the pair returns and consumes a token, which touches every call site and the <code>IBloomServer</code> interface.</p>
+    <p>The test that decides whether to add a helper thread is "are at least as many helpers waiting as there are helpers?" The trouble is what counts as a helper. Bloom keeps an entry for a helper thread even after that thread has died, until a housekeeping pass notices and removes it. So the count can be too high, and the test can conclude a helper is free when all that remains of it is a dead entry — and decline to add one.</p>
+    <p>This is not new; the same comparison lived in the old code. What is new is that this branch makes that comparison <em>the</em> thing standing between Bloom and the hang, so an inflated count now weakens exactly what we are relying on. And Bloom's own code says helper threads do sometimes die — the housekeeping pass exists because of it.</p>
+    <p>Two things make it less alarming than it first sounds, and they're the reason I'm not recommending the more invasive option. The housekeeping runs on the thread that accepts incoming connections, which is <em>not</em> blocked during the hang and keeps running, so dead entries are usually cleared quickly. And a missed check is not final: the next reported wait, or the next arriving request, checks again. So this reads as a delay in the safeguard rather than a failure of it.</p>
 
     <div class="opts">
       <div class="row">
-        <input type="radio" name="q1" id="q1a" data-value="Fix the pairing contract properly, in a separate PR" checked>
-        <label class="txt" for="q1a">Fix the pairing contract properly, in its own PR<span class="rec">recommended</span>
-          <span class="fc">Moderate — roughly 40–60 lines across <code>IBloomServer</code>, <code>BloomServer</code>, and five call sites; low behavioural risk but wide, and it changes an interface. Recommended as a <em>separate</em> PR because it keeps this one small enough to be verified on its own, while still getting the mechanism genuinely sound rather than sound-in-one-place. It would also remove the need for the swallow-everything error handling in FYI 2.</span>
+        <input type="radio" name="q1" id="q1a" data-value="Compare against live workers only, in the under-lock check" checked>
+        <label class="txt" for="q1a">Count only live helpers when making the decision<span class="rec">recommended</span>
+          <span class="fc">Small — one expression, in the re-check that runs while holding the lock, leaving the cheap fast path alone. At four to eight helpers the liveness scan is negligible. Recommended because it makes the central safeguard accurate at the moment it actually matters, which is the whole point of this branch, and it cannot make the check fire less often than it does today.</span>
         </label>
       </div>
       <div class="row">
-        <input type="radio" name="q1" id="q1b" data-value="Fix the pairing contract properly, as another commit on this branch">
-        <label class="txt" for="q1b">Fix it properly, as another commit on this branch
-          <span class="fc">Same work as above, but it grows this branch's diff and its review surface, and the wider change would land together with the narrow one you asked to be able to trust on its own.</span>
+        <input type="radio" name="q1" id="q1b" data-value="File it as its own ticket; the delay is acceptable">
+        <label class="txt" for="q1b">File it as its own ticket
+          <span class="fc">No code here. Defensible given that it self-corrects on the next check, and it keeps this branch's diff frozen for your review.</span>
         </label>
       </div>
       <div class="row">
-        <input type="radio" name="q1" id="q1c" data-value="File a YouTrack ticket for it and leave the code alone for now">
-        <label class="txt" for="q1c">File a YouTrack ticket and leave the code alone for now
-          <span class="fc">No code — one new card capturing the analysis and the concrete route to it, so it is not lost. Reasonable if you would rather not open a second front while this branch is under review.</span>
-        </label>
-      </div>
-      <div class="row">
-        <input type="radio" name="q1" id="q1d" data-value="Leave as is">
-        <label class="txt" for="q1d">Leave as is</label>
+        <input type="radio" name="q1" id="q1c" data-value="Leave as is">
+        <label class="txt" for="q1c">Leave as is</label>
         <span class="lcwrap"><input type="checkbox" id="q1lc" data-lc="1"><label for="q1lc">Leave comment</label></span>
       </div>
       <div class="row">
-        <input type="radio" name="q1" id="q1e" data-value="Other:">
-        <label class="txt" for="q1e">Other:</label>
+        <input type="radio" name="q1" id="q1d" data-value="Other:">
+        <label class="txt" for="q1d">Other:</label>
         <input type="text" class="other" data-other="1" placeholder="your call">
       </div>
     </div>
-    <label class="notes"><span>Notes</span><textarea data-notes="1" placeholder="caveats, constraints, or how you want it scoped"></textarea></label>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
   </section>
 
-  <section class="card item" data-q="Whether to also bound how long the off-screen browser may take">
+  <section class="card item" data-q="A late-created worker can outlive shutdown because the stop signal is conditional">
     <p class="kind">Decision 2 of 2</p>
-    <h3>Is this branch the whole fix, or does the bounded wait still follow?</h3>
-    <p class="src">Carried over from our discussion — not a reviewer finding</p>
+    <h3>My comment for your FYI 1 claimed a guarantee the code doesn't give</h3>
+    <p class="src">Devin, new on the final pass · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724497109" target="_blank" rel="noopener">open thread</a></p>
 
-    <p>This branch deliberately contains no time limit on how long publishing will wait for the invisible browser. That was your call, and the reasoning held up: the starvation that actually caused BL-16612 is now addressed at its source, and Devin's own analysis confirms the top-up cascades correctly — each waiting request adds a helper, so the pool keeps up rather than adding one and hoping.</p>
-    <p>What a time limit would still cover is everything the helper pool cannot touch: the browser's renderer process crashing or being killed, a WebView2 fault, or a script in the page looping forever. In any of those, no number of helper threads helps, and publishing waits for as long as Bloom is open — the original symptom, with no message and every later publish in that session dead too.</p>
-    <p>The cost is equally real, and it is why 30 seconds was wrong: if the limit is anywhere near legitimate working time, a book that would have finished correctly instead publishes silently wrong — no embedded fonts, content that should have been stripped left in, reported as success. Sized as a liveness detector rather than a work budget (minutes, well clear of any real book), that case effectively disappears while the protection remains.</p>
+    <p>You asked me to record, in a comment, that the top-up depends on Bloom's shutdown not disposing two particular wait handles. I did — and the comment went on to say a helper created late in shutdown is harmless because shutdown "merely signals" the stop event, so such a helper wakes immediately and exits.</p>
+    <p>Devin checked whether that signal actually happens, and it is conditional. The line that signals stop sits inside a test for whether the listener still exists, and there is a public method that closes the listener and clears it — whose own comment says it may run first, from the shutdown timer. On that path the stop event is never signalled at all.</p>
+    <p>That matters because helper threads are <em>foreground</em> threads: one still waiting keeps the whole process alive, so Bloom would not exit. I verified both halves against the code rather than taking Devin's word — the thread creation does not mark helpers as background, and the close method does clear the listener. Long-standing helpers have always had this exposure; what the top-up adds is the chance of creating a <em>new</em> one inside that window.</p>
+    <p>I have already corrected the comment, because leaving a note asserting a guarantee the code does not provide is worse than the gap itself — the next person would build on it. What remains is whether to close the gap.</p>
 
     <div class="opts">
       <div class="row">
-        <input type="radio" name="q2" id="q2a" data-value="Add a generous bound in a separate PR, after this one lands" checked>
-        <label class="txt" for="q2a">Add a generous bound in a separate PR, after this lands<span class="rec">recommended</span>
-          <span class="fc">Small — a bounded wait plus a caught timeout, around 40 lines. Recommended because it keeps the two decisions independent: this branch is provable on its own, and the bound arrives with its own sizing discussion rather than riding along inside a change you wanted to be certain of.</span>
+        <input type="radio" name="q2" id="q2a" data-value="Mark added workers as background threads" checked>
+        <label class="txt" for="q2a">Make helper threads background threads<span class="rec">recommended</span>
+          <span class="fc">One line at thread creation. Recommended because it removes the consequence rather than the trigger: a background thread cannot hold the process open no matter which shutdown path ran. It does mean a helper can be killed mid-request during shutdown — acceptable when we are exiting anyway, but it is a real semantic change to every helper, not just newly added ones, so it is your call and not mine.</span>
         </label>
       </div>
       <div class="row">
-        <input type="radio" name="q2" id="q2b" data-value="Add the bound to this branch now">
-        <label class="txt" for="q2b">Add the bound to this branch now
-          <span class="fc">Same code, but it reintroduces a new way for publishing to fail into the branch whose whole appeal is having no user-visible effect — and it needs the number settled before this can merge.</span>
+        <input type="radio" name="q2" id="q2b" data-value="Always signal the stop event during shutdown, regardless of the listener">
+        <label class="txt" for="q2b">Always signal stop during shutdown
+          <span class="fc">Small — move the signal out from under the listener test. Fixes the specific path and helps long-standing helpers too, but it touches shutdown ordering, which has accumulated defensive code over the years (there are comments there about crash reports going back to BL-273).</span>
         </label>
       </div>
       <div class="row">
-        <input type="radio" name="q2" id="q2c" data-value="Leave as is">
-        <label class="txt" for="q2c">Leave as is — treat the registration fix as the complete answer to BL-16612</label>
+        <input type="radio" name="q2" id="q2c" data-value="Give the top-up a shutdown guard so no new worker is created then">
+        <label class="txt" for="q2c">Guard the top-up so it adds nothing during shutdown
+          <span class="fc">Tiny — one early return. Narrowest fix, and it leaves long-standing helpers with the same exposure. Note this is the option I argued against in round one, on the grounds that a new condition on the deadlock-prevention path can suppress the fix; that concern still applies.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q2" id="q2d" data-value="Leave as is">
+        <label class="txt" for="q2d">Leave as is — the corrected comment is enough</label>
         <span class="lcwrap"><input type="checkbox" id="q2lc" data-lc="1"><label for="q2lc">Leave comment</label></span>
       </div>
       <div class="row">
-        <input type="radio" name="q2" id="q2d" data-value="Other:">
-        <label class="txt" for="q2d">Other:</label>
+        <input type="radio" name="q2" id="q2e" data-value="Other:">
+        <label class="txt" for="q2e">Other:</label>
         <input type="text" class="other" data-other="1" placeholder="your call">
       </div>
     </div>
-    <label class="notes"><span>Notes</span><textarea data-notes="1" placeholder="if you want a bound, what number and why"></textarea></label>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
   </section>
 
-  <section class="card item fyi" data-q="FYI 1 — no shutdown guard on the top-up">
-    <p class="kind">For your information</p>
-    <h3>The top-up can start a helper thread while Bloom is shutting down</h3>
-    <p class="src">Devin, informational — not mirrored to the PR</p>
-    <p>The old check lived where requests arrive, and that code already gave up once the listener had closed, so it never ran during shutdown. The new check has no such guard, and a helper part-way through a request can still reach it while Bloom is closing down and joining its threads — creating a new thread after the join has gone past.</p>
-    <p>It is harmless as things stand: shutdown signals the stop event and never disposes the wait handles, so a newly created helper wakes immediately and exits. The trap is for a future maintainer — if those handles are ever disposed during shutdown, this becomes an unhandled error on a background thread, which takes the process down. The recommendation is the middle option: record the dependency where someone would see it, rather than adding a new condition to the very path whose job is to prevent the deadlock.</p>
+  <section class="card item" data-q="Next step">
+    <p class="kind">Next step</p>
+    <h3>How would you like to finish this?</h3>
+    <p>The branch is green and mergeable, and every reviewer is terminal. Nothing gets promoted without you asking.</p>
     <div class="opts">
       <div class="row">
-        <input type="radio" name="q3" id="q3a" data-value="Add a comment recording the dependency on the wait handles not being disposed" checked>
-        <label class="txt" for="q3a">Record the dependency in a comment<span class="rec">recommended</span>
-          <span class="fc">No behaviour change — two or three lines of comment at the shutdown code and the top-up, so the coupling is visible to whoever next edits either.</span>
+        <input type="radio" name="q3" id="q3a" data-value="Implement my selections, then hand back for my final review" checked>
+        <label class="txt" for="q3a">Implement my selections, then hand back<span class="rec">recommended</span>
+          <span class="fc">I apply them, re-run the gate, re-run Devin once on the result, and report. Both options above are a line or two, so this is cheap.</span>
         </label>
       </div>
       <div class="row">
-        <input type="radio" name="q3" id="q3b" data-value="Add an explicit shutdown guard to the top-up">
-        <label class="txt" for="q3b">Add an explicit shutdown guard
-          <span class="fc">Tiny — one early return. Makes the invariant explicit, at the cost of putting a new condition on the deadlock-prevention path, where a wrong answer means the hang comes back.</span>
+        <input type="radio" name="q3" id="q3b" data-value="Stop here; I will review the branch as it stands">
+        <label class="txt" for="q3b">Stop here — I'll review it as it stands
+          <span class="fc">Both open items are recorded on their threads, so nothing is lost by deferring them.</span>
         </label>
       </div>
       <div class="row">
@@ -374,79 +413,6 @@
       <div class="row">
         <input type="radio" name="q3" id="q3d" data-value="Other:">
         <label class="txt" for="q3d">Other:</label>
-        <input type="text" class="other" data-other="1" placeholder="your call">
-      </div>
-    </div>
-    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
-  </section>
-
-  <section class="card item fyi" data-q="FYI 2 — swallow-everything error handling deviates from the repo's fail-fast guidance">
-    <p class="kind">For your information</p>
-    <h3>The catch-everything is a deliberate exception to <code>AGENTS.md</code></h3>
-    <p class="src">Devin, informational — not mirrored to the PR</p>
-    <p>The repo's guidance is to fail fast and not be defensive about errors. The top-up does the opposite: it catches everything, and even wraps its own error logging in a second catch that ignores failures. Devin flagged it so the deviation reads as a conscious decision rather than an oversight, and agreed the reasoning is sound.</p>
-    <p>The reasoning: callers bump the count and only then arm the <code>finally</code> that brings it down, so anything escaping this method leaks the count for the life of the process — the exact condition the method exists to relieve. Failing fast here would convert a failed log write into a permanently mis-counted server. Devin notes the alternative is to move the increment inside each caller's protected region, which is the same work as decision 1's proper fix — so choosing that would let this defensiveness be removed.</p>
-    <div class="opts">
-      <div class="row">
-        <input type="radio" name="q4" id="q4a" data-value="Leave as is" checked>
-        <label class="txt" for="q4a">Leave as is — deliberate, and the reason is documented in the code<span class="rec">recommended</span></label>
-        <span class="lcwrap"><input type="checkbox" id="q4lc" data-lc="1"><label for="q4lc">Leave comment</label></span>
-      </div>
-      <div class="row">
-        <input type="radio" name="q4" id="q4b" data-value="Other:">
-        <label class="txt" for="q4b">Other:</label>
-        <input type="text" class="other" data-other="1" placeholder="your call">
-      </div>
-    </div>
-    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
-  </section>
-
-  <section class="card item fyi" data-q="FYI 3 — helper threads are added but never retired">
-    <p class="kind">For your information</p>
-    <h3>The pool can end a session larger than it started</h3>
-    <p class="src">Devin, informational · corroborated by the local review — not mirrored to the PR</p>
-    <p>Helper threads have never been retired once created — that predates this change. What is new is that the pool can top up whenever a helper reports a wait, not only when a request arrives. During a long publish with several requests queued behind the same lock, each one can add a helper, so a busy session can leave the pool noticeably bigger than its starting size for the rest of that session.</p>
-    <p>Both reviewers judged this acceptable given the deadlock it prevents, and the growth is bounded by how many requests are actually waiting. It is worth knowing for two reasons: it is the one way this change could plausibly make things <em>worse</em> rather than better, and it will make thread counts in future diagnostics look higher than they used to. The QA note asks the tester to publish repeatedly in one session and watch for exactly this.</p>
-    <div class="opts">
-      <div class="row">
-        <input type="radio" name="q5" id="q5a" data-value="Leave as is" checked>
-        <label class="txt" for="q5a">Leave as is — bounded, and the alternative is retiring workers, which is a much bigger change<span class="rec">recommended</span></label>
-        <span class="lcwrap"><input type="checkbox" id="q5lc" data-lc="1"><label for="q5lc">Leave comment</label></span>
-      </div>
-      <div class="row">
-        <input type="radio" name="q5" id="q5b" data-value="Other:">
-        <label class="txt" for="q5b">Other:</label>
-        <input type="text" class="other" data-other="1" placeholder="your call">
-      </div>
-    </div>
-    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
-  </section>
-
-  <section class="card item" data-q="Next step">
-    <p class="kind">Next step</p>
-    <h3>How would you like to proceed?</h3>
-    <p>The branch is green, published, and waiting on your own review. Nothing will be promoted without you asking.</p>
-    <div class="opts">
-      <div class="row">
-        <input type="radio" name="q6" id="q6a" data-value="Discuss the answers first, before I implement anything" checked>
-        <label class="txt" for="q6a">Discuss first, then implement<span class="rec">recommended</span>
-          <span class="fc">Decision 1 changes an interface and decision 2 changes what publishing does when the browser stops answering — both are worth a sentence of agreement before code.</span>
-        </label>
-      </div>
-      <div class="row">
-        <input type="radio" name="q6" id="q6b" data-value="Implement my selections straight away">
-        <label class="txt" for="q6b">Implement my selections straight away
-          <span class="fc">I will apply them, re-run the gate and the gauntlet, and report back.</span>
-        </label>
-      </div>
-      <div class="row">
-        <input type="radio" name="q6" id="q6c" data-value="Leave as is">
-        <label class="txt" for="q6c">Leave as is — the branch is finished as it stands</label>
-        <span class="lcwrap"><input type="checkbox" id="q6lc" data-lc="1"><label for="q6lc">Leave comment</label></span>
-      </div>
-      <div class="row">
-        <input type="radio" name="q6" id="q6d" data-value="Other:">
-        <label class="txt" for="q6d">Other:</label>
         <input type="text" class="other" data-other="1" placeholder="your call">
       </div>
     </div>
@@ -466,7 +432,7 @@
 
 <script>
 (function(){
-  var HEADER = "Preflight answers — BL-16612-sound-registration (PR #8155, HEAD 55ffdd1059)";
+  var HEADER = "Preflight answers, round 2 — BL-16612-sound-registration (PR #8155, HEAD 0ab354bcc9)";
 
   function build(){
     var out = [HEADER, ""];
