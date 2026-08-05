@@ -72,9 +72,10 @@
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8156" target="_blank" rel="noopener">PR #8156</a> (draft) ·
     branch <code>fixApplyTimings</code> ·
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16640" target="_blank" rel="noopener">BL-16640</a> ·
-    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/d1f5ad0a90bb93cec485f603e9fded1112d3be94" target="_blank" rel="noopener"><code>d1f5ad0</code></a> ·
+    HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/1f60f68c99d712930979106bb6031869f8e2e734" target="_blank" rel="noopener"><code>1f60f68</code></a> ·
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8156/files" target="_blank" rel="noopener">Files changed</a>
   </p>
+  <p class="sub" style="margin-top:-18px">Second pass, after your answers to the first report's decisions.</p>
 
   <div class="cols">
 
@@ -88,7 +89,7 @@
           <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td class="meta">no blunder-class type errors</td></tr>
           <tr><td>ESLint</td><td><span class="pill pass">pass</span></td><td class="meta">0 errors, 764 warnings (all pre-existing; none in changed files)</td></tr>
           <tr><td>Tests — TypeScript (vitest)</td><td><span class="pill pass">664 passed</span></td><td class="meta">60 files passed, 1 file / 5 tests skipped</td></tr>
-          <tr><td>Tests — C# (dotnet test)</td><td><span class="pill pass">3023 passed</span></td><td class="meta">0 failed, 13 skipped (7m49s), run through <code>build/agent-dotnet.sh</code></td></tr>
+          <tr><td>Tests — C# (dotnet test)</td><td><span class="pill pass">3024 passed</span></td><td class="meta">0 failed, 13 skipped. Exactly master's 3022 plus these two new tests, with master's same 13 skipped — so nothing is quietly ignored. Went red mid-run; see below.</td></tr>
           <tr><td>Merge with <code>origin/master</code></td><td><span class="pill pass">clean</span></td><td class="meta">2 commits folded in, no conflicts; gate re-run after merging</td></tr>
         </table>
         </div>
@@ -106,6 +107,18 @@
           <tr>
             <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/d1f5ad0a90bb93cec485f603e9fded1112d3be94" target="_blank" rel="noopener"><code>d1f5ad0</code></a></td>
             <td>Merge <code>origin/master</code> (picks up the BL-16656 <code>dotnet test</code> switch)</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/36cf0847dfb2913408b02362e4d1b50f3ae726bc" target="_blank" rel="noopener"><code>36cf084</code></a></td>
+            <td>Also skip the UNC/drive-letter guard for manual timings — <strong>your decision 1</strong></td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/98895a2b261c72c70e371bd578734066abb72b12" target="_blank" rel="noopener"><code>98895a2</code></a></td>
+            <td>Make that test deterministic instead of waiting on DNS — Devin's catch</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/1f60f68c99d712930979106bb6031869f8e2e734" target="_blank" rel="noopener"><code>1f60f68</code></a></td>
+            <td>Stop the new tests writing global settings — fixes 47 tests they were breaking</td>
           </tr>
         </table>
         </div>
@@ -131,6 +144,49 @@
       </div>
 
       <div class="card">
+        <h2>The 47 broken tests, and what they were</h2>
+        <p style="font-size:15px;margin:0 0 12px">
+          Partway through this second pass the full C# suite went red — 47 failures, all in the spreadsheet-import
+          fixtures, none of them anywhere near audio. This is the part of the run most worth your attention, because
+          the cause was a test added on your instruction and it would have landed silently.
+        </p>
+        <div class="scroll">
+        <table>
+          <tr><th>Tree</th><th>Full C# suite</th></tr>
+          <tr><td><code>master</code></td><td><span class="pill pass">3022 passed, 0 failed</span></td></tr>
+          <tr><td>this branch, before the fix</td><td><span class="pill" style="background:#f7e8e8;color:#8a2f2f">2977 passed, 47 failed</span></td></tr>
+          <tr><td>same branch, new test <code>[Ignore]</code>d</td><td><span class="pill pass">3023 passed, 0 failed</span></td></tr>
+          <tr><td>with <code>1f60f68</code></td><td><span class="pill pass">3024 passed, 0 failed</span></td></tr>
+        </table>
+        </div>
+        <p style="font-size:15px;margin:12px 0 0">
+          Every failure was the same <code>OneTimeSetUp</code> error:
+          <em>"In FindBookHtmlInFolder('…\Temp\FixSizeOfImagesInFolder_Metadata'), the folder does not exist."</em>
+        </p>
+        <p style="font-size:15px;margin:10px 0 0">
+          The chain: my test called <code>BookSelection.SelectBook(...)</code>, which does more than its name suggests —
+          it writes the book's folder into <code>Settings.Default.CurrentBookPath</code> and <em>saves</em> it, so the
+          value outlives the test. Meanwhile
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/1f60f68c99d712930979106bb6031869f8e2e734/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L562" target="_blank" rel="noopener">SpreadsheetImporter.GetPageForLabel</a>
+          treats <code>Path.GetDirectoryName(bookFolder)</code> as a source collection. For a book in a temp folder that
+          is <code>%TEMP%</code> <em>itself</em>, so Bloom enumerates every subfolder of the temp directory as a
+          candidate book and calls <code>FindBookHtmlInFolder</code> on each. Any that vanishes between enumeration and
+          inspection throws — and this machine has ~25,000 entries in <code>%TEMP%</code>, so that window is wide.
+        </p>
+        <p style="font-size:15px;margin:10px 0 0">
+          The fix is a mocked <code>BookSelection</code> (<code>CurrentSelection</code> was already <code>virtual</code>),
+          which is all <code>GetAeneasTimings</code> needs and touches no global state. Applied to <em>both</em> new
+          tests — the first had the same flaw and was getting away with it — with a comment recording why, so it
+          doesn't come back.
+        </p>
+        <p style="font-size:15px;margin:10px 0 0">
+          Worth saying plainly: I twice reported a wrong cause for this before bisecting it — first "probably a real
+          regression", then "pre-existing and environmental". Only the <code>[Ignore]</code> experiment settled it.
+          The two FYIs below come out of that.
+        </p>
+      </div>
+
+      <div class="card">
         <h2>Reviewer outcomes</h2>
         <div class="scroll">
         <table>
@@ -145,10 +201,15 @@
           <tr>
             <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8156" target="_blank" rel="noopener">Devin</a></td>
             <td><span class="pill pass">complete</span></td>
-            <td class="meta">0 Bugs, 0 Investigate, 2 Informational — for HEAD <code>d1f5ad0</code>.
-              Both informational items are confirmations, not action items; one is decision item 2 below, the other
-              independently verified that skipping orthography conversion on the manual path is behavior-neutral.
-              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8156#issuecomment-5197384019" target="_blank" rel="noopener">Consultation log</a>.</td>
+            <td class="meta">Ran three times across this pass; <strong>0 Bugs</strong> every time.
+              It earned its keep here: it caught that the PR description still claimed the drive-letter guard was left
+              alone after your decision changed it, and that the test I wrote for that guard depended on Windows failing
+              to resolve a made-up server name. Both were right, both fixed in <code>98895a2</code>, both
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8156#discussion_r3724190482" target="_blank" rel="noopener">replied to</a>
+              and resolved on the PR. It also independently traced the callers to confirm the drive-letter skip is safe.
+              Its later re-raise of those same two flags was stale (they describe the pre-<code>98895a2</code> state);
+              verified concretely and not re-posted.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8156#issuecomment-5198460494" target="_blank" rel="noopener">Latest consultation log</a>.</td>
           </tr>
           <tr>
             <td>CodeRabbit</td>
@@ -187,107 +248,146 @@
     <div>
 
       <div class="q">
-        <h3>1. Network-share collections still can't apply a timings file</h3>
+        <h3>Your two earlier decisions — both done</h3>
         <div class="qbody">
-          <p style="margin:0 0 10px">
-            Separately from the eSpeak problem, <code>GetAeneasTimings</code> begins by refusing to do anything at all if
-            the collection's folder path starts with <code>\\</code> — that is, if the collection lives on a network share
-            rather than under a drive letter. The user gets <em>"Sorry, Bloom cannot split timings if the collection's path
-            does not start with a drive letter."</em> That restriction exists because Python and Aeneas cannot cope with
-            such paths (it came in with BL-9959).
-          </p>
-          <p style="margin:0 0 10px">
-            It is the same shape of bug this PR just fixed: a limitation of the forced-alignment tooling being applied to a
-            path that never touches that tooling. After this PR, a user working off a network share still cannot use
-            <em>Apply timings file…</em>, even though reading numbers out of a text file has no such limitation.
-            Nobody has reported it, and it produces a clear message rather than the error dialog from the card.
-          </p>
-          <p style="margin:0">
-            See <a href="https://github.com/BloomBooks/BloomDesktop/blob/d1f5ad0a90bb93cec485f603e9fded1112d3be94/src/BloomExe/web/controllers/AudioSegmentationApi.cs#L372" target="_blank" rel="noopener">AudioSegmentationApi.cs:372</a>.
-          </p>
+          <p style="margin:0 0 8px"><strong>Network-share guard:</strong> moved under the same
+          <code>usingManualTimings</code> guard in <code>36cf084</code>, with a test. A collection on a network share can
+          now apply a timings file.</p>
+          <p style="margin:0"><strong>Fragments-file delete:</strong> left as is. It came from a Devin
+          <em>Informational</em> item, which is never mirrored as a PR thread, so there was no thread to close; the
+          consultation log on the PR records the reasoning. You didn't tick <em>Leave comment</em>, so no code comment
+          either. Nothing outstanding.</p>
         </div>
-        <label class="opt">
-          <input type="radio" name="q1" value="Move the drive-letter check under the same !usingManualTimings guard" data-q="Network-share guard" checked>
-          <span class="lbl"><b>Move the drive-letter check under the same <code>!usingManualTimings</code> guard</b><span class="rec">Recommended</span>
-            <span class="foot">~3 lines, sits right beside the change already made, low risk — recommended because it is the same
-            bug class as the card and leaving a known second way to hit "cannot apply a timings file" in place is odd once
-            you're already here. QA can't easily verify it without a network-share collection, so it rides on code review.</span></span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q1" value="Leave as is" data-q="Network-share guard">
-          <span class="lbl"><b>Leave as is</b>
-            <span class="foot" style="visibility:hidden">.</span></span>
-          <span class="leaverow"><input type="checkbox" data-q="Network-share guard — leave comment"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q1" value="Other" data-q="Network-share guard">
-          <span class="lbl"><b>Other:</b>
-            <input class="otherbox" type="text" placeholder="…" data-q="Network-share guard — other"></span>
-        </label>
-        <label class="nlabel">Notes</label>
-        <textarea class="notes" data-q="Network-share guard — notes"></textarea>
       </div>
 
       <div class="q">
-        <h3>2. FYI — the manual path still deletes a file it no longer writes</h3>
+        <h3>1. Tests can silently corrupt each other through saved settings</h3>
         <div class="qbody">
           <p style="margin:0 0 10px">
-            Devin raised this as an informational item. Bloom writes a temporary file listing the sentences
-            (<code>&lt;name&gt;_fragments.txt</code>) for Aeneas to read, and deletes it afterwards. This PR stopped
-            <em>writing</em> that file on the apply-a-timings-file path, but the cleanup line that deletes it still runs on
-            both paths.
+            The 47-test breakage happened because <code>BookSelection.SelectBook()</code> does something its name doesn't
+            advertise: as well as recording the selection in memory, it writes the book's folder into
+            <code>Settings.Default.CurrentBookPath</code> and calls <code>Save()</code>. A unit test that selects a book
+            therefore leaves persisted state behind for everything that runs after it.
           </p>
           <p style="margin:0">
-            Deleting a file that isn't there does nothing and cannot throw here, so there is no bug. The only real effect is
-            a mild oddity: if an earlier Aeneas run crashed and left a stale fragments file behind, applying a timings file
-            would now tidy it up as a side effect — which is arguably a small favour rather than a problem. It is only worth
-            touching for readability, which is why leaving it is recommended. See
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/d1f5ad0a90bb93cec485f603e9fded1112d3be94/src/BloomExe/web/controllers/AudioSegmentationApi.cs#L541" target="_blank" rel="noopener">AudioSegmentationApi.cs:541</a>.
+            My tests are fixed, but the trap is still there for the next person, and <code>SelectBook</code> is called
+            from plenty of tests. This is a question about whether to do anything beyond this PR.
           </p>
         </div>
         <label class="opt">
-          <input type="radio" name="q2" value="Guard the delete with if (!usingManualTimings)" data-q="Fragments-file delete">
-          <span class="lbl"><b>Guard the delete with <code>if (!usingManualTimings)</code></b>
-            <span class="foot">~2 lines, cosmetic, no behavior anyone will notice; costs a re-push and another full bot round.</span></span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q2" value="Leave as is" data-q="Fragments-file delete" checked>
+          <input type="radio" name="q1" value="Leave as is" data-q="SelectBook settings trap" checked>
           <span class="lbl"><b>Leave as is</b><span class="rec">Recommended</span></span>
-          <span class="leaverow"><input type="checkbox" data-q="Fragments-file delete — leave comment"> Leave comment</span>
+          <span class="leaverow"><input type="checkbox" data-q="SelectBook settings trap — leave comment"> Leave comment</span>
         </label>
         <label class="opt">
-          <input type="radio" name="q2" value="Other" data-q="Fragments-file delete">
+          <input type="radio" name="q1" value="File a YouTrack card about the SelectBook side effect" data-q="SelectBook settings trap">
+          <span class="lbl"><b>File a YouTrack card about it</b>
+            <span class="foot">No code change now; just records the trap so it can be dealt with deliberately (e.g. splitting the settings write out of <code>SelectBook</code>).</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Other" data-q="SelectBook settings trap">
           <span class="lbl"><b>Other:</b>
-            <input class="otherbox" type="text" placeholder="…" data-q="Fragments-file delete — other"></span>
+            <input class="otherbox" type="text" placeholder="…" data-q="SelectBook settings trap — other"></span>
         </label>
         <label class="nlabel">Notes</label>
-        <textarea class="notes" data-q="Fragments-file delete — notes"></textarea>
+        <textarea class="notes" data-q="SelectBook settings trap — notes"></textarea>
       </div>
 
       <div class="q">
-        <h3>3. Next step</h3>
+        <h3>2. The spreadsheet tests treat your whole temp folder as a Bloom collection</h3>
         <div class="qbody">
-          Everything automated is done and green: the PR is open as a draft, Devin is clean, and the card has both the PR
-          link and a fresh set of QA test ideas. Promotion to human review is deliberately not done here — that is
-          <code>pr-ready-for-human</code>, after you've reviewed it yourself.
+          <p style="margin:0 0 10px">
+            This is the other half of the same failure, and it is the more alarming half.
+            <code>SpreadsheetImporter</code> looks for page templates in "the collection the book is in", computed as the
+            book folder's parent. In these tests the book lives in a temp folder, so the parent is
+            <code>%TEMP%</code> itself — and Bloom then walks every subfolder of your temp directory treating each as a
+            candidate book. On this machine that is roughly 25,000 folders, several of which appear and disappear while
+            the suite runs, and any that vanishes mid-walk throws and takes out the whole fixture.
+          </p>
+          <p style="margin:0">
+            So those tests can go red because of something entirely unrelated — another test, or any program on your
+            machine that happens to use a temp folder at the wrong moment. That is worth knowing whether or not anyone
+            fixes it, because it will show up again as an unexplained CI failure.
+          </p>
         </div>
         <label class="opt">
-          <input type="radio" name="q3" value="Implement my answers above, then re-run preflight" data-q="Next step" checked>
-          <span class="lbl"><b>Implement my answers above, then re-run preflight</b><span class="rec">Recommended</span>
-            <span class="foot">Any code change re-triggers Devin and CI, so preflight runs again over the new commit.</span></span>
+          <input type="radio" name="q2" value="File a YouTrack card about the %TEMP%-as-collection scan" data-q="TEMP-as-collection" checked>
+          <span class="lbl"><b>File a YouTrack card about it</b><span class="rec">Recommended</span>
+            <span class="foot">Out of scope for this PR, but it is a live flakiness source with a concrete, reproducible explanation — recommended because the next person to hit it will otherwise start this investigation from scratch, as I did.</span></span>
         </label>
         <label class="opt">
-          <input type="radio" name="q3" value="Discuss first" data-q="Next step">
-          <span class="lbl"><b>Discuss first</b>
-            <span class="foot">Talk through decision 1 before touching anything.</span></span>
+          <input type="radio" name="q2" value="Leave as is" data-q="TEMP-as-collection">
+          <span class="lbl"><b>Leave as is</b></span>
+          <span class="leaverow"><input type="checkbox" data-q="TEMP-as-collection — leave comment"> Leave comment</span>
         </label>
         <label class="opt">
-          <input type="radio" name="q3" value="Leave as is" data-q="Next step">
+          <input type="radio" name="q2" value="Other" data-q="TEMP-as-collection">
+          <span class="lbl"><b>Other:</b>
+            <input class="otherbox" type="text" placeholder="…" data-q="TEMP-as-collection — other"></span>
+        </label>
+        <label class="nlabel">Notes</label>
+        <textarea class="notes" data-q="TEMP-as-collection — notes"></textarea>
+      </div>
+
+      <div class="q">
+        <h3>3. FYI — two bits of local tooling misbehaved</h3>
+        <div class="qbody">
+          <p style="margin:0 0 10px">
+            Neither affects the code, but both cost time and will cost it again.
+            The <code>chrome-devtools</code> CLI cannot start its own daemon on this machine (<code>chrome-devtools
+            start</code> fails trying to connect to a pipe that was never created), so the documented way to read Devin
+            is broken. I worked around it by calling Devin's JSON API with <code>curl</code>, which turned out to be
+            simpler and used no credits.
+          </p>
+          <p style="margin:0">
+            Separately, the C# suite is not safe to run while anything else touches the tree: several of my red runs were
+            caused by my own concurrent commits and a second suite, and one left an orphaned <code>testhost</code>
+            holding a DLL lock. The isolated-output wrapper doesn't protect against that.
+          </p>
+        </div>
+        <label class="opt">
+          <input type="radio" name="q3" value="Leave as is" data-q="Tooling FYIs" checked>
+          <span class="lbl"><b>Leave as is</b><span class="rec">Recommended</span></span>
+          <span class="leaverow"><input type="checkbox" data-q="Tooling FYIs — leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Log these as papercuts" data-q="Tooling FYIs">
+          <span class="lbl"><b>Log them as papercuts</b>
+            <span class="foot">Records both in the papercut list so the devtools install gets fixed and the concurrency hazard gets written down.</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Other" data-q="Tooling FYIs">
+          <span class="lbl"><b>Other:</b>
+            <input class="otherbox" type="text" placeholder="…" data-q="Tooling FYIs — other"></span>
+        </label>
+        <label class="nlabel">Notes</label>
+        <textarea class="notes" data-q="Tooling FYIs — notes"></textarea>
+      </div>
+
+      <div class="q">
+        <h3>4. Next step</h3>
+        <div class="qbody">
+          The PR is green and complete: both your decisions are implemented, Devin is clean, CI passes, and the full C#
+          suite is back to master's numbers plus these two tests. It stays a draft — promoting it to human review is
+          <code>pr-ready-for-human</code>, after your own read of the diff.
+        </div>
+        <label class="opt">
+          <input type="radio" name="q4" value="Nothing more - I will review the diff myself" data-q="Next step" checked>
+          <span class="lbl"><b>Nothing more — I'll review the diff myself</b><span class="rec">Recommended</span>
+            <span class="foot">The four commits tell the story in order; <code>1f60f68</code> is the one worth reading closely.</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q4" value="Squash the four commits before review" data-q="Next step">
+          <span class="lbl"><b>Squash the four commits first</b>
+            <span class="foot">Two of them are me fixing my own test, which you may not want in the permanent history.</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q4" value="Leave as is" data-q="Next step">
           <span class="lbl"><b>Leave as is</b></span>
           <span class="leaverow"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span>
         </label>
         <label class="opt">
-          <input type="radio" name="q3" value="Other" data-q="Next step">
+          <input type="radio" name="q4" value="Other" data-q="Next step">
           <span class="lbl"><b>Other:</b>
             <input class="otherbox" type="text" placeholder="…" data-q="Next step — other"></span>
         </label>
