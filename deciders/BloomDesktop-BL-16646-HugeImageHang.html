@@ -69,8 +69,8 @@
   .lede { color: var(--muted); font-size: 13.5px; margin: -8px 0 16px; }
 
   .banner {
-    background: var(--accent-soft);
-    border: 1px solid #cfe0e0;
+    background: #fbf0ee;
+    border: 1px solid #e8cdc7;
     border-radius: 4px;
     padding: 14px 18px;
     margin-bottom: 20px;
@@ -141,16 +141,17 @@
   .srcline { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
   .item p { font-size: 14.5px; margin: 0 0 11px; }
 
-  blockquote.verbatim {
-    margin: 0 0 12px;
-    padding: 11px 14px;
+  pre.code {
     background: #faf9f6;
-    border-left: 2px solid var(--accent);
-    font-size: 14px;
-    color: #3a3e44;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 11px 13px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin: 0 0 12px;
   }
-  blockquote.verbatim p { margin: 0 0 8px; font-size: 14px; }
-  blockquote.verbatim p:last-child { margin: 0; }
 
   fieldset { border: none; margin: 0 0 12px; padding: 0; }
   legend {
@@ -225,26 +226,46 @@
 <div class="wrap">
   <header class="masthead">
     <h1>Preflight report — the huge-image hang</h1>
-    <p class="subtitle">Second run on this branch. The fix has been rewritten to the design the card asked for: the WinForms progress dialog is gone and progress now flows through the caller's <code>IProgress</code>. Everything is committed, integrated, pushed and reviewed, and the gate and every reviewer are green. One substantive question is waiting on you, and it is a new one the rework created.</p>
+    <p class="subtitle">Third run. A hybrid design has landed that reinstates the progress dialog for some callers. The gate and every reviewer are green in the mechanical sense — it builds, 3022 tests pass, CI is clean — but the branch is <strong>not ready for review</strong>: the test that decides which callers get the dialog is inverted, and three independent analyses agree on that and on the fix.</p>
     <div class="metaline">
       <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">#8154 (draft)</a></span>
       <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">BL-16646</a></span>
       <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/files" target="_blank" rel="noopener">changed</a></span>
-      <span><span class="k">Commits</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/commits" target="_blank" rel="noopener">6</a></span>
-      <span><span class="k">HEAD</span> <span class="mono">bb09b0d6</span></span>
+      <span><span class="k">HEAD</span> <span class="mono">7b14a6d5</span></span>
     </div>
   </header>
 
   <div class="cols">
-    <!-- ============ LEFT: the report ============ -->
+    <!-- ============ LEFT ============ -->
     <div class="colstack">
 
       <section class="card">
-        <h2>What happened since the last report</h2>
+        <h2>The state of the branch</h2>
         <div class="banner">
-          <strong>The approach changed.</strong> The previous report's main decision item was that this branch kept the progress dialog and added an "am I on the UI thread?" branch, against what the card asked for. That has been reworked: the dialog is deleted and the migration takes the caller's <code>IProgress</code>. Three of the four items in the last report are now <strong>moot rather than decided</strong> — the nested stacked dialog and the <code>InvokeRequired</code>-before-handle-creation edge both belonged to code that no longer exists, and the silent headless bulk upload is now simply the <code>NullProgress</code> case of a uniform design rather than a special path. The merge-versus-rebase question is carried forward below, still unanswered.
+          <strong>The thread test is backwards.</strong> Which callers get the "Updating Image Files" dialog is keyed off <code>shell.InvokeRequired</code>, which is <code>true</code> when the caller is <em>not</em> on the UI thread. So the dialog is built on background threads — the original BL-16646 complaint — and the silent inline path runs on the UI thread, which is where the freeze is. Both halves are the wrong way round: the dialog was restored for exactly the callers that must not have it, and withheld from the one caller that could safely have it. Swapping the two branches fixes both symptoms at once.
         </div>
-        <p>The rework also created a genuinely new problem, which is the one decision item that matters now: removing the dialog removed the background worker it ran the shrink on. On the call sites with no progress to thread in, the work now happens inline. Details at right.</p>
+        <p>Three independent sources reached that conclusion this run: my own reading, a local review agent that verified the WinForms semantics with a throwaway net8.0-windows probe rather than from memory, and Devin, which filed it as its first actual <strong>Bug</strong> on this branch and prescribed the same swap.</p>
+        <p>One correction in fairness to the code, because the ticket overstates it: the probe found that .NET 8 does <strong>not</strong> throw on <code>new Form()</code> + <code>ShowDialog()</code> from a thread-pool thread — the window appears and pumps its own modal loop there. So the dialog branch is not a guaranteed crash. What it is: an ownerless top-level window on a foreign thread, not modal to the shell and with no owner to fix its z-order, registered process-wide in <code>Application.OpenForms</code> while living on a thread that stops pumping the moment it closes, holding a thread-pool thread for the whole multi-minute shrink. A window stuck behind the shell while the shell cannot proceed is precisely what a user reports as "Bloom hangs".</p>
+      </section>
+
+      <section class="card">
+        <h2>Which caller gets which branch, today</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Path</th><th>Progress it passes</th><th>Thread</th><th>Branch</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Do Updates of All Books</td><td><code>MultiProgress</code> of the dialog it already opened</td><td>background worker</td><td><span class="pill open">dialog</span> a second one, nested</td></tr>
+              <tr><td>Spreadsheet import</td><td><code>NullProgress</code></td><td>background worker</td><td><span class="pill open">dialog</span> stray WinForms window over the React one</td></tr>
+              <tr><td><code>.bloomSource</code> derivative import</td><td><code>WebProgressAdapter</code></td><td>background worker</td><td><span class="pill pass">direct</span> correct</td></tr>
+              <tr><td>Book selection (<code>handleOnUiThread: true</code>)</td><td><code>NullProgress</code></td><td><strong>UI thread</strong></td><td><span class="pill open">direct</span> frozen and silent</td></tr>
+              <tr><td>Bring Book Up To Date</td><td><code>MultiProgress</code> of <code>ProgressDialogForeground</code></td><td>UI thread</td><td><span class="pill pass">direct</span> correct</td></tr>
+              <tr><td>Bulk upload / hydrate CLI</td><td><code>NullProgress</code></td><td>no window</td><td><span class="pill pass">direct</span> via the guard added this run</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="lede" style="margin: 14px 0 0;">Book selection is also a regression against <code>master</code> on this path: master showed the dialog there, legally, on the UI thread.</p>
       </section>
 
       <section class="card">
@@ -255,62 +276,26 @@
               <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
             </thead>
             <tbody>
-              <tr>
-                <td>C# build (whole solution)</td>
-                <td><span class="pill pass">pass</span></td>
-                <td class="num">0 errors</td>
-              </tr>
-              <tr>
-                <td>C# tests (<code>dotnet test</code> / NUnit)</td>
-                <td><span class="pill pass">pass</span></td>
-                <td class="num">3022 passed · 0 failed · 13 skipped</td>
-              </tr>
-              <tr>
-                <td>TypeScript typecheck</td>
-                <td><span class="pill pass">pass</span></td>
-                <td>No blunder-class type errors (run by the pre-commit hook)</td>
-              </tr>
-              <tr>
-                <td>TypeScript lint (eslint)</td>
-                <td><span class="pill na">not run</span></td>
-                <td>No front-end files in this change, so lint-staged matched nothing. Deliberate, not silently skipped.</td>
-              </tr>
-              <tr>
-                <td>TypeScript tests (vitest)</td>
-                <td><span class="pill na">not run</span></td>
-                <td>The change is C#-only and touches no front-end code or behavior.</td>
-              </tr>
-              <tr>
-                <td>Merge cleanliness</td>
-                <td><span class="pill pass">clean</span></td>
-                <td>Merged 3 more commits from <code>origin/master</code> with no conflicts; PR reports <code>MERGEABLE</code> / <code>CLEAN</code>.</td>
-              </tr>
+              <tr><td>C# build</td><td><span class="pill pass">pass</span></td><td class="num">0 errors</td></tr>
+              <tr><td>C# tests (<code>dotnet test</code> / NUnit)</td><td><span class="pill pass">pass</span></td><td class="num">3022 passed · 0 failed · 13 skipped</td></tr>
+              <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors (pre-commit hook)</td></tr>
+              <tr><td>TypeScript lint (eslint)</td><td><span class="pill na">not run</span></td><td>No front-end files in this change; lint-staged matched nothing. Deliberate.</td></tr>
+              <tr><td>TypeScript tests (vitest)</td><td><span class="pill na">not run</span></td><td>C#-only change, no front-end code or behavior touched.</td></tr>
+              <tr><td>Base integration</td><td><span class="pill pass">up to date</span></td><td>Already level with <code>origin/master</code> — nothing to merge this run.</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="lede" style="margin: 14px 0 0;">The full suite was re-run on the final HEAD after the comment-only commit, not just on the code commit — and separately after the master merge, which brought in test-infrastructure changes (<code>SetUpFixture.cs</code>, <code>BloomTests.csproj</code>) that were worth re-verifying against.</p>
+        <p class="lede" style="margin: 14px 0 0;">Worth saying plainly: a green gate here does not mean the branch is right. The defect is a thread-affinity mistake on paths no unit test exercises, which is exactly the class of bug tests do not catch.</p>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-
         <div class="commit">
-          <span class="msg">Report image-shrinking progress through IProgress instead of a dialog</span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/2efd625a9" target="_blank" rel="noopener">2efd625a9</a></span>
-          <p>Your rework, committed as found. Deletes <code>ProgressDialogBackground</code> from this path and the <code>Program.RunningUnitTests</code> special case with it; adds the <code>IProgress</code> parameter at <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/BookStorage.cs#L110" target="_blank" rel="noopener">the interface</a> and passes it at <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/Book.cs#L1110" target="_blank" rel="noopener">Book.cs:1110</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/Book.cs#L1898" target="_blank" rel="noopener">:1898</a>; widens <code>WebProgressAdapter</code> to <code>IWebSocketProgress</code>. Preflight added one thing to it: the comment in <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/BookProcessor.cs#L86" target="_blank" rel="noopener">BookProcessor.cs:86</a> justified its pre-shrink partly by the dialog's thread constraint, which no longer exists, so it now gives only the reason that still holds.</p>
+          <span class="msg">Reinstate the progress dialog for callers with no browser progress</span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7b14a6d5a" target="_blank" rel="noopener">7b14a6d5a</a></span>
+          <p>Your design 3, committed as found, plus one fix from preflight: <code>Shell.GetShellOrOtherOpenForm()</code> returns null when no window is open at all — the bulk-upload and hydrate CLI commands — and <code>shell.InvokeRequired</code> would have thrown a <code>NullReferenceException</code> there, on exactly the old-book-with-a-huge-image case this ticket is about. A null shell now takes the direct path with whatever progress the caller handed us.</p>
         </div>
-
-        <div class="commit">
-          <span class="msg">Merge <code>origin/master</code></span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/c2b96d035" target="_blank" rel="noopener">c2b96d035</a></span>
-          <p>3 commits, clean — including BL-16656, which moves the C# suite to <code>dotnet test</code>.</p>
-        </div>
-
-        <div class="commit">
-          <span class="msg">Correct comments that still described the deleted progress dialog</span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/bb09b0d61" target="_blank" rel="noopener">bb09b0d61</a></span>
-          <p>Added by preflight, prompted by Devin. The block comment in the migration still said "a progress dialog pops up", and the new <code>IProgress</code> parameter was undocumented. Both fixed, including a note that the parameter must not be null and why every current caller is safe.</p>
-        </div>
+        <p class="lede" style="margin: 14px 0 0;">The PR title and description were rewritten (again) — they described design 2 — and now lead with an explicit "not ready for review" warning so nobody starts a serious review of the current state by mistake.</p>
       </section>
 
       <section class="card">
@@ -323,23 +308,23 @@
             <tbody>
               <tr>
                 <td>Local review<br><span style="color:var(--muted);font-size:12.5px;">light sub-agent pass</span></td>
-                <td><span class="pill pass">clean</span></td>
-                <td>No breakage. It definitively cleared the null-progress worry (see below) and confirmed no test double or other <code>IBookStorage</code> implementor breaks. <strong>One of its conclusions was wrong</strong> and I corrected it: it reported finding no UI-thread call site that reaches the shrink. The <code>selectBook</code> endpoint is registered <code>handleOnUiThread: true</code>, so there is one — which is exactly the open decision item.</td>
+                <td><span class="pill note">4 raised</span></td>
+                <td>Confirmed the inversion empirically and mapped every caller to its branch and thread. Also found, on its own, the swallowed-exception problem in item 2 and the fragile <code>WebProgressAdapter</code> test in item 3. It confirmed my null-shell guard was the right fix. Nothing dismissed; 1 fixed by me before it ran, 3 escalated here.</td>
               </tr>
               <tr>
                 <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">Devin</a></td>
-                <td><span class="pill pass">complete</span></td>
-                <td>0 bugs. 3 Investigate flags: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724383011" target="_blank" rel="noopener">the UI-freeze one</a> is mirrored and <strong>left open</strong> for you; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724386594" target="_blank" rel="noopener">the stale PR description</a> was a fair catch already fixed earlier in this run, replied and resolved; the blocking-<code>Invoke</code> flag was re-raised against deleted code and deduped to <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3723872372" target="_blank" rel="noopener">the existing resolved thread</a>, which is annotated to say so. 4 informational, not mirrored — all assessed, see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5197913362" target="_blank" rel="noopener">consultation log</a>.</td>
+                <td><span class="pill note">complete</span></td>
+                <td><strong>1 Bug</strong> — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724637297" target="_blank" rel="noopener">the inverted thread test</a>, mirrored and left <strong>open</strong>. 5 Investigate: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724642335" target="_blank" rel="noopener">stale comments</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724644662" target="_blank" rel="noopener">the shadowed lambda parameter</a> left open and tied to item 1; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724646426" target="_blank" rel="noopener">the stale PR description</a> fixed and resolved; two deduped to existing threads rather than forked. 5 informational assessed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5198343529" target="_blank" rel="noopener">Consultation log</a>.</td>
               </tr>
               <tr>
                 <td>CodeRabbit</td>
                 <td><span class="pill na">not active</span></td>
-                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code> and it has posted nothing on any recent PR. Switched off here rather than something waited on.</td>
+                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>; nothing posted on any recent PR.</td>
               </tr>
               <tr>
                 <td>CI</td>
                 <td><span class="pill pass">complete</span></td>
-                <td><code>pr-automation</code> succeeded in 26s at the final HEAD. Only required check on this repo, and the thing that triggers Devin.</td>
+                <td><code>pr-automation</code> succeeded in 28s at this HEAD.</td>
               </tr>
             </tbody>
           </table>
@@ -347,60 +332,59 @@
       </section>
 
       <section class="card">
-        <h2>Cleared, so you do not have to wonder about it</h2>
-        <p>Devin flagged the new <code>IProgress</code> parameter as dereferenced without a null guard, and I chased it hard because <code>EnsureUpToDate</code> declares <code>IProgress progress = null</code> and four production call sites pass nothing. <strong>It is not reachable.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/Book.cs#L1068" target="_blank" rel="noopener">Book.cs:1068</a> substitutes a <code>NullProgress</code> for a null argument before anything uses it, and the only other callers of <code>EnsureUpToDateMemory</code> pass <code>new NullProgress()</code> explicitly. <code>NullProgress.ProgressIndicator</code> is itself non-null (verified against the actual <code>SIL.Core.dll</code> in use), so <code>ImageUtils</code>'s unguarded <code>progress.ProgressIndicator</code> is safe. That guard is what makes the whole rework work, which is why the new doc comment now says so out loud.</p>
-      </section>
-
-      <section class="card">
         <h2>Session notes</h2>
         <ul class="plain">
-          <li><strong>The PR title and description were rewritten</strong> — both described the deleted approach, which would have sent a human reviewer to evaluate the wrong design. Devin caught this independently.</li>
-          <li><strong>The QA test-ideas comment on the card was rewritten in place</strong>, not appended to. This mattered more than usual: the old version told testers to watch for two progress windows stacking, which the rework makes impossible. It now opens by telling them to ignore that instruction, and its headline test is measuring the freeze described at right.</li>
-          <li><strong>The report link on the card was not re-posted</strong> — the URL is stable per branch, so the comment from the last run already points here.</li>
-          <li><strong>No personal board skill is installed</strong> in this environment, so there was no board to move.</li>
+          <li><strong>The QA test-ideas comment now tells testers to hold.</strong> It has described three different designs across three runs, and a tester working the previous version would spend a pass rediscovering the known defect. It now opens by retracting the earlier instructions, keeps only the checks that hold regardless of the pending decision (picture integrity, the once-per-book mark, read-only folders), and lists what is waiting on the decision.</li>
+          <li><strong>I did not apply the swap myself.</strong> It changes what the user sees on several paths, which is squarely on the report side of preflight's autonomy line — and you have made this exact call three times, so guessing at it is not mine to do. The recommended option at right is a two-line change if you want it.</li>
+          <li><strong>The still-open freeze thread from run 2</strong> was updated in place with the current status rather than forked into a duplicate, since Devin re-raised the same finding under a new title.</li>
+          <li><strong>No personal board skill is installed</strong>, so there was no board to move.</li>
         </ul>
       </section>
     </div>
 
-    <!-- ============ RIGHT: decisions ============ -->
+    <!-- ============ RIGHT ============ -->
     <div class="colstack">
       <section class="card">
         <h2 class="tight">Over to you</h2>
-        <p class="lede">One substantive item, two small FYIs, and the process question carried over from the last run.</p>
+        <p class="lede">Item 1 is the one that matters; 2 and 3 only exist while a dialog branch does; 4 rides along with 1.</p>
 
         <!-- ITEM 1 -->
         <div class="item">
-          <h3>Bloom now freezes with no feedback when you click an old book</h3>
-          <p class="srcline">Source: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724383011" target="_blank" rel="noopener">Devin, Investigate flag</a> (thread left open) — independently verified during this run</p>
+          <h3>The thread test is inverted</h3>
+          <p class="srcline">Source: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724637297" target="_blank" rel="noopener">Devin, Bug</a> (open) · local review · my own reading — all three agree</p>
 
-          <p>This is the cost of removing the dialog, and it is worth understanding precisely, because the old dialog was doing two jobs and only one of them was feedback.</p>
+          <p>The code reads, at <a href="https://github.com/BloomBooks/BloomDesktop/blob/7b14a6d5ab1b833ea75fa79c39505be9049da313/src/BloomExe/Book/BookStorage.cs#L4085" target="_blank" rel="noopener">BookStorage.cs:4085</a>:</p>
 
-          <p><code>ProgressDialogBackground.ShowAndDoWork</code> ran the shrink on a <strong>background worker</strong> while the UI thread sat pumping messages inside <code>ShowDialog()</code>. So on a call site that was already on the UI thread, the old code both showed a progress bar <em>and</em> kept Bloom responsive. The new code does the shrink inline on whatever thread called it, and reports into whatever progress that caller owns.</p>
+          <pre class="code">if (Program.RunningUnitTests
+    || progress is WebProgressAdapter
+    || shell == null
+    || !shell.InvokeRequired)        // ← true only ON the UI thread
+        …do the work directly…
+else
+        …build and show ProgressDialogBackground…   // ← so this runs OFF it</pre>
 
-          <p>For the callers that own a real progress channel that is a clear improvement — Do Updates of All Books, <code>.bloomSource</code> import, and the publish previews all now report into the dialog they had already opened, which is exactly what the card wanted. But some callers have no progress to give and pass <code>NullProgress</code>. The important one is <strong>selecting a book</strong>: the <code>selectBook</code> endpoint is registered <code>handleOnUiThread: true</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/web/controllers/CollectionApi.cs#L239" target="_blank" rel="noopener">CollectionApi.cs:239</a>) and reaches <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Book/BookSelection.cs#L35" target="_blank" rel="noopener">BookSelection.cs:35</a>'s bare <code>EnsureUpToDate()</code>. So clicking a pre-4.9 book with a 5000x4000 image now freezes Bloom, showing nothing, until the shrink finishes. <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/Publish/PublishModel.cs#L835" target="_blank" rel="noopener">PublishModel.cs:835</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/bb09b0d61735fc33b96f930b65ae7b79a9ad9358/src/BloomExe/web/controllers/BookCommandsApi.cs#L477" target="_blank" rel="noopener">BookCommandsApi.cs:477</a> and the <code>hydrate</code> CLI are in the same position.</p>
+          <p><code>InvokeRequired</code> is <code>true</code> when the caller is <em>not</em> on the control's thread. So the dialog is constructed on background threads (with no <code>Invoke</code> anywhere), and the silent inline path runs on the UI thread. Reversing the last condition — dialog when <code>!shell.InvokeRequired</code>, caller's <code>IProgress</code> when <code>shell.InvokeRequired</code> — puts every path right at once: book selection gets a legal dialog on the UI thread with the work on a background worker, so it neither freezes nor goes silent; Do Updates of All Books reports into the progress dialog it already has open instead of stacking a second one; the CLI and the browser-progress callers are unaffected.</p>
 
-          <p>How much this matters turns on how often it happens. Both gates have to line up — a book still at <code>mediaMaintenanceLevel</code> 0 <em>and</em> carrying an oversized image — which the card itself describes as "an old book that has been sitting untouched". So it is rare, it is once per book, and the freeze is finite. Against that: it looks exactly like a hang, and a hang on book selection is the kind of thing that generates support reports. I have asked the tester to measure it and say whether they would have force-quit.</p>
+          <p>One thing to know if you keep <code>InvokeRequired</code> as the switch: it also reports <code>false</code> for a form whose window handle has not been created yet. That was a harmless edge when it only chose between two safe paths; now that it selects the branch, an early-startup form could route a background caller down the UI-thread path.</p>
 
-          <p>I have not changed this myself: deciding whether these call sites should acquire a progress channel, and which one, is a design call about Bloom's UX, not a mechanical fix.</p>
-
-          <fieldset data-q="UI freeze on NullProgress paths">
+          <fieldset data-q="Inverted thread test">
             <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q1" id="q1a" value="Give the book-selection path a real progress channel (websocket/status-bar), leaving the other NullProgress sites alone" checked>
-              <label for="q1a">Give book selection a real progress channel<span class="tag">recommended</span>
-                <span class="fn">Moderate: the collection tab already has a websocket progress channel, so this is mostly plumbing one in at the selection call site rather than inventing UI. Recommended because selection is the one path a real user is likely to hit, and it is the only one where the old code was strictly better than the new; the remaining <code>NullProgress</code> sites are either headless or already behind some other progress.</span>
+              <input type="radio" name="q1" id="q1a" value="Swap the two branches: dialog when !InvokeRequired, caller's IProgress when InvokeRequired" checked>
+              <label for="q1a">Swap the two branches<span class="tag">recommended</span>
+                <span class="fn">Two lines. Keeps the hybrid design you wrote and simply makes it do what it means: fixes the background-thread dialog and the selection freeze together, and removes the nested dialog under Do Updates of All Books. Recommended because all three reviewers independently prescribed exactly this, and it is the smallest change that resolves the most.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q1" id="q1b" value="Run the shrink off the UI thread on the no-progress paths, so Bloom stays responsive even without feedback">
-              <label for="q1b">Keep it silent, but move it off the UI thread
-                <span class="fn">Moderate and more delicate: it restores responsiveness without new UI, but reintroduces a threading question on a path that then mutates book files while the UI is live. Weigh against option 1, which fixes the visible symptom more directly.</span>
+              <input type="radio" name="q1" id="q1b" value="Go back to design 2 (no dialog at all, caller's IProgress everywhere) and accept the silent paths">
+              <label for="q1b">Go back to design 2 — no dialog anywhere
+                <span class="fn">Reverts to <code>bb09b0d61</code>. Simplest code and best aligned with the card and the React direction, but it reinstates the silent freeze on book selection, which is what prompted this hybrid in the first place.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q1" id="q1c" value="Add a follow-up card and ship this as is">
-              <label for="q1c">Ship as is, open a follow-up card
-                <span class="fn">No code now, one new card. Reasonable if you judge the combination rare enough to accept for this release, and it keeps this PR to the one clean idea.</span>
+              <input type="radio" name="q1" id="q1c" value="Keep the dialog for every caller but marshal it onto the UI thread with Invoke (design 1)">
+              <label for="q1c">Marshal the dialog onto the UI thread everywhere (design 1)
+                <span class="fn">Restores the very first approach on this branch. Legal on every path and never silent, but it brings back the stacked second dialog under Do Updates of All Books, and keeps a WinForms dialog the React conversion will have to unwind.</span>
               </label>
             </div>
             <div class="leaverow">
@@ -408,61 +392,67 @@
                 <input type="radio" name="q1" id="q1d" value="Leave as is">
                 <label for="q1d">Leave as is</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q1lc" data-q="UI freeze on NullProgress paths — leave comment"><label for="q1lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q1lc" data-q="Inverted thread test — leave comment"><label for="q1lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
               <input type="radio" name="q1" id="q1e" value="Other">
               <label for="q1e">Other:</label>
-              <input type="text" id="q1other" data-q="UI freeze on NullProgress paths — other" placeholder="your call">
+              <input type="text" id="q1other" data-q="Inverted thread test — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q1notes">Notes on this item</label>
-          <textarea id="q1notes" data-q="UI freeze on NullProgress paths — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q1notes" data-q="Inverted thread test — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- ITEM 2 -->
         <div class="item">
-          <h3>The import dialog's percentage bar will not move during the shrink</h3>
-          <p class="srcline">Source: local review, low importance</p>
-          <p>On the <code>.bloomSource</code> import path the progress goes through <code>WebProgressAdapter</code>, whose <code>ProgressIndicator</code> is a do-nothing stand-in. <code>ImageUtils</code> drives its percentage through exactly that, so the numeric progress is swallowed: the user sees the per-image "Preparing image: …" text messages arriving, but the bar itself does not advance while images are being shrunk.</p>
-          <p>Recommendation is to leave it. The adapter has always behaved this way, the text messages already tell the user work is happening, and the shrink is simply the first long operation routed through it. <code>IWebSocketProgress</code> does expose <code>SendPercent</code> if you ever want the bar wired up.</p>
-          <fieldset data-q="Import dialog percentage not advancing">
+          <h3>A failed shrink is permanently recorded as done</h3>
+          <p class="srcline">Source: local review, verified with a probe · only applies while a dialog branch exists</p>
+          <p>This one is about losing work quietly, so it is worth acting on regardless of item 1's outcome if any dialog path survives. <code>ProgressDialogBackground.ShowAndDoWork</code> wires <code>RunWorkerCompleted += (sender, e) =&gt; Close();</code> and never reads <code>e.Error</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/7b14a6d5ab1b833ea75fa79c39505be9049da313/src/BloomExe/ToPalaso/ProgressDialogBackground.cs#L30" target="_blank" rel="noopener">ProgressDialogBackground.cs:30</a>), so an exception inside the worker vanishes. Control returns normally and <code>mediaMaintenanceLevel</code> is still set to 1, so a book whose images failed to shrink is marked migrated forever and never retried — with nothing shown to the user and nothing in the log.</p>
+          <p>The direct branch propagates the exception instead, so today the same failure has opposite outcomes depending only on which thread the caller happened to be on. Design 2 propagated in every case.</p>
+          <fieldset data-q="Failed shrink recorded as done">
             <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q2" id="q2a" value="Wire WebProgressAdapter's ProgressIndicator through to SendPercent">
-              <label for="q2a">Wire the adapter's percentage through to <code>SendPercent</code>
-                <span class="fn">Small: implement the indicator in terms of <code>IWebSocketProgress.SendPercent</code>. Low risk, but it changes behavior for every existing user of the adapter, not just this path.</span>
+              <input type="radio" name="q2" id="q2a" value="Only bump mediaMaintenanceLevel when the work actually succeeded" checked>
+              <label for="q2a">Only bump the level when the work succeeded<span class="tag">recommended</span>
+                <span class="fn">Small and local: have the dialog surface <code>e.Error</code> (or capture success out of the worker) and skip the level bump on failure. Recommended because the current behavior silently gives up on a book forever, which is the kind of thing nobody discovers until a user's images are still oversized months later.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q2" id="q2b" value="Fix it in ProgressDialogBackground itself so every user of the dialog stops swallowing errors">
+              <label for="q2b">Fix <code>ProgressDialogBackground</code> for all its users
+                <span class="fn">Moderate and wider blast radius: four other places use this dialog and would start seeing exceptions they currently never see. More correct, but not a change to make quietly inside this ticket.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q2" id="q2b" value="Leave as is" checked>
-                <label for="q2b">Leave as is<span class="tag">recommended</span></label>
+                <input type="radio" name="q2" id="q2c" value="Leave as is">
+                <label for="q2c">Leave as is</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q2lc" data-q="Import dialog percentage not advancing — leave comment"><label for="q2lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q2lc" data-q="Failed shrink recorded as done — leave comment"><label for="q2lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q2" id="q2c" value="Other">
-              <label for="q2c">Other:</label>
-              <input type="text" id="q2other" data-q="Import dialog percentage not advancing — other" placeholder="your call">
+              <input type="radio" name="q2" id="q2d" value="Other">
+              <label for="q2d">Other:</label>
+              <input type="text" id="q2other" data-q="Failed shrink recorded as done — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q2notes">Notes on this item</label>
-          <textarea id="q2notes" data-q="Import dialog percentage not advancing — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q2notes" data-q="Failed shrink recorded as done — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- ITEM 3 -->
         <div class="item">
-          <h3>An <code>Application.DoEvents()</code> deep in the resize now runs on a different thread</h3>
-          <p class="srcline">Source: local review, informational</p>
-          <p><code>ImageUtils</code> calls <code>Application.DoEvents()</code> during the resize when a progress is present. Previously that always ran on the dialog's background worker; now it runs on whichever thread the caller used. On every path traced it is a near no-op (a server request thread or a progress-dialog worker), so nothing misbehaves today — but if the freeze in item 1 is fixed by giving the UI-thread callers a progress, that <code>DoEvents</code> starts pumping messages on the UI thread mid-shrink, which can re-enter Bloom in surprising ways.</p>
-          <p>Recommendation is to leave it now and simply remember it if you pick option 1 or 2 above, where it becomes relevant rather than theoretical.</p>
-          <fieldset data-q="DoEvents thread affinity">
+          <h3><code>progress is WebProgressAdapter</code> does not mean "this caller already shows progress"</h3>
+          <p class="srcline">Source: local review and Devin (informational) · only applies while a dialog branch exists</p>
+          <p>The test is meant to identify callers that already have somewhere visible to report. It misses both directions. <strong>Do Updates of All Books</strong> has a visible WinForms progress dialog open but passes a <code>MultiProgress</code>, so it fails the test and gets a second dialog. <strong>Spreadsheet import</strong> has a visible browser progress dialog but passes <code>NullProgress</code>, so it also gets a stray WinForms window on top.</p>
+          <p>Note that swapping the branches in item 1 makes most of this moot on its own, because those two callers are on background threads and would take the direct path anyway. Recommendation is therefore to leave it and let item 1 do the work, unless you keep a design where this test still decides something.</p>
+          <fieldset data-q="WebProgressAdapter proxy test">
             <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q3" id="q3a" value="Investigate/remove the DoEvents as part of this change">
-              <label for="q3a">Deal with the <code>DoEvents</code> now
-                <span class="fn">Small to moderate, and slightly risky in the other direction: it exists to keep some older caller's UI alive, so removing it needs a check of who still depends on it.</span>
+              <input type="radio" name="q3" id="q3a" value="Test for the absence of real progress instead (e.g. progress is NullProgress), or pass an explicit flag">
+              <label for="q3a">Test for the absence of progress instead
+                <span class="fn">Small: check <code>progress is NullProgress</code>, or have callers state whether they have a visible progress. More honest than type-sniffing one adapter, but it is still a proxy.</span>
               </label>
             </div>
             <div class="leaverow">
@@ -470,88 +460,120 @@
                 <input type="radio" name="q3" id="q3b" value="Leave as is" checked>
                 <label for="q3b">Leave as is<span class="tag">recommended</span></label>
               </span>
-              <span class="lc"><input type="checkbox" id="q3lc" data-q="DoEvents thread affinity — leave comment"><label for="q3lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q3lc" data-q="WebProgressAdapter proxy test — leave comment"><label for="q3lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
               <input type="radio" name="q3" id="q3c" value="Other">
               <label for="q3c">Other:</label>
-              <input type="text" id="q3other" data-q="DoEvents thread affinity — other" placeholder="your call">
+              <input type="text" id="q3other" data-q="WebProgressAdapter proxy test — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q3notes">Notes on this item</label>
-          <textarea id="q3notes" data-q="DoEvents thread affinity — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q3notes" data-q="WebProgressAdapter proxy test — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- ITEM 4 -->
         <div class="item">
-          <h3>Merge or rebase when integrating master — house style</h3>
-          <p class="srcline">Source: you, during the previous run — carried forward, still unanswered</p>
-          <p>You asked why I merge <code>origin/master</code> into the branch rather than rebasing onto it. I merge because that is what the preflight skill prescribes, and because rebasing rewrites commit hashes and so needs a force-push; once a PR exists, review threads and bot findings are anchored to those hashes, so a force-push orphans them. This branch is a good illustration — it now carries Devin threads anchored to specific commits, and a rebase would strand them.</p>
-          <p>Your instinct still holds for the narrower case, though: before the first push, a rebase is free and leaves linear history. If you want that as the standing rule, say so and I will record it.</p>
-          <fieldset data-q="Merge vs rebase house style">
-            <legend>What should preflight do in future</legend>
+          <h3>Comments and the shadowed lambda parameter, once item 1 is settled</h3>
+          <p class="srcline">Source: Devin, two Investigate flags (both open, tied to item 1)</p>
+          <p>Two tidy-ups I deliberately did not do, because doing them now would mean writing comments that describe a bug as though it were intended. Whichever way item 1 goes, both want one pass.</p>
+          <p>The block comment and doc comment in <code>BookStorage.cs</code>, and the comment in <code>BookProcessor.cs</code>, all currently assert that no dialog is created and that BL-16646 removed it — true of design 2, not of this code. I wrote two of them last run. The <code>BookProcessor</code> one matters most: I reduced its justification to the layout reason alone on the grounds the dialog was gone, and with a dialog back on background threads the thread-safety reason for that pre-shrink is arguably live again.</p>
+          <p>Separately, in the dialog branch <code>dlg.ShowAndDoWork((progress, args) =&gt; …)</code> shadows the method's own <code>progress</code> parameter, so the caller's progress is silently unused there. It compiles and is what the dialog needs, but it is how "callers report into their own progress" quietly stops being true.</p>
+          <fieldset data-q="Comments and shadowed parameter">
+            <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q4" id="q4a" value="Rebase when the branch has not been pushed yet; merge after that">
-              <label for="q4a">Rebase while unpushed, merge once pushed
-                <span class="fn">No code — a note in the team skill or <code>AGENTS.md</code>. Linear history where it is free, review threads intact where it is not.</span>
-              </label>
-            </div>
-            <div class="opt">
-              <input type="radio" name="q4" id="q4b" value="Always rebase, and force-push when needed">
-              <label for="q4b">Always rebase, force-pushing when needed
-                <span class="fn">No code, but accepts that bot threads and review anchors get orphaned on each integration — on this PR that would mean losing the Devin record.</span>
+              <input type="radio" name="q4" id="q4a" value="Fix the comments and rename the lambda parameter as part of implementing item 1" checked>
+              <label for="q4a">Fix both alongside item 1<span class="tag">recommended</span>
+                <span class="fn">Comment-only plus a rename — no behavior change. Recommended because it costs nothing once the design is settled, and stale comments on this particular method are exactly what led to the confusion twice already.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q4" id="q4c" value="Leave as is" checked>
-                <label for="q4c">Leave as is — keep merging<span class="tag">recommended</span></label>
+                <input type="radio" name="q4" id="q4b" value="Leave as is">
+                <label for="q4b">Leave as is</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q4lc" data-q="Merge vs rebase house style — leave comment"><label for="q4lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q4lc" data-q="Comments and shadowed parameter — leave comment"><label for="q4lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q4" id="q4d" value="Other">
-              <label for="q4d">Other:</label>
-              <input type="text" id="q4other" data-q="Merge vs rebase house style — other" placeholder="your call">
+              <input type="radio" name="q4" id="q4c" value="Other">
+              <label for="q4c">Other:</label>
+              <input type="text" id="q4other" data-q="Comments and shadowed parameter — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q4notes">Notes on this item</label>
-          <textarea id="q4notes" data-q="Merge vs rebase house style — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q4notes" data-q="Comments and shadowed parameter — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- ITEM 5 -->
+        <div class="item">
+          <h3>Merge or rebase when integrating master — house style</h3>
+          <p class="srcline">Source: you, two runs ago — carried forward, still unanswered</p>
+          <p>Nothing needed merging this run, so the question did not arise in practice, but it is still open. I merge because the preflight skill prescribes it and because rebasing rewrites hashes and needs a force-push, which orphans review threads anchored to commits. This PR is now a live example: it carries several Devin threads pinned to specific commits, including two deliberately-open ones, and a rebase would strand them.</p>
+          <p>Your narrower point still stands: before the first push, a rebase is free and leaves linear history.</p>
+          <fieldset data-q="Merge vs rebase house style">
+            <legend>What should preflight do in future</legend>
+            <div class="opt">
+              <input type="radio" name="q5" id="q5a" value="Rebase when the branch has not been pushed yet; merge after that">
+              <label for="q5a">Rebase while unpushed, merge once pushed
+                <span class="fn">No code — a note in the team skill or <code>AGENTS.md</code>. Linear history where it is free, review threads intact where it is not.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q5" id="q5b" value="Always rebase, and force-push when needed">
+              <label for="q5b">Always rebase, force-pushing when needed
+                <span class="fn">No code, but accepts orphaning bot threads on each integration — on this PR that means losing the open Bug thread and the Devin record.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q5" id="q5c" value="Leave as is" checked>
+                <label for="q5c">Leave as is — keep merging<span class="tag">recommended</span></label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q5lc" data-q="Merge vs rebase house style — leave comment"><label for="q5lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q5" id="q5d" value="Other">
+              <label for="q5d">Other:</label>
+              <input type="text" id="q5other" data-q="Merge vs rebase house style — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q5notes">Notes on this item</label>
+          <textarea id="q5notes" data-q="Merge vs rebase house style — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- NEXT STEP -->
         <div class="item">
           <h3>Next step</h3>
-          <p>Item 1 is the only one that changes code if you act on it. Should I implement your choices, or talk item 1 through first?</p>
+          <p>If you pick the swap in item 1, I can do it, re-run the gate and the gauntlet, close out the open threads, and refresh the tester notes in one pass.</p>
           <fieldset data-q="Next step">
             <legend>How to proceed</legend>
             <div class="opt">
-              <input type="radio" name="q5" id="q5a" value="Implement the decisions above" checked>
-              <label for="q5a">Implement the decisions above<span class="tag">recommended</span>
-                <span class="fn">I apply each choice, re-run the gate and the bot gauntlet, and report back. Recommended because the options are concrete and the recommended path for item 1 is plumbing into a progress channel that already exists.</span>
+              <input type="radio" name="q6" id="q6a" value="Implement the decisions above" checked>
+              <label for="q6a">Implement the decisions above<span class="tag">recommended</span>
+                <span class="fn">I apply each choice, re-run everything, reply-and-resolve the open Devin threads with the reasoning, and rewrite the tester notes for the settled design.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q5" id="q5b" value="Discuss item 1 before changing anything">
-              <label for="q5b">Discuss item 1 first
-                <span class="fn">Nothing changes until we have talked. Sensible if you want to weigh how rare the freeze really is against adding progress plumbing to the selection path.</span>
+              <input type="radio" name="q6" id="q6b" value="Discuss item 1 before changing anything">
+              <label for="q6b">Discuss item 1 first
+                <span class="fn">Nothing changes until we have talked. Reasonable given this is the fourth pass at the same decision — it may be worth settling what the design should be before more code moves.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q5" id="q5c" value="Leave as is">
-                <label for="q5c">Leave as is — park the branch as it stands</label>
+                <input type="radio" name="q6" id="q6c" value="Leave as is">
+                <label for="q6c">Leave as is — park the branch as it stands</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q5lc" data-q="Next step — leave comment"><label for="q5lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q6lc" data-q="Next step — leave comment"><label for="q6lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q5" id="q5d" value="Other">
-              <label for="q5d">Other:</label>
-              <input type="text" id="q5other" data-q="Next step — other" placeholder="your call">
+              <input type="radio" name="q6" id="q6d" value="Other">
+              <label for="q6d">Other:</label>
+              <input type="text" id="q6other" data-q="Next step — other" placeholder="your call">
             </div>
           </fieldset>
-          <label class="noteslabel" for="q5notes">Notes on this item</label>
-          <textarea id="q5notes" data-q="Next step — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <label class="noteslabel" for="q6notes">Notes on this item</label>
+          <textarea id="q6notes" data-q="Next step — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
       </section>
 
@@ -565,22 +587,23 @@
   </div>
 
   <footer class="foot">
-    Preflight run 2 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">bb09b0d61735fc33b96f930b65ae7b79a9ad9358</span> · PR #8154 left in draft · nothing was marked ready for review and no teammate review was requested · one Devin thread deliberately left open pending item 1.
+    Preflight run 3 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">7b14a6d5ab1b833ea75fa79c39505be9049da313</span> · PR #8154 left in draft · nothing marked ready for review, no teammate review requested · three Devin threads deliberately left open pending items 1 and 4.
   </footer>
 </div>
 
 <script>
   (function () {
     var ITEMS = [
-      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "UI freeze on NullProgress paths" },
-      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Import dialog percentage not advancing" },
-      { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "DoEvents thread affinity" },
-      { radio: "q4", other: "q4other", notes: "q4notes", lc: "q4lc", label: "Merge vs rebase house style" },
-      { radio: "q5", other: "q5other", notes: "q5notes", lc: "q5lc", label: "Next step" }
+      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Inverted thread test" },
+      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Failed shrink recorded as done" },
+      { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "WebProgressAdapter proxy test" },
+      { radio: "q4", other: "q4other", notes: "q4notes", lc: "q4lc", label: "Comments and shadowed parameter" },
+      { radio: "q5", other: "q5other", notes: "q5notes", lc: "q5lc", label: "Merge vs rebase house style" },
+      { radio: "q6", other: "q6other", notes: "q6notes", lc: "q6lc", label: "Next step" }
     ];
 
     function build() {
-      var out = ["Preflight decisions — BL-16646 run 2 (PR #8154, HEAD bb09b0d6)", ""];
+      var out = ["Preflight decisions — BL-16646 run 3 (PR #8154, HEAD 7b14a6d5)", ""];
       ITEMS.forEach(function (it) {
         var picked = document.querySelector('input[name="' + it.radio + '"]:checked');
         var answer = picked ? picked.value : "(no answer)";
