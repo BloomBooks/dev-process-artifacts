@@ -1,0 +1,643 @@
+<title>Preflight — BL-16646 huge-image hang</title>
+<style>
+  :root {
+    --ground: #f7f5f1;
+    --card: #ffffff;
+    --border: #e2ded5;
+    --border-strong: #cfc9bc;
+    --ink: #22252a;
+    --muted: #6c7076;
+    --accent: #2e5a63;
+    --accent-soft: #edf3f3;
+    --pass: #3d7a50;
+    --note: #8a6a2c;
+    --open: #8e3b3b;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 40px 32px 72px; }
+
+  header.masthead { border-bottom: 1px solid var(--border-strong); padding-bottom: 24px; margin-bottom: 32px; }
+  header.masthead h1 {
+    font-family: var(--serif);
+    font-size: 33px;
+    font-weight: 600;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 18px; max-width: 68ch; }
+  .metaline { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13.5px; }
+  .metaline span.k { color: var(--muted); }
+
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 1040px) { .cols { grid-template-columns: 1fr; } }
+
+  .colstack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 22px 24px;
+    min-width: 0;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 14px;
+  }
+  .card > h2.tight { margin-bottom: 6px; }
+  .card p { margin: 0 0 12px; }
+  .card p:last-child { margin-bottom: 0; }
+  .lede { color: var(--muted); font-size: 13.5px; margin: -8px 0 16px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .tablewrap { overflow-x: auto; }
+  th {
+    text-align: left;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0 10px 7px 0;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .pill {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .pill.pass { background: #eaf2ec; color: var(--pass); }
+  .pill.na { background: #f0eee9; color: var(--muted); }
+  .pill.note { background: #f7f0e2; color: var(--note); }
+  .pill.open { background: #f6e9e9; color: var(--open); }
+
+  code, .mono { font-family: var(--mono); font-size: 0.9em; }
+  code { background: #f2f0eb; padding: 1px 4px; border-radius: 3px; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ul.plain { margin: 0; padding-left: 20px; }
+  ul.plain li { margin-bottom: 7px; }
+  ul.plain li:last-child { margin-bottom: 0; }
+
+  .commit { border-left: 2px solid var(--border-strong); padding: 2px 0 2px 14px; margin-bottom: 16px; }
+  .commit:last-child { margin-bottom: 0; }
+  .commit .sha { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+  .commit .msg { font-weight: 600; display: block; margin-bottom: 3px; }
+  .commit p { font-size: 14px; color: var(--muted); margin: 4px 0 0; }
+
+  .item { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 18px; }
+  .item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .item h3 {
+    font-family: var(--serif);
+    font-size: 17.5px;
+    font-weight: 600;
+    margin: 0 0 4px;
+    text-wrap: balance;
+  }
+  .srcline { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
+  .item p { font-size: 14.5px; margin: 0 0 11px; }
+
+  blockquote.verbatim {
+    margin: 0 0 12px;
+    padding: 11px 14px;
+    background: #faf9f6;
+    border-left: 2px solid var(--accent);
+    font-size: 14px;
+    color: #3a3e44;
+  }
+  blockquote.verbatim p { margin: 0 0 8px; font-size: 14px; }
+  blockquote.verbatim p:last-child { margin: 0; }
+
+  fieldset { border: none; margin: 0 0 12px; padding: 0; }
+  legend {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 0;
+    margin-bottom: 8px;
+  }
+  .opt { display: flex; gap: 9px; align-items: flex-start; padding: 7px 0; border-top: 1px dotted var(--border); }
+  .opt:first-of-type { border-top: none; }
+  .opt input[type="radio"] { margin: 4px 0 0; flex-shrink: 0; }
+  .opt label { font-size: 14.5px; cursor: pointer; }
+  .opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .tag {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+
+  .leaverow { display: flex; gap: 12px; align-items: flex-start; padding: 7px 0; border-top: 1px dotted var(--border); }
+  .leaverow .main { display: flex; gap: 9px; align-items: flex-start; flex: 1; }
+  .leaverow .main input { margin: 4px 0 0; flex-shrink: 0; }
+  .lc { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
+  .lc input { margin: 0; }
+
+  .otherrow { display: flex; gap: 9px; align-items: center; padding: 7px 0; border-top: 1px dotted var(--border); flex-wrap: wrap; }
+  .otherrow input[type="radio"] { margin: 0; flex-shrink: 0; }
+  .otherrow label { font-size: 14.5px; }
+  input[type="text"], textarea {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--ink);
+    background: #fdfdfc;
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 6px 9px;
+    width: 100%;
+  }
+  .otherrow input[type="text"] { flex: 1; min-width: 180px; }
+  .noteslabel { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  textarea { resize: vertical; }
+
+  button.copy {
+    font-family: var(--sans);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 9px 18px;
+    cursor: pointer;
+  }
+  button.copy:hover { background: #24484f; }
+  #copied { font-size: 13px; color: var(--pass); margin-left: 10px; font-weight: 600; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12.5px; min-height: 130px; }
+
+  footer.foot { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--border-strong); font-size: 13px; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <h1>Preflight report — the huge-image hang</h1>
+    <p class="subtitle">Everything on <code>BL-16646-HugeImageHang</code> is committed, integrated with master, pushed, and reviewed. The gate and every reviewer are green. Five things are waiting on your judgment, and one of them is the shape of the fix itself.</p>
+    <div class="metaline">
+      <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">#8154 (draft)</a></span>
+      <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">BL-16646</a></span>
+      <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/files" target="_blank" rel="noopener">changed</a></span>
+      <span><span class="k">Commits</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/commits" target="_blank" rel="noopener">3</a></span>
+      <span><span class="k">HEAD</span> <span class="mono">462f9773</span></span>
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- ============ LEFT: the report ============ -->
+    <div class="colstack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>C# build</td>
+                <td><span class="pill pass">pass</span></td>
+                <td class="num">0 errors, 8 pre-existing NuGet warnings</td>
+              </tr>
+              <tr>
+                <td>C# tests (<code>dotnet test</code> / NUnit)</td>
+                <td><span class="pill pass">pass</span></td>
+                <td class="num">3022 passed · 0 failed · 13 skipped</td>
+              </tr>
+              <tr>
+                <td>TypeScript typecheck</td>
+                <td><span class="pill pass">pass</span></td>
+                <td>No blunder-class type errors (run by the pre-commit hook)</td>
+              </tr>
+              <tr>
+                <td>TypeScript lint (eslint)</td>
+                <td><span class="pill na">not run</span></td>
+                <td>No front-end files in this change, so lint-staged matched nothing. Deliberate, not skipped silently.</td>
+              </tr>
+              <tr>
+                <td>TypeScript tests (vitest)</td>
+                <td><span class="pill na">not run</span></td>
+                <td>The change is C#-only and touches no front-end code or behavior.</td>
+              </tr>
+              <tr>
+                <td>Merge cleanliness</td>
+                <td><span class="pill pass">clean</span></td>
+                <td>Merged 15 commits from <code>origin/master</code> with no conflicts; branch is mergeable.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="lede" style="margin: 14px 0 0;">The full C# suite was run twice — once before integrating master and again on the merged tree at <span class="mono">462f9773</span>, which is the run reported above.</p>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p class="lede">The branch started with no commits of its own — the whole fix was uncommitted work in the tree.</p>
+
+        <div class="commit">
+          <span class="msg">Create the image-shrinking progress dialog on the UI thread</span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/d1c5eb7b7" target="_blank" rel="noopener">d1c5eb7b7</a></span>
+          <p>The fix itself. <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/BookStorage.cs#L4089" target="_blank" rel="noopener">BookStorage.cs:4089</a> now finds the shell and, if we are off the UI thread, marshals the dialog onto it (<a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/BookStorage.cs#L4101" target="_blank" rel="noopener">:4101</a>); with no form open at all it shrinks against a <code>NullProgress</code>. The dialog body moved unchanged into <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/BookStorage.cs#L4118" target="_blank" rel="noopener">UpdateImagesWithProgressDialog</a>.</p>
+        </div>
+
+        <div class="commit">
+          <span class="msg">Document the UI-thread requirement on the new helper</span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/fa179c26e" target="_blank" rel="noopener">fa179c26e</a></span>
+          <p>Added by preflight. The new private helper is the one piece of this code that must not be called off the UI thread, and it had no comment saying so — which our own conventions ask for.</p>
+        </div>
+
+        <div class="commit">
+          <span class="msg">Merge <code>origin/master</code> into the branch</span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/462f97734351b1f447e1b934af86bc8a129a708d" target="_blank" rel="noopener">462f9773</a></span>
+          <p>15 commits, clean. Touched only dependency scripts and the front-end lockfile — no C# source — so it could not have disturbed this fix.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Local review<br><span style="color:var(--muted);font-size:12.5px;">light sub-agent pass</span></td>
+                <td><span class="pill pass">clean</span></td>
+                <td>No findings. It specifically chased the deadlock question path by path and found no UI thread that blocks without pumping, and confirmed <code>NullProgress.ProgressIndicator</code> is non-null so the headless branch cannot throw.</td>
+              </tr>
+              <tr>
+                <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">Devin</a></td>
+                <td><span class="pill pass">complete</span></td>
+                <td>0 bugs. 1 Investigate flag (the blocking <code>Invoke</code> / deadlock question) — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3723872372" target="_blank" rel="noopener">mirrored, answered and resolved</a>. 2 informational items, not mirrored as threads but carried into the decisions at right. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5197110130" target="_blank" rel="noopener">Consultation log</a>.</td>
+              </tr>
+              <tr>
+                <td>CodeRabbit</td>
+                <td><span class="pill na">not active</span></td>
+                <td><code>.coderabbit.yml</code> in this repo sets <code>auto_review.enabled: false</code>, and it has posted nothing on any recent PR (8135, 8139, 8144, 8146). So it is switched off here rather than something we waited on.</td>
+              </tr>
+              <tr>
+                <td>CI</td>
+                <td><span class="pill pass">complete</span></td>
+                <td><code>pr-automation</code> succeeded in 24s. It is the only required check on this repo, and it is what triggers Devin.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="plain">
+          <li><strong>The file changed under me mid-run.</strong> Between the point where I read <code>BookStorage.cs</code> and the point where I committed it, the working copy changed: <code>shell.Invoke(() =&gt; { UpdateImagesWithProgressDialog(); })</code> became <code>shell.Invoke(UpdateImagesWithProgressDialog)</code> and a comment about background threads was added. Presumably you were editing live. Those edits are in commit <span class="mono">d1c5eb7b7</span>. The two forms are semantically identical, so the review's conclusions still stand, but note the light review read the pre-edit text; I rebuilt and re-ran the tests against what was actually committed.</li>
+          <li><strong>Two package.json files looked modified at the start of the session</strong> (<code>src/BloomBrowserUI</code> and <code>src/content</code>) but were clean by the time I inspected them, so nothing was committed from them.</li>
+          <li><strong>The <code>add-test-ideas</code> skill is installed on disk but is not registered as invocable</strong> — calling it returned "Unknown skill", so I read its <code>SKILL.md</code> and followed it by hand. Worth a papercut; the symlink is there but the skill did not get picked up.</li>
+          <li><strong>Posted to the card:</strong> the PR link, and a QA test-ideas comment written for a semi-technical tester (built around the <code>Huge Image Test Book.bloomSource</code> attachment, and warning them that each attempt needs a fresh copy of the book because the migration only ever runs once).</li>
+          <li><strong>The card was left in its current state</strong> — no personal board skill is installed in this environment, so there was no board to move.</li>
+        </ul>
+      </section>
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="colstack">
+      <section class="card">
+        <h2 class="tight">Over to you</h2>
+        <p class="lede">Five items. The first is the substantive one; the rest are small and the recommendation on each is to leave it.</p>
+
+        <!-- ITEM 1 -->
+        <div class="item">
+          <h3>The fix takes the approach the card argued against</h3>
+          <p class="srcline">Source: <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">BL-16646</a>, its "Suggested fix" section, plus <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">Hatton's comment</a> on the card</p>
+
+          <p>Some background, since this is the one thing here that really needs a person. Bloom shrinks over-large images in old books the first time it brings such a book up to date, and it puts up an "Updating Image Files" progress window while it does. That window is a WinForms dialog, and several of the code paths that bring a book up to date run on a background thread, where Windows does not allow a window to be created. That is the bug: a hang, an error report, or a stray dialog.</p>
+
+          <p>There are two ways to fix it. You can keep the dialog and make sure it is always created in a legal place — which is what this branch does. Or you can delete the dialog altogether and report progress through the <code>IProgress</code> object the caller already has, so there is no window to create and therefore no rule left to break.</p>
+
+          <p>The card explicitly asked for the second one, and spelled it out in three steps: add an <code>IProgress</code> parameter to <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/BookStorage.cs#L110" target="_blank" rel="noopener">the interface</a>, pass the progress already in scope at <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/Book.cs#L1110" target="_blank" rel="noopener">Book.cs:1110</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/Book/Book.cs#L1898" target="_blank" rel="noopener">:1898</a>, and delete the dialog block. It named the alternative and rejected it in as many words:</p>
+
+          <blockquote class="verbatim">
+            <p>"The thread rule being broken is a WinForms rule. Remove the <code>Form</code> and there is nothing left to break, so this does not need per-caller fixes or an 'am I on the UI thread?' branch. It also moves with the conversion to React and a single browser pane instead of adding to what has to be unwound later."</p>
+          </blockquote>
+
+          <p>And the one human comment on the card reads:</p>
+
+          <blockquote class="verbatim">
+            <p>"Fable came across this while looking at something else and thinks that it could be a real bug that people actually could run into. I have not tried the repro steps. And the fix seems to be working in the direction we want to go anyways, getting rid of another winforms dialog call."</p>
+          </blockquote>
+
+          <p>So the expectation on the card is that this fix <em>removes</em> a WinForms dialog. As written, it keeps it and adds a thread check around it. That is a defensible trade — it is a much smaller change, it does not touch a public interface, and it keeps the "this is slow, hang on" feedback the dialog was there to give. But it is a different thing from what was asked for, it leaves the dialog to be unwound later during the React conversion, and it carries the two rough edges in items 2 and 3 below, both of which the <code>IProgress</code> route would have removed for free. This is your call, not mine, so I have not touched the approach.</p>
+
+          <fieldset data-q="Fix approach">
+            <legend>Which approach ships</legend>
+            <div class="opt">
+              <input type="radio" name="q1" id="q1a" value="Switch to the card's IProgress approach — delete the dialog" checked>
+              <label for="q1a">Switch to the card's <code>IProgress</code> approach — delete the dialog<span class="tag">recommended</span>
+                <span class="fn">Moderate: adds a parameter to <code>IBookStorage</code> and two call sites in <code>Book.cs</code>, deletes about 20 lines including the <code>Program.RunningUnitTests</code> special case, and needs no new UI. Recommended because it is what the card specified and what the comment on it expects, it dissolves items 2 and 3 rather than accepting them, and it removes a WinForms dialog instead of leaving one for the React conversion to unwind.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q1" id="q1b" value="Keep this fix, and open a follow-up card to remove the dialog later">
+              <label for="q1b">Keep this fix, and open a follow-up card to remove the dialog later
+                <span class="fn">No code change now, plus one new card. Gets the hang fixed today and defers the dialog removal — at the cost of living with items 2 and 3 in the meantime.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q1" id="q1c" value="Leave as is">
+                <label for="q1c">Leave as is</label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q1lc" data-q="Fix approach — leave comment"><label for="q1lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q1" id="q1d" value="Other">
+              <label for="q1d">Other:</label>
+              <input type="text" id="q1other" data-q="Fix approach — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q1notes">Notes on this item</label>
+          <textarea id="q1notes" data-q="Fix approach — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- ITEM 2 -->
+        <div class="item">
+          <h3>Do Updates of All Books will stack a second progress window</h3>
+          <p class="srcline">Found during this run; confirmed independently by the local review</p>
+          <p>The <strong>Troubleshooting &rsaquo; Do Updates of All Books</strong> command already opens its own progress window and runs the whole per-book loop on that window's background worker (<a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/CollectionTab/CollectionModel.cs#L1081" target="_blank" rel="noopener">CollectionModel.cs:1081</a>). With this fix in place, every book that needs shrinking now marshals to the UI thread and opens a <em>second</em> "Updating Image Files" window on top of the first, while the outer worker sits blocked until the inner one closes.</p>
+          <p>It does work — the outer window's modal message loop keeps pumping, which is exactly why this is not a deadlock (see <a href="https://github.com/BloomBooks/BloomDesktop/blob/462f97734351b1f447e1b934af86bc8a129a708d/src/BloomExe/ToPalaso/ProgressDialogBackground.cs#L37" target="_blank" rel="noopener">ProgressDialogBackground.cs:37</a>). But a user updating an old collection will watch a dialog pop up over a dialog, once per affected book. Recommendation is to leave it, because it is cosmetic, it only bites on books that predate 2019 and have oversized images, and choosing the <code>IProgress</code> route in item 1 removes it anyway — so fixing it separately is likely wasted work. I have asked the tester to report how bad it actually looks.</p>
+          <fieldset data-q="Nested progress window">
+            <legend>What to do</legend>
+            <div class="opt">
+              <input type="radio" name="q2" id="q2a" value="Suppress the inner dialog when a progress dialog is already open">
+              <label for="q2a">Suppress the inner dialog when one is already open
+                <span class="fn">Small but fiddly: needs a reliable "am I already inside a progress dialog?" test, which WinForms does not hand you cleanly. Adds a bit of state for a cosmetic gain.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q2" id="q2b" value="Leave as is" checked>
+                <label for="q2b">Leave as is<span class="tag">recommended</span></label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q2lc" data-q="Nested progress window — leave comment"><label for="q2lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q2" id="q2c" value="Other">
+              <label for="q2c">Other:</label>
+              <input type="text" id="q2other" data-q="Nested progress window — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q2notes">Notes on this item</label>
+          <textarea id="q2notes" data-q="Nested progress window — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- ITEM 3 -->
+        <div class="item">
+          <h3>Command-line bulk upload now shrinks images silently</h3>
+          <p class="srcline">Source: Devin, informational (not mirrored as a PR thread)</p>
+          <p>When nothing is open on screen — the <code>bloom upload</code> bulk-upload command, which has no window and no message loop — the fix does the shrinking against a <code>NullProgress</code>. That is a real improvement on what happened before, which was an attempt to show a modal dialog on a machine with nobody there to dismiss it. But it means a slow shrink now produces no output at all, so an unattended bulk upload can sit there for a long time with nothing in the log to explain the pause.</p>
+          <p>Recommendation is to leave it: the silence is a pre-existing gap rather than something this change introduced, and if you take the <code>IProgress</code> route in item 1 the CLI's own progress object flows in here and the logging appears for free. Fixing it separately only makes sense if item 1 stays as is.</p>
+          <fieldset data-q="Silent headless shrink">
+            <legend>What to do</legend>
+            <div class="opt">
+              <input type="radio" name="q3" id="q3a" value="Log a line to the console/log before shrinking in the headless case">
+              <label for="q3a">Log a line before shrinking in the headless case
+                <span class="fn">Very small: one or two lines writing to the existing logger where the <code>NullProgress</code> branch is taken. Low risk, and redundant if item 1 goes the <code>IProgress</code> way.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q3" id="q3b" value="Leave as is" checked>
+                <label for="q3b">Leave as is<span class="tag">recommended</span></label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q3lc" data-q="Silent headless shrink — leave comment"><label for="q3lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q3" id="q3c" value="Other">
+              <label for="q3c">Other:</label>
+              <input type="text" id="q3other" data-q="Silent headless shrink — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q3notes">Notes on this item</label>
+          <textarea id="q3notes" data-q="Silent headless shrink — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- ITEM 4 -->
+        <div class="item">
+          <h3>The thread check can read "false" for a window that does not exist yet</h3>
+          <p class="srcline">Source: Devin, informational (not mirrored as a PR thread)</p>
+          <p>The fix asks the shell "do I need to marshal to you?" via <code>InvokeRequired</code>. WinForms answers <em>false</em> when the form's underlying window has not actually been created yet — so if we happen to catch a form that is registered but not yet realized, which is conceivable during early startup, we would take the "already on the UI thread" branch from a background thread and create the dialog in exactly the place this fix exists to avoid.</p>
+          <p>Recommendation is to leave it. This is a known rough edge of the idiom rather than something new here, and the same pattern is already long-standing in <code>AudioRecording</code>, <code>NonFatalProblem</code>, and <code>OneDriveUtils</code>; forms are also removed from the open-forms list when their window is destroyed. Tightening it only here would make this one site inconsistent with the other three for a case nobody has hit.</p>
+          <fieldset data-q="InvokeRequired before handle creation">
+            <legend>What to do</legend>
+            <div class="opt">
+              <input type="radio" name="q4" id="q4a" value="Add an IsHandleCreated guard at this call site">
+              <label for="q4a">Add an <code>IsHandleCreated</code> guard here
+                <span class="fn">Tiny: one extra condition. Low risk, but leaves this site tighter than the three existing ones unless you change those too.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q4" id="q4b" value="Leave as is" checked>
+                <label for="q4b">Leave as is<span class="tag">recommended</span></label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q4lc" data-q="InvokeRequired before handle creation — leave comment"><label for="q4lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q4" id="q4c" value="Other">
+              <label for="q4c">Other:</label>
+              <input type="text" id="q4other" data-q="InvokeRequired before handle creation — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q4notes">Notes on this item</label>
+          <textarea id="q4notes" data-q="InvokeRequired before handle creation — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- ITEM 5 -->
+        <div class="item">
+          <h3>Merge or rebase when integrating master — house style</h3>
+          <p class="srcline">Source: you, during this run</p>
+          <p>You asked why I merged <code>origin/master</code> into the branch instead of rebasing the branch on top of it. I merged because that is what the preflight skill prescribes, and the reason behind that is that rebasing rewrites commit hashes and so needs a force-push; once a PR exists, review threads and bot findings are anchored to those hashes, so a force-push orphans them and makes "what changed since I last looked" hard for a human reviewer. This repo's history is also full of merge commits, so it matched local convention.</p>
+          <p>Your instinct was reasonable for this particular case, though: I merged <em>before</em> the first push, and the branch had no commits of its own, so a rebase would have been perfectly safe there and would have left linear history. If you want rebase-before-first-push as the standing rule, say so and I will record it — it is only unsafe after the branch has been pushed.</p>
+          <fieldset data-q="Merge vs rebase house style">
+            <legend>What should preflight do in future</legend>
+            <div class="opt">
+              <input type="radio" name="q5" id="q5a" value="Rebase when the branch has not been pushed yet; merge after that">
+              <label for="q5a">Rebase while unpushed, merge once pushed
+                <span class="fn">No code — a note in the team skill or <code>AGENTS.md</code>. Gives linear history where it is free and keeps review threads intact where it is not.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q5" id="q5b" value="Always rebase, and force-push when needed">
+              <label for="q5b">Always rebase, force-pushing when needed
+                <span class="fn">No code, but it accepts that bot threads and review anchors get orphaned on each integration.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q5" id="q5c" value="Leave as is" checked>
+                <label for="q5c">Leave as is — keep merging<span class="tag">recommended</span></label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q5lc" data-q="Merge vs rebase house style — leave comment"><label for="q5lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q5" id="q5d" value="Other">
+              <label for="q5d">Other:</label>
+              <input type="text" id="q5other" data-q="Merge vs rebase house style — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q5notes">Notes on this item</label>
+          <textarea id="q5notes" data-q="Merge vs rebase house style — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
+        <!-- NEXT STEP -->
+        <div class="item">
+          <h3>Next step</h3>
+          <p>Whatever you decide above — should I go straight to implementing it, or talk it through with you first? Item 1 is the one where you might want a conversation, since switching to the <code>IProgress</code> approach means rewriting the fix rather than adjusting it.</p>
+          <fieldset data-q="Next step">
+            <legend>How to proceed</legend>
+            <div class="opt">
+              <input type="radio" name="q6" id="q6a" value="Implement the decisions above" checked>
+              <label for="q6a">Implement the decisions above<span class="tag">recommended</span>
+                <span class="fn">I apply each choice, re-run the gate and the bot gauntlet, and report back. Recommended because the options are spelled out and none of them is ambiguous enough to need a conversation first.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q6" id="q6b" value="Discuss item 1 before changing anything">
+              <label for="q6b">Discuss item 1 first
+                <span class="fn">Nothing changes until we have talked. Sensible if you want to weigh the dialog removal against the React-conversion timing.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q6" id="q6c" value="Leave as is">
+                <label for="q6c">Leave as is — park the branch as it stands</label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q6lc" data-q="Next step — leave comment"><label for="q6lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q6" id="q6d" value="Other">
+              <label for="q6d">Other:</label>
+              <input type="text" id="q6other" data-q="Next step — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q6notes">Notes on this item</label>
+          <textarea id="q6notes" data-q="Next step — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="tight">Send your answers back</h2>
+        <p class="lede">Copies your selections as plain text — paste it into the session and I will act on it.</p>
+        <button class="copy" id="copybtn" type="button">Copy my answers</button><span id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers as text"></textarea>
+      </section>
+    </div>
+  </div>
+
+  <footer class="foot">
+    Preflight on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">462f97734351b1f447e1b934af86bc8a129a708d</span> · PR #8154 left in draft · nothing was marked ready for review and no teammate review was requested.
+  </footer>
+</div>
+
+<script>
+  (function () {
+    var ITEMS = [
+      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Fix approach" },
+      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Nested progress window" },
+      { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "Silent headless shrink" },
+      { radio: "q4", other: "q4other", notes: "q4notes", lc: "q4lc", label: "InvokeRequired before handle creation" },
+      { radio: "q5", other: "q5other", notes: "q5notes", lc: "q5lc", label: "Merge vs rebase house style" },
+      { radio: "q6", other: "q6other", notes: "q6notes", lc: "q6lc", label: "Next step" }
+    ];
+
+    function build() {
+      var out = ["Preflight decisions — BL-16646 (PR #8154, HEAD 462f9773)", ""];
+      ITEMS.forEach(function (it) {
+        var picked = document.querySelector('input[name="' + it.radio + '"]:checked');
+        var answer = picked ? picked.value : "(no answer)";
+        if (answer === "Other") {
+          var txt = (document.getElementById(it.other).value || "").trim();
+          answer = txt ? "Other: " + txt : "Other: (blank)";
+        }
+        out.push(it.label + ": " + answer);
+
+        var lc = document.getElementById(it.lc);
+        if (lc && lc.checked) {
+          out.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+        }
+        var notes = (document.getElementById(it.notes).value || "").trim();
+        if (notes) { out.push("  Notes: " + notes); }
+        out.push("");
+      });
+      return out.join("\n").replace(/\n+$/, "\n");
+    }
+
+    function refresh() { document.getElementById("payload").value = build(); }
+
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    document.getElementById("copybtn").addEventListener("click", function () {
+      var text = build();
+      var ta = document.getElementById("payload");
+      ta.value = text;
+      var done = function () {
+        var flag = document.getElementById("copied");
+        flag.hidden = false;
+        setTimeout(function () { flag.hidden = true; }, 2200);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () {
+          ta.focus(); ta.select();
+          try { document.execCommand("copy"); done(); } catch (e) { /* manual Ctrl+C */ }
+        });
+      } else {
+        ta.focus(); ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) { /* manual Ctrl+C */ }
+      }
+    });
+  })();
+</script>
