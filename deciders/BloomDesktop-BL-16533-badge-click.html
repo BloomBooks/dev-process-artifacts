@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preflight — BL-16533 subscription badge click (PR 8157)</title>
+<style>
+/* ---- reset ---- */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, h1, h2, h3, h4, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+table { border-collapse: collapse; width: 100%; }
+button, input, textarea { font: inherit; color: inherit; }
+img { max-width: 100%; }
+
+/* ---- tokens ---- */
+:root {
+  --ground: #f4f7f7;
+  --card: #ffffff;
+  --line: #dde5e6;
+  --line-soft: #eaf0f0;
+  --ink: #16262a;
+  --ink-2: #3d5257;
+  --muted: #6b7f83;
+  --accent: #1d94a4;          /* Bloom blue */
+  --accent-deep: #12707d;
+  --accent-wash: #e8f4f6;
+  --pass: #2c7a51;
+  --pass-wash: #e6f2ea;
+  --warn: #a76a12;
+  --warn-wash: #fbf1e0;
+  --neutral-wash: #eef1f2;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+}
+
+/* ---- base ---- */
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent-deep); text-decoration: none; border-bottom: 1px solid rgba(18,112,125,.3); }
+a:hover { border-bottom-color: var(--accent-deep); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+code, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .92em; }
+code { background: var(--neutral-wash); padding: .08em .34em; border-radius: 3px; }
+
+.wrap { max-width: 1360px; margin: 0 auto; padding: 32px 28px 64px; }
+
+/* ---- masthead ---- */
+.masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+.masthead h1 {
+  font-family: var(--serif); font-size: 30px; line-height: 1.2; font-weight: 600;
+  text-wrap: balance; letter-spacing: -.01em;
+}
+.masthead .sub { color: var(--ink-2); margin-top: 8px; max-width: 68ch; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+.facts b { color: var(--ink-2); font-weight: 600; }
+
+/* ---- columns ---- */
+.cols { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---- cards ---- */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 20px 22px; min-width: 0; }
+.card > h2 {
+  font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -.005em;
+  padding-bottom: 10px; border-bottom: 1px solid var(--line-soft); margin-bottom: 14px;
+}
+.card > h2 .count { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--muted); float: right; padding-top: 5px; }
+.card p + p { margin-top: 10px; }
+.lede { color: var(--ink-2); }
+
+/* ---- tables ---- */
+.tablewrap { overflow-x: auto; min-width: 0; }
+th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+td.what { font-weight: 600; width: 27%; }
+td.detail { color: var(--ink-2); }
+
+.pill {
+  display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+}
+.pill.ok { background: var(--pass-wash); color: var(--pass); }
+.pill.note { background: var(--warn-wash); color: var(--warn); }
+.pill.info { background: var(--accent-wash); color: var(--accent-deep); }
+.pill.off { background: var(--neutral-wash); color: var(--muted); }
+
+/* ---- commit list ---- */
+.commits { display: flex; flex-direction: column; gap: 14px; }
+.commit { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 12px; }
+.commit .sha a { font-family: var(--mono); font-size: 12.5px; }
+.commit h3 { font-size: 14.5px; font-weight: 600; }
+.commit p { color: var(--ink-2); font-size: 14px; margin-top: 3px; }
+@media (max-width: 620px) { .commit { grid-template-columns: minmax(0, 1fr); gap: 3px; } }
+
+.notes li { position: relative; padding-left: 16px; color: var(--ink-2); }
+.notes li + li { margin-top: 9px; }
+.notes li::before { content: ""; position: absolute; left: 0; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+/* ---- decisions ---- */
+.decision { border-left: 3px solid var(--accent); }
+.decision .kind {
+  font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--accent-deep); margin-bottom: 4px;
+}
+.decision h2 { border-bottom: none; padding-bottom: 0; margin-bottom: 8px; }
+.decision .body { color: var(--ink-2); }
+.decision .body p + p { margin-top: 9px; }
+
+.options { display: flex; flex-direction: column; gap: 2px; margin-top: 15px; }
+.opt { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 5px; cursor: pointer; }
+.opt:hover { background: var(--accent-wash); }
+.opt input[type="radio"] { margin-top: .28em; accent-color: var(--accent); flex: none; }
+.opt .text { min-width: 0; }
+.opt .text b { font-weight: 600; }
+.opt .fx { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.tag {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #fff; background: var(--accent); border-radius: 9px; padding: 1px 7px; margin-left: 7px;
+  vertical-align: 1px; white-space: nowrap;
+}
+.leaverow { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.leaverow .opt { flex: 1 1 240px; }
+.leavecomment {
+  display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted);
+  padding: 9px 10px; cursor: pointer; white-space: nowrap;
+}
+.leavecomment input { accent-color: var(--accent); }
+.otherrow { display: flex; align-items: center; gap: 8px; padding: 9px 10px; }
+.otherrow input[type="text"] { flex: 1 1 auto; min-width: 0; border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; background: #fff; }
+.notebox { margin-top: 10px; }
+.notebox label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+.notebox textarea { width: 100%; min-height: 54px; border: 1px solid var(--line); border-radius: 5px; padding: 7px 9px; resize: vertical; background: #fff; }
+
+/* ---- copy back ---- */
+.copyback { background: #142a2e; border-color: #142a2e; color: #eaf4f5; }
+.copyback h2 { font-family: var(--serif); color: #fff; border-bottom: 1px solid rgba(255,255,255,.16); }
+.copyback p { color: #b9cfd2; }
+.copyback button {
+  margin-top: 14px; background: var(--accent); color: #fff; border: none; border-radius: 5px;
+  padding: 9px 18px; font-weight: 600; cursor: pointer;
+}
+.copyback button:hover { background: #23a7b9; }
+.copyback .said { margin-left: 12px; font-size: 13px; color: #7fd4de; }
+.copyback textarea {
+  width: 100%; min-height: 190px; margin-top: 12px; background: #0c1c1f; color: #dcecee;
+  border: 1px solid #2b464b; border-radius: 5px; padding: 10px; font-family: var(--mono); font-size: 12px;
+  white-space: pre; overflow: auto;
+}
+footer { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="masthead">
+  <h1>Preflight — the subscription badge click that made the toolbox jump</h1>
+  <p class="sub">Three commits on <code>BL-16533-badge-click</code>, published as a draft PR. Everything below has already been done; the right-hand column is the part that needs you.</p>
+  <div class="facts">
+    <span><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16533" target="_blank" rel="noopener">BL-16533</a></span>
+    <span><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8157" target="_blank" rel="noopener">#8157 (draft)</a></span>
+    <span><b>Diff</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8157/files" target="_blank" rel="noopener">2 files, +24 −5</a></span>
+    <span><b>HEAD</b> <a href="https://github.com/BloomBooks/BloomDesktop/commit/4f364c847a7d427043d629c313e4cbbba119a8c1" target="_blank" rel="noopener"><span class="numeral">4f364c8</span></a></span>
+    <span><b>Base</b> master, merged clean</span>
+    <span><b>Run</b> 5 Aug 2026</span>
+  </div>
+</div>
+
+<div class="cols">
+
+<!-- ================= LEFT ================= -->
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">TypeScript typecheck</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="detail"><code>pnpm typecheck</code> — no type errors.</td>
+          </tr>
+          <tr>
+            <td class="what">Lint</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="detail"><code>pnpm lint</code> — <span class="numeral">0</span> errors. The <span class="numeral">764</span> warnings are the repo's pre-existing ones; the two changed files add none.</td>
+          </tr>
+          <tr>
+            <td class="what">TypeScript tests (Vitest)</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="detail">Full suite: <span class="numeral">664 passed · 5 skipped</span> across <span class="numeral">60</span> files (<span class="numeral">1</span> file skipped). Includes <code>ToolboxRoot.spec.tsx</code>, the spec closest to this change.</td>
+          </tr>
+          <tr>
+            <td class="what">C# tests (dotnet test)</td>
+            <td><span class="pill note">not run</span></td>
+            <td class="detail">This worktree has never had its C# binary dependencies fetched, so the test project can't compile — <code>IDevice</code> and <code>PodcastUtilities</code> are missing (<span class="numeral">5</span> × CS0246), which <code>AGENTS.md</code> documents as the "run <code>./init.sh</code>" symptom. No test ran. The diff contains no C# changes. See the decision on the right — I did not run <code>./init.sh</code> myself because it finishes with a full <code>pnpm run build</code>.</td>
+          </tr>
+          <tr>
+            <td class="what">Merge with master</td>
+            <td><span class="pill ok">clean</span></td>
+            <td class="detail">Already up to date — no conflicts, nothing to integrate.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What the fix is<span class="count">3 commits</span></h2>
+    <p class="lede">The three subscription tools (Overlay/Canvas, Motion, Music) show a Bloom-subscription badge at the right end of their toolbox header. That badge sits <em>inside</em> the MUI <code>AccordionSummary</code> whose root toggles the tool open or closed, and its click handler never stopped the click bubbling. So clicking the badge of the open tool also collapsed it — the closed tools and <b>More…</b> jumped up — and then the effect that syncs with the legacy toolbox saw nothing expanded, read legacy's unchanged current tool and re-expanded it. Hence a jump that comes straight back. Without a subscription the dialog covered the flash, which is why only subscribers saw it.</p>
+    <div class="commits" style="margin-top:16px">
+      <div class="commit">
+        <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/d834501568e0e29d74c85efa544d99081543aff4" target="_blank" rel="noopener">d834501</a></div>
+        <div>
+          <h3>The badge click stops at the badge</h3>
+          <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/4f364c847a7d427043d629c313e4cbbba119a8c1/src/BloomBrowserUI/react_components/requiresSubscription.tsx#L165" target="_blank" rel="noopener">requiresSubscription.tsx:165</a> — <code>event.stopPropagation()</code> before anything else. With a subscription, clicking the badge now does nothing at all; without one it shows only the dialog.</p>
+        </div>
+      </div>
+      <div class="commit">
+        <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/06025140b508a0605a67019397e88f6886926aaf" target="_blank" rel="noopener">0602514</a></div>
+        <div>
+          <h3>The same flash by another route</h3>
+          <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/4f364c847a7d427043d629c313e4cbbba119a8c1/src/BloomBrowserUI/bookEdit/toolbox/ToolboxRoot.tsx#L894" target="_blank" rel="noopener">ToolboxRoot.tsx:894</a> — clicking the header of the already-open tool produced the identical collapse-then-re-expand. The toolbox always has an active tool, so there was never a state to land in; <code>onChange</code> now ignores the collapse instead of undoing it after the fact.</p>
+        </div>
+      </div>
+      <div class="commit">
+        <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/4f364c847a7d427043d629c313e4cbbba119a8c1" target="_blank" rel="noopener">4f364c8</a></div>
+        <div>
+          <h3>An operator-precedence fix noticed on the way past</h3>
+          <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/4f364c847a7d427043d629c313e4cbbba119a8c1/src/BloomBrowserUI/react_components/requiresSubscription.tsx#L466" target="_blank" rel="noopener">requiresSubscription.tsx:466</a> — <code>a?.b ?? document !== document</code> parsed as <code>a?.b ?? (document !== document)</code>, so the test asked "is there a page iframe body?" rather than "is it in another document?". Behaviour-preserving for every current caller; it would only have misrouted a future caller running inside the page iframe itself.</p>
+        </div>
+      </div>
+    </div>
+    <p style="margin-top:14px"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8157/commits" target="_blank" rel="noopener">All commits on the PR</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8157/files" target="_blank" rel="noopener">Files changed</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">Local review<br /><span style="font-weight:400;color:var(--muted);font-size:13px">light sub-agent pass</span></td>
+            <td><span class="pill ok">clean</span></td>
+            <td class="detail">No correctness problems. It traced each risk specifically: the collapse-ignoring can't desync React from the legacy toolbox (every programmatic path to "nothing expanded" goes through <code>setActiveSection</code>, untouched), MUI's Tooltip attaches no <code>onClick</code> so no tooltip behaviour is suppressed, and the parenthesised condition is a no-op for all three call sites. It also confirmed the pre-6.5 jQuery accordion set no <code>collapsible</code> option, so the active panel couldn't be closed then either. <b>0</b> fixed, <b>1</b> escalated (the inert-badge behaviour, first item at right), <b>0</b> dismissed.</td>
+          </tr>
+          <tr>
+            <td class="what">Devin</td>
+            <td><span class="pill ok">complete</span></td>
+            <td class="detail"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8157" target="_blank" rel="noopener">Review</a> finished for this HEAD: <b>0</b> Bugs, <b>0</b> Investigate flags, <b>3</b> Informational. Nothing mirrored as a thread — two of the three independently reach the same conclusions the commit messages do (precedence change is behaviour-preserving; swallowing the click has no effect in the <b>More…</b> list). The third asks whether any product expectation allows all tools to be collapsed at once — that's the second item at right. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8157#issuecomment-5197781864" target="_blank" rel="noopener">Consultation log</a>.</td>
+          </tr>
+          <tr>
+            <td class="what">CodeRabbit</td>
+            <td><span class="pill off">disabled</span></td>
+            <td class="detail">Not a waiting reviewer: <code>.coderabbit.yml</code> in this repo sets <code>auto_review.enabled: false</code>, so it never reviews a push. Nothing was waited on and nothing is outstanding.</td>
+          </tr>
+          <tr>
+            <td class="what">CI (GitHub checks)</td>
+            <td><span class="pill ok">pass</span></td>
+            <td class="detail"><code>pr-automation</code> passed in <span class="numeral">21s</span> — the only GitHub check on this PR; it is the workflow that triggers Devin, not a build or test run. The build/test CI for this repo lives on TeamCity and does not report here, so the test evidence for this branch is the local runs in the gate table above.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Also worth knowing</h2>
+    <ul class="notes">
+      <li>The card now carries three comments from this run: the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16533" target="_blank" rel="noopener">PR link, the QA test ideas, and a link to this report</a>. The test-ideas comment is marked so future preflight runs rewrite it in place rather than stacking.</li>
+      <li>Those comments were posted under <b>your</b> YouTrack account (<code>andrew-polk</code>), not the shared Bot, following your standing preference. The <code>youtrack-api</code> skill still instructs the opposite, so it will keep drifting back until that skill is edited.</li>
+      <li>The branch was renamed from <code>BL-16533</code> to <code>BL-16533-badge-click</code> before anything was pushed, to match the <code>&lt;TICKET&gt;-&lt;few words&gt;</code> convention.</li>
+      <li><code>src/BloomBrowserUI/package.json</code> kept showing as modified during the run. It was a line-ending-only artifact from running Prettier through pnpm — staging it produced an empty diff, so nothing was committed and the tree is clean.</li>
+      <li>My earlier claim in chat that the <code>else if</code>/<code>else</code> branches in <code>showRequiresSubscriptionDialogInAnyView</code> were dead code was wrong, and it is worth knowing why: the publish screens are top-level windows where <code>parent.document</code> has no <code>#page</code>, so those branches are exactly what runs there. Deleting them would have broken the PDF and Bloom Reader publish screens. That is why commit <span class="numeral">3</span> only adds parentheses.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ================= RIGHT ================= -->
+<div class="col">
+
+  <section class="card decision">
+    <div class="kind">Decision · behaviour</div>
+    <h2>A badge on a collapsed tool no longer selects that tool</h2>
+    <div class="body">
+      <p>In the Edit tab, the tools are stacked as headers and you click a header to switch to that tool. The subscription badge is a small image at the right-hand end of three of those headers. Because the fix stops a badge click from reaching the header, clicking the badge of a <em>collapsed</em> tool no longer opens it. For someone with a subscription that click is now completely inert; for someone without one it still brings up the "requires a subscription" dialog.</p>
+      <p>So a subscriber gains a small dead spot: roughly a 1.5em-wide image at the right end of an otherwise fully clickable row. This follows your instruction — "if you have a subscription, clicking should do absolutely nothing" — and it is what makes the badge behave consistently in both places it appears. Recommending it stay as it is for exactly that reason; the alternative reintroduces a difference between the badge on the open tool and the badge on a closed one.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q1" value="Only swallow the click when the feature is NOT included in the subscription" />
+        <span class="text"><b>Only swallow the click when the feature isn't in your subscription</b>
+        <span class="fx">The badge then behaves like the rest of the header for subscribers — clicking a collapsed tool's badge selects it, and clicking the open tool's badge does nothing visible because commit 2 already stops the flash. (~1 line, localized, low risk — but it makes the badge's behaviour depend on your tier.)</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q1" value="Leave as is" checked />
+          <span class="text"><b>Leave as is</b><span class="tag">recommended</span></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="Inert badge — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q1" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q1" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n1">Notes</label>
+      <textarea id="n1" data-q="Inert badge — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card decision">
+    <div class="kind">Decision · behaviour</div>
+    <h2>The open tool can no longer be closed at all</h2>
+    <div class="body">
+      <p>Commit 2 makes the toolbox ignore an attempt to collapse the tool that is already open — by clicking its header, and equally by pressing Enter or the space bar on a focused header. Devin raised this as an observation and asked whether any product expectation allows every tool to be collapsed at once.</p>
+      <p>It was already effectively true before this branch: Bloom always keeps one tool active, and the sync effect re-expanded whatever the legacy toolbox still considered current, so the only thing a collapse attempt ever produced was the flicker this card is about. Before 6.5 the jQuery accordion never set <code>collapsible</code>, and jQuery UI's default of <code>collapsible: false</code> meant the open panel could not be closed either — so this restores 6.4 behaviour rather than introducing a limit. Recommending it stay, since making "no tool open" genuinely possible is a real design change, not a tidy-up.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q2" value="Make it genuinely possible to have no tool open" />
+        <span class="text"><b>Make "no tool open" a real state</b>
+        <span class="fx">Would need the legacy toolbox to gain a representation for "no current tool" (it has none today) and the re-expanding sync effect to be reworked. Moderate-to-large and architectural; a separate card, not this one.</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q2" value="Leave as is" checked />
+          <span class="text"><b>Leave as is</b><span class="tag">recommended</span></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="No-collapse — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q2" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q2" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n2">Notes</label>
+      <textarea id="n2" data-q="No-collapse — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card decision">
+    <div class="kind">Decision · verification</div>
+    <h2>The C# test suite did not run in this worktree</h2>
+    <div class="body">
+      <p>Running the C# tests here fails before any test executes: the build can't find <code>IDevice</code> or <code>PodcastUtilities</code>, which <code>AGENTS.md</code> names as the sign that a worktree hasn't fetched its C# binary dependencies yet. The documented remedy is <code>./init.sh</code> — but its last step is <code>pnpm run build</code>, the full front-end build I'm told not to run, because it wipes the shared <code>output\browser</code> and disrupts a Bloom running from the dev server. So I stopped rather than spring that on a live session.</p>
+      <p>This branch changes two <code>.tsx</code> files and no C# at all, so there is no path from it to a C# test. Recommending we accept the gap rather than spend a dependency fetch and a full front-end build on unrelated tests; say the word and I'll run both.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q3" value="Run ./init.sh then the full C# suite now" />
+        <span class="text"><b>Run <code>./init.sh</code> and then the full C# suite</b>
+        <span class="fx">No code change; costs a dependency download plus a full front-end build, and you'd want to stop any running Bloom first. Gives the C# row real numbers.</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q3" value="Leave as is" checked />
+          <span class="text"><b>Leave as is</b><span class="tag">recommended</span></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="C# suite — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q3" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q3" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n3">Notes</label>
+      <textarea id="n3" data-q="C# suite — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card decision">
+    <div class="kind">FYI · test coverage</div>
+    <h2>No automated test guards either behaviour</h2>
+    <div class="body">
+      <p>You asked to skip the test — "simple to test in Bloom, not expected to regress" — so neither the badge click nor the ignored collapse has a test. Recording it because both are the kind of thing a future edit can quietly undo: a stray wrapper around the badge, or someone restoring the old <code>onChange</code>, would bring the flicker back with every check still green.</p>
+      <p>The test I had planned would render <code>ToolboxRoot</code> with the feature-status hooks mocked as subscribed, click the badge, and assert the active tool didn't change. <code>ToolboxRoot.spec.tsx</code> already exists and does exactly this kind of thing, so it's a small addition rather than new scaffolding.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q4" value="Add the ToolboxRoot test after all" />
+        <span class="text"><b>Add the test after all</b>
+        <span class="fx">~30 lines in the existing <code>ToolboxRoot.spec.tsx</code>, mocking two hooks so no API or localization is needed. Low risk, no production code touched.</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q4" value="Leave as is" checked />
+          <span class="text"><b>Leave as is</b><span class="tag">recommended — your call already</span></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="No test — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q4" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q4" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n4">Notes</label>
+      <textarea id="n4" data-q="No test — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card decision">
+    <div class="kind">FYI · scope</div>
+    <h2>The precedence fix is not really BL-16533</h2>
+    <div class="body">
+      <p>Commit 3 fixes a latent operator-precedence trap in the same file. It changes no behaviour for any current caller and is documented by a comment where it sits, but strictly it is a drive-by rather than part of this card. It rides along in this PR, so a reviewer sees three commits for a one-line bug.</p>
+      <p>Recommending it stays: it is three lines of comment plus two parentheses in a file this PR already touches, and separating it would cost more attention than it saves.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q5" value="Split the precedence fix out of this PR" />
+        <span class="text"><b>Split it out into its own PR</b>
+        <span class="fx">Mechanical — one commit to cherry-pick onto a fresh branch, plus a card for it. No code risk, some process overhead.</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q5" value="Leave as is" checked />
+          <span class="text"><b>Leave as is</b><span class="tag">recommended</span></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="Scope — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q5" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q5" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n5">Notes</label>
+      <textarea id="n5" data-q="Scope — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card decision">
+    <div class="kind">Next step</div>
+    <h2>What should happen after you answer</h2>
+    <div class="body">
+      <p>The PR is a clean draft with every reviewer terminal, so nothing is blocking. It stays draft until you have looked at it yourself and run <code>/pr-ready-for-human</code>.</p>
+    </div>
+    <div class="options">
+      <label class="opt">
+        <input type="radio" name="q6" value="Implement whatever I chose above, then stop" checked />
+        <span class="text"><b>Implement whatever I chose above, then stop</b><span class="tag">recommended</span>
+        <span class="fx">Any chosen fix lands as a new commit, the gauntlet re-runs on it, and it comes back to you still as a draft.</span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q6" value="Discuss first before changing anything" />
+        <span class="text"><b>Discuss first, change nothing yet</b>
+        <span class="fx">No code changes; we talk through the items above first.</span></span>
+      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q6" value="Leave as is" />
+          <span class="text"><b>Leave as is</b></span>
+        </label>
+        <label class="leavecomment"><input type="checkbox" data-q="Next step — leave comment" /> Leave comment</label>
+      </div>
+      <label class="otherrow opt">
+        <input type="radio" name="q6" value="__other__" />
+        <span class="text"><b>Other:</b></span>
+        <input type="text" data-other-for="q6" placeholder="your own answer" />
+      </label>
+    </div>
+    <div class="notebox">
+      <label for="n6">Notes</label>
+      <textarea id="n6" data-q="Next step — notes" placeholder="Anything to add?"></textarea>
+    </div>
+  </section>
+
+  <section class="card copyback">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the session — it carries every selection, note and typed answer.</p>
+    <button type="button" id="copyBtn">Copy answers</button><span class="said" id="said"></span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+
+<footer>
+  Preflight report for <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16533" target="_blank" rel="noopener">BL-16533</a> at
+  <span class="numeral">4f364c8</span> · <a href="https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16533-badge-click.html" target="_blank" rel="noopener">this page's stable URL</a>
+  (fallback: <a href="https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16533-badge-click.html" target="_blank" rel="noopener">GitHub Pages</a>)
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { q: "q1", title: "A badge on a collapsed tool no longer selects that tool" },
+    { q: "q2", title: "The open tool can no longer be closed at all" },
+    { q: "q3", title: "The C# test suite did not run in this worktree" },
+    { q: "q4", title: "No automated test guards either behaviour" },
+    { q: "q5", title: "The precedence fix is not really BL-16533" },
+    { q: "q6", title: "Next step" }
+  ];
+
+  function itemBlock(item) {
+    var scope = document.querySelector('input[name="' + item.q + '"]').closest(".card");
+    var chosen = scope.querySelector('input[name="' + item.q + '"]:checked');
+    var answer = "(no answer)";
+    if (chosen) {
+      if (chosen.value === "__other__") {
+        var other = scope.querySelector('[data-other-for="' + item.q + '"]');
+        var typed = other && other.value.trim();
+        answer = typed ? "Other: " + typed : "Other: (nothing typed)";
+      } else {
+        answer = chosen.value;
+      }
+    }
+    var lines = ["## " + item.title, "Answer: " + answer];
+
+    var leave = scope.querySelector('.leavecomment input[type="checkbox"]');
+    if (leave && leave.checked) {
+      lines.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+    }
+    var note = scope.querySelector("textarea[data-q]");
+    if (note && note.value.trim()) {
+      lines.push("Notes: " + note.value.trim());
+    }
+    return lines.join("\n");
+  }
+
+  function serialize() {
+    var head = [
+      "Preflight decisions — BL-16533 / PR 8157 (branch BL-16533-badge-click)",
+      "Report: https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16533-badge-click.html"
+    ];
+    return head.concat(ITEMS.map(itemBlock)).join("\n\n") + "\n";
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    refresh();
+    var said = document.getElementById("said");
+    function ok() { said.textContent = "Copied."; window.setTimeout(function () { said.textContent = ""; }, 2600); }
+    function manual() { said.textContent = "Select the text below and press Ctrl+C."; }
+    payload.select();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(ok, function () {
+        try { document.execCommand("copy") ? ok() : manual(); } catch (e) { manual(); }
+      });
+    } else {
+      try { document.execCommand("copy") ? ok() : manual(); } catch (e) { manual(); }
+    }
+  });
+})();
+</script>
+</body>
+</html>
