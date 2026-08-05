@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16612 sound registration (PR #8155)</title>
+<style>
+  :root{
+    --paper:#FAF8F5; --card:#FFFFFF; --ink:#23282B; --muted:#5A6569; --faint:#8B9499;
+    --line:#E4DFD7; --line-soft:#EFEBE4;
+    --accent:#1A5C57; --accent-soft:#E7F0EE;
+    --pass:#2F6B4F; --attn:#8A5A12; --open:#A33A2E;
+    --serif: "Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono: ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1360px; margin:0 auto; padding:32px 24px 96px}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(26,92,87,.28)}
+  a:hover{border-bottom-color:var(--accent)}
+  a:focus-visible,input:focus-visible,textarea:focus-visible,button:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  code,.mono{font-family:var(--mono); font-size:.88em}
+
+  header.top{border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:28px}
+  header.top h1{
+    font-family:var(--serif); font-weight:600; font-size:clamp(1.6rem,3vw,2.3rem);
+    margin:0 0 6px; letter-spacing:-.01em; text-wrap:balance;
+  }
+  .sub{color:var(--muted); font-size:1.02rem; margin:0 0 16px; max-width:74ch}
+  .meta{display:flex; flex-wrap:wrap; gap:8px 10px; font-size:.82rem}
+  .chip{
+    background:var(--card); border:1px solid var(--line); border-radius:2px;
+    padding:4px 9px; color:var(--muted); font-family:var(--mono); font-size:.78rem;
+  }
+  .chip b{color:var(--ink); font-weight:600}
+  .chip.draft{background:var(--accent-soft); border-color:#CBDEDA; color:#14524D}
+
+  .cols{display:grid; grid-template-columns:1.35fr 1fr; gap:28px; align-items:start}
+  @media (max-width:1040px){ .cols{grid-template-columns:1fr} }
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:3px;
+    padding:20px 22px; margin:0 0 20px;
+  }
+  h2{
+    font-family:var(--serif); font-weight:600; font-size:1.16rem; margin:0 0 14px;
+    letter-spacing:-.005em;
+  }
+  h3{font-family:var(--sans); font-weight:650; font-size:1.02rem; margin:0 0 8px; line-height:1.4}
+  p{margin:0 0 12px}
+  p:last-child{margin-bottom:0}
+  .lede{color:var(--muted); font-size:.93rem; margin:-4px 0 14px}
+
+  table{border-collapse:collapse; width:100%; font-size:.9rem}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line-soft); vertical-align:top}
+  th{
+    font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; color:var(--faint);
+    font-weight:650; border-bottom:1px solid var(--line);
+  }
+  tr:last-child td{border-bottom:none}
+  td.num{font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap}
+  .tblwrap{overflow-x:auto}
+
+  .pill{
+    display:inline-block; font-size:.72rem; font-weight:650; letter-spacing:.04em;
+    text-transform:uppercase; padding:2px 7px; border-radius:2px; white-space:nowrap;
+  }
+  .pill.pass{background:#E8F1EC; color:var(--pass)}
+  .pill.attn{background:#F7EFE0; color:var(--attn)}
+  .pill.open{background:#F7E8E5; color:var(--open)}
+  .pill.na{background:#F1EFEA; color:var(--faint)}
+
+  ul.tight{margin:0 0 12px; padding-left:20px}
+  ul.tight li{margin-bottom:7px}
+  ul.tight li:last-child{margin-bottom:0}
+
+  .commit{
+    display:grid; grid-template-columns:auto 1fr; gap:4px 12px; align-items:baseline;
+    padding:10px 0; border-bottom:1px solid var(--line-soft);
+  }
+  .commit:last-of-type{border-bottom:none; padding-bottom:0}
+  .commit .sha{font-family:var(--mono); font-size:.8rem}
+  .commit .msg{font-weight:600; font-size:.95rem}
+  .commit .why{grid-column:2; color:var(--muted); font-size:.88rem}
+
+  .rev{padding:12px 0; border-bottom:1px solid var(--line-soft)}
+  .rev:last-child{border-bottom:none; padding-bottom:0}
+  .rev-head{display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:5px}
+  .rev-name{font-weight:650; font-size:.96rem}
+  .rev p{font-size:.89rem; color:var(--muted); margin:0}
+
+  /* decisions */
+  .item{border-left:3px solid var(--accent)}
+  .item.fyi{border-left-color:var(--line)}
+  .kind{
+    font-size:.7rem; text-transform:uppercase; letter-spacing:.09em; font-weight:700;
+    color:var(--accent); margin:0 0 6px;
+  }
+  .item.fyi .kind{color:var(--faint)}
+  .item p{font-size:.93rem}
+  .src{font-size:.83rem; color:var(--faint); margin:0 0 12px}
+
+  .opts{display:flex; flex-direction:column; gap:2px; margin:14px 0 6px}
+  .row{
+    display:flex; align-items:flex-start; gap:9px; padding:9px 10px; border-radius:3px;
+    border:1px solid transparent;
+  }
+  .row:hover{background:#FBFAF7; border-color:var(--line-soft)}
+  .row > input[type=radio]{margin:5px 0 0; flex:0 0 auto; accent-color:var(--accent)}
+  .row label.txt{font-size:.92rem; cursor:pointer; flex:1}
+  .fc{display:block; color:var(--muted); font-size:.83rem; margin-top:3px}
+  .rec{
+    display:inline-block; font-size:.66rem; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; background:var(--accent-soft); color:#14524D;
+    padding:2px 6px; border-radius:2px; margin-left:7px; vertical-align:1px;
+  }
+  .lcwrap{
+    margin-left:auto; display:flex; align-items:center; gap:6px; font-size:.79rem;
+    color:var(--muted); white-space:nowrap; padding-top:2px;
+  }
+  .lcwrap input{accent-color:var(--accent)}
+  input[type=text].other{
+    flex:1; min-width:120px; font:inherit; font-size:.9rem; padding:5px 8px;
+    border:1px solid var(--line); border-radius:2px; background:var(--paper);
+  }
+  .notes{display:block; margin-top:10px}
+  .notes span{
+    display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--faint); font-weight:650; margin-bottom:5px;
+  }
+  .notes textarea{
+    width:100%; min-height:52px; font:inherit; font-size:.9rem; padding:7px 9px;
+    border:1px solid var(--line); border-radius:2px; background:var(--paper);
+    resize:vertical;
+  }
+
+  .sendback{border-left:3px solid var(--ink)}
+  button.copy{
+    font:inherit; font-weight:650; font-size:.92rem; cursor:pointer;
+    background:var(--ink); color:#fff; border:none; border-radius:3px;
+    padding:10px 18px; margin:4px 0 12px;
+  }
+  button.copy:hover{background:#000}
+  #copied{margin-left:10px; font-size:.85rem; color:var(--pass); font-weight:650; opacity:0; transition:opacity .18s}
+  #copied.on{opacity:1}
+  #payload{
+    width:100%; min-height:150px; font-family:var(--mono); font-size:.78rem;
+    padding:9px; border:1px solid var(--line); border-radius:2px; background:var(--paper);
+    color:var(--muted); resize:vertical;
+  }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — make the blocked-worker registration sound</h1>
+  <p class="sub">Everything on the branch is green and published. Two commits landed, three review findings were dealt with, and <strong>one real defect found by two independent reviewers is left for you</strong> because fixing it properly reaches beyond this branch's deliberate scope.</p>
+  <div class="meta">
+    <span class="chip">branch <b>BL-16612-sound-registration</b></span>
+    <span class="chip">base <b>master</b></span>
+    <span class="chip">HEAD <b>55ffdd1059</b></span>
+    <span class="chip draft">PR #8155 · draft</span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8155" target="_blank" rel="noopener">pull request</a></span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8155/files" target="_blank" rel="noopener">files changed</a></span>
+    <span class="chip"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8155" target="_blank" rel="noopener">Devin review</a></span>
+    <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16612" target="_blank" rel="noopener">BL-16612</a></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- ================= LEFT: the report ================= -->
+<div>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <p class="lede">Run against the branch after <code>origin/master</code> was merged in, so these are the results for the code as it would actually merge.</p>
+    <div class="tblwrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors.</td></tr>
+        <tr><td>ESLint</td><td><span class="pill pass">pass</span></td><td class="num">0 errors, 764 warnings — all pre-existing; no TypeScript was touched.</td></tr>
+        <tr><td>Merge with base</td><td><span class="pill pass">clean</span></td><td>Base had moved 10 commits; merged with no conflicts, and the gate was re-run afterwards.</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pill attn">1 environment failure</span></td><td class="num">3024 passed · 12 skipped · 1 failed. The failure is <code>RabRealBuildTests</code>, which needs Reading App Builder's <code>buildapp.bat</code> on the PATH; it is not installed on this machine and the test says so itself. Nothing to do with this change.</td></tr>
+        <tr><td>TypeScript tests (vitest)</td><td><span class="pill pass">pass</span></td><td class="num">664 passed · 5 skipped, across 61 files.</td></tr>
+        <tr><td>Visual-regression suite</td><td><span class="pill na">not run</span></td><td>Needs a built, running Bloom driving real books; it runs in the nightly, not in preflight.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <div class="commit">
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/eafc229adc" target="_blank" rel="noopener">eafc229adc</a></span>
+      <span class="msg">Make reporting a blocked server worker always top up the pool</span>
+      <span class="why">Moves the add-a-worker check <em>into</em> <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/BloomServer.cs#L2405" target="_blank" rel="noopener"><code>RegisterThreadBlocking</code></a> so no caller can register a block and miss it, has <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/BloomServer.cs#L1934" target="_blank" rel="noopener"><code>QueueRequest</code></a> call the same helper so the rule lives in one place, and adds the missing report in <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/Publish/OffScreenBrowser.cs#L308" target="_blank" rel="noopener"><code>RunAndBlock</code></a>. Plus <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomTests/web/BloomServerWorkerPoolTests.cs#L26" target="_blank" rel="noopener">two tests</a>.</span>
+    </div>
+    <div class="commit">
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7af8e40778" target="_blank" rel="noopener">7af8e40778</a></span>
+      <span class="msg">Merge <code>origin/master</code></span>
+      <span class="why">Brought in BL-16656, which switches the C# suite to <code>dotnet test</code> and removes the WPF-native workaround from <code>SetUpFixture</code>. No overlap with the files this branch touches.</span>
+    </div>
+    <div class="commit">
+      <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/55ffdd1059" target="_blank" rel="noopener">55ffdd1059</a></span>
+      <span class="msg">Keep the whole worker top-up non-throwing, and correct two comments</span>
+      <span class="why">The review fixes — see the reviewer outcomes below.</span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+
+    <div class="rev">
+      <div class="rev-head"><span class="rev-name">Local review — light sub-agent pass</span><span class="pill pass">complete</span></div>
+      <p><strong>2 findings raised, 1 fixed, 1 escalated to you.</strong> It confirmed the logging defect Devin found (already fixed), and independently found the pre-existing blocked-count leak that is decision 1 below. It also worked through each risk I asked it to check — lock ordering, leaks, unbounded growth, the lock-free fast path, <code>QueueRequest</code> equivalence, and whether the tests can pass for the wrong reason — and cleared all of them, verifying that the first test genuinely fails without the fix. One footnote from it changed a claim of mine; see session notes.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><span class="rev-name">Devin</span><span class="pill pass">complete</span><span class="pill attn">ran twice</span></div>
+      <p>First pass on <code>7af8e40778</code>: 1 Bug, 1 Investigate, 3 Informational. Re-review on <code>55ffdd1059</code> after the fixes: 1 Bug (a stale repeat — its text still quotes the pre-fix code), 2 Investigate, 8 Informational. Three threads posted, each with a documented outcome:
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724062887" target="_blank" rel="noopener">the logging bug</a> (fixed, resolved),
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063022" target="_blank" rel="noopener">the understated comment</a> (verified and reworded, resolved), and
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063205" target="_blank" rel="noopener">the blocked-count leak</a> — <strong>left open for you</strong>. Logged in the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#issuecomment-5197422745" target="_blank" rel="noopener">consultation comment</a>.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><span class="rev-name">CodeRabbit</span><span class="pill na">disabled by repo config</span></div>
+      <p>Configured on this repo, but <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review on push. I did not summon it manually — that would override the repo's own deliberate setting. Not a timeout; there is nothing pending from it.</p>
+    </div>
+
+    <div class="rev">
+      <div class="rev-head"><span class="rev-name">CI</span><span class="pill pass">complete</span></div>
+      <p><code>pr-automation</code> passed for this HEAD (it is also what triggers Devin). That is the whole PR check set on this repo — the heavy builds run on TeamCity and in the nightly, not as PR checks.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <ul class="tight">
+      <li><strong>A correction to something I told you.</strong> I described the new fast path as "two unsynchronized reads and an early return — no lock". <code>ConcurrentDictionary.Count</code> in fact takes every one of the dictionary's internal locks, so it is not free. It is still markedly cheaper than joining the queue behind the listener and the workers, and <code>QueueRequest</code> already read <code>Count</code> on every request, so the design choice stands — but the code comment overstated it and now says so accurately.</li>
+      <li><strong><code>init.sh</code> was run</strong> to populate <code>output/browser</code>, which is what let the previously-uncompletable fixtures run in full. <code>BloomServerTests</code> (47 tests, the fixture that actually drives the server this change modifies) and both <code>OffScreenBrowserTests</code> now pass; before, the test host crashed on a missing <code>favicon.ico</code>. I verified that crash occurred identically on unmodified master.</li>
+      <li><strong>The second new test is weak</strong> — <code>RegisterThreadBlocking_FromAThreadThatIsNotAWorker_DoesNotAddAWorker</code> would pass even if the top-up code did not exist. It still guards the early return, and it cannot hide a bug in the new code, but it is not load-bearing. Neither test asserts on the blocked count itself, only on the worker count.</li>
+      <li><strong>The QA test-ideas note went on the card as a new comment, not an update.</strong> The most recent one there is explicitly "refreshed for PR #8110" — a different candidate fix that is still open — so overwriting it would have erased the guidance for a variant still in play. The new note opens by telling the tester which build it is for and which of the old items no longer apply.</li>
+      <li><strong>Nothing was promoted.</strong> The PR is still a draft, no teammate review was requested, and the card's state was not moved.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ================= RIGHT: decisions ================= -->
+<div>
+
+  <section class="card item" data-q="Pre-existing blocked-count leak in the UI-thread marshalling path">
+    <p class="kind">Decision 1 of 2</p>
+    <h3>A second unsoundness in the same mechanism — one this branch does not fix</h3>
+    <p class="src">Found independently by Devin and by the local review · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8155#discussion_r3724063205" target="_blank" rel="noopener">open thread</a></p>
+
+    <p>Bloom's server counts how many of its helper threads are stuck waiting. Both halves of that bookkeeping — "I am about to wait" and "I have finished waiting" — decide whether to count by looking at the <em>name of the thread they happen to be running on</em>. So the pair only balances when both halves run on the same helper thread.</p>
+    <p>In <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/controllers/ApiRequest.cs#L342" target="_blank" rel="noopener"><code>ApiRequest.cs:342</code></a> they do not. The first half runs on a helper thread, but the <a href="https://github.com/BloomBooks/BloomDesktop/blob/55ffdd1059b9ed1facd4e7174843839fc3009866/src/BloomExe/web/controllers/ApiRequest.cs#L374" target="_blank" rel="noopener">matching second half</a> runs after an <code>await</code>. A helper thread carries no synchronization context, so unless that work happened to finish instantly, execution resumes on a completely different thread — whose name is not a helper's — and the count is silently never brought back down. It stays one too high, permanently, every time it happens. The local review traced a real route to it through uploading a book to Bloom Library after a book-id change, and noted that an unexpected error out of that call skips both halves entirely.</p>
+    <p><strong>This is pre-existing and this branch does not cause it.</strong> What the branch does is make it matter more: previously a wrong count only added a helper when a new request arrived, whereas now every reported wait re-checks the count — so a steadily leaking count means a steadily growing set of helper threads that are never retired. It also directly undermines the counter this fix now leans on.</p>
+    <p>Worth being clear about the shape of the real fix: the lesson is about the contract, not this one call site. A register/unregister pair should not straddle an <code>await</code>, and should not re-ask "am I on a helper thread?" the second time — it should remember what it did the first time. That means the pair returns and consumes a token, which touches every call site and the <code>IBloomServer</code> interface.</p>
+
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q1" id="q1a" data-value="Fix the pairing contract properly, in a separate PR" checked>
+        <label class="txt" for="q1a">Fix the pairing contract properly, in its own PR<span class="rec">recommended</span>
+          <span class="fc">Moderate — roughly 40–60 lines across <code>IBloomServer</code>, <code>BloomServer</code>, and five call sites; low behavioural risk but wide, and it changes an interface. Recommended as a <em>separate</em> PR because it keeps this one small enough to be verified on its own, while still getting the mechanism genuinely sound rather than sound-in-one-place. It would also remove the need for the swallow-everything error handling in FYI 2.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q1" id="q1b" data-value="Fix the pairing contract properly, as another commit on this branch">
+        <label class="txt" for="q1b">Fix it properly, as another commit on this branch
+          <span class="fc">Same work as above, but it grows this branch's diff and its review surface, and the wider change would land together with the narrow one you asked to be able to trust on its own.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q1" id="q1c" data-value="File a YouTrack ticket for it and leave the code alone for now">
+        <label class="txt" for="q1c">File a YouTrack ticket and leave the code alone for now
+          <span class="fc">No code — one new card capturing the analysis and the concrete route to it, so it is not lost. Reasonable if you would rather not open a second front while this branch is under review.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q1" id="q1d" data-value="Leave as is">
+        <label class="txt" for="q1d">Leave as is</label>
+        <span class="lcwrap"><input type="checkbox" id="q1lc" data-lc="1"><label for="q1lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q1" id="q1e" data-value="Other:">
+        <label class="txt" for="q1e">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1" placeholder="caveats, constraints, or how you want it scoped"></textarea></label>
+  </section>
+
+  <section class="card item" data-q="Whether to also bound how long the off-screen browser may take">
+    <p class="kind">Decision 2 of 2</p>
+    <h3>Is this branch the whole fix, or does the bounded wait still follow?</h3>
+    <p class="src">Carried over from our discussion — not a reviewer finding</p>
+
+    <p>This branch deliberately contains no time limit on how long publishing will wait for the invisible browser. That was your call, and the reasoning held up: the starvation that actually caused BL-16612 is now addressed at its source, and Devin's own analysis confirms the top-up cascades correctly — each waiting request adds a helper, so the pool keeps up rather than adding one and hoping.</p>
+    <p>What a time limit would still cover is everything the helper pool cannot touch: the browser's renderer process crashing or being killed, a WebView2 fault, or a script in the page looping forever. In any of those, no number of helper threads helps, and publishing waits for as long as Bloom is open — the original symptom, with no message and every later publish in that session dead too.</p>
+    <p>The cost is equally real, and it is why 30 seconds was wrong: if the limit is anywhere near legitimate working time, a book that would have finished correctly instead publishes silently wrong — no embedded fonts, content that should have been stripped left in, reported as success. Sized as a liveness detector rather than a work budget (minutes, well clear of any real book), that case effectively disappears while the protection remains.</p>
+
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q2" id="q2a" data-value="Add a generous bound in a separate PR, after this one lands" checked>
+        <label class="txt" for="q2a">Add a generous bound in a separate PR, after this lands<span class="rec">recommended</span>
+          <span class="fc">Small — a bounded wait plus a caught timeout, around 40 lines. Recommended because it keeps the two decisions independent: this branch is provable on its own, and the bound arrives with its own sizing discussion rather than riding along inside a change you wanted to be certain of.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q2" id="q2b" data-value="Add the bound to this branch now">
+        <label class="txt" for="q2b">Add the bound to this branch now
+          <span class="fc">Same code, but it reintroduces a new way for publishing to fail into the branch whose whole appeal is having no user-visible effect — and it needs the number settled before this can merge.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q2" id="q2c" data-value="Leave as is">
+        <label class="txt" for="q2c">Leave as is — treat the registration fix as the complete answer to BL-16612</label>
+        <span class="lcwrap"><input type="checkbox" id="q2lc" data-lc="1"><label for="q2lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q2" id="q2d" data-value="Other:">
+        <label class="txt" for="q2d">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1" placeholder="if you want a bound, what number and why"></textarea></label>
+  </section>
+
+  <section class="card item fyi" data-q="FYI 1 — no shutdown guard on the top-up">
+    <p class="kind">For your information</p>
+    <h3>The top-up can start a helper thread while Bloom is shutting down</h3>
+    <p class="src">Devin, informational — not mirrored to the PR</p>
+    <p>The old check lived where requests arrive, and that code already gave up once the listener had closed, so it never ran during shutdown. The new check has no such guard, and a helper part-way through a request can still reach it while Bloom is closing down and joining its threads — creating a new thread after the join has gone past.</p>
+    <p>It is harmless as things stand: shutdown signals the stop event and never disposes the wait handles, so a newly created helper wakes immediately and exits. The trap is for a future maintainer — if those handles are ever disposed during shutdown, this becomes an unhandled error on a background thread, which takes the process down. The recommendation is the middle option: record the dependency where someone would see it, rather than adding a new condition to the very path whose job is to prevent the deadlock.</p>
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q3" id="q3a" data-value="Add a comment recording the dependency on the wait handles not being disposed" checked>
+        <label class="txt" for="q3a">Record the dependency in a comment<span class="rec">recommended</span>
+          <span class="fc">No behaviour change — two or three lines of comment at the shutdown code and the top-up, so the coupling is visible to whoever next edits either.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q3" id="q3b" data-value="Add an explicit shutdown guard to the top-up">
+        <label class="txt" for="q3b">Add an explicit shutdown guard
+          <span class="fc">Tiny — one early return. Makes the invariant explicit, at the cost of putting a new condition on the deadlock-prevention path, where a wrong answer means the hang comes back.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q3" id="q3c" data-value="Leave as is">
+        <label class="txt" for="q3c">Leave as is</label>
+        <span class="lcwrap"><input type="checkbox" id="q3lc" data-lc="1"><label for="q3lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q3" id="q3d" data-value="Other:">
+        <label class="txt" for="q3d">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card item fyi" data-q="FYI 2 — swallow-everything error handling deviates from the repo's fail-fast guidance">
+    <p class="kind">For your information</p>
+    <h3>The catch-everything is a deliberate exception to <code>AGENTS.md</code></h3>
+    <p class="src">Devin, informational — not mirrored to the PR</p>
+    <p>The repo's guidance is to fail fast and not be defensive about errors. The top-up does the opposite: it catches everything, and even wraps its own error logging in a second catch that ignores failures. Devin flagged it so the deviation reads as a conscious decision rather than an oversight, and agreed the reasoning is sound.</p>
+    <p>The reasoning: callers bump the count and only then arm the <code>finally</code> that brings it down, so anything escaping this method leaks the count for the life of the process — the exact condition the method exists to relieve. Failing fast here would convert a failed log write into a permanently mis-counted server. Devin notes the alternative is to move the increment inside each caller's protected region, which is the same work as decision 1's proper fix — so choosing that would let this defensiveness be removed.</p>
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q4" id="q4a" data-value="Leave as is" checked>
+        <label class="txt" for="q4a">Leave as is — deliberate, and the reason is documented in the code<span class="rec">recommended</span></label>
+        <span class="lcwrap"><input type="checkbox" id="q4lc" data-lc="1"><label for="q4lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q4" id="q4b" data-value="Other:">
+        <label class="txt" for="q4b">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card item fyi" data-q="FYI 3 — helper threads are added but never retired">
+    <p class="kind">For your information</p>
+    <h3>The pool can end a session larger than it started</h3>
+    <p class="src">Devin, informational · corroborated by the local review — not mirrored to the PR</p>
+    <p>Helper threads have never been retired once created — that predates this change. What is new is that the pool can top up whenever a helper reports a wait, not only when a request arrives. During a long publish with several requests queued behind the same lock, each one can add a helper, so a busy session can leave the pool noticeably bigger than its starting size for the rest of that session.</p>
+    <p>Both reviewers judged this acceptable given the deadlock it prevents, and the growth is bounded by how many requests are actually waiting. It is worth knowing for two reasons: it is the one way this change could plausibly make things <em>worse</em> rather than better, and it will make thread counts in future diagnostics look higher than they used to. The QA note asks the tester to publish repeatedly in one session and watch for exactly this.</p>
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q5" id="q5a" data-value="Leave as is" checked>
+        <label class="txt" for="q5a">Leave as is — bounded, and the alternative is retiring workers, which is a much bigger change<span class="rec">recommended</span></label>
+        <span class="lcwrap"><input type="checkbox" id="q5lc" data-lc="1"><label for="q5lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q5" id="q5b" data-value="Other:">
+        <label class="txt" for="q5b">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card item" data-q="Next step">
+    <p class="kind">Next step</p>
+    <h3>How would you like to proceed?</h3>
+    <p>The branch is green, published, and waiting on your own review. Nothing will be promoted without you asking.</p>
+    <div class="opts">
+      <div class="row">
+        <input type="radio" name="q6" id="q6a" data-value="Discuss the answers first, before I implement anything" checked>
+        <label class="txt" for="q6a">Discuss first, then implement<span class="rec">recommended</span>
+          <span class="fc">Decision 1 changes an interface and decision 2 changes what publishing does when the browser stops answering — both are worth a sentence of agreement before code.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q6" id="q6b" data-value="Implement my selections straight away">
+        <label class="txt" for="q6b">Implement my selections straight away
+          <span class="fc">I will apply them, re-run the gate and the gauntlet, and report back.</span>
+        </label>
+      </div>
+      <div class="row">
+        <input type="radio" name="q6" id="q6c" data-value="Leave as is">
+        <label class="txt" for="q6c">Leave as is — the branch is finished as it stands</label>
+        <span class="lcwrap"><input type="checkbox" id="q6lc" data-lc="1"><label for="q6lc">Leave comment</label></span>
+      </div>
+      <div class="row">
+        <input type="radio" name="q6" id="q6d" data-value="Other:">
+        <label class="txt" for="q6d">Other:</label>
+        <input type="text" class="other" data-other="1" placeholder="your call">
+      </div>
+    </div>
+    <label class="notes"><span>Notes</span><textarea data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card sendback">
+    <h2>Send your answers back</h2>
+    <p class="lede">Copy this and paste it into the session.</p>
+    <button class="copy" id="copyBtn" type="button">Copy my answers</button><span id="copied">copied</span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+  var HEADER = "Preflight answers — BL-16612-sound-registration (PR #8155, HEAD 55ffdd1059)";
+
+  function build(){
+    var out = [HEADER, ""];
+    document.querySelectorAll(".item").forEach(function(item){
+      var q = item.getAttribute("data-q") || "(question)";
+      var checked = item.querySelector("input[type=radio]:checked");
+      var answer = checked ? (checked.getAttribute("data-value") || "") : "(no selection)";
+      if (answer === "Other:") {
+        var oi = item.querySelector("input[data-other]");
+        var ot = oi && oi.value.trim();
+        answer = "Other: " + (ot ? ot : "(nothing entered)");
+      }
+      out.push("## " + q);
+      out.push("Answer: " + answer);
+      var lc = item.querySelector("input[data-lc]");
+      if (lc && lc.checked) out.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+      var nt = item.querySelector("textarea[data-notes]");
+      var nv = nt && nt.value.trim();
+      if (nv) out.push("Notes: " + nv);
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var ta = document.getElementById("payload");
+  var btn = document.getElementById("copyBtn");
+  var flag = document.getElementById("copied");
+
+  function refresh(){ ta.value = build(); }
+  refresh();
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+
+  function confirmCopied(){
+    flag.classList.add("on");
+    setTimeout(function(){ flag.classList.remove("on"); }, 1800);
+  }
+
+  btn.addEventListener("click", function(){
+    refresh();
+    var text = ta.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(confirmCopied, fallback);
+    } else {
+      fallback();
+    }
+    function fallback(){
+      try {
+        ta.focus(); ta.select();
+        document.execCommand("copy");
+        confirmCopied();
+      } catch(e) {
+        ta.focus(); ta.select();
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>
