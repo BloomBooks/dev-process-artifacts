@@ -1,0 +1,659 @@
+<title>Preflight — improveInitSh</title>
+<style>
+    :root {
+        --ink: #23201b;
+        --ink-soft: #56504a;
+        --ink-faint: #877f74;
+        --ground: #f6f4ef;
+        --card: #ffffff;
+        --rule: #e2ddd3;
+        --rule-soft: #eeeae2;
+        --accent: #1d5e51;
+        --accent-soft: #e5efec;
+        --good: #2d6a3e;
+        --warn: #8a5912;
+        --warn-soft: #fbf1de;
+        --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+        --serif: ui-serif, Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+        --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        background: var(--ground);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 15px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    .wrap { max-width: 1260px; margin: 0 auto; padding: 40px 28px 72px; }
+
+    header.top { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 28px; }
+    header.top h1 {
+        font-family: var(--serif);
+        font-size: 30px;
+        line-height: 1.2;
+        margin: 0 0 8px;
+        text-wrap: balance;
+        letter-spacing: -0.01em;
+    }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--ink-soft); }
+    code { font-family: var(--mono); font-size: 0.92em; }
+
+    a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .cols { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 30px; align-items: start; }
+    @media (max-width: 960px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+    .card {
+        background: var(--card);
+        border: 1px solid var(--rule);
+        border-radius: 4px;
+        padding: 20px 22px;
+        margin-bottom: 22px;
+    }
+    .card > h2 { font-family: var(--serif); font-size: 19px; margin: 0 0 14px; letter-spacing: -0.005em; }
+    .card > h3 {
+        font-size: 12.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--ink-faint);
+        margin: 22px 0 8px;
+        font-weight: 600;
+    }
+    p { margin: 0 0 12px; }
+    p:last-child { margin-bottom: 0; }
+    .lede { color: var(--ink-soft); }
+
+    .scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; }
+    th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+    th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    td.num { font-variant-numeric: tabular-nums; }
+
+    .pill {
+        display: inline-block;
+        font-size: 11.5px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        padding: 2px 8px;
+        border-radius: 20px;
+        white-space: nowrap;
+    }
+    .pill.ok { background: #e7efe7; color: var(--good); }
+    .pill.warn { background: var(--warn-soft); color: var(--warn); }
+    .pill.na { background: #efece6; color: var(--ink-faint); }
+
+    ul.tight { margin: 0 0 12px; padding-left: 20px; }
+    ul.tight li { margin-bottom: 6px; }
+
+    .commit { border-left: 2px solid var(--accent-soft); padding: 2px 0 2px 14px; margin-bottom: 14px; font-size: 14px; }
+    .commit .sha { font-family: var(--mono); font-size: 12.5px; }
+    .commit .subject { font-weight: 600; display: block; }
+
+    .fyi {
+        background: var(--accent-soft);
+        border: 1px solid #cfe0dc;
+        border-radius: 4px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        font-size: 14px;
+    }
+    .fyi strong { display: block; margin-bottom: 4px; }
+
+    .decision { border-left: 3px solid var(--accent); }
+    .opts { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 10px; }
+    .opt {
+        display: grid;
+        grid-template-columns: 20px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+        padding: 9px 10px;
+        border-radius: 3px;
+        border: 1px solid transparent;
+    }
+    .opt:hover { background: #fbfaf7; border-color: var(--rule-soft); }
+    .opt input { margin: 3px 0 0; }
+    .opt label { font-size: 14.5px; cursor: pointer; }
+    .opt .fx { display: block; color: var(--ink-faint); font-size: 12.5px; margin-top: 2px; }
+    .tag {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+        background: var(--accent-soft);
+        border-radius: 3px;
+        padding: 1px 6px;
+        margin-left: 6px;
+        white-space: nowrap;
+    }
+    .leaveComment {
+        font-size: 12px;
+        color: var(--ink-faint);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+        padding-top: 2px;
+    }
+    .otherRow input[type="text"], .notes textarea {
+        width: 100%;
+        font-family: inherit;
+        font-size: 14px;
+        color: var(--ink);
+        background: #fdfcfa;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        padding: 7px 9px;
+    }
+    .notes { margin-top: 8px; }
+    .notes label {
+        display: block;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--ink-faint);
+        margin-bottom: 4px;
+        font-weight: 600;
+    }
+    .notes textarea { min-height: 52px; resize: vertical; }
+
+    button.copy {
+        font: inherit;
+        font-weight: 600;
+        font-size: 14px;
+        color: #fff;
+        background: var(--accent);
+        border: none;
+        border-radius: 3px;
+        padding: 9px 18px;
+        cursor: pointer;
+    }
+    button.copy:hover { background: #164539; }
+    #copyState { font-size: 13px; color: var(--good); margin-left: 10px; }
+    #payload {
+        width: 100%;
+        min-height: 150px;
+        margin-top: 12px;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.5;
+        background: #fbfaf7;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        padding: 10px;
+        resize: vertical;
+    }
+    footer.foot { margin-top: 30px; font-size: 13px; color: var(--ink-faint); }
+</style>
+
+<div class="wrap">
+    <header class="top">
+        <h1>Preflight: <code>init.sh</code> and the dependency downloads now fail loudly instead of quietly using the wrong files</h1>
+        <div class="meta">
+            <span>branch <code>improveInitSh</code> → <code>master</code></span>
+            <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8150" target="_blank" rel="noopener">PR #8150</a> (draft)</span>
+            <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8150/files" target="_blank" rel="noopener">Files changed</a></span>
+            <span>HEAD <code>86ab5e0b</code></span>
+            <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16652" target="_blank" rel="noopener">BL-16652</a></span>
+        </div>
+    </header>
+
+    <div class="cols">
+        <!-- ================= LEFT ================= -->
+        <div>
+            <section class="card">
+                <h2>Quality gate</h2>
+                <div class="scroll">
+                    <table>
+                        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>TypeScript typecheck</td>
+                                <td><span class="pill ok">pass</span></td>
+                                <td>no type errors</td>
+                            </tr>
+                            <tr>
+                                <td>Lint (eslint)</td>
+                                <td><span class="pill ok">pass</span></td>
+                                <td class="num">0 errors, 764 warnings — all pre-existing and repo-wide; this branch changes no TypeScript</td>
+                            </tr>
+                            <tr>
+                                <td>TypeScript tests (vitest)</td>
+                                <td><span class="pill ok">pass</span></td>
+                                <td class="num">664 passed, 5 skipped, 61 files — re-run at the final HEAD</td>
+                            </tr>
+                            <tr>
+                                <td>C# tests (<code>dotnet test</code>)</td>
+                                <td><span class="pill warn">1 failed</span></td>
+                                <td class="num">3021 passed, 1 failed, 13 skipped — a stale <code>output/browser</code>, not this change; decision 3</td>
+                            </tr>
+                            <tr>
+                                <td>Shell scripts — the actual change</td>
+                                <td><span class="pill ok">pass</span></td>
+                                <td class="num">143 assertions over 6 harnesses, plus live runs against build.palaso.org</td>
+                            </tr>
+                            <tr>
+                                <td>Merge with <code>origin/master</code></td>
+                                <td><span class="pill ok">clean</span></td>
+                                <td>integrated before every push; no conflicts, and nothing from master touched these files</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Why the shell row carries the weight</h3>
+                <p class="lede">There is no shell test runner in the repo, so the change was verified with throwaway harnesses that source the script's own functions and drive them against a local server faking every failure mode — 404 with an HTML body, HTML with a <em>200</em>, empty responses, 500s, connection refused, 304s, corrupt and warning-level and missing archives, a fake <code>wget</code>, a fake <code>unzip</code> reporting disk-full — plus real runs against the build server and a fake <code>curl</code> standing in for an outage. The typecheck, lint and test rows above exercise code this branch does not touch; they are here to show nothing was skipped.</p>
+            </section>
+
+            <section class="card">
+                <h2>What changed this run</h2>
+                <p class="lede">Seven commits. The first is the change as designed; the other six are answers to review findings, which is where most of the value came from.</p>
+                <div class="commit">
+                    <span class="subject">Fail loudly instead of silently corrupting downloaded dependencies</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/42bb118b1d" target="_blank" rel="noopener">42bb118b</a></span>
+                    <p>Atomic downloads through a temp file with <code>--fail</code>, an HTTP status check and empty/HTML/move checks; failures collected into a summary that exits non-zero; archives verified before extraction; borrowing a dependency from a sibling worktree; and per-pid <code>wait</code> in <a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/init.sh#L23" target="_blank" rel="noopener">init.sh:23</a>, since a bare <code>wait</code> always returns 0 and was swallowing every failure.</p>
+                </div>
+                <div class="commit">
+                    <span class="subject">Never trust a dependency file we cannot tie to the build we asked for</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/b3cbe2597c" target="_blank" rel="noopener">b3cbe259</a></span>
+                    <p>Provenance records (<a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/build/getDependencies-windows.sh#L81" target="_blank" rel="noopener">:81</a>), the three-part baseline test (<a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/build/getDependencies-windows.sh#L392" target="_blank" rel="noopener">:392</a>), a provenance-gated borrow (<a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/build/getDependencies-windows.sh#L297" target="_blank" rel="noopener">:297</a>), a safe <code>copy_wget</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/build/getDependencies-windows.sh#L471" target="_blank" rel="noopener">:471</a>), and a "present" test that does not count an error page (<a href="https://github.com/BloomBooks/BloomDesktop/blob/86ab5e0b89abc2fee9a2df7b61151e11ffd0c236/build/getDependencies-windows.sh#L141" target="_blank" rel="noopener">:141</a>).</p>
+                </div>
+                <div class="commit">
+                    <span class="subject">Do not tell the developer a file is unverified when we did verify it</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/5c77faf444" target="_blank" rel="noopener">5c77faf4</a></span>
+                </div>
+                <div class="commit">
+                    <span class="subject">Say the server is down promptly, and stop overstating what we know</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/5e0839075e" target="_blank" rel="noopener">5e083907</a></span>
+                </div>
+                <div class="commit">
+                    <span class="subject">A warning from the archive test is not a reason to throw the download away</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/10b27c173a" target="_blank" rel="noopener">10b27c17</a></span>
+                </div>
+                <div class="commit">
+                    <span class="subject">Read unzip's exit code properly, and do not overclaim in the summary</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/f7f5f7ddfa" target="_blank" rel="noopener">f7f5f7dd</a></span>
+                </div>
+                <div class="commit">
+                    <span class="subject">Say the zip could not be unpacked once, not twice</span>
+                    <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/86ab5e0b89" target="_blank" rel="noopener">86ab5e0b</a></span>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Reviewer outcomes</h2>
+                <div class="scroll">
+                    <table>
+                        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>Local review<br><span style="color:var(--ink-faint);font-size:12.5px">light sub-agent pass</span></td>
+                                <td><span class="pill warn">3 findings</span></td>
+                                <td>All three confirmed against the real server and <strong>all fixed</strong>. It also verified a long list of things as correct: <code>looks_like_html</code> on binaries containing NUL bytes, the <code>$?</code>-after-command-substitution pattern, <code>--fail</code> versus 304, and the whole of <code>init.sh</code> simulated with four jobs.</td>
+                            </tr>
+                            <tr>
+                                <td>Devin<br><span style="color:var(--ink-faint);font-size:12.5px">6 rounds, ending at <code>86ab5e0b</code></span></td>
+                                <td><span class="pill ok">complete</span></td>
+                                <td>4 Bugs, all fixed and their threads resolved. 7 Investigate flags: 5 addressed and resolved, <strong>2 left open</strong> for you (decisions 1 and 2). 30 informational items: 6 turned into fixes, the rest assessed and left. Each round took 2–5 min. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8150" target="_blank" rel="noopener">Review page</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8150#issuecomment-5185813894" target="_blank" rel="noopener">consultation log</a></td>
+                            </tr>
+                            <tr>
+                                <td>CodeRabbit</td>
+                                <td><span class="pill na">disabled</span></td>
+                                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code> repo-wide, so it never posts. Nothing to wait for; not invoked by hand, since the team turned it off deliberately.</td>
+                            </tr>
+                            <tr>
+                                <td>CI</td>
+                                <td><span class="pill ok">pass</span></td>
+                                <td><code>pr-automation</code> green on all six pushes (26–36s each). It is the only check that runs on PRs here, which is why the suites above were run locally.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <h3>Review cycles</h3>
+                <p class="lede">Preflight's own guidance caps the fix-and-re-review loop at four rounds; this run took six. Rounds 4 and 5 each found a real bug — one of them a good archive being deleted on every single run — so stopping at the cap would have left known defects in. Round 6 found no new bugs, which is where it converged. Every reviewer above is terminal for the final commit; nothing is still pending.</p>
+            </section>
+
+            <section class="card">
+                <h2>What review caught, and why it mattered</h2>
+                <p>The version I first pushed had a hole big enough to defeat its own purpose. Worth reading if you only read one part of this:</p>
+                <h3>A poisoned file could make itself permanent</h3>
+                <p>The file already at the destination was used as the "only send it if newer than this" baseline without anyone looking at it. An error page left there by the <em>old</em> script therefore had a recent timestamp, the server replied "not modified", no failure was recorded, and the bad file survived every future run — while the summary counted it as a dependency that was present. Now a file only serves as that baseline if it is non-empty, does not look like an error page, and is recorded as having come from the exact URL being requested.</p>
+                <h3>Borrowing could import another branch's binaries</h3>
+                <p>My first gate decided whether a sibling worktree's copy was safe by grepping <em>that worktree's script</em> for the same download line — which says what the sibling would download today, not where the file on its disk came from. A worktree that fetched its dependencies on <code>Version6.4</code> (which points several of them at a different build) and has since switched branches passed that test while holding the wrong binaries. The gate is now the sibling's own record of where each file came from. That also fixed a bug older than this branch: after switching a worktree between branches, artifacts whose URL changed used to be confirmed as "not modified" for ever instead of re-fetched.</p>
+                <h3>A good archive was deleted on every run</h3>
+                <p>The archive test treated any non-zero <code>unzip -t</code> status as "corrupt" and deleted the file — but 1 only means "fine, with warnings", and 127 means unzip is not installed. Either way a good download was destroyed, reported as corrupt, re-fetched and destroyed again: a loop that never ends and never unpacks anything. My first fix then over-corrected and kept archives that unzip reports as <strong>9</strong>, which is what a truncated download or an HTML page saved as <code>.zip</code> actually reports here — so the archives most needing a re-fetch were the ones being kept. Both are fixed, and tested against real garbage, a truncated archive, an HTML page, and a fake unzip reporting disk-full.</p>
+                <h3>And the wget fallback had none of the protection</h3>
+                <p>wget does not save the body of a 404 or 500 — but the case this whole change exists for is an HTML page served with a <strong>200</strong>, and <code>wget -N</code> wrote that straight over the good file. That path now uses the same temp-file-and-check sequence as curl.</p>
+            </section>
+
+            <section class="card">
+                <h2>Session notes</h2>
+                <ul class="tight">
+                    <li><strong>No YouTrack card.</strong> Nothing resembling a <code>BL-…</code> id in the branch name, PR title or commits, so the tracker steps — PR link, QA test-ideas comment, report link — were all skipped. Say the word if this should have a card.</li>
+                    <li><strong>The <code>chrome-devtools</code> daemon on this machine is wedged.</strong> It reports "daemon is running" while its named pipe does not exist, and every command — including <code>stop</code> and <code>start</code> — fails with <code>ENOENT \\.\pipe\chrome-devtools-mcp\server.sock</code>. The <code>devin-review</code> skill routes all Devin reads through it. Devin's job-result API turns out to answer plain unauthenticated <code>curl</code>, so this run polled that directly — simpler, and no browser needed. Worth folding back into the skill.</li>
+                    <li><strong>A stray <code>rdtest/</code> directory</strong> appeared in the repo root: scratch fixtures the review sub-agent wrote while testing <code>read -N</code> against binary data. Deleted, never committed.</li>
+                    <li><code>src/BloomBrowserUI/package.json</code> showed as modified after running pnpm — a line-ending-only difference, renormalized rather than committed.</li>
+                </ul>
+            </section>
+        </div>
+
+        <!-- ================= RIGHT ================= -->
+        <div>
+            <section class="card" style="border-left:3px solid var(--good);background:#f4f9f4">
+                <h2>Answered — 5 August 2026</h2>
+                <p class="lede" style="margin-bottom:10px">All four decisions below have been settled by John; they are kept here as the record of what was decided and why.</p>
+                <table>
+                    <tbody>
+                        <tr><td><strong>1. Offline behaviour</strong></td><td>Keep failing — an unverifiable set is a failure, red nightly and all.</td></tr>
+                        <tr><td><strong>2. Stall cutoff</strong></td><td>Keep 1 KB/s over 2 minutes.</td></tr>
+                        <tr><td><strong>3. C# failure</strong></td><td>Leave as is: "We haven't changed C#. This failure is on master, or spurious."</td></tr>
+                        <tr><td><strong>4. One-time re-download</strong></td><td>Leave as is.</td></tr>
+                        <tr><td><strong>Next</strong></td><td>Linked to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16652" target="_blank" rel="noopener">BL-16652</a> and handed to <code>pr-ready-for-human</code>.</td></tr>
+                    </tbody>
+                </table>
+                <p class="lede" style="margin-top:10px;font-size:13px">Both open review threads were closed on the PR with these decisions recorded. No code changed as a result.</p>
+            </section>
+
+            <section class="card decision">
+                <h2>1. Should an unreachable build server fail <code>init.sh</code> even when every dependency is already present?</h2>
+                <p>When <code>build.palaso.org</code> cannot be reached, the script stops with a non-zero exit even where nothing is actually missing. It says so explicitly — "all N dependencies are present on disk even so… what failed was checking them against the server" — but it still fails, so <code>init.sh</code> skips the front-end build. You already made this call deliberately: not knowing whether the dependencies are current counts as a failure. Devin then pointed out a consequence that had not been weighed: <code>nightly.yml</code> runs this script under the runner's <code>set -e</code>, so a build-server outage turns the nightly red, and a developer re-running <code>./init.sh</code> offline in an already-set-up worktree now gets a hard stop where it used to finish. (In a fresh CI clone an outage means everything really is missing, so that job fails either way.)</p>
+                <div class="opts" data-item="1">
+                    <div class="opt">
+                        <input type="radio" name="q1" id="q1a" data-q="Decision 1: offline behavior" value="Keep failing - an unverifiable set is a failure" checked>
+                        <label for="q1a">Keep it: failing is the point<span class="tag">recommended</span>
+                            <span class="fx">No code change. Recommended because it is the decision you already made for a good reason — a silent "probably fine" is exactly what this PR removes — and the summary distinguishes "nothing missing, could not verify" from "actually missing", so nobody is misled about which they are in.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q1" id="q1b" data-q="Decision 1: offline behavior" value="Warn and exit 0 when nothing is missing">
+                        <label for="q1b">Exit non-zero only when something is missing; otherwise print the same loud block as a warning and exit 0
+                            <span class="fx">~10 lines in <code>report_failures</code>, low risk. Keeps offline <code>init.sh</code> working and the nightly green during an outage, at the cost of a run that "succeeded" against dependencies nobody verified.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q1" id="q1c" data-q="Decision 1: offline behavior" value="Add a flag to downgrade it to a warning">
+                        <label for="q1c">Keep the hard failure, but add a flag (say <code>-w</code>) that the nightly, or a developer who knows they are offline, can pass to downgrade it
+                            <span class="fx">~20 lines plus a workflow edit, moderate: two behaviors to keep straight and one more thing to document.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q1" id="q1d" data-q="Decision 1: offline behavior" value="Leave as is">
+                        <label for="q1d">Leave as is</label>
+                        <span class="leaveComment"><input type="checkbox" id="q1lc" data-q="Decision 1: leave comment"> <label for="q1lc">Leave comment</label></span>
+                    </div>
+                    <div class="opt otherRow">
+                        <input type="radio" name="q1" id="q1e" data-q="Decision 1: offline behavior" value="Other">
+                        <label for="q1e">Other:</label>
+                        <input type="text" data-q="Decision 1: other" placeholder="your call">
+                    </div>
+                </div>
+                <div class="notes">
+                    <label for="q1n">Notes</label>
+                    <textarea id="q1n" data-q="Decision 1: notes" placeholder="caveats, constraints, anything else"></textarea>
+                </div>
+                <p class="lede" style="font-size:13px;margin-top:10px">Open thread: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8150#discussion_r3716645706" target="_blank" rel="noopener">discussion_r3716645706</a></p>
+            </section>
+
+            <section class="card decision">
+                <h2>2. Is the stalled-transfer cutoff too tight for the slowest links the team works from?</h2>
+                <p>To stop a server that accepts a connection and then hangs from stalling <code>init.sh</code> for ever, curl is now told to give up on a transfer averaging under 1 KB/s for two solid minutes (<code>--speed-limit 1024 --speed-time 120</code>). Before this change there was no timeout of any kind, so a hang was forever. Devin's concern: some of this team works from places where 1 KB/s sustained is a real rate, and the ghostscript and ffmpeg archives are tens of megabytes. Such a developer would now get a hard init failure indistinguishable from a genuine outage. I have no way to judge the slowest connection actually in use, which is why this is yours.</p>
+                <div class="opts" data-item="2">
+                    <div class="opt">
+                        <input type="radio" name="q2" id="q2a" data-q="Decision 2: stall cutoff" value="Loosen it to 256 B/s over 5 minutes" checked>
+                        <label for="q2a">Loosen it — <code>--speed-limit 256 --speed-time 300</code><span class="tag">recommended</span>
+                            <span class="fx">One-line change, no risk. Recommended because it still catches a genuinely hung transfer, but a link that is merely bad rather than broken gets five minutes at a quarter the rate before we give up on it — and the cost of being wrong in this direction is only a slower failure, whereas being wrong the other way blocks someone's whole setup.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q2" id="q2b" data-q="Decision 2: stall cutoff" value="Keep 1 KB/s over 2 minutes">
+                        <label for="q2b">Keep it as it is — a link that slow will not finish a 40 MB fetch inside anyone's patience anyway
+                            <span class="fx">No code change. Fails fast, at the risk of failing someone who would have got there eventually.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q2" id="q2c" data-q="Decision 2: stall cutoff" value="Drop stall detection entirely">
+                        <label for="q2c">Drop the stall detection and accept that a hung server hangs the run
+                            <span class="fx">Removes two flags. Back to the old behavior for hangs, which is the one failure mode with no upper bound at all.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q2" id="q2d" data-q="Decision 2: stall cutoff" value="Leave as is">
+                        <label for="q2d">Leave as is</label>
+                        <span class="leaveComment"><input type="checkbox" id="q2lc" data-q="Decision 2: leave comment"> <label for="q2lc">Leave comment</label></span>
+                    </div>
+                    <div class="opt otherRow">
+                        <input type="radio" name="q2" id="q2e" data-q="Decision 2: stall cutoff" value="Other">
+                        <label for="q2e">Other:</label>
+                        <input type="text" data-q="Decision 2: other" placeholder="e.g. the actual worst rate you have seen">
+                    </div>
+                </div>
+                <div class="notes">
+                    <label for="q2n">Notes</label>
+                    <textarea id="q2n" data-q="Decision 2: notes" placeholder="caveats, constraints, anything else"></textarea>
+                </div>
+                <p class="lede" style="font-size:13px;margin-top:10px">Open thread: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8150#discussion_r3716952374" target="_blank" rel="noopener">discussion_r3716952374</a></p>
+            </section>
+
+            <section class="card decision">
+                <h2>3. One C# test fails on a stale <code>output/browser</code>. Rebuild it, or accept the diagnosis?</h2>
+                <p>The C# suite is 3021 passed / 1 failed. The failure is <code>XMatterHelperTests.InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code>, which arrived from master during this run's merge (BL-16648). It asserts that the paper and device inside-back-cover pages share the id <code>customInsideBackCover</code>, and it reads the <em>built</em> xmatter through <code>BloomFileLocator.GetFactoryXMatterDirectory()</code> — that is, <code>output/browser</code>. Master's commit <code>5e2c90bda1</code> added that attribute to <code>src/content/templates/xMatter/bloom-xmatter-mixins.pug</code> on 3 August; this worktree's <code>output/browser</code> was built on 27 July, so the built HTML predates the attribute and the test cannot find it. The string exists in the pug source and in no built file anywhere under <code>output/</code>. Nothing in this PR touches C#, pug or <code>output/browser</code>; the fix is a front-end build, which AGENTS.md tells agents not to run because it wipes and repopulates the shared <code>output/browser</code>.</p>
+                <div class="opts" data-item="3">
+                    <div class="opt">
+                        <input type="radio" name="q3" id="q3a" data-q="Decision 3: stale output/browser" value="You run pnpm build, then the one test is re-run" checked>
+                        <label for="q3a">You run <code>pnpm build</code> with Bloom stopped, then that one test gets re-run to confirm<span class="tag">recommended</span>
+                            <span class="fx">No code change — a few minutes of your time. Recommended because it turns "almost certainly environmental" into "verified", and this worktree's <code>output/browser</code> is stale for everything else you do here too.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q3" id="q3b" data-q="Decision 3: stale output/browser" value="Accept the diagnosis, do not rebuild">
+                        <label for="q3b">Accept the diagnosis — master's own CI builds the front end before running the suite, so this cannot reach anyone else
+                            <span class="fx">No code change, no rebuild. The evidence is strong but not confirmed by a green run here.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q3" id="q3c" data-q="Decision 3: stale output/browser" value="Authorize the agent to run pnpm build now">
+                        <label for="q3c">Authorize the agent to run <code>pnpm build</code> in this worktree now
+                            <span class="fx">No code change, but it wipes and repopulates the shared <code>output/browser</code>; anything loading from it — a running Bloom, a dev server — is disrupted mid-flight.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q3" id="q3d" data-q="Decision 3: stale output/browser" value="Leave as is">
+                        <label for="q3d">Leave as is</label>
+                        <span class="leaveComment"><input type="checkbox" id="q3lc" data-q="Decision 3: leave comment"> <label for="q3lc">Leave comment</label></span>
+                    </div>
+                    <div class="opt otherRow">
+                        <input type="radio" name="q3" id="q3e" data-q="Decision 3: stale output/browser" value="Other">
+                        <label for="q3e">Other:</label>
+                        <input type="text" data-q="Decision 3: other" placeholder="your call">
+                    </div>
+                </div>
+                <div class="notes">
+                    <label for="q3n">Notes</label>
+                    <textarea id="q3n" data-q="Decision 3: notes" placeholder="caveats, constraints, anything else"></textarea>
+                </div>
+            </section>
+
+            <section class="card decision">
+                <h2>4. The first run after this lands re-downloads everything once. Fine?</h2>
+                <p>Trusting a file now means being able to tie it to the URL it came from, and for files already on disk there is no such record — we genuinely cannot tell whether a given <code>Bloom.chm</code> came from the 6.5 help build or the 6.4 one. So the first run in each worktree fetches all sixteen artifacts, about 20 MB, and writes the record; every run after that is back to "not modified" and downloads nothing. Measured here: 11.5s for the first run, 8.6s for the second with zero downloads. The record lives in <code>Downloads/dependency-sources.txt</code>, which is gitignored. Related consequence: borrowing from a sibling stays inert until that sibling has run the new script once, since only then does it have records to vouch for its files.</p>
+                <div class="opts" data-item="4">
+                    <div class="opt">
+                        <input type="radio" name="q4" id="q4a" data-q="Decision 4: one-time re-download" value="Leave as is" checked>
+                        <label for="q4a">Leave as is<span class="tag">recommended</span></label>
+                        <span class="leaveComment"><input type="checkbox" id="q4lc" data-q="Decision 4: leave comment"> <label for="q4lc">Leave comment</label></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q4" id="q4b" data-q="Decision 4: one-time re-download" value="Assume existing files came from the current URLs">
+                        <label for="q4b">Avoid the one-time cost: on the first run, assume any file that passes the empty/HTML checks came from the URL we would ask for today
+                            <span class="fx">~5 lines, easy to write — but it re-opens the branch-switch hole for existing files, since that assumption is exactly what is wrong in that case.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt otherRow">
+                        <input type="radio" name="q4" id="q4c" data-q="Decision 4: one-time re-download" value="Other">
+                        <label for="q4c">Other:</label>
+                        <input type="text" data-q="Decision 4: other" placeholder="your call">
+                    </div>
+                </div>
+                <div class="notes">
+                    <label for="q4n">Notes</label>
+                    <textarea id="q4n" data-q="Decision 4: notes" placeholder="caveats, constraints, anything else"></textarea>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>For your information</h2>
+                <div class="fyi">
+                    <strong>The papercut is fixed, and two older bugs went with it.</strong>
+                    An error page can no longer replace a dependency, a failed setup step can no longer pass unnoticed, and the summary tells you whether you can still build. Beyond the papercut: a corrupt archive is now re-fetched instead of silently half-extracting, and a worktree switched between branches no longer keeps the other branch's artifacts for ever.
+                </div>
+                <div class="fyi">
+                    <strong>Borrowed files that were never confirmed re-download in full until the server answers.</strong>
+                    A borrowed copy gets no provenance record until the server confirms it — deliberately, so an unverified copy cannot masquerade as one we checked. The price: if you borrow while the server is flaky, those artifacts are fetched in full on each later run until one succeeds. Assessed and left alone, since the alternative is trusting a file on a sibling's word indefinitely.
+                </div>
+                <div class="fyi">
+                    <strong>Two cosmetic leftovers, assessed and left.</strong>
+                    In the wget fallback, <code>-L</code> is wget's <code>--relative</code>, not curl's "follow redirects" — inert here and inherited from the generated original. And an interrupted run can leave a <code>dependency-sources.txt.new</code> in the gitignored <code>Downloads/</code>, which the next run overwrites.
+                </div>
+                <div class="fyi">
+                    <strong>Two notes for the papercut list.</strong>
+                    The wedged <code>chrome-devtools</code> daemon, and the fact that Devin's API answers plain <code>curl</code> — the <code>devin-review</code> skill has a hard dependency on a browser it does not need. Say the word and they get logged, or written up as a skill change.
+                </div>
+                <div class="fyi">
+                    <strong>Left in draft, no reviewer requested.</strong>
+                    That is preflight's remit: next comes your own read of the diff, then <code>/pr-ready-for-human</code>.
+                </div>
+            </section>
+
+            <section class="card decision">
+                <h2>Next step</h2>
+                <div class="opts" data-item="5">
+                    <div class="opt">
+                        <input type="radio" name="q5" id="q5a" data-q="Next step" value="Implement the choices straight away" checked>
+                        <label for="q5a">Implement whatever the answers imply, then re-run the gauntlet<span class="tag">recommended</span>
+                            <span class="fx">Recommended because every open item is small and self-contained; none needs a design conversation first.</span>
+                        </label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q5" id="q5b" data-q="Next step" value="Discuss first">
+                        <label for="q5b">Talk it through before changing anything<span class="fx">No code change yet.</span></label>
+                        <span></span>
+                    </div>
+                    <div class="opt">
+                        <input type="radio" name="q5" id="q5c" data-q="Next step" value="Leave as is">
+                        <label for="q5c">Leave as is</label>
+                        <span class="leaveComment"><input type="checkbox" id="q5lc" data-q="Next step: leave comment"> <label for="q5lc">Leave comment</label></span>
+                    </div>
+                    <div class="opt otherRow">
+                        <input type="radio" name="q5" id="q5d" data-q="Next step" value="Other">
+                        <label for="q5d">Other:</label>
+                        <input type="text" data-q="Next step: other" placeholder="your call">
+                    </div>
+                </div>
+                <div class="notes">
+                    <label for="q5n">Notes</label>
+                    <textarea id="q5n" data-q="Next step: notes" placeholder="caveats, constraints, anything else"></textarea>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2>Send your answers back</h2>
+                <p class="lede">Copy this and paste it into the session.</p>
+                <button class="copy" id="copyBtn" type="button">Copy answers</button><span id="copyState"></span>
+                <textarea id="payload" readonly></textarea>
+            </section>
+        </div>
+    </div>
+
+    <footer class="foot">
+        <p style="margin-bottom:8px">Public copy of this page: <a href="https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/bloomdesktop-improveInitSh.html">https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/bloomdesktop-improveInitSh.html</a><br>
+        First-party fallback (same content, deploys a minute later): <a href="https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-improveInitSh.html">https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-improveInitSh.html</a></p>
+
+        Preflight on <code>improveInitSh</code> at <code>86ab5e0b</code> — PR #8150. All four decisions answered; linked to BL-16652.
+    </footer>
+</div>
+
+<script>
+    (function () {
+        var payload = document.getElementById("payload");
+        var copyBtn = document.getElementById("copyBtn");
+        var copyState = document.getElementById("copyState");
+
+        function serialize() {
+            var lines = ["Preflight answers - improveInitSh / PR #8150", ""];
+            document.querySelectorAll(".opts").forEach(function (group) {
+                var chosen = null;
+                group.querySelectorAll('input[type="radio"]').forEach(function (r) {
+                    if (r.checked) { chosen = r; }
+                });
+                if (!chosen) { return; }
+                var value = chosen.value;
+                if (value === "Other") {
+                    var otherBox = group.querySelector('.otherRow input[type="text"]');
+                    var typed = otherBox && otherBox.value.trim();
+                    value = "Other: " + (typed ? typed : "(nothing typed)");
+                }
+                lines.push((chosen.getAttribute("data-q") || "") + " -> " + value);
+
+                var lc = group.querySelector('input[type="checkbox"]');
+                if (lc && lc.checked) {
+                    lines.push("  Leave comment: yes - record this decision as a code comment near the relevant code");
+                }
+                var card = group.closest(".card");
+                var notes = card && card.querySelector(".notes textarea");
+                if (notes && notes.value.trim()) {
+                    lines.push("  Notes: " + notes.value.trim());
+                }
+                lines.push("");
+            });
+            return lines.join("\n");
+        }
+
+        function refresh() { payload.value = serialize(); }
+        document.addEventListener("input", refresh);
+        document.addEventListener("change", refresh);
+        refresh();
+
+        copyBtn.addEventListener("click", function () {
+            refresh();
+            var text = payload.value;
+            function done() {
+                copyState.textContent = "Copied";
+                window.setTimeout(function () { copyState.textContent = ""; }, 2500);
+            }
+            function fallback() {
+                payload.removeAttribute("readonly");
+                payload.select();
+                try { document.execCommand("copy"); done(); }
+                catch (e) { copyState.textContent = "Select the text and press Ctrl+C"; }
+                payload.setAttribute("readonly", "readonly");
+            }
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, fallback);
+            } else {
+                fallback();
+            }
+        });
+    })();
+</script>
