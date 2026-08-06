@@ -1,5 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Preflight — BL-16646 huge-image hang</title>
 <style>
+  /* ---- reset ---- */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, li, figure, fieldset, legend, textarea, input, button { margin: 0; padding: 0; }
+  ul { list-style: none; }
+  button, input, textarea { font: inherit; color: inherit; }
+  img { max-width: 100%; display: block; }
+  table { border-collapse: collapse; border-spacing: 0; }
+  fieldset { border: 0; min-width: 0; }
+
+  /* ---- tokens ---- */
   :root {
     --ground: #f7f5f1;
     --card: #ffffff;
@@ -11,16 +27,12 @@
     --accent-soft: #edf3f3;
     --pass: #3d7a50;
     --note: #8a6a2c;
-    --open: #8e3b3b;
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
 
-  * { box-sizing: border-box; }
-
   body {
-    margin: 0; padding: 0;
     background: var(--ground); color: var(--ink);
     font-family: var(--sans); font-size: 15px; line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -31,13 +43,17 @@
   header.masthead { border-bottom: 1px solid var(--border-strong); padding-bottom: 24px; margin-bottom: 32px; }
   header.masthead h1 {
     font-family: var(--serif); font-size: 33px; font-weight: 600;
-    margin: 0 0 8px; letter-spacing: -0.01em; text-wrap: balance;
+    margin-bottom: 8px; letter-spacing: -0.01em; text-wrap: balance;
   }
-  .subtitle { color: var(--muted); font-size: 15px; margin: 0 0 18px; max-width: 68ch; }
+  .subtitle { color: var(--muted); margin-bottom: 18px; max-width: 68ch; }
   .metaline { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13.5px; }
-  .metaline span.k { color: var(--muted); }
+  .metaline .k { color: var(--muted); }
 
   .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: start; }
+  /* Required: a grid item's automatic minimum size is its content's, so a wide
+     table would otherwise widen its column and scroll the whole page sideways,
+     pushing the decisions column off-screen. */
+  .cols > * { min-width: 0; }
   @media (max-width: 1040px) { .cols { grid-template-columns: 1fr; } }
 
   .colstack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
@@ -46,28 +62,28 @@
     background: var(--card); border: 1px solid var(--border);
     border-radius: 4px; padding: 22px 24px; min-width: 0;
   }
-  .card > h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0 0 14px; }
+  .card > h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin-bottom: 14px; }
   .card > h2.tight { margin-bottom: 6px; }
-  .card p { margin: 0 0 12px; }
+  .card p { margin-bottom: 12px; }
   .card p:last-child { margin-bottom: 0; }
   .lede { color: var(--muted); font-size: 13.5px; margin: -8px 0 16px; }
 
   .banner {
     background: #eef4ee; border: 1px solid #cfe0d2; border-radius: 4px;
-    padding: 14px 18px; margin-bottom: 20px; font-size: 14.5px;
+    padding: 14px 18px; margin-bottom: 20px;
   }
-  .banner strong { font-weight: 600; }
 
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
   .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
   th {
     text-align: left; font-size: 11.5px; text-transform: uppercase;
     letter-spacing: 0.07em; color: var(--muted); font-weight: 600;
-    padding: 0 10px 7px 0; border-bottom: 1px solid var(--border); white-space: nowrap;
+    padding: 0 10px 7px 0; border-bottom: 1px solid var(--border);
   }
   td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
   tr:last-child td { border-bottom: none; }
-  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* Figures, not sentences. */
+  .numeral { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
   .pill {
     display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em;
@@ -78,7 +94,7 @@
   .pill.note { background: #f7f0e2; color: var(--note); }
 
   code, .mono { font-family: var(--mono); font-size: 0.9em; }
-  code { background: #f2f0eb; padding: 1px 4px; border-radius: 3px; }
+  code { background: #f2f0eb; padding: 1px 4px; border-radius: 3px; word-break: break-word; }
 
   a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
   a:hover { text-decoration-thickness: 2px; }
@@ -86,7 +102,7 @@
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
 
-  ul.plain { margin: 0; padding-left: 20px; }
+  ul.plain { padding-left: 20px; list-style: disc; }
   ul.plain li { margin-bottom: 7px; }
   ul.plain li:last-child { margin-bottom: 0; }
 
@@ -98,18 +114,24 @@
 
   .item { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 18px; }
   .item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
-  .item h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
-  .srcline { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; }
-  .item p { font-size: 14.5px; margin: 0 0 11px; }
+  .item h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; margin-bottom: 4px; text-wrap: balance; }
+  .srcline { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+  .item p { font-size: 14.5px; margin-bottom: 11px; }
 
-  fieldset { border: none; margin: 0 0 12px; padding: 0; }
+  pre.code {
+    background: #faf9f6; border: 1px solid var(--border); border-radius: 3px;
+    padding: 11px 13px; overflow-x: auto; font-family: var(--mono);
+    font-size: 12.5px; line-height: 1.55; margin-bottom: 12px;
+  }
+
   legend {
     font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em;
-    color: var(--muted); font-weight: 600; padding: 0; margin-bottom: 8px;
+    color: var(--muted); font-weight: 600; margin-bottom: 8px;
   }
+  fieldset { margin-bottom: 12px; }
   .opt { display: flex; gap: 9px; align-items: flex-start; padding: 7px 0; border-top: 1px dotted var(--border); }
   .opt:first-of-type { border-top: none; }
-  .opt input[type="radio"] { margin: 4px 0 0; flex-shrink: 0; }
+  .opt input[type="radio"] { margin-top: 4px; flex-shrink: 0; }
   .opt label { font-size: 14.5px; cursor: pointer; }
   .opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
   .tag {
@@ -118,20 +140,19 @@
     padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: 1px;
   }
 
-  .leaverow { display: flex; gap: 12px; align-items: flex-start; padding: 7px 0; border-top: 1px dotted var(--border); }
-  .leaverow .main { display: flex; gap: 9px; align-items: flex-start; flex: 1; }
-  .leaverow .main input { margin: 4px 0 0; flex-shrink: 0; }
-  .lc { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); white-space: nowrap; padding-top: 2px; }
-  .lc input { margin: 0; }
+  .leaverow { display: flex; gap: 12px; align-items: flex-start; padding: 7px 0; border-top: 1px dotted var(--border); flex-wrap: wrap; }
+  .leaverow .main { display: flex; gap: 9px; align-items: flex-start; flex: 1 1 12rem; min-width: 0; }
+  .leaverow .main input { margin-top: 4px; flex-shrink: 0; }
+  .lc { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); padding-top: 2px; }
 
   .otherrow { display: flex; gap: 9px; align-items: center; padding: 7px 0; border-top: 1px dotted var(--border); flex-wrap: wrap; }
-  .otherrow input[type="radio"] { margin: 0; flex-shrink: 0; }
+  .otherrow input[type="radio"] { flex-shrink: 0; }
   .otherrow label { font-size: 14.5px; }
   input[type="text"], textarea {
-    font-family: var(--sans); font-size: 14px; color: var(--ink); background: #fdfdfc;
+    font-family: var(--sans); font-size: 14px; background: #fdfdfc;
     border: 1px solid var(--border-strong); border-radius: 3px; padding: 6px 9px; width: 100%;
   }
-  .otherrow input[type="text"] { flex: 1; min-width: 180px; }
+  .otherrow input[type="text"] { flex: 1 1 10rem; min-width: 0; }
   .noteslabel { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
   textarea { resize: vertical; }
 
@@ -146,16 +167,17 @@
 
   footer.foot { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--border-strong); font-size: 13px; color: var(--muted); }
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header class="masthead">
     <h1>Preflight report — the huge-image hang</h1>
-    <p class="subtitle">Fourth run, and the branch has converged. Your four decisions are implemented, every review thread on the PR is resolved, CI is green, and the design finally matches what the card asked for while also keeping the user informed. Nothing is blocking; two things are noted for your awareness.</p>
+    <p class="subtitle">Fifth run. The decision rule changed shape again, and for a good reason: it now asks whether the caller has anywhere real to report, not just which thread we are on. That repaired a regression I introduced two runs ago. Gate green, CI green, every review thread resolved. Two things need your eye, and one of them is me having overridden an earlier decision of yours.</p>
     <div class="metaline">
       <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">#8154 (draft)</a></span>
       <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">BL-16646</a></span>
       <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/files" target="_blank" rel="noopener">changed</a></span>
-      <span><span class="k">HEAD</span> <span class="mono">47ab0d5d</span></span>
+      <span><span class="k">HEAD</span> <span class="mono">e8ccafa0</span></span>
       <span><span class="k">Threads</span> 8 resolved, 0 open</span>
     </div>
   </header>
@@ -165,39 +187,29 @@
     <div class="colstack">
 
       <section class="card">
-        <h2>Where it landed</h2>
+        <h2>What changed in the rule</h2>
         <div class="banner">
-          <strong>Progress now follows the thread.</strong> Off the UI thread the migration reports into the <code>IProgress</code> the caller already owns, because anything arriving from a background thread is already running under some progress of its own. On the UI thread there is nothing to borrow and inline work would freeze Bloom, so it puts up its own dialog — which is legal there, and which runs the work on a background worker so the app stays alive. Headless callers stay silent. Every symptom on this ticket is addressed by that one rule.
+          <p>The dialog decision no longer turns on the thread alone. It asks: <strong>is there anywhere real to report?</strong> A <code>NullProgress</code> reports nowhere, so having one is the same as having none. If the caller handed us something better, we use it. Only when all we have is a <code>NullProgress</code> <em>and</em> we are on the UI thread do we put up our own dialog — and off the UI thread, headless, or under test we never can, so we use whatever we were given.</p>
         </div>
-        <p>What a user sees, by path: importing a <code>.bloomSource</code>, importing a spreadsheet, Do Updates of All Books and the publish previews all show the picture messages inside the progress box they were already showing, with no extra window. Clicking an old book to select it gets an "Updating Image Files" window with a live progress bar instead of a frozen app. The bulk-upload CLI does the work silently rather than trying to show a modal nobody could dismiss.</p>
+        <p>Your uncommitted change made <code>progress</code> optional and substituted a <code>NullProgress</code> for null. Its reworded doc comment said the dialog appears when we are on the UI thread "and do not have a valid progress" — but the condition never tested that, so I made the code match the comment.</p>
+        <p>That mattered more than a wording fix, because it caught a regression of mine. The swap I made two runs ago moved the single-book <strong>Update Book</strong> command onto the dialog path: it runs under <code>ProgressDialogForeground</code>, whose work runs on the UI thread, so it was stacking an "Updating Image Files" dialog inside the progress dialog it already had on screen — and writing nothing at all to that foreground dialog during the shrink. My commit message for the swap claimed it stopped a second dialog stacking. True for Do Updates of All Books; wrong for this command.</p>
+        <p>Book selection — the case the ticket is actually about — is untouched: it arrives with a <code>NullProgress</code> substituted by <code>EnsureUpToDate</code>, so it keeps its dialog and stays responsive. Exactly one caller changed behavior, and it was the broken one.</p>
       </section>
 
       <section class="card">
-        <h2>Your decisions, as implemented</h2>
+        <h2>Where each caller reports now</h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>Decision</th><th>Done</th></tr></thead>
+            <thead>
+              <tr><th>Caller</th><th>What it passes</th><th>Thread</th><th>Result</th></tr>
+            </thead>
             <tbody>
-              <tr>
-                <td>Swap the two branches</td>
-                <td>The thread test lost its <code>!</code>, so the dialog is now the UI-thread case. The <code>shell.Invoke</code> that had briefly wrapped the dialog went away with the swap rather than being inverted alongside it — the branch is only reachable when <code>InvokeRequired</code> is false, so we are already on the shell's thread and there is nothing to marshal.</td>
-              </tr>
-              <tr>
-                <td>Only bump <code>mediaMaintenanceLevel</code> when the work succeeded</td>
-                <td>The dialog's work runs in a try/catch and the exception is rethrown on the calling thread via <code>ExceptionDispatchInfo</code>, which reports the failure and leaves the level alone — matching what the no-dialog path always did.</td>
-              </tr>
-              <tr>
-                <td>Fix the comments and rename the lambda parameter</td>
-                <td>Dialog body moved into <code>ShrinkImagesBehindProgressDialog</code> with a <code>dialogProgress</code> parameter, so nothing shadows the method's <code>progress</code>. All three comments — the block comment, the <code>&lt;param&gt;</code> doc, and the one in <code>BookProcessor</code> — now describe this design.</td>
-              </tr>
-              <tr>
-                <td><code>WebProgressAdapter</code> proxy — leave as is</td>
-                <td>Unchanged, and written up in the PR description as a known accepted limitation so a reviewer knows it was considered rather than missed.</td>
-              </tr>
-              <tr>
-                <td>Merge vs rebase — leave as is</td>
-                <td>Nothing to change; preflight keeps merging.</td>
-              </tr>
+              <tr><td>Book selection</td><td><code>NullProgress</code></td><td>UI</td><td><span class="pill pass">our dialog</span> responsive, work on a worker</td></tr>
+              <tr><td>Update Book</td><td><code>MultiProgress</code></td><td>UI</td><td><span class="pill pass">its own dialog</span> changed this run</td></tr>
+              <tr><td>Do Updates of All Books</td><td><code>MultiProgress</code></td><td>worker</td><td><span class="pill pass">its own dialog</span></td></tr>
+              <tr><td><code>.bloomSource</code> import</td><td><code>WebProgressAdapter</code></td><td>worker</td><td><span class="pill pass">the browser dialog</span></td></tr>
+              <tr><td>Spreadsheet import</td><td><code>NullProgress</code></td><td>worker</td><td><span class="pill pass">silent</span> cannot show a dialog off-thread</td></tr>
+              <tr><td>Bulk upload / hydrate CLI</td><td><code>NullProgress</code></td><td>no window</td><td><span class="pill pass">silent</span></td></tr>
             </tbody>
           </table>
         </div>
@@ -209,26 +221,31 @@
           <table>
             <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
             <tbody>
-              <tr><td>C# build (whole solution)</td><td><span class="pill pass">pass</span></td><td class="num">0 errors</td></tr>
-              <tr><td>C# tests (<code>dotnet test</code> / NUnit)</td><td><span class="pill note">green, with a caveat</span></td><td class="num">3022 passed · 0 failed · 13 skipped — see the note below</td></tr>
-              <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors (pre-commit hook)</td></tr>
-              <tr><td>TypeScript lint (eslint)</td><td><span class="pill na">not run</span></td><td>No front-end files in this change; lint-staged matched nothing. Deliberate.</td></tr>
-              <tr><td>TypeScript tests (vitest)</td><td><span class="pill na">not run</span></td><td>C#-only change, no front-end code or behavior touched.</td></tr>
-              <tr><td>Base integration</td><td><span class="pill pass">up to date</span></td><td>Already level with <code>origin/master</code>; merge reported "already up to date".</td></tr>
-              <tr><td>Mergeable</td><td><span class="pill pass">clean</span></td><td>PR reports <code>MERGEABLE</code> / <code>CLEAN</code>.</td></tr>
+              <tr><td>C# build (whole solution)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0 errors</span></td></tr>
+              <tr><td>C# tests (<code>dotnet test</code> / NUnit)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">3034 passed · 0 failed · 13 skipped</span> — the total rose because the master merge brought in new audio-segmentation tests</td></tr>
+              <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors, run by the pre-commit hook</td></tr>
+              <tr><td>TypeScript lint (eslint)</td><td><span class="pill na">not run</span></td><td>No front-end files in this change, so lint-staged matched nothing. Deliberate, not silently skipped.</td></tr>
+              <tr><td>TypeScript tests (vitest)</td><td><span class="pill na">not run</span></td><td>C#-only change, touching no front-end code or behavior</td></tr>
+              <tr><td>Base integration</td><td><span class="pill pass">clean</span></td><td>Merged <span class="numeral">24 commits</span> from <code>origin/master</code>, no conflicts, and no overlap with the files this branch touches</td></tr>
+              <tr><td>Mergeable</td><td><span class="pill pass">clean</span></td><td>PR reports <code>MERGEABLE</code> / <code>CLEAN</code></td></tr>
             </tbody>
           </table>
         </div>
+        <p class="lede" style="margin: 14px 0 0;">The gate ran again after the merge, since a conflict-free merge can still break a branch. This run I captured full test output to a file rather than piping it through a filter — last run that filter is what lost the detail of a failing run.</p>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
         <div class="commit">
-          <span class="msg">Show the image-shrinking dialog only on the UI thread</span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/47ab0d5dc" target="_blank" rel="noopener">47ab0d5dc</a></span>
-          <p>All four decisions in one commit: the swapped thread test, the failed-shrink fix, the renamed lambda parameter and new helper, and the three corrected comments. Eight commits on the branch in total.</p>
+          <span class="msg">Use the caller's progress whenever there is a real one</span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/2be1adc91" target="_blank" rel="noopener">2be1adc91</a></span>
+          <p>Your optional-<code>progress</code> change as found, plus the condition fix that makes it match its own doc comment, plus corrections to two factual claims in that comment. Retires the <code>progress is WebProgressAdapter</code> test — see the item at right.</p>
         </div>
-        <p class="lede" style="margin: 14px 0 0;">The PR title and description were rewritten for the settled design and the "not ready for review" warning removed. The card's test-ideas comment was rewritten too — for three runs it told testers to hold; it now releases them to a full round, and asks them specifically to confirm Bloom stays <em>responsive</em> behind the new dialog rather than merely that the dialog appears.</p>
+        <div class="commit">
+          <span class="msg">Merge <code>origin/master</code></span>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e8ccafa0a" target="_blank" rel="noopener">e8ccafa0a</a></span>
+          <p><span class="numeral">24 commits</span>, clean, none touching this code.</p>
+        </div>
       </section>
 
       <section class="card">
@@ -239,35 +256,35 @@
             <tbody>
               <tr>
                 <td>Local review<br><span style="color:var(--muted);font-size:12.5px;">light sub-agent pass</span></td>
-                <td><span class="pill pass">clean</span></td>
-                <td>Ran against the pre-decision state earlier in this run; nothing new once the decisions were applied. Its earlier findings are what became items 1–3 of the last report.</td>
+                <td><span class="pill note">2 raised</span></td>
+                <td>Confirmed the comment/code contradiction and traced the Update Book regression to the right commit — mine, not the working tree. Also verified the candidate fix changes exactly one caller and cannot reintroduce the original bug. Both acted on; nothing dismissed.</td>
               </tr>
               <tr>
                 <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">Devin</a></td>
                 <td><span class="pill pass">complete</span></td>
-                <td>Its own output confirms the fix landed — one informational item reads "the 'inverted thread test' described in the PR body is not present in this head commit". One genuinely new flag, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724777844" target="_blank" rel="noopener">failures now aborting the book update</a>, replied to and resolved (see the note at right). Its stale bug and five stale flags all map to threads already resolved this run, so none were re-posted. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5198553222" target="_blank" rel="noopener">Consultation log</a>.</td>
+                <td>No new bugs and no new threads needed — its bug and Investigate lists are entirely carried-over findings whose threads are already resolved, and its own informational items confirm the earlier fixes landed. Two new informational items: the inline-on-UI-thread consequence at right, and a stale PR description, now rewritten. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5207750496" target="_blank" rel="noopener">Consultation log</a>.</td>
               </tr>
               <tr>
                 <td>CodeRabbit</td>
                 <td><span class="pill na">not active</span></td>
-                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>; nothing posted on any recent PR.</td>
+                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, and it has posted nothing on any recent PR</td>
               </tr>
               <tr>
                 <td>CI</td>
                 <td><span class="pill pass">complete</span></td>
-                <td><code>pr-automation</code> succeeded in 35s at this HEAD.</td>
+                <td><code>pr-automation</code> succeeded in <span class="numeral">39s</span> at this HEAD</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <p class="lede" style="margin: 14px 0 0;">All eight review threads on the PR are resolved, each with a written outcome — including the two that were deliberately held open across runs waiting on your decisions.</p>
       </section>
 
       <section class="card">
         <h2>Session notes</h2>
         <ul class="plain">
-          <li><strong>The test-ideas comment has now described four designs across four runs</strong>, always rewritten in place rather than stacked. It opens by retracting the previous instructions, because a tester who had read an earlier version would otherwise be hunting for stacked windows that can no longer happen.</li>
-          <li><strong>The three earlier designs are all visible in the branch history</strong> — marshal-the-dialog, delete-the-dialog, and the hybrid — which is worth knowing if you or a reviewer bisects this later.</li>
+          <li><strong>I corrected myself mid-run.</strong> I first told you the Update Book nesting was not a regression I had introduced, on the grounds that master behaved the same way. That was the wrong comparison — against master it is unchanged, but against the commit immediately before my swap it is a regression, because that commit reported into the existing dialog. The review agent caught the right baseline.</li>
+          <li><strong>The tester notes gained an Update Book case</strong> and now name it as the most likely place to see a wrongly-stacked window, since that is what it was briefly doing. Updated in place, as always.</li>
+          <li><strong>The PR title and description were rewritten again</strong> — the description still described the retired <code>WebProgressAdapter</code> test as a known limitation. Devin caught that independently.</li>
           <li><strong>No personal board skill is installed</strong> in this environment, so there was no board to move.</li>
         </ul>
       </section>
@@ -276,93 +293,107 @@
     <!-- ============ RIGHT ============ -->
     <div class="colstack">
       <section class="card">
-        <h2 class="tight">For your awareness</h2>
-        <p class="lede">Nothing blocking. Two things I decided or observed that you may want to revisit.</p>
+        <h2 class="tight">Decisions</h2>
+        <p class="lede">Nothing blocking. One is a heads-up about a trade; one is me having gone against a call you made.</p>
 
         <!-- ITEM 1 -->
         <div class="item">
-          <h3>A failed shrink now aborts the rest of the book update</h3>
-          <p class="srcline">Source: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3724777844" target="_blank" rel="noopener">Devin, Investigate</a> — replied and resolved on my own authority</p>
-          <p>This is the flip side of the fix you asked for. Because the exception now propagates rather than being swallowed, a single unreadable or unconvertible image file will abort the whole bring-up-to-date, not just the shrink — including out of book selection.</p>
-          <p>I resolved it rather than escalating, for three reasons: it is the direct consequence of the decision you made; the no-dialog path has always behaved this way, so the two paths now agree where before the same failure had opposite outcomes depending on the calling thread; and the selection path already wraps this in a try/catch that attaches the book's folder and title and rethrows into Bloom's error reporting (<code>web/controllers/CollectionApi.cs:198</code>), so it surfaces as a reported error naming the book rather than an unhandled crash. Flagging it because "one bad image file stops the book opening" is a judgment you may want to make differently.</p>
-          <fieldset data-q="Failure aborts book update">
+          <h3>I retired the <code>WebProgressAdapter</code> test, which you had said to leave alone</h3>
+          <p class="srcline">Source: your run-3 decision, "WebProgressAdapter proxy test: Leave as is" — and I have now changed it anyway</p>
+          <p>Flagging this because it is the one place this run where I did not do what you decided. In run 3 you chose to leave the <code>progress is WebProgressAdapter</code> clause as it was, on my recommendation that the branch swap would make it mostly moot.</p>
+          <p>Fixing the Update Book regression meant asking the general question that clause was a narrow proxy for — "does this caller have somewhere real to report?" A <code>WebProgressAdapter</code> is simply one kind of real progress, so once the general test existed the named one was strictly redundant: dead code that a reviewer would stop and ask about. I replaced it rather than leaving it, which was a judgment call inside a change you did approve, but it does reverse your earlier answer.</p>
+          <p>Restoring it is trivial if you would rather keep the explicit mention.</p>
+          <fieldset data-q="Retired WebProgressAdapter test">
             <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q1" id="q1a" value="Report the failure but let the rest of the book update continue">
-              <label for="q1a">Report it, but let the update continue
-                <span class="fn">Moderate: needs somewhere to put a non-fatal report (<code>NonFatalProblem</code>) plus a way to leave the level un-bumped without throwing. More forgiving for the user; more moving parts, and it re-splits the two paths' behavior.</span>
+              <input type="radio" name="q1" id="q1a" value="Keep it retired — the general test covers it" checked>
+              <label for="q1a">Keep it retired<span class="tag">recommended</span>
+                <span class="fn">No work. Recommended because the clause is now provably unreachable-as-distinct — every <code>WebProgressAdapter</code> satisfies the general test — and both Devin and the local review had separately called the type-sniff a fragile proxy for exactly this question.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q1" id="q1b" value="Put the explicit WebProgressAdapter clause back">
+              <label for="q1b">Put the explicit clause back
+                <span class="fn">One line, no behavior change. Worth it only if you want the browser-progress case named at the call site for readability, accepting that it is redundant.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q1" id="q1b" value="Leave as is" checked>
-                <label for="q1b">Leave as is<span class="tag">recommended</span></label>
+                <input type="radio" name="q1" id="q1c" value="Leave as is">
+                <label for="q1c">Leave as is</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q1lc" data-q="Failure aborts book update — leave comment"><label for="q1lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q1lc" data-q="Retired WebProgressAdapter test — leave comment"><label for="q1lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q1" id="q1c" value="Other">
-              <label for="q1c">Other:</label>
-              <input type="text" id="q1other" data-q="Failure aborts book update — other" placeholder="your call">
+              <input type="radio" name="q1" id="q1d" value="Other">
+              <label for="q1d">Other:</label>
+              <input type="text" id="q1other" data-q="Retired WebProgressAdapter test — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q1notes">Notes on this item</label>
-          <textarea id="q1notes" data-q="Failure aborts book update — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q1notes" data-q="Retired WebProgressAdapter test — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- ITEM 2 -->
         <div class="item">
-          <h3>One full-suite run reported 9 failures that would not reproduce</h3>
-          <p class="srcline">Source: this run's own test output — reported rather than smoothed over</p>
-          <p>The first full-suite run at this commit came back with 9 failures out of 3035. Two further runs at the byte-identical tree were completely green. So the suite is green at this HEAD, but not on the first attempt, and I want that on the record rather than buried.</p>
-          <p>I cannot tell you <em>which</em> 9 failed: I had piped that run's output through a grep for the summary line, which threw away the per-test detail — my mistake, and I re-ran unfiltered afterwards. The change itself is a very weak suspect, since under test <code>Program.RunningUnitTests</code> short-circuits the new branch entirely, so the migration behaves exactly as before. This repo also has a logged history of intermittent C# failures. But "probably flaky" is an inference, not a diagnosis.</p>
-          <fieldset data-q="Non-reproducing suite failures">
+          <h3>On the UI thread with a real progress, the shrink now runs inline</h3>
+          <p class="srcline">Source: Devin, informational — confirmed independently by the local review</p>
+          <p>This is the flip side of the fix. When the caller has a real progress we use it and do the work right there, so if that caller happens to be on the UI thread, the shrink runs on the UI thread rather than on a dialog's background worker.</p>
+          <p>Today that is exactly one caller, Update Book, and it is fine: it runs under <code>ProgressDialogForeground</code>, which already does the whole of <code>BringBookUpToDate</code> on the UI thread, and its <code>MultiProgress</code> includes <code>ApplicationDoEventsProgress</code>, which pumps on every message — so the dialog keeps painting while images are shrunk. Both reviewers checked this and agree nothing new freezes.</p>
+          <p>What it does create is an unwritten invariant: a future UI-thread caller that passes a live progress which does <em>not</em> pump would block the UI for the whole shrink. Recommendation is to leave the code alone and record the invariant where someone would trip over it, rather than adding machinery for a caller that does not exist.</p>
+          <fieldset data-q="Inline on UI thread with real progress">
             <legend>What to do</legend>
             <div class="opt">
-              <input type="radio" name="q2" id="q2a" value="Log a papercut so the intermittent failures get characterised properly" checked>
-              <label for="q2a">Log a papercut about it<span class="tag">recommended</span>
-                <span class="fn">No code — a note in the papercut backlog, which already carries an entry about intermittent C# failures. Recommended because a second sighting is exactly the evidence that turns "flaky, ignore it" into something diagnosable, and it costs nothing now.</span>
+              <input type="radio" name="q2" id="q2a" value="Leave the code as is but note the invariant in a comment" checked>
+              <label for="q2a">Leave the code, note the invariant<span class="tag">recommended</span>
+                <span class="fn">Comment only, no behavior change. Recommended because the one caller that hits it is designed to work this way, and a comment is what saves the next person who adds a UI-thread caller.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q2" id="q2b" value="Investigate the intermittent failures now">
-              <label for="q2b">Investigate now
-                <span class="fn">Open-ended, and unrelated to this ticket — the run that failed is gone, so this would mean re-running the suite until it fails again with output captured.</span>
+              <input type="radio" name="q2" id="q2b" value="Always use the background-worker dialog when on the UI thread, even with a real progress">
+              <label for="q2b">Always use the dialog on the UI thread
+                <span class="fn">Reverts this run's fix and brings back the stacked dialog on Update Book. Guarantees responsiveness on any future UI-thread caller at the cost of the regression we just removed.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q2" id="q2c" value="Run the shrink on a background worker even when reporting to the caller's progress">
+              <label for="q2c">Report to the caller, but work on a background thread
+                <span class="fn">Larger and riskier: the caller's progress objects are not all thread-safe to write to from a worker, and <code>ProgressDialogForeground</code> exists precisely to run work on the UI thread. Best of both in principle, real thread-safety audit in practice.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q2" id="q2c" value="Leave as is">
-                <label for="q2c">Leave as is</label>
+                <input type="radio" name="q2" id="q2d" value="Leave as is">
+                <label for="q2d">Leave as is — no comment either</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q2lc" data-q="Non-reproducing suite failures — leave comment"><label for="q2lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q2lc" data-q="Inline on UI thread with real progress — leave comment"><label for="q2lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q2" id="q2d" value="Other">
-              <label for="q2d">Other:</label>
-              <input type="text" id="q2other" data-q="Non-reproducing suite failures — other" placeholder="your call">
+              <input type="radio" name="q2" id="q2e" value="Other">
+              <label for="q2e">Other:</label>
+              <input type="text" id="q2other" data-q="Inline on UI thread with real progress — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q2notes">Notes on this item</label>
-          <textarea id="q2notes" data-q="Non-reproducing suite failures — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q2notes" data-q="Inline on UI thread with real progress — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
         <!-- NEXT STEP -->
         <div class="item">
           <h3>Next step</h3>
-          <p>The PR is deliberately still a draft and no teammate has been asked to review it — promoting it is your call, after your own read of the diff. When you are happy with it, <code>pr-ready-for-human</code> does the promotion: it re-checks that everything is still clean, moves the card to <em>Ready For Code Review</em>, and marks the PR ready.</p>
+          <p>The PR is still a draft and no teammate has been asked to review it. When you are happy with the diff, <code>pr-ready-for-human</code> re-checks that everything is clean, moves the card to <em>Ready For Code Review</em>, and marks the PR ready.</p>
           <fieldset data-q="Next step">
             <legend>How to proceed</legend>
             <div class="opt">
               <input type="radio" name="q3" id="q3a" value="Nothing more from me — I will review the diff myself, then run pr-ready-for-human" checked>
               <label for="q3a">I will review it myself, then promote<span class="tag">recommended</span>
-                <span class="fn">The intended end of preflight: the work is clean and quiet, and the next judgment is a human reading the diff. Recommended because there is nothing left that another automated pass would catch.</span>
+                <span class="fn">The intended end of preflight. Recommended because there is nothing left an automated pass would catch — the last two runs found problems only in the decision rule's shape, which is now settled and matches the card.</span>
               </label>
             </div>
             <div class="opt">
               <input type="radio" name="q3" id="q3b" value="Do a thorough /code-review pass before I look at it">
               <label for="q3b">Run a thorough review pass first
-                <span class="fn">Costs a full <code>/code-review</code> cycle. Worth it if the three redesigns have left you unsure the final shape is coherent, rather than merely correct.</span>
+                <span class="fn">Costs a full <code>/code-review</code> cycle. Defensible after four reshapes of the same decision, if you want a fresh pair of eyes on the final shape rather than on each delta.</span>
               </label>
             </div>
             <div class="leaverow">
@@ -393,20 +424,20 @@
   </div>
 
   <footer class="foot">
-    Preflight run 4 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">47ab0d5dc7309f4a589ce85ad0569ecc3ab44586</span> · PR #8154 left in draft · nothing marked ready for review and no teammate review requested · 8 review threads, all resolved.
+    Preflight run 5 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">e8ccafa0a0a6faae13c933a7116ada1c0fa259eb</span> · PR #8154 left in draft · nothing marked ready for review and no teammate review requested · 8 review threads, all resolved.
   </footer>
 </div>
 
 <script>
   (function () {
     var ITEMS = [
-      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Failure aborts book update" },
-      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Non-reproducing suite failures" },
+      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Retired WebProgressAdapter test" },
+      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Inline on UI thread with real progress" },
       { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "Next step" }
     ];
 
     function build() {
-      var out = ["Preflight decisions — BL-16646 run 4 (PR #8154, HEAD 47ab0d5d)", ""];
+      var out = ["Preflight decisions — BL-16646 run 5 (PR #8154, HEAD e8ccafa0)", ""];
       ITEMS.forEach(function (it) {
         var picked = document.querySelector('input[name="' + it.radio + '"]:checked');
         var answer = picked ? picked.value : "(no answer)";
@@ -453,3 +484,5 @@
     });
   })();
 </script>
+</body>
+</html>
