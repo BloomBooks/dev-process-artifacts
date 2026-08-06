@@ -172,44 +172,55 @@
 <div class="wrap">
   <header class="masthead">
     <h1>Preflight report — the huge-image hang</h1>
-    <p class="subtitle">Fifth run. The decision rule changed shape again, and for a good reason: it now asks whether the caller has anywhere real to report, not just which thread we are on. That repaired a regression I introduced two runs ago. Gate green, CI green, every review thread resolved. Two things need your eye, and one of them is me having overridden an earlier decision of yours.</p>
+    <p class="subtitle">Sixth run, on your change from rethrowing a failed shrink to logging it and carrying on. Devin earned its keep: it found a real bug in that change — a failed shrink was retried immediately in the same update pass, doing the slow work twice and showing the dialog twice — and that is now fixed. Suite green. Three things need your eye, all about what should happen when a shrink fails.</p>
     <div class="metaline">
       <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">#8154 (draft)</a></span>
       <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16646" target="_blank" rel="noopener">BL-16646</a></span>
       <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154/files" target="_blank" rel="noopener">changed</a></span>
-      <span><span class="k">HEAD</span> <span class="mono">e8ccafa0</span></span>
-      <span><span class="k">Threads</span> 8 resolved, 0 open</span>
+      <span><span class="k">HEAD</span> <span class="mono">f81e1b81</span></span>
+      <span><span class="k">Threads</span> 11 resolved, 1 open</span>
     </div>
   </header>
 
   <div class="cols">
-    <!-- ============ LEFT ============ -->
+
     <div class="colstack">
 
       <section class="card">
-        <h2>What changed in the rule</h2>
+        <h2>What changed this run</h2>
         <div class="banner">
-          <p>The dialog decision no longer turns on the thread alone. It asks: <strong>is there anywhere real to report?</strong> A <code>NullProgress</code> reports nowhere, so having one is the same as having none. If the caller handed us something better, we use it. Only when all we have is a <code>NullProgress</code> <em>and</em> we are on the UI thread do we put up our own dialog — and off the UI thread, headless, or under test we never can, so we use whatever we were given.</p>
+          <p>Your edit swapped the dialog branch from <em>rethrow the worker's exception</em> to <em>log it and return false</em>, with <code>mediaMaintenanceLevel</code> bumped only on success. That is a better trade — one bad image no longer abandons the remaining twelve migrations and the <code>Save</code> — but it had a consequence neither of us saw, which Devin caught.</p>
         </div>
-        <p>Your uncommitted change made <code>progress</code> optional and substituted a <code>NullProgress</code> for null. Its reworded doc comment said the dialog appears when we are on the UI thread "and do not have a valid progress" — but the condition never tested that, so I made the code match the comment.</p>
-        <p>That mattered more than a wording fix, because it caught a regression of mine. The swap I made two runs ago moved the single-book <strong>Update Book</strong> command onto the dialog path: it runs under <code>ProgressDialogForeground</code>, whose work runs on the UI thread, so it was stacking an "Updating Image Files" dialog inside the progress dialog it already had on screen — and writing nothing at all to that foreground dialog during the shrink. My commit message for the swap claimed it stopped a second dialog stacking. True for Do Updates of All Books; wrong for this command.</p>
-        <p>Book selection — the case the ticket is actually about — is untouched: it arrives with a <code>NullProgress</code> substituted by <code>EnsureUpToDate</code>, so it keeps its dialog and stays responsive. Exactly one caller changed behavior, and it was the broken one.</p>
+        <div class="commit">
+          <span class="msg">Log a failed image shrink instead of throwing out of the dialog</span>
+          <span class="sha">cc9ecf337</span>
+          <p>Your change, plus two refinements: the log now takes the whole exception via <code>Logger.WriteError</code> (the idiom already used five times in this file) rather than just <code>.Message</code>, which dropped the stack trace and the inner exception — and for the likeliest failure, a TagLib error on one image, <code>.Message</code> often does not even name the file. The dead <code>ExceptionServices</code> using went too.</p>
+        </div>
+        <div class="commit">
+          <span class="msg">Merge <code>origin/master</code></span>
+          <span class="sha">89427d40b</span>
+          <p>Clean, six files, none of them ones this branch touches.</p>
+        </div>
+        <div class="commit">
+          <span class="msg">Do not repeat a failed image shrink within the same update pass</span>
+          <span class="sha">f81e1b815</span>
+          <p>Devin's bug. <code>Book.EnsureUpToDate</code> calls this migration <em>twice</em> — once by way of <code>EnsureUpToDateMemory</code> at <code>Book.cs:1107</code>, and again directly at <code>Book.cs:1110</code>. That was harmless only while the first call always bumped the level. Once a failure left the level at 0, the second call redid the entire slow shrink, put the dialog up again, and failed the same way, since the cause is deterministic. A flag on the <code>BookStorage</code> now remembers the failed attempt, so it is one attempt per pass; the level still stays at 0, so the book is still retried next time.</p>
+        </div>
       </section>
 
       <section class="card">
-        <h2>Where each caller reports now</h2>
+        <h2>What a failed shrink does now</h2>
+        <p class="lede">This is the table the three decisions are about. Note that only the first row catches anything at all.</p>
         <div class="tablewrap">
           <table>
             <thead>
-              <tr><th>Caller</th><th>What it passes</th><th>Thread</th><th>Result</th></tr>
+              <tr><th>Operation</th><th>Branch taken</th><th>What the user sees</th><th>Marked done?</th></tr>
             </thead>
             <tbody>
-              <tr><td>Book selection</td><td><code>NullProgress</code></td><td>UI</td><td><span class="pill pass">our dialog</span> responsive, work on a worker</td></tr>
-              <tr><td>Update Book</td><td><code>MultiProgress</code></td><td>UI</td><td><span class="pill pass">its own dialog</span> changed this run</td></tr>
-              <tr><td>Do Updates of All Books</td><td><code>MultiProgress</code></td><td>worker</td><td><span class="pill pass">its own dialog</span></td></tr>
-              <tr><td><code>.bloomSource</code> import</td><td><code>WebProgressAdapter</code></td><td>worker</td><td><span class="pill pass">the browser dialog</span></td></tr>
-              <tr><td>Spreadsheet import</td><td><code>NullProgress</code></td><td>worker</td><td><span class="pill pass">silent</span> cannot show a dialog off-thread</td></tr>
-              <tr><td>Bulk upload / hydrate CLI</td><td><code>NullProgress</code></td><td>no window</td><td><span class="pill pass">silent</span></td></tr>
+              <tr><td>Book selection</td><td>our dialog</td><td><span class="pill note">nothing</span> the window closes as if it worked; one line in the log</td><td><span class="pill pass">no</span> retried next time</td></tr>
+              <tr><td>Update Book</td><td>direct, inline</td><td><span class="pill note">problem report</span> unhandled UI-thread exception</td><td><span class="pill pass">no</span> the rest of the update is abandoned too</td></tr>
+              <tr><td>Do Updates of All Books</td><td>direct, on a worker</td><td><span class="pill note">nothing</span> dialog closes; the remaining books are silently skipped</td><td><span class="pill pass">no</span></td></tr>
+              <tr><td>Any of them, if GraphicsMagick is missing or fails</td><td>either</td><td><span class="pill note">nothing</span></td><td><span class="pill note">yes — wrongly</span> see decision 3</td></tr>
             </tbody>
           </table>
         </div>
@@ -221,58 +232,44 @@
           <table>
             <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
             <tbody>
-              <tr><td>C# build (whole solution)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0 errors</span></td></tr>
-              <tr><td>C# tests (<code>dotnet test</code> / NUnit)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">3034 passed · 0 failed · 13 skipped</span> — the total rose because the master merge brought in new audio-segmentation tests</td></tr>
-              <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>No blunder-class type errors, run by the pre-commit hook</td></tr>
-              <tr><td>TypeScript lint (eslint)</td><td><span class="pill na">not run</span></td><td>No front-end files in this change, so lint-staged matched nothing. Deliberate, not silently skipped.</td></tr>
-              <tr><td>TypeScript tests (vitest)</td><td><span class="pill na">not run</span></td><td>C#-only change, touching no front-end code or behavior</td></tr>
-              <tr><td>Base integration</td><td><span class="pill pass">clean</span></td><td>Merged <span class="numeral">24 commits</span> from <code>origin/master</code>, no conflicts, and no overlap with the files this branch touches</td></tr>
+              <tr><td>C# build</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0 errors</span></td></tr>
+              <tr><td>C# tests, full suite</td><td><span class="pill pass">pass</span></td><td><span class="numeral">3040 passed · 0 failed · 13 skipped</span> at the final commit</td></tr>
+              <tr><td>C# tests, fast gate</td><td><span class="pill pass">pass</span></td><td><span class="numeral">337 passed</span> — <code>BookStorageTests</code> and <code>BookTests</code>, run after each edit</td></tr>
+              <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>Run by the pre-commit hook; no blunder-class type errors</td></tr>
+              <tr><td>TypeScript lint</td><td><span class="pill na">not run</span></td><td>No front-end files in this change, so lint-staged matched nothing</td></tr>
+              <tr><td>TypeScript tests</td><td><span class="pill na">not run</span></td><td>C#-only change, touching no front-end code or behavior</td></tr>
+              <tr><td>Base integration</td><td><span class="pill pass">clean</span></td><td>Merged <code>origin/master</code> before pushing, no conflicts</td></tr>
               <tr><td>Mergeable</td><td><span class="pill pass">clean</span></td><td>PR reports <code>MERGEABLE</code> / <code>CLEAN</code></td></tr>
             </tbody>
           </table>
         </div>
-        <p class="lede" style="margin: 14px 0 0;">The gate ran again after the merge, since a conflict-free merge can still break a branch. This run I captured full test output to a file rather than piping it through a filter — last run that filter is what lost the detail of a failing run.</p>
       </section>
 
       <section class="card">
-        <h2>What changed this run</h2>
-        <div class="commit">
-          <span class="msg">Use the caller's progress whenever there is a real one</span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/2be1adc91" target="_blank" rel="noopener">2be1adc91</a></span>
-          <p>Your optional-<code>progress</code> change as found, plus the condition fix that makes it match its own doc comment, plus corrections to two factual claims in that comment. Retires the <code>progress is WebProgressAdapter</code> test — see the item at right.</p>
-        </div>
-        <div class="commit">
-          <span class="msg">Merge <code>origin/master</code></span>
-          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e8ccafa0a" target="_blank" rel="noopener">e8ccafa0a</a></span>
-          <p><span class="numeral">24 commits</span>, clean, none touching this code.</p>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Reviewer outcomes</h2>
+        <h2>Reviewers</h2>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>Reviewer</th><th>State</th><th>Findings</th></tr></thead>
+            <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
             <tbody>
               <tr>
-                <td>Local review<br><span style="color:var(--muted);font-size:12.5px;">light sub-agent pass</span></td>
-                <td><span class="pill note">2 raised</span></td>
-                <td>Confirmed the comment/code contradiction and traced the Update Book regression to the right commit — mine, not the working tree. Also verified the candidate fix changes exactly one caller and cannot reintroduce the original bug. Both acted on; nothing dismissed.</td>
-              </tr>
-              <tr>
-                <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8154" target="_blank" rel="noopener">Devin</a></td>
+                <td>Local review<br><span class="lede" style="margin:0">light, one agent over the working diff</span></td>
                 <td><span class="pill pass">complete</span></td>
-                <td>No new bugs and no new threads needed — its bug and Investigate lists are entirely carried-over findings whose threads are already resolved, and its own informational items confirm the earlier fixes landed. Two new informational items: the inline-on-UI-thread consequence at right, and a stale PR description, now rewritten. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#issuecomment-5207750496" target="_blank" rel="noopener">Consultation log</a>.</td>
+                <td>Raised four. Two fixed here (the <code>.Message</code>-only log; the remarks wording). One checked and closed as a non-issue: re-running after a partial failure is idempotent, because the shrink only resizes a file whose current dimensions differ from the desired ones, so images already shrunk are skipped rather than re-encoded. One escalated — decision 1. It was also wrong about one thing, claiming the remarks still described the rethrow; you had corrected them while it was reading.</td>
               </tr>
               <tr>
-                <td>CodeRabbit</td>
-                <td><span class="pill na">not active</span></td>
-                <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, and it has posted nothing on any recent PR</td>
-              </tr>
-              <tr>
-                <td>CI</td>
+                <td>Devin</td>
                 <td><span class="pill pass">complete</span></td>
-                <td><code>pr-automation</code> succeeded in <span class="numeral">39s</span> at this HEAD</td>
+                <td>Complete for the final commit. <strong>One new bug</strong> — the duplicate retry — now fixed, and Devin's re-review marks both of its listed bugs resolved. Three new Investigate flags: one open for you (decision 1), one correct and acted on (the PR description no longer matched the code, and has been rewritten), one refuted with reasons and resolved (it had the branches the wrong way round). Its other five flags are carried over from earlier commits and already have resolved threads. Eleven informational items, none needing action.</td>
+              </tr>
+              <tr>
+                <td>Comment-posting bots</td>
+                <td><span class="pill na">none</span></td>
+                <td>No Greptile or CodeRabbit config, check context, or prior comment on this repo</td>
+              </tr>
+              <tr>
+                <td>CI — <code>PR Automation</code></td>
+                <td><span class="pill note">timed out</span></td>
+                <td>Recorded as a timeout, not a pass. It is the only workflow that runs on this branch, and it is runner-starved again: the run for the previous commit has sat <code>queued</code> with <code>runner: null</code> since 18:16Z, and no run was created for the final commit at all. Its sole job is to load the Devin review URL, and I did that directly instead — Devin completed for the final commit, as above. So nothing this workflow exists to do is outstanding, but it did not report.</td>
               </tr>
             </tbody>
           </table>
@@ -280,137 +277,157 @@
       </section>
 
       <section class="card">
-        <h2>Session notes</h2>
-        <ul class="plain">
-          <li><strong>I corrected myself mid-run.</strong> I first told you the Update Book nesting was not a regression I had introduced, on the grounds that master behaved the same way. That was the wrong comparison — against master it is unchanged, but against the commit immediately before my swap it is a regression, because that commit reported into the existing dialog. The review agent caught the right baseline.</li>
-          <li><strong>The tester notes gained an Update Book case</strong> and now name it as the most likely place to see a wrongly-stacked window, since that is what it was briefly doing. Updated in place, as always.</li>
-          <li><strong>The PR title and description were rewritten again</strong> — the description still described the retired <code>WebProgressAdapter</code> test as a known limitation. Devin caught that independently.</li>
-          <li><strong>No personal board skill is installed</strong> in this environment, so there was no board to move.</li>
-        </ul>
+        <h2>Testers</h2>
+        <p>The test-ideas comment on the card was rewritten in place, because this change moved something testers would otherwise report as a bug: <strong>a failed shrink is now invisible on the book-selection path</strong>. It previously told them to expect an error naming the book. It now tells them what to expect per operation, where to look in the log, and to watch for the dialog appearing twice for one book — the bug fixed in <code>f81e1b815</code>.</p>
       </section>
+
     </div>
 
-    <!-- ============ RIGHT ============ -->
     <div class="colstack">
       <section class="card">
-        <h2 class="tight">Decisions</h2>
-        <p class="lede">Nothing blocking. One is a heads-up about a trade; one is me having gone against a call you made.</p>
+        <h2>Decisions</h2>
+        <p class="lede">Three, all about failure handling, plus what to do next. The first is the one open thread on the PR.</p>
 
-        <!-- ITEM 1 -->
         <div class="item">
-          <h3>I retired the <code>WebProgressAdapter</code> test, which you had said to leave alone</h3>
-          <p class="srcline">Source: your run-3 decision, "WebProgressAdapter proxy test: Leave as is" — and I have now changed it anyway</p>
-          <p>Flagging this because it is the one place this run where I did not do what you decided. In run 3 you chose to leave the <code>progress is WebProgressAdapter</code> clause as it was, on my recommendation that the branch swap would make it mostly moot.</p>
-          <p>Fixing the Update Book regression meant asking the general question that clause was a narrow proxy for — "does this caller have somewhere real to report?" A <code>WebProgressAdapter</code> is simply one kind of real progress, so once the general test existed the named one was strictly redundant: dead code that a reviewer would stop and ask about. I replaced it rather than leaving it, which was a judgment call inside a change you did approve, but it does reverse your earlier answer.</p>
-          <p>Restoring it is trivial if you would rather keep the explicit mention.</p>
-          <fieldset data-q="Retired WebProgressAdapter test">
-            <legend>What to do</legend>
+          <h3>1. The two branches now disagree about the same failure</h3>
+          <p class="srcline"><code>BookStorage.cs</code> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8154#discussion_r3731075877" target="_blank" rel="noopener">open thread</a></p>
+          <p>The dialog branch now catches, logs, and lets the rest of the update finish. The direct branch has no <code>try</code>/<code>catch</code>, so the same TagLib failure on the same image still propagates and abandons the remaining migrations and the <code>Save</code>.</p>
+          <p>The consequence I would not want to ship silently is <strong>Do Updates of All Books</strong>: it runs on a <code>ProgressDialogBackground</code> worker, which never reads <code>RunWorkerCompletedEventArgs.Error</code>, so one bad image ends the whole batch — the dialog closes, the remaining books are never processed, and the user is told nothing. Your own commit removed exactly that shape of silent loss from the dialog branch.</p>
+          <fieldset data-q="Divergent failure handling">
+            <legend>What should the direct branch do?</legend>
             <div class="opt">
-              <input type="radio" name="q1" id="q1a" value="Keep it retired — the general test covers it" checked>
-              <label for="q1a">Keep it retired<span class="tag">recommended</span>
-                <span class="fn">No work. Recommended because the clause is now provably unreachable-as-distinct — every <code>WebProgressAdapter</code> satisfies the general test — and both Devin and the local review had separately called the type-sniff a fragile proxy for exactly this question.</span>
+              <input type="radio" name="q1" id="q1a" value="Catch and log on the direct branch too, so both branches agree and the batch survives one bad image" checked>
+              <label for="q1a">Catch and log there too<span class="tag">recommended</span>
+                <span class="fn">Both branches then behave the way you just chose for the dialog branch. A bad image costs that one book's shrink instead of the rest of the update — and, for the batch command, instead of every book after it. A few lines, same file, no new machinery.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q1" id="q1b" value="Put the explicit WebProgressAdapter clause back">
-              <label for="q1b">Put the explicit clause back
-                <span class="fn">One line, no behavior change. Worth it only if you want the browser-progress case named at the call site for readability, accepting that it is redundant.</span>
+              <input type="radio" name="q1" id="q1b" value="Leave as is — the direct branch keeps throwing">
+              <label for="q1b">Leave as is
+                <span class="fn">Defensible on the grounds Devin itself gave: any other exception inside <code>BringBookUpToDate</code> already behaves this way, so the shrink is not special. Costs nothing, and keeps this branch narrow.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q1" id="q1c" value="Leave as is">
-                <label for="q1c">Leave as is</label>
+                <input type="radio" name="q1" id="q1c" value="Leave as is and record the asymmetry in a comment">
+                <label for="q1c">Leave as is, but write down why</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q1lc" data-q="Retired WebProgressAdapter test — leave comment"><label for="q1lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q1lc" data-q="Divergent failure handling — leave comment"><label for="q1lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
               <input type="radio" name="q1" id="q1d" value="Other">
               <label for="q1d">Other:</label>
-              <input type="text" id="q1other" data-q="Retired WebProgressAdapter test — other" placeholder="your call">
+              <input type="text" id="q1other" data-q="Divergent failure handling — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q1notes">Notes on this item</label>
-          <textarea id="q1notes" data-q="Retired WebProgressAdapter test — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q1notes" data-q="Divergent failure handling — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
-        <!-- ITEM 2 -->
         <div class="item">
-          <h3>On the UI thread with a real progress, the shrink now runs inline</h3>
-          <p class="srcline">Source: Devin, informational — confirmed independently by the local review</p>
-          <p>This is the flip side of the fix. When the caller has a real progress we use it and do the work right there, so if that caller happens to be on the UI thread, the shrink runs on the UI thread rather than on a dialog's background worker.</p>
-          <p>Today that is exactly one caller, Update Book, and it is fine: it runs under <code>ProgressDialogForeground</code>, which already does the whole of <code>BringBookUpToDate</code> on the UI thread, and its <code>MultiProgress</code> includes <code>ApplicationDoEventsProgress</code>, which pumps on every message — so the dialog keeps painting while images are shrunk. Both reviewers checked this and agree nothing new freezes.</p>
-          <p>What it does create is an unwritten invariant: a future UI-thread caller that passes a live progress which does <em>not</em> pump would block the UI for the whole shrink. Recommendation is to leave the code alone and record the invariant where someone would trip over it, rather than adding machinery for a caller that does not exist.</p>
-          <fieldset data-q="Inline on UI thread with real progress">
-            <legend>What to do</legend>
+          <h3>2. Should the user ever be told the shrink failed?</h3>
+          <p class="srcline"><code>BookStorage.cs</code> — the <code>Logger.WriteError</code> in the dialog branch</p>
+          <p>On the book-selection path the only trace of a failure is a log line, which a user sees only if they file a problem report. The book is retried next time, so nothing is permanently lost — but a user whose pictures never get shrunk has no way to learn that, and every attempt costs them the wait again.</p>
+          <p>Bloom's usual tool for this is <code>NonFatalProblem.Report</code>, which can be passive — no modal, no interruption — and so would not undo the point of your change.</p>
+          <fieldset data-q="Telling the user about a failed shrink">
+            <legend>How visible should a failure be?</legend>
             <div class="opt">
-              <input type="radio" name="q2" id="q2a" value="Leave the code as is but note the invariant in a comment" checked>
-              <label for="q2a">Leave the code, note the invariant<span class="tag">recommended</span>
-                <span class="fn">Comment only, no behavior change. Recommended because the one caller that hits it is designed to work this way, and a comment is what saves the next person who adds a UI-thread caller.</span>
+              <input type="radio" name="q2" id="q2a" value="Report it passively via NonFatalProblem so the user learns about it, without a modal" checked>
+              <label for="q2a">Report it passively<span class="tag">recommended</span>
+                <span class="fn">Serves both things you have asked for on this branch: the failure is not swallowed, and the update still finishes. The retry guard means it is once per book per load, not a nag.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q2" id="q2b" value="Always use the background-worker dialog when on the UI thread, even with a real progress">
-              <label for="q2b">Always use the dialog on the UI thread
-                <span class="fn">Reverts this run's fix and brings back the stacked dialog on Update Book. Guarantees responsiveness on any future UI-thread caller at the cost of the regression we just removed.</span>
-              </label>
-            </div>
-            <div class="opt">
-              <input type="radio" name="q2" id="q2c" value="Run the shrink on a background worker even when reporting to the caller's progress">
-              <label for="q2c">Report to the caller, but work on a background thread
-                <span class="fn">Larger and riskier: the caller's progress objects are not all thread-safe to write to from a worker, and <code>ProgressDialogForeground</code> exists precisely to run work on the UI thread. Best of both in principle, real thread-safety audit in practice.</span>
+              <input type="radio" name="q2" id="q2b" value="Leave it log-only">
+              <label for="q2b">Leave it log-only
+                <span class="fn">Smallest change, and consistent with treating an unshrinkable image as a performance matter rather than something the user can act on. It does mean a silent, repeating cost.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q2" id="q2d" value="Leave as is">
-                <label for="q2d">Leave as is — no comment either</label>
+                <input type="radio" name="q2" id="q2c" value="Leave log-only and note in a comment that this was deliberate">
+                <label for="q2c">Log-only, and say so in a comment</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q2lc" data-q="Inline on UI thread with real progress — leave comment"><label for="q2lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q2lc" data-q="Telling the user about a failed shrink — leave comment"><label for="q2lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q2" id="q2e" value="Other">
-              <label for="q2e">Other:</label>
-              <input type="text" id="q2other" data-q="Inline on UI thread with real progress — other" placeholder="your call">
+              <input type="radio" name="q2" id="q2d" value="Other">
+              <label for="q2d">Other:</label>
+              <input type="text" id="q2other" data-q="Telling the user about a failed shrink — other" placeholder="your call">
             </div>
           </fieldset>
           <label class="noteslabel" for="q2notes">Notes on this item</label>
-          <textarea id="q2notes" data-q="Inline on UI thread with real progress — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <textarea id="q2notes" data-q="Telling the user about a failed shrink — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
 
-        <!-- NEXT STEP -->
+        <div class="item">
+          <h3>3. The likeliest failure still slips past the new flag</h3>
+          <p class="srcline"><code>ImageUtils.cs:1508</code>, <code>1569</code>, <code>1607–1664</code> — pre-existing, not introduced here</p>
+          <p>I checked this rather than assume it. <code>ResizeImageFileWithOptionalTransparency</code> does not throw when GraphicsMagick is missing (<code>return false</code>), when it exits nonzero (logged, then <code>false</code>), or when anything inside it throws (written to the console, then <code>false</code>). Its caller checks that return value in one loop and <strong>ignores it entirely in the other</strong>, and with no transparency fixes requested it simply counts the file as completed and moves on.</p>
+          <p>So <code>FixSizeAndTransparencyOfImagesInFolder</code> returns normally, <code>success</code> stays <code>true</code>, and the book is marked migrated with its images still oversized — permanently, since the level is never revisited. That is the exact outcome the success flag was added to prevent, and it is the commonest way this fails. What the flag actually catches is the narrower case of an exception escaping: a corrupt or unsupported image reaching TagLib.</p>
+          <fieldset data-q="Failures that never throw">
+            <legend>What to do about it</legend>
+            <div class="opt">
+              <input type="radio" name="q3" id="q3a" value="Out of scope — file a follow-up card" checked>
+              <label for="q3a">File a follow-up card<span class="tag">recommended</span>
+                <span class="fn">Fixing it properly means making <code>FixSizeAndTransparencyOfImagesInFolder</code> report how many files it failed on, which changes a method with other callers. That is a wider change than this hang deserves, and it was already true before this branch.</span>
+              </label>
+            </div>
+            <div class="opt">
+              <input type="radio" name="q3" id="q3b" value="Fix it here — have the shrink report failed files so success reflects them">
+              <label for="q3b">Fix it here
+                <span class="fn">Makes the success flag mean what it looks like it means. Touches <code>ImageUtils</code> and every caller of that method, so it needs its own test pass.</span>
+              </label>
+            </div>
+            <div class="leaverow">
+              <span class="main">
+                <input type="radio" name="q3" id="q3c" value="Leave as is, no card">
+                <label for="q3c">Leave as is, no card</label>
+              </span>
+              <span class="lc"><input type="checkbox" id="q3lc" data-q="Failures that never throw — leave comment"><label for="q3lc">Leave comment</label></span>
+            </div>
+            <div class="otherrow">
+              <input type="radio" name="q3" id="q3d" value="Other">
+              <label for="q3d">Other:</label>
+              <input type="text" id="q3other" data-q="Failures that never throw — other" placeholder="your call">
+            </div>
+          </fieldset>
+          <label class="noteslabel" for="q3notes">Notes on this item</label>
+          <textarea id="q3notes" data-q="Failures that never throw — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+        </div>
+
         <div class="item">
           <h3>Next step</h3>
           <p>The PR is still a draft and no teammate has been asked to review it. When you are happy with the diff, <code>pr-ready-for-human</code> re-checks that everything is clean, moves the card to <em>Ready For Code Review</em>, and marks the PR ready.</p>
           <fieldset data-q="Next step">
             <legend>How to proceed</legend>
             <div class="opt">
-              <input type="radio" name="q3" id="q3a" value="Nothing more from me — I will review the diff myself, then run pr-ready-for-human" checked>
-              <label for="q3a">I will review it myself, then promote<span class="tag">recommended</span>
-                <span class="fn">The intended end of preflight. Recommended because there is nothing left an automated pass would catch — the last two runs found problems only in the decision rule's shape, which is now settled and matches the card.</span>
+              <input type="radio" name="q4" id="q4a" value="Answer the three items above first, then I will review the diff and run pr-ready-for-human" checked>
+              <label for="q4a">Settle the three items, then promote<span class="tag">recommended</span>
+                <span class="fn">All three are about the same question — what a failed shrink should do — and one of them is the only open thread on the PR. Worth closing before a teammate reads it.</span>
               </label>
             </div>
             <div class="opt">
-              <input type="radio" name="q3" id="q3b" value="Do a thorough /code-review pass before I look at it">
-              <label for="q3b">Run a thorough review pass first
-                <span class="fn">Costs a full <code>/code-review</code> cycle. Defensible after four reshapes of the same decision, if you want a fresh pair of eyes on the final shape rather than on each delta.</span>
+              <input type="radio" name="q4" id="q4b" value="Nothing more from me — I will review the diff myself, then run pr-ready-for-human">
+              <label for="q4b">Promote as it stands
+                <span class="fn">Reasonable if you are content with the current failure behavior. The open thread then goes to the human reviewer as a question rather than a decision already made.</span>
               </label>
             </div>
             <div class="leaverow">
               <span class="main">
-                <input type="radio" name="q3" id="q3c" value="Leave as is">
-                <label for="q3c">Leave as is — park it for now</label>
+                <input type="radio" name="q4" id="q4c" value="Leave as is — park it for now">
+                <label for="q4c">Leave as is — park it for now</label>
               </span>
-              <span class="lc"><input type="checkbox" id="q3lc" data-q="Next step — leave comment"><label for="q3lc">Leave comment</label></span>
+              <span class="lc"><input type="checkbox" id="q4lc" data-q="Next step — leave comment"><label for="q4lc">Leave comment</label></span>
             </div>
             <div class="otherrow">
-              <input type="radio" name="q3" id="q3d" value="Other">
-              <label for="q3d">Other:</label>
-              <input type="text" id="q3other" data-q="Next step — other" placeholder="your call">
+              <input type="radio" name="q4" id="q4d" value="Other">
+              <label for="q4d">Other:</label>
+              <input type="text" id="q4other" data-q="Next step — other" placeholder="your call">
             </div>
           </fieldset>
-          <label class="noteslabel" for="q3notes">Notes on this item</label>
-          <textarea id="q3notes" data-q="Next step — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
+          <label class="noteslabel" for="q4notes">Notes on this item</label>
+          <textarea id="q4notes" data-q="Next step — notes" rows="2" placeholder="caveats, constraints, or reasoning to record"></textarea>
         </div>
       </section>
 
@@ -424,20 +441,21 @@
   </div>
 
   <footer class="foot">
-    Preflight run 5 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">e8ccafa0a0a6faae13c933a7116ada1c0fa259eb</span> · PR #8154 left in draft · nothing marked ready for review and no teammate review requested · 8 review threads, all resolved.
+    Preflight run 6 on <span class="mono">BL-16646-HugeImageHang</span> at <span class="mono">f81e1b815e1c7cdeaa0f93926b1c0843808e6217</span> · PR #8154 left in draft · nothing marked ready for review and no teammate review requested · 12 review threads, 11 resolved and 1 deliberately open.
   </footer>
 </div>
 
 <script>
   (function () {
     var ITEMS = [
-      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Retired WebProgressAdapter test" },
-      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Inline on UI thread with real progress" },
-      { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "Next step" }
+      { radio: "q1", other: "q1other", notes: "q1notes", lc: "q1lc", label: "Divergent failure handling" },
+      { radio: "q2", other: "q2other", notes: "q2notes", lc: "q2lc", label: "Telling the user about a failed shrink" },
+      { radio: "q3", other: "q3other", notes: "q3notes", lc: "q3lc", label: "Failures that never throw" },
+      { radio: "q4", other: "q4other", notes: "q4notes", lc: "q4lc", label: "Next step" }
     ];
 
     function build() {
-      var out = ["Preflight decisions — BL-16646 run 5 (PR #8154, HEAD e8ccafa0)", ""];
+      var out = ["Preflight decisions — BL-16646 run 6 (PR #8154, HEAD f81e1b81)", ""];
       ITEMS.forEach(function (it) {
         var picked = document.querySelector('input[name="' + it.radio + '"]:checked');
         var answer = picked ? picked.value : "(no answer)";
