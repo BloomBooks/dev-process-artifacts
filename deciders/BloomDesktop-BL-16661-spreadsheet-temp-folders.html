@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16661 spreadsheet temp folders</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+:root {
+  --ground: #F7F5F1;
+  --card: #FFFFFF;
+  --border: #E3DFD8;
+  --border-soft: #EFEBE4;
+  --ink: #23282B;
+  --muted: #6B7076;
+  --accent: #1F6F6B;
+  --accent-soft: #E7F0EF;
+  --pass: #2E6B45;
+  --pass-soft: #E6F0E9;
+  --warn: #8A6A16;
+  --warn-soft: #F6EFDD;
+  --fail: #9A3B33;
+  --fail-soft: #F6E7E5;
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1400px; margin: 0 auto; padding: 40px 28px 72px; }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; line-height: 1.25; letter-spacing: -0.01em; }
+h2 { font-size: 21px; line-height: 1.3; }
+h3 { font-size: 17px; line-height: 1.35; }
+p { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.mono, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.9em; }
+
+/* ---------- masthead ---------- */
+.masthead { border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 28px; }
+.masthead h1 { margin-bottom: 10px; }
+.masthead .sub { color: var(--muted); font-size: 15px; margin-bottom: 14px; }
+.metaline { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+.metaline .k { color: var(--ink); font-weight: 600; }
+
+/* ---------- grid ---------- */
+.cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; min-width: 0; }
+.card > h2 { margin-bottom: 14px; }
+.card > h2 + .lede { color: var(--muted); font-size: 14.5px; margin-top: -8px; margin-bottom: 14px; }
+
+/* ---------- tables ---------- */
+.tablewrap { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.what { font-weight: 600; }
+td.detail { color: var(--muted); }
+
+.chip {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+}
+.chip.pass { background: var(--pass-soft); color: var(--pass); }
+.chip.fail { background: var(--fail-soft); color: var(--fail); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.na   { background: #EEEBE5; color: var(--muted); }
+
+/* ---------- commit ---------- */
+.commit { border-left: 3px solid var(--accent); padding-left: 14px; }
+.commit h3 { margin-bottom: 4px; }
+.commit .sha { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+ul { margin: 8px 0 0; padding-left: 20px; }
+li { margin-bottom: 6px; }
+li:last-child { margin-bottom: 0; }
+
+/* ---------- decisions ---------- */
+.item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; min-width: 0; }
+.item.fyi { border-style: dashed; }
+.kind { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.item h3 { margin-bottom: 10px; }
+.item p { font-size: 14.5px; }
+
+.opts { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.opt input[type=radio] { margin-top: 5px; }
+.opt .lab { font-size: 14.5px; min-width: 0; }
+.opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.tag { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.leavecomment { font-size: 12.5px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+
+input[type=text], textarea {
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+  border: 1px solid var(--border); border-radius: 4px; padding: 7px 9px;
+  background: #FDFCFA; width: 100%; min-width: 0;
+}
+.otherbox { margin-top: 4px; }
+.notes { margin-top: 12px; }
+.notes label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+textarea { resize: vertical; min-height: 54px; }
+
+/* ---------- copy back ---------- */
+.copyback { background: var(--card); border: 1px solid var(--accent); border-radius: 6px; padding: 20px 22px; }
+button {
+  font-family: var(--sans); font-size: 14.5px; font-weight: 600;
+  background: var(--accent); color: #fff; border: 0; border-radius: 4px;
+  padding: 9px 18px; cursor: pointer;
+}
+button:hover { background: #185855; }
+#payload { margin-top: 12px; font-family: var(--mono); font-size: 12.5px; min-height: 150px; background: #FBFAF7; }
+.copied { color: var(--pass); font-size: 13.5px; font-weight: 600; margin-left: 12px; }
+
+footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="masthead">
+  <h1>Preflight — spreadsheet tests no longer treat <span class="mono">%TEMP%</span> as a Bloom collection</h1>
+  <p class="sub">BL-16661 · BloomDesktop · draft PR ready for your own review</p>
+  <div class="metaline">
+    <span><span class="k">Branch</span> <span class="mono">BL-16661-spreadsheet-temp-folders</span></span>
+    <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170" target="_blank" rel="noopener">#8170 (draft)</a></span>
+    <span><span class="k">Files changed</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170/files" target="_blank" rel="noopener">10 files</a></span>
+    <span><span class="k">HEAD</span> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4" target="_blank" rel="noopener">26bba0d6</a></span>
+    <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16661" target="_blank" rel="noopener">BL-16661</a></span>
+  </div>
+</div>
+
+<div class="cols">
+
+<!-- ================= LEFT ================= -->
+<div class="col">
+
+  <div class="card">
+    <h2>What this change does</h2>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L562" target="_blank" rel="noopener"><span class="mono">SpreadsheetImporter.GetPageForLabel()</span></a> looks for page templates in “the collection the book is in”, and works that out as the book folder’s <strong>parent</strong>. In a real Bloom collection that is correct. In the tests it was not: they built their book directly in <span class="mono">%TEMP%</span>, so the parent was the temp directory itself and Bloom walked every subfolder of it looking for books.</p>
+    <p>On a working machine that is thousands of folders belonging to other tests and other programs. If any one of them was deleted between being listed and being inspected, <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/Book/BookStorage.cs#L2202" target="_blank" rel="noopener"><span class="mono">FindBookHtmlInFolder</span></a> threw and took out an entire fixture in <span class="mono">OneTimeSetUp</span> — naming a folder that had nothing to do with the test, and hitting a different set of tests each run.</p>
+    <p>Now each fixture gets a folder of its own, named after itself, under one root, and nests its book inside that:</p>
+    <div class="tablewrap"><p class="mono" style="color:var(--muted)">%TEMP%/BloomSpreadsheetTests/&lt;FixtureName&gt;/Book</p></div>
+    <p>So the folder the importer scans as “the collection” only ever holds that one fixture’s folders.</p>
+  </div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td class="what">C# build</td><td><span class="chip pass">pass</span></td><td class="detail">0 errors</td></tr>
+        <tr><td class="what">C# format (CSharpier)</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">16</span> files checked; pre-commit hook reformatted nothing</td></tr>
+        <tr><td class="what">C# tests — changed/related</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">391 passed · 0 failed</span> in <span class="mono">BloomTests.Spreadsheet</span></td></tr>
+        <tr><td class="what">C# tests — full suite</td><td><span class="chip warn">pre-existing failures</span></td><td class="detail"><span class="numeral">2914 passed · 36 failed</span> before the run aborted. Pristine <span class="mono">origin/master</span> with this change stashed is worse: <span class="numeral">1603 passed · 65 failed</span>. See decision 2.</td></tr>
+        <tr><td class="what">TypeScript typecheck &amp; lint</td><td><span class="chip na">not run</span></td><td class="detail">No front-end files in this diff; the fast gate runs changed/related checks only</td></tr>
+        <tr><td class="what">TypeScript tests (vitest)</td><td><span class="chip na">not run</span></td><td class="detail">Same reason — this change is C# test code only</td></tr>
+        <tr><td class="what">Merge cleanliness</td><td><span class="chip pass">clean</span></td><td class="detail">Branched from current <span class="mono">origin/master</span>; merging it back reports “Already up to date”</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <div class="commit">
+      <h3>Nest spreadsheet test temp folders so no test book sits in %TEMP%</h3>
+      <p class="sha"><a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4" target="_blank" rel="noopener">26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4</a> · 10 files · +204 −65</p>
+      <ul>
+        <li>New <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomTests/Spreadsheet/SpreadsheetTestFolders.cs#L43" target="_blank" rel="noopener"><span class="mono">SpreadsheetTestFolders</span></a> hands each fixture a folder named after itself under a shared root. The root is made with <span class="mono">Directory.CreateDirectory</span> rather than the <span class="mono">TemporaryFolder(name)</span> constructor, because that constructor deletes any existing folder of the same name — which would throw away a sibling fixture’s folders.</li>
+        <li>Every spreadsheet fixture now nests its book / spreadsheet / other folders inside its own folder, and teardown disposes just the root.</li>
+        <li>Fixed three collisions that were already there: <span class="mono">SpreadsheetAudioTestsBase</span> used <span class="mono">SpreadsheetImagesTests</span>’ folder names (so whichever ran second deleted the other’s folder); three license fixtures shared one name, as did <span class="mono">SpreadsheetImportDeleteExtraPagesTest</span> with another fixture; and both audio-import fixtures leaked their spreadsheet folder and shared the name <span class="mono">"other audio folder"</span>.</li>
+        <li>Added <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomTests/Spreadsheet/SpreadsheetTestFolders.cs#L64" target="_blank" rel="noopener">a guard test</a> for the invariant the fix rests on: a nested book folder’s parent is not <span class="mono">%TEMP%</span> and contains nothing but our own folders.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="what">Local review<br><span class="detail" style="font-weight:400;font-size:13px">light pass, run inline</span></td>
+          <td><span class="chip pass">clean</span></td>
+          <td class="detail">No findings. Checked the folder-name collision hazard, the resulting path lengths against <span class="mono">MAX_PATH</span>, and the folders that moved out of <span class="mono">using</span> blocks. Run inline rather than as a sub-agent — see session notes.</td>
+        </tr>
+        <tr>
+          <td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8170" target="_blank" rel="noopener">Devin</a></td>
+          <td><span class="chip pass">complete</span></td>
+          <td class="detail"><span class="numeral">0</span> bugs, <span class="numeral">0</span> to investigate, <span class="numeral">3</span> informational — for this exact HEAD. Nothing to mirror; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170#issuecomment-5209162398" target="_blank" rel="noopener">consultation logged on the PR</a>. Two of its notes independently confirm this PR’s assumptions (fixture names are distinct, <span class="mono">Setup</span> runs once per subclass, fixture-level parallelism is off in this assembly, and sibling folders are scanned harmlessly because Bloom does not recurse). The third is decision 3.</td>
+        </tr>
+        <tr>
+          <td class="what">Greptile</td>
+          <td><span class="chip warn">timed out after 31 min</span></td>
+          <td class="detail">A <span class="mono">greptile-apps</span> check suite was created for this commit but stayed <span class="mono">queued</span> for the whole wait — it never produced a check run, a review, or a comment. The likeliest explanation is that Greptile skips draft pull requests, as several review bots do, but GitHub does not actually say so, so this is recorded as a timeout rather than as a pass. Marking the PR ready for review, or simply re-running preflight, will fold in a late result if one arrives.</td>
+        </tr>
+        <tr>
+          <td class="what">CodeRabbit</td>
+          <td><span class="chip na">not applicable</span></td>
+          <td class="detail">This repo’s <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/.coderabbit.yml" target="_blank" rel="noopener"><span class="mono">.coderabbit.yml</span></a> sets <span class="mono">auto_review.enabled: false</span>, so CodeRabbit deliberately does not review. Not a reviewer we are waiting on.</td>
+        </tr>
+        <tr>
+          <td class="what">CI</td>
+          <td><span class="chip na">no checks</span></td>
+          <td class="detail"><span class="mono">gh pr checks</span> reports no checks on this branch. BloomDesktop’s only PR workflow is <span class="mono">pr-automation.yml</span>, whose job is to kick off the Devin review — there is no build-or-test CI on PRs here, so there was no CI signal to wait for. Devin was triggered directly instead of relying on that workflow.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Session notes</h2>
+    <ul>
+      <li>The work started on the <span class="mono">graphicsMagickTests</span> branch (BL-16647) and was moved onto a fresh branch cut from current <span class="mono">origin/master</span> before anything was committed.</li>
+      <li>The local review ran <strong>inline rather than as a sub-agent</strong>, because this session carries a standing instruction not to call the Agent tool. The review still happened; only its delivery differed from preflight’s default.</li>
+      <li>An early full-suite run was discarded: a second test command was building into the same private output tree while it ran, which overwrote assemblies mid-run. The numbers in the gate table come from clean, serialized runs.</li>
+      <li>The PR link was posted to BL-16661; the card had none before.</li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ================= RIGHT ================= -->
+<div class="col">
+
+  <div class="item">
+    <div class="kind">Decision 1</div>
+    <h3>Should the template scan itself survive a folder that disappears?</h3>
+    <p>The card offered two fixes and said “either or both”. This PR does the first one: keep test books out of <span class="mono">%TEMP%</span>. The second was to make the scan tolerant, so that a folder vanishing mid-scan is skipped rather than fatal.</p>
+    <p>Why it might still matter: the tolerance would protect the real product, not just the tests. When a user opens the Add Page dialog, Bloom lists the folders in every source collection and inspects each one. If a folder is deleted in that instant — by a sync client such as Dropbox, an antivirus tool, or the user themselves — the dialog fails instead of quietly skipping it. The narrow version is one line in <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/web/controllers/PageTemplatesApi.cs#L141" target="_blank" rel="noopener"><span class="mono">GetBooksInCollectionDirectories</span></a>: filter out folders that no longer exist before inspecting them. It does not weaken the <span class="mono">bl-291</span> warning that tells a user their book folder has gone missing, because that check lives on the save path, not the collection scan.</p>
+    <div class="opts" data-q="Decision 1 — defensive scan">
+      <label class="opt"><input type="radio" name="d1" value="Add the one-line guard to GetBooksInCollectionDirectories in this PR" checked><span class="lab">Add the one-line guard in this PR<span class="tag">recommended</span><span class="fn">~1 line of production code, no user-visible behavior change, low risk — recommended because it is the only part of the card’s fix that protects the shipping product, and it is cheaper to do here than to carry as a separate card.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d1" value="Do it as its own card and PR"><span class="lab">Do it as its own card and PR<span class="fn">No code here; costs a new card and a second review cycle, but keeps this PR purely test-side.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d1" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d1" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Decision 1 — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Decision 1 — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Decision 2</div>
+    <h3>The full C# test suite is not green on this machine — and it is worse without this change</h3>
+    <p>The project’s own instructions say the full C# suite “is expected to be <strong>green</strong>” when run through the build wrapper. It is not. Run against a pristine checkout of current <span class="mono">origin/master</span>, with this change stashed, <span class="numeral">65</span> tests fail and the run aborts partway through, having reached only <span class="numeral">1678</span> of about <span class="numeral">2962</span> tests. With this change applied, <span class="numeral">36</span> fail and the run gets much further.</p>
+    <p>Two things are worth knowing. First, the failures on my branch are all in publish-side fixtures — ePUB export, <span class="mono">CompressBookForDevice</span>, accessibility checks, audio overlays — none of which this change touches, and the ones I spot-checked fail on pristine master too. Second, the pristine baseline fails <span class="mono">BogusCkeMaterial_Removed("span")</span>, which is precisely the collateral damage BL-16661 describes: a spreadsheet fixture blowing up in setup and taking unrelated tests down with it. So part of what you are seeing on master is this very bug, still live.</p>
+    <p>That leaves a genuine open question about the remaining publish-side failures and the aborting test host, which are a separate problem from this PR.</p>
+    <div class="opts" data-q="Decision 2 — non-green suite">
+      <label class="opt"><input type="radio" name="d2" value="File a YouTrack card for the failing publish-side fixtures and the aborting test host" checked><span class="lab">File a YouTrack card for the remaining failures<span class="tag">recommended</span><span class="fn">No product code; roughly a quarter-hour to write up with the fixture names and both runs’ numbers — recommended because the instructions promise a green suite, so anyone who trusts them will be misled until this is written down somewhere.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d2" value="Investigate the remaining failures now, before this PR merges"><span class="lab">Investigate now, before this PR merges<span class="fn">Open-ended — could be a long session, and it blocks a change that is already green in its own area.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d2" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Decision 2 — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d2" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Decision 2 — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Decision 2 — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item fyi">
+    <div class="kind">For your information</div>
+    <h3>Folders belonging to renamed or deleted fixtures will linger</h3>
+    <p>The shared <span class="mono">%TEMP%/BloomSpreadsheetTests</span> root is deliberately never deleted — deleting it would destroy the folders of any fixture running at the same time. Each fixture reclaims its own folder by name on the next run, so nothing accumulates in normal use. But if a fixture is renamed or removed, or a run crashes and that fixture is never run again, its folder sits under the root until someone clears it by hand. Devin raised this as an informational note; it is a tidiness issue, not a correctness one.</p>
+    <div class="opts" data-q="FYI — stale fixture folders">
+      <label class="opt"><input type="radio" name="d3" value="Have the helper clear unrecognized subfolders of the root"><span class="lab">Have the helper clear unrecognized subfolders of the root<span class="fn">~10 lines, test-only, but it means deleting folders the helper did not create in this run — a delete-what-we-do-not-own step that could bite if two runs ever overlap.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d3" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI stale folders — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d3" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI stale folders — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="FYI stale folders — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item fyi">
+    <div class="kind">For your information</div>
+    <h3>The card is still “In Progress”, and the PR is still a draft</h3>
+    <p>BL-16661 sits in <strong>In Progress</strong>, and PR #8170 is a <strong>draft</strong> with no reviewer requested. Both are deliberate: preflight never promotes work to human review. Moving the card to <strong>Ready For Code Review</strong>, marking the PR ready, and asking a colleague to look is the job of <span class="mono">pr-ready-for-human</span>, which you run after reviewing the change yourself.</p>
+    <div class="opts" data-q="FYI — card state">
+      <label class="opt"><input type="radio" name="d4" value="Move the card to Ready For Code Review now"><span class="lab">Move the card to Ready For Code Review now<span class="fn">One tracker update — but it skips your own review, which is the step this ordering exists to protect.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI card state — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d4" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI card state — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="FYI card state — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Next step</div>
+    <h3>What would you like to happen when you send this back?</h3>
+    <div class="opts" data-q="Next step">
+      <label class="opt"><input type="radio" name="d5" value="Implement whatever I chose above, then re-run preflight" checked><span class="lab">Implement what I chose above, then re-run preflight<span class="tag">recommended</span><span class="fn">Any code change is a new commit, so the reviewer gauntlet runs again — recommended because the choices above are small and self-contained.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d5" value="Discuss first, change nothing yet"><span class="lab">Discuss first, change nothing yet<span class="fn">No code moves until we have talked it through.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d5" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d5" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Next step — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Next step — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="copyback">
+    <h2>Send your answers back</h2>
+    <p class="lede">Copy this and paste it into the session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+
+<footer>
+  Preflight report for <span class="mono">BL-16661-spreadsheet-temp-folders</span> at <span class="mono">26bba0d6</span>. Re-running preflight republishes this page at the same address.
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var lines = ["Preflight answers — BL-16661 (PR #8170, 26bba0d6)", ""];
+    document.querySelectorAll(".opts").forEach(function (group) {
+      var q = group.getAttribute("data-q");
+      var picked = group.querySelector("input[type=radio]:checked");
+      var val = picked ? picked.value : "(no answer)";
+      if (val === "Other") {
+        var otherInput = group.querySelector('input[type=text][data-q$="other"]');
+        var typed = otherInput && otherInput.value.trim();
+        val = "Other: " + (typed ? typed : "(nothing typed)");
+      }
+      lines.push(q + ": " + val);
+
+      var lc = group.querySelector('input[type=checkbox]');
+      if (lc && lc.checked) {
+        lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+      }
+
+      var item = group.closest(".item");
+      var notes = item && item.querySelector('textarea[data-q$="notes"]');
+      if (notes && notes.value.trim()) {
+        lines.push("  Notes: " + notes.value.trim());
+      }
+      lines.push("");
+    });
+    payload.value = lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
