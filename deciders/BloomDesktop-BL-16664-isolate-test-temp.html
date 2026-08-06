@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16664 per-run test temp directory</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+:root {
+  --ground: #F7F5F1;
+  --card: #FFFFFF;
+  --border: #E3DFD8;
+  --border-soft: #EFEBE4;
+  --ink: #23282B;
+  --muted: #6B7076;
+  --accent: #1F6F6B;
+  --accent-soft: #E7F0EF;
+  --pass: #2E6B45;
+  --pass-soft: #E6F0E9;
+  --warn: #8A6A16;
+  --warn-soft: #F6EFDD;
+  --fail: #9A3B33;
+  --fail-soft: #F6E7E5;
+  --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1400px; margin: 0 auto; padding: 40px 28px 72px; }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; line-height: 1.25; letter-spacing: -0.01em; }
+h2 { font-size: 21px; line-height: 1.3; }
+h3 { font-size: 17px; line-height: 1.35; }
+p { margin: 0 0 12px; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+
+.mono, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.9em; }
+
+/* ---------- masthead ---------- */
+.masthead { border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 28px; }
+.masthead h1 { margin-bottom: 10px; }
+.masthead .sub { color: var(--muted); font-size: 15px; margin-bottom: 14px; }
+.metaline { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--muted); }
+.metaline .k { color: var(--ink); font-weight: 600; }
+
+/* ---------- grid ---------- */
+.cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; min-width: 0; }
+.card > h2 { margin-bottom: 14px; }
+.card > h2 + .lede { color: var(--muted); font-size: 14.5px; margin-top: -8px; margin-bottom: 14px; }
+
+/* ---------- tables ---------- */
+.tablewrap { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.what { font-weight: 600; }
+td.detail { color: var(--muted); }
+
+.chip {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+}
+.chip.pass { background: var(--pass-soft); color: var(--pass); }
+.chip.fail { background: var(--fail-soft); color: var(--fail); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.na   { background: #EEEBE5; color: var(--muted); }
+
+/* ---------- commit ---------- */
+.commit { border-left: 3px solid var(--accent); padding-left: 14px; }
+.commit h3 { margin-bottom: 4px; }
+.commit .sha { font-family: var(--mono); font-size: 12.5px; color: var(--muted); }
+ul { margin: 8px 0 0; padding-left: 20px; }
+li { margin-bottom: 6px; }
+li:last-child { margin-bottom: 0; }
+
+/* ---------- decisions ---------- */
+.item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; min-width: 0; }
+.item.fyi { border-style: dashed; }
+.kind { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
+.item h3 { margin-bottom: 10px; }
+.item p { font-size: 14.5px; }
+
+.opts { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; }
+.opt input[type=radio] { margin-top: 5px; }
+.opt .lab { font-size: 14.5px; min-width: 0; }
+.opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.tag { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 7px; border-radius: 999px; margin-left: 6px; vertical-align: 1px; }
+.leavecomment { font-size: 12.5px; color: var(--muted); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+
+input[type=text], textarea {
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+  border: 1px solid var(--border); border-radius: 4px; padding: 7px 9px;
+  background: #FDFCFA; width: 100%; min-width: 0;
+}
+.otherbox { margin-top: 4px; }
+.notes { margin-top: 12px; }
+.notes label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+textarea { resize: vertical; min-height: 54px; }
+
+/* ---------- copy back ---------- */
+.copyback { background: var(--card); border: 1px solid var(--accent); border-radius: 6px; padding: 20px 22px; }
+button {
+  font-family: var(--sans); font-size: 14.5px; font-weight: 600;
+  background: var(--accent); color: #fff; border: 0; border-radius: 4px;
+  padding: 9px 18px; cursor: pointer;
+}
+button:hover { background: #185855; }
+#payload { margin-top: 12px; font-family: var(--mono); font-size: 12.5px; min-height: 150px; background: #FBFAF7; }
+.copied { color: var(--pass); font-size: 13.5px; font-weight: 600; margin-left: 12px; }
+
+footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
+</style>
+<style>
+/* Long identifiers (test names, paths) are single unbreakable tokens; let them wrap
+   rather than widening a table cell until the whole page scrolls sideways. */
+.mono, .numeral { overflow-wrap: anywhere; word-break: break-word; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="masthead">
+  <h1>Preflight — giving each test run a temp directory of its own</h1>
+  <p class="sub">BL-16664 · BloomDesktop · draft PR ready for your own review</p>
+  <div class="metaline">
+    <span><span class="k">Branch</span> <span class="mono">BL-16664-isolate-test-temp</span></span>
+    <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8172" target="_blank" rel="noopener">#8172 (draft)</a></span>
+    <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8172/files" target="_blank" rel="noopener">3 changed</a></span>
+    <span><span class="k">HEAD</span> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/4ba357019edc6ddec694192d31b293740e14f3e7" target="_blank" rel="noopener">4ba35701</a></span>
+    <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16664" target="_blank" rel="noopener">BL-16664</a></span>
+  </div>
+</div>
+
+<div class="cols">
+<div class="col">
+
+  <div class="card">
+    <h2>What this does</h2>
+    <p>Our tests name their scratch folders after themselves — about 180 calls of the form <span class="mono">new TemporaryFolder("SomeFixtureTests")</span> — and those names resolve to machine-global paths. That was harmless when one person ran the suite at a time. It is not harmless now that agents work in several worktrees at once, because <span class="mono">TemporaryFolder</span>'s constructor <em>deletes</em> any existing folder of that name before creating it. One run's setup therefore deletes another run's in-flight folder, and the victim fails somewhere unrelated, naming a folder it never heard of.</p>
+    <p>Rather than rename 180 call sites — which would still leave Bloom's own code writing to the shared temp directory while under test — this points the whole process's temp directory at <span class="mono">%TEMP%\BloomTests\&lt;key&gt;-p&lt;pid&gt;\</span> before any fixture runs. Every existing call site keeps its familiar name, now scoped to the run.</p>
+    <p>A side benefit worth knowing: because every temp path the run computes now descends from one folder, deleting that folder removes everything the run made in temp. Under the old scheme cleanup depended on each fixture disposing each folder it created, and several never did.</p>
+  </div>
+
+  <div class="card">
+    <h2>Does it work? Two measurements</h2>
+    <p><strong>The suite stops collapsing.</strong> On a machine whose <span class="mono">%TEMP%</span> holds about 27,000 entries:</p>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Tree</th><th>Tests run</th><th>Passed</th><th>Failed</th><th>Aborted?</th></tr></thead>
+      <tbody>
+        <tr><td class="what">pristine <span class="mono">master</span></td><td class="numeral">1678</td><td class="numeral">1603</td><td class="numeral">65</td><td>yes</td></tr>
+        <tr><td class="what">this branch</td><td class="numeral">3046</td><td class="numeral">3032</td><td class="numeral">1</td><td>no</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><strong>It survived a real collision.</strong> Part way through this work another agent ran the suite the old way, at the same time as one of my runs. Both created folders called <span class="mono">SpreadsheetAudioImportDest</span> — mine inside my run folder at 17:01, theirs loose in <span class="mono">%TEMP%</span> at 16:58 — and neither disturbed the other. Under the old scheme that is exactly the moment one run's setup deletes the other's live folder.</p>
+  </div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td class="what">C# build</td><td><span class="chip pass">pass</span></td><td class="detail">0 errors</td></tr>
+        <tr><td class="what">C# format (CSharpier)</td><td><span class="chip pass">pass</span></td><td class="detail">clean; the pre-commit hook reformatted nothing</td></tr>
+        <tr><td class="what">C# tests — changed/related</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">2 passed · 0 failed</span> — the two tests added here</td></tr>
+        <tr><td class="what">C# tests — full suite</td><td><span class="chip warn">1 pre-existing failure</span></td><td class="detail"><span class="numeral">3046 run · 3032 passed · 1 failed</span>. The failure, <span class="mono">XMatterHelperTests.InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</span>, also fails on pristine master. Figures are from the most recent complete run; roughly one run in three is cut short by an unrelated crash — decision 1.</td></tr>
+        <tr><td class="what">TypeScript typecheck &amp; lint</td><td><span class="chip na">not run</span></td><td class="detail">No front-end files in this diff</td></tr>
+        <tr><td class="what">TypeScript tests (vitest)</td><td><span class="chip na">not run</span></td><td class="detail">Same reason — this change is C# only</td></tr>
+        <tr><td class="what">Merge cleanliness</td><td><span class="chip pass">mergeable</span></td><td class="detail">Branched from current <span class="mono">origin/master</span>; GitHub reports the PR mergeable</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <div class="commit">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/5ae760dc5f" target="_blank" rel="noopener">Give each test run its own temp directory</a></h3>
+      <p class="sha mono">5ae760dc5f</p>
+      <ul><li>The assembly-wide <span class="mono">[SetUpFixture]</span>, its two tests, and a note in <span class="mono">AGENTS.md</span>.</li></ul>
+    </div>
+    <div class="commit" style="margin-top:16px">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/dbf656b51b" target="_blank" rel="noopener">Document the public NUnit hooks</a></h3>
+      <p class="sha mono">dbf656b51b</p>
+      <ul><li>From Devin: the repo requires a comment on every public method, and the two hooks had none.</li></ul>
+    </div>
+    <div class="commit" style="margin-top:16px">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/b0ac8a7c94" target="_blank" rel="noopener">Correct what AGENTS.md promises about the kept folder</a></h3>
+      <p class="sha mono">b0ac8a7c94</p>
+      <ul><li>Checking Devin's question turned up a wrong sentence I had just written: it said a kept folder's path "is printed at the end of the run", but <span class="mono">dotnet test</span> hides that output, so a developer would have looked, seen nothing, and concluded the folder was not kept.</li></ul>
+    </div>
+    <div class="commit" style="margin-top:16px">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/4ba357019e" target="_blank" rel="noopener">Put TMP/TEMP back before deleting the run folder</a></h3>
+      <p class="sha mono">4ba357019e</p>
+      <ul><li>From Devin: teardown deleted the folder but left the environment pointing at it, so anything running afterwards would have been handed a path inside a directory that no longer existed.</li></ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td class="what">Local review<br><span class="detail" style="font-weight:400;font-size:13px">light pass, run inline</span></td><td><span class="chip pass">clean</span></td><td class="detail">No findings. Run inline rather than as a sub-agent, because this session carries a standing instruction not to call the Agent tool.</td></tr>
+        <tr><td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8172" target="_blank" rel="noopener">Devin</a></td><td><span class="chip pass">complete</span></td><td class="detail">Four rounds. <span class="numeral">1</span> bug and <span class="numeral">2</span> Investigate flags, all three acted on with their threads resolved; <span class="numeral">4</span> informational per round. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8172#issuecomment-5209644048" target="_blank" rel="noopener">Consultation logged on the PR</a>. Note that Devin accumulates findings across rounds — its final round re-reported all three even though each is fixed in the very commit it reviewed.</td></tr>
+        <tr><td class="what">Greptile</td><td><span class="chip warn">timed out</span></td><td class="detail">A <span class="mono">greptile-apps</span> check suite exists for every commit but stayed <span class="mono">queued</span> throughout, never producing a review, a comment, or a check run.</td></tr>
+        <tr><td class="what">CodeRabbit</td><td><span class="chip na">not applicable</span></td><td class="detail"><span class="mono">.coderabbit.yml</span> sets <span class="mono">auto_review.enabled: false</span> — it deliberately does not review.</td></tr>
+        <tr><td class="what">CI</td><td><span class="chip na">no checks</span></td><td class="detail">This repo runs no build or test checks on pull requests, and its one PR workflow did not fire.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="col">
+
+  <div class="item">
+    <div class="kind">Decision 1</div>
+    <h3>A third source of flaky runs, unrelated to either PR</h3>
+    <p>About one run in three ends early — not with a test failure, but with the test host process crashing. Six full runs on this branch: four finished, two did not. In plain terms, Bloom's little web server is being shut down while it is still handling a request, and the resulting crash takes the whole test host with it. It wears two faces, both from the same lifetime problem: <span class="mono">Cannot access a disposed object … ThreadPoolBoundHandle</span> from <span class="mono">BloomServer.RequestProcessorLoop</span>, and <span class="mono">Cannot access a disposed object … HttpRequestQueueV2Handle</span> while a response is still being written.</p>
+    <p>It is worth knowing that an aborted run can still print <strong>"Passed!"</strong> — one of these stopped after 348 of 3046 tests and reported success, because everything that had run so far had passed. A run has to be checked for "Test Run Aborted" as well as for its pass count, or a third of runs can look green while having barely started.</p>
+    <p>It is definitely not caused by this branch. It aborted a run whose only change from a previous complete run was <em>documentation comments</em>, which cannot alter behaviour. It also appeared during earlier runs on master.</p>
+    <p>It is, however, the reason the full-suite figures above come from the most recent <em>complete</em> run rather than simply "the last run".</p>
+    <p>It matters because it is the last remaining reason a run of the suite does not finish, and because it is easy to misattribute: for a while today I was crediting these aborts to the temp-folder problem this PR fixes.</p>
+    <div class="opts" data-q="Decision 1 — BloomServer crash">
+      <label class="opt"><input type="radio" name="d1" value="File a YouTrack card for the BloomServer shutdown crash" checked><span class="lab">File a card for it<span class="tag">recommended</span><span class="fn">No product code; a few minutes to write up with the exception, the stack frame and the observed rate — recommended because it is now the only thing that stops a suite run finishing, and it will otherwise keep being blamed on whatever else changed.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d1" value="Investigate the shutdown race now"><span class="lab">Investigate the shutdown race now<span class="fn">Moderate: a threading/lifetime bug in the server's request loop, and intermittent, so confirming any fix means repeated full runs.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d1" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d1" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Decision 1 — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Decision 1 — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item fyi">
+    <div class="kind">For your information</div>
+    <h3>What a failing run leaves behind, and for how long</h3>
+    <p>A run that fails keeps its temp folder, so you can see what the failing test wrote; a run that passes deletes its own. Anything left behind is cleared by a later run once it is more than a day old. Both halves were checked directly rather than assumed: one failing test leaves a folder, one passing test does not, and the count in <span class="mono">%TEMP%\BloomTests\</span> moves accordingly.</p>
+    <p>Two consequences to be aware of. Folders belonging to a fixture that is later renamed or deleted will sit there until the day is up. And if you crash out of many failing runs in quick succession you will accumulate one folder per run for a day, which is untidy but bounded.</p>
+    <div class="opts" data-q="FYI — leftovers">
+      <label class="opt"><input type="radio" name="d2" value="Shorten the stale threshold from a day"><span class="lab">Shorten the stale threshold from a day<span class="fn">A one-line change; the risk is deleting a folder a very long-running suite still wants.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d2" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI leftovers — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d2" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI leftovers — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="FYI leftovers — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item fyi">
+    <div class="kind">For your information</div>
+    <h3>This overlaps with BL-16661, but does not replace it</h3>
+    <p>These two changes fix different causes of the same symptom, and each on its own takes this machine's suite from "aborts with 65 failures" to "completes with 1". This one stops separate runs from deleting each other's folders; <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16661" target="_blank" rel="noopener">BL-16661</a> stops a test book in <span class="mono">%TEMP%</span> making Bloom treat the whole temp tree as a collection.</p>
+    <p>Keeping both is worthwhile: this one alone would leave the importer still scanning whatever its book's parent folder happens to contain, and BL-16661 alone would leave two concurrent runs deleting each other's folders. They also compose without conflict — the spreadsheet folders simply nest inside the per-run root.</p>
+    <div class="opts" data-q="FYI — relationship to BL-16661">
+      <label class="opt"><input type="radio" name="d3" value="Review and land them as a pair"><span class="lab">Review and land them as a pair<span class="fn">No code either way; just a sequencing choice for review.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d3" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI relationship — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d3" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI relationship — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="FYI relationship — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Next step</div>
+    <h3>What would you like to happen when you send this back?</h3>
+    <div class="opts" data-q="Next step">
+      <label class="opt"><input type="radio" name="d4" value="Implement what I chose, then re-run preflight" checked><span class="lab">Implement what I chose, then re-run preflight<span class="tag">recommended</span><span class="fn">Any code change is a new commit, so the reviewers run again.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Nothing further - I will review the PR myself now"><span class="lab">Nothing further — I'll review the PR myself now<span class="fn">The PR stays draft; <span class="mono">pr-ready-for-human</span> is the step after your own review.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d4" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Next step — other" placeholder="your answer"></span></span><span></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Next step — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+  </div>
+
+  <div class="copyback">
+    <h2>Send your answers back</h2>
+    <p class="lede">Copy this and paste it into the session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+
+<footer>Preflight report for <span class="mono">BL-16664-isolate-test-temp</span> at <span class="mono">4ba35701</span>. Re-running preflight republishes this page at the same address.</footer>
+</div>
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+  function serialize() {
+    var lines = ["Preflight answers — BL-16664 (PR #8172, 4ba35701)", ""];
+    document.querySelectorAll(".opts").forEach(function (group) {
+      var q = group.getAttribute("data-q");
+      var picked = group.querySelector("input[type=radio]:checked");
+      var val = picked ? picked.value : "(no answer)";
+      if (val === "Other") {
+        var o = group.querySelector('input[type=text][data-q$="other"]');
+        var typed = o && o.value.trim();
+        val = "Other: " + (typed ? typed : "(nothing typed)");
+      }
+      lines.push(q + ": " + val);
+      var lc = group.querySelector('input[type=checkbox]');
+      if (lc && lc.checked) lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+      var item = group.closest(".item");
+      var notes = item && item.querySelector('textarea[data-q$="notes"]');
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    payload.value = lines.join("\n").replace(/\n+$/, "\n");
+  }
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function(){c.hidden=true;}, 2500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function(){ payload.select(); document.execCommand("copy"); done(); });
+    } else { payload.select(); document.execCommand("copy"); done(); }
+  });
+})();
+</script>
+</body>
+</html>

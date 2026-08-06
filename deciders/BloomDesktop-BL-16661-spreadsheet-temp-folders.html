@@ -132,34 +132,35 @@ button:hover { background: #185855; }
 
 footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; }
 </style>
+<style>
+/* Long identifiers (test names, paths) are single unbreakable tokens; let them wrap
+   rather than widening a table cell until the whole page scrolls sideways. */
+.mono, .numeral { overflow-wrap: anywhere; word-break: break-word; }
+</style>
 </head>
 <body>
 <div class="wrap">
 
 <div class="masthead">
-  <h1>Preflight — spreadsheet tests no longer treat <span class="mono">%TEMP%</span> as a Bloom collection</h1>
-  <p class="sub">BL-16661 · BloomDesktop · draft PR ready for your own review</p>
+  <h1>Preflight — a test book in <span class="mono">%TEMP%</span> made Bloom scan the whole temp tree</h1>
+  <p class="sub">BL-16661 · BloomDesktop · draft PR, second preflight run, after your decisions</p>
   <div class="metaline">
     <span><span class="k">Branch</span> <span class="mono">BL-16661-spreadsheet-temp-folders</span></span>
     <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170" target="_blank" rel="noopener">#8170 (draft)</a></span>
-    <span><span class="k">Files changed</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170/files" target="_blank" rel="noopener">10 files</a></span>
-    <span><span class="k">HEAD</span> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4" target="_blank" rel="noopener">26bba0d6</a></span>
+    <span><span class="k">Files</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170/files" target="_blank" rel="noopener">12 changed, +289 −65</a></span>
+    <span><span class="k">HEAD</span> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/bf3f174deb2ef3d472d92fe2fbb1b4aa0802bb66" target="_blank" rel="noopener">bf3f174d</a></span>
     <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16661" target="_blank" rel="noopener">BL-16661</a></span>
   </div>
 </div>
 
 <div class="cols">
-
-<!-- ================= LEFT ================= -->
 <div class="col">
 
   <div class="card">
-    <h2>What this change does</h2>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L562" target="_blank" rel="noopener"><span class="mono">SpreadsheetImporter.GetPageForLabel()</span></a> looks for page templates in “the collection the book is in”, and works that out as the book folder’s <strong>parent</strong>. In a real Bloom collection that is correct. In the tests it was not: they built their book directly in <span class="mono">%TEMP%</span>, so the parent was the temp directory itself and Bloom walked every subfolder of it looking for books.</p>
-    <p>On a working machine that is thousands of folders belonging to other tests and other programs. If any one of them was deleted between being listed and being inspected, <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/Book/BookStorage.cs#L2202" target="_blank" rel="noopener"><span class="mono">FindBookHtmlInFolder</span></a> threw and took out an entire fixture in <span class="mono">OneTimeSetUp</span> — naming a folder that had nothing to do with the test, and hitting a different set of tests each run.</p>
-    <p>Now each fixture gets a folder of its own, named after itself, under one root, and nests its book inside that:</p>
-    <div class="tablewrap"><p class="mono" style="color:var(--muted)">%TEMP%/BloomSpreadsheetTests/&lt;FixtureName&gt;/Book</p></div>
-    <p>So the folder the importer scans as “the collection” only ever holds that one fixture’s folders.</p>
+    <h2>What changed since your decisions</h2>
+    <p>You asked for the card's second fix as well, so this PR is no longer test-only. <a href="https://github.com/BloomBooks/BloomDesktop/blob/bf3f174deb2ef3d472d92fe2fbb1b4aa0802bb66/src/BloomExe/web/controllers/PageTemplatesApi.cs#L142" target="_blank" rel="noopener"><span class="mono">GetBooksInCollectionDirectories</span></a> now skips a book folder that has disappeared instead of letting it abort the whole scan. That protects the Add Page dialog in the shipping product, not only the tests: Bloom lists the folders in every source collection and inspects each one, and a folder can be deleted in that instant by a sync client, an antivirus tool, or the user.</p>
+    <p>Its regression test reproduces the race deterministically rather than hoping to catch it. The scan is lazy, so the test takes one book from the enumerator, deletes the folder of whichever book it has <em>not</em> yet been handed, and carries on. Without the guard it fails with the exact exception from the bug report.</p>
+    <p>The guard also changed the picture on this branch: before it, the full suite here aborted with 36 failures; with it, the suite runs to completion with one pre-existing failure.</p>
   </div>
 
   <div class="card">
@@ -169,12 +170,12 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
       <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
       <tbody>
         <tr><td class="what">C# build</td><td><span class="chip pass">pass</span></td><td class="detail">0 errors</td></tr>
-        <tr><td class="what">C# format (CSharpier)</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">16</span> files checked; pre-commit hook reformatted nothing</td></tr>
-        <tr><td class="what">C# tests — changed/related</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">391 passed · 0 failed</span> in <span class="mono">BloomTests.Spreadsheet</span></td></tr>
-        <tr><td class="what">C# tests — full suite</td><td><span class="chip warn">pre-existing failures</span></td><td class="detail"><span class="numeral">2914 passed · 36 failed</span> before the run aborted. Pristine <span class="mono">origin/master</span> with this change stashed is worse: <span class="numeral">1603 passed · 65 failed</span>. See decision 2.</td></tr>
-        <tr><td class="what">TypeScript typecheck &amp; lint</td><td><span class="chip na">not run</span></td><td class="detail">No front-end files in this diff; the fast gate runs changed/related checks only</td></tr>
-        <tr><td class="what">TypeScript tests (vitest)</td><td><span class="chip na">not run</span></td><td class="detail">Same reason — this change is C# test code only</td></tr>
-        <tr><td class="what">Merge cleanliness</td><td><span class="chip pass">clean</span></td><td class="detail">Branched from current <span class="mono">origin/master</span>; merging it back reports “Already up to date”</td></tr>
+        <tr><td class="what">C# format (CSharpier)</td><td><span class="chip pass">pass</span></td><td class="detail">clean; the pre-commit hook reformatted nothing</td></tr>
+        <tr><td class="what">C# tests — changed/related</td><td><span class="chip pass">pass</span></td><td class="detail"><span class="numeral">397 passed · 0 failed</span> across <span class="mono">BloomTests.Spreadsheet</span> and <span class="mono">PageTemplatesApiTests</span></td></tr>
+        <tr><td class="what">C# tests — full suite</td><td><span class="chip warn">1 pre-existing failure</span></td><td class="detail"><span class="numeral">3046 run · 3032 passed · 1 failed</span>, no abort. The failure, <span class="mono">XMatterHelperTests.InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</span>, also fails on pristine master. See decision 2.</td></tr>
+        <tr><td class="what">TypeScript typecheck &amp; lint</td><td><span class="chip na">not run</span></td><td class="detail">No front-end files in this diff</td></tr>
+        <tr><td class="what">TypeScript tests (vitest)</td><td><span class="chip na">not run</span></td><td class="detail">Same reason — this change is C# only</td></tr>
+        <tr><td class="what">Merge cleanliness</td><td><span class="chip pass">mergeable</span></td><td class="detail"><span class="mono">origin/master</span> merged in during this run; GitHub reports the PR mergeable</td></tr>
       </tbody>
     </table>
     </div>
@@ -183,15 +184,16 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
   <div class="card">
     <h2>What changed this run</h2>
     <div class="commit">
-      <h3>Nest spreadsheet test temp folders so no test book sits in %TEMP%</h3>
-      <p class="sha"><a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4" target="_blank" rel="noopener">26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4</a> · 10 files · +204 −65</p>
-      <ul>
-        <li>New <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomTests/Spreadsheet/SpreadsheetTestFolders.cs#L43" target="_blank" rel="noopener"><span class="mono">SpreadsheetTestFolders</span></a> hands each fixture a folder named after itself under a shared root. The root is made with <span class="mono">Directory.CreateDirectory</span> rather than the <span class="mono">TemporaryFolder(name)</span> constructor, because that constructor deletes any existing folder of the same name — which would throw away a sibling fixture’s folders.</li>
-        <li>Every spreadsheet fixture now nests its book / spreadsheet / other folders inside its own folder, and teardown disposes just the root.</li>
-        <li>Fixed three collisions that were already there: <span class="mono">SpreadsheetAudioTestsBase</span> used <span class="mono">SpreadsheetImagesTests</span>’ folder names (so whichever ran second deleted the other’s folder); three license fixtures shared one name, as did <span class="mono">SpreadsheetImportDeleteExtraPagesTest</span> with another fixture; and both audio-import fixtures leaked their spreadsheet folder and shared the name <span class="mono">"other audio folder"</span>.</li>
-        <li>Added <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomTests/Spreadsheet/SpreadsheetTestFolders.cs#L64" target="_blank" rel="noopener">a guard test</a> for the invariant the fix rests on: a nested book folder’s parent is not <span class="mono">%TEMP%</span> and contains nothing but our own folders.</li>
-      </ul>
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/82f78879dc" target="_blank" rel="noopener">Don't let a vanishing folder abort the page-template scan</a></h3>
+      <p class="sha mono">82f78879dc</p>
+      <ul><li>Your decision 1: the one-line guard, plus the deterministic regression test described above.</li></ul>
     </div>
+    <div class="commit" style="margin-top:16px">
+      <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/bf3f174deb" target="_blank" rel="noopener">Make the vanishing-folder test independent of enumeration order</a></h3>
+      <p class="sha mono">bf3f174deb</p>
+      <ul><li>From Devin. The test assumed the scan would hand it <span class="mono">"a book"</span> first — true on NTFS, not guaranteed on ext4 — so it could have been flaky on Linux. It now decides at run time which book to delete.</li></ul>
+    </div>
+    <p style="margin-top:16px;color:var(--muted);font-size:14px">Plus <span class="mono">51efbbb64e</span> merging <span class="mono">origin/master</span>, and a rewritten PR description — the old one still claimed the production guard was not included.</p>
   </div>
 
   <div class="card">
@@ -200,60 +202,35 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
     <table>
       <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
       <tbody>
-        <tr>
-          <td class="what">Local review<br><span class="detail" style="font-weight:400;font-size:13px">light pass, run inline</span></td>
-          <td><span class="chip pass">clean</span></td>
-          <td class="detail">No findings. Checked the folder-name collision hazard, the resulting path lengths against <span class="mono">MAX_PATH</span>, and the folders that moved out of <span class="mono">using</span> blocks. Run inline rather than as a sub-agent — see session notes.</td>
-        </tr>
-        <tr>
-          <td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8170" target="_blank" rel="noopener">Devin</a></td>
-          <td><span class="chip pass">complete</span></td>
-          <td class="detail"><span class="numeral">0</span> bugs, <span class="numeral">0</span> to investigate, <span class="numeral">3</span> informational — for this exact HEAD. Nothing to mirror; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170#issuecomment-5209162398" target="_blank" rel="noopener">consultation logged on the PR</a>. Two of its notes independently confirm this PR’s assumptions (fixture names are distinct, <span class="mono">Setup</span> runs once per subclass, fixture-level parallelism is off in this assembly, and sibling folders are scanned harmlessly because Bloom does not recurse). The third is decision 3.</td>
-        </tr>
-        <tr>
-          <td class="what">Greptile</td>
-          <td><span class="chip warn">timed out after 31 min</span></td>
-          <td class="detail">A <span class="mono">greptile-apps</span> check suite was created for this commit but stayed <span class="mono">queued</span> for the whole wait — it never produced a check run, a review, or a comment. The likeliest explanation is that Greptile skips draft pull requests, as several review bots do, but GitHub does not actually say so, so this is recorded as a timeout rather than as a pass. Marking the PR ready for review, or simply re-running preflight, will fold in a late result if one arrives.</td>
-        </tr>
-        <tr>
-          <td class="what">CodeRabbit</td>
-          <td><span class="chip na">not applicable</span></td>
-          <td class="detail">This repo’s <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/.coderabbit.yml" target="_blank" rel="noopener"><span class="mono">.coderabbit.yml</span></a> sets <span class="mono">auto_review.enabled: false</span>, so CodeRabbit deliberately does not review. Not a reviewer we are waiting on.</td>
-        </tr>
-        <tr>
-          <td class="what">CI</td>
-          <td><span class="chip na">no checks</span></td>
-          <td class="detail"><span class="mono">gh pr checks</span> reports no checks on this branch. BloomDesktop’s only PR workflow is <span class="mono">pr-automation.yml</span>, whose job is to kick off the Devin review — there is no build-or-test CI on PRs here, so there was no CI signal to wait for. Devin was triggered directly instead of relying on that workflow.</td>
-        </tr>
+        <tr><td class="what">Local review<br><span class="detail" style="font-weight:400;font-size:13px">light pass, run inline</span></td><td><span class="chip pass">clean</span></td><td class="detail">No findings. Run inline rather than as a sub-agent, because this session carries a standing instruction not to call the Agent tool.</td></tr>
+        <tr><td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8170" target="_blank" rel="noopener">Devin</a></td><td><span class="chip pass">complete</span></td><td class="detail">Two rounds. <span class="numeral">0</span> bugs; <span class="numeral">2</span> Investigate flags, both acted on with their threads resolved (the Linux ordering flaw, and the description contradicting its own diff); <span class="numeral">4</span> informational. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8170#issuecomment-5209576761" target="_blank" rel="noopener">Consultation logged on the PR</a>.</td></tr>
+        <tr><td class="what">Greptile</td><td><span class="chip warn">timed out</span></td><td class="detail">A <span class="mono">greptile-apps</span> check suite exists for the commit but stayed <span class="mono">queued</span> for this whole session without producing a review, a comment, or even a check run.</td></tr>
+        <tr><td class="what">CodeRabbit</td><td><span class="chip na">not applicable</span></td><td class="detail"><a href="https://github.com/BloomBooks/BloomDesktop/blob/bf3f174deb2ef3d472d92fe2fbb1b4aa0802bb66/.coderabbit.yml" target="_blank" rel="noopener"><span class="mono">.coderabbit.yml</span></a> sets <span class="mono">auto_review.enabled: false</span> — it deliberately does not review.</td></tr>
+        <tr><td class="what">CI</td><td><span class="chip na">no checks</span></td><td class="detail">This repo runs no build or test checks on pull requests. Its only PR workflow exists to start the Devin review, and it did not fire — see the FYI.</td></tr>
       </tbody>
     </table>
     </div>
   </div>
 
   <div class="card">
-    <h2>Session notes</h2>
-    <ul>
-      <li>The work started on the <span class="mono">graphicsMagickTests</span> branch (BL-16647) and was moved onto a fresh branch cut from current <span class="mono">origin/master</span> before anything was committed.</li>
-      <li>The local review ran <strong>inline rather than as a sub-agent</strong>, because this session carries a standing instruction not to call the Agent tool. The review still happened; only its delivery differed from preflight’s default.</li>
-      <li>An early full-suite run was discarded: a second test command was building into the same private output tree while it ran, which overwrote assemblies mid-run. The numbers in the gate table come from clean, serialized runs.</li>
-      <li>The PR link was posted to BL-16661; the card had none before.</li>
-    </ul>
+    <h2>Related work</h2>
+    <p>While finishing this, a second card came out of the same area: <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16664" target="_blank" rel="noopener">BL-16664</a> / <a href="https://github.com/BloomBooks/BloomDesktop/pull/8172" target="_blank" rel="noopener">PR #8172</a>, which gives each test run its own temp directory so that two agents running the suite at once cannot delete each other's folders. It has its own preflight report.</p>
+    <p>The two are independent fixes for different causes, and each on its own takes this machine's suite from "aborts with 65 failures" to "completes with 1". You may want to review them as a pair.</p>
   </div>
 
 </div>
 
-<!-- ================= RIGHT ================= -->
 <div class="col">
 
   <div class="item">
     <div class="kind">Decision 1</div>
-    <h3>Should the template scan itself survive a folder that disappears?</h3>
-    <p>The card offered two fixes and said “either or both”. This PR does the first one: keep test books out of <span class="mono">%TEMP%</span>. The second was to make the scan tolerant, so that a folder vanishing mid-scan is skipped rather than fatal.</p>
-    <p>Why it might still matter: the tolerance would protect the real product, not just the tests. When a user opens the Add Page dialog, Bloom lists the folders in every source collection and inspects each one. If a folder is deleted in that instant — by a sync client such as Dropbox, an antivirus tool, or the user themselves — the dialog fails instead of quietly skipping it. The narrow version is one line in <a href="https://github.com/BloomBooks/BloomDesktop/blob/26bba0d6ad4eac7bab314bddcf84d5f5cf5f9ee4/src/BloomExe/web/controllers/PageTemplatesApi.cs#L141" target="_blank" rel="noopener"><span class="mono">GetBooksInCollectionDirectories</span></a>: filter out folders that no longer exist before inspecting them. It does not weaken the <span class="mono">bl-291</span> warning that tells a user their book folder has gone missing, because that check lives on the save path, not the collection scan.</p>
-    <div class="opts" data-q="Decision 1 — defensive scan">
-      <label class="opt"><input type="radio" name="d1" value="Add the one-line guard to GetBooksInCollectionDirectories in this PR" checked><span class="lab">Add the one-line guard in this PR<span class="tag">recommended</span><span class="fn">~1 line of production code, no user-visible behavior change, low risk — recommended because it is the only part of the card’s fix that protects the shipping product, and it is cheaper to do here than to carry as a separate card.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d1" value="Do it as its own card and PR"><span class="lab">Do it as its own card and PR<span class="fn">No code here; costs a new card and a second review cycle, but keeps this PR purely test-side.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d1" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</span></label>
+    <h3>The guard makes the failure very unlikely, but cannot make it impossible</h3>
+    <p>Devin pointed out, correctly, that checking whether a folder exists and then opening it are two separate steps. A folder could still be deleted in the gap between them, and the scan would throw exactly as before.</p>
+    <p>In practice the difference is large. Previously the whole enumeration was exposed: Bloom listed thousands of folders, and any one of them disappearing at any point during a scan lasting seconds would abort it. Now the exposure is the few microseconds between one folder's check and that same folder's inspection. On this branch that is the difference between a suite that aborts and one that finishes.</p>
+    <p>Closing the gap completely would mean catching the exception rather than testing first. That is a different shape of change: the project's own guidance is to fail fast rather than swallow failures, and a catch here would also hide genuine problems such as a permissions fault. That is why the recommendation is to stop where we are.</p>
+    <div class="opts" data-q="Decision 1 — residual race">
+      <label class="opt"><input type="radio" name="d1" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d1" value="Also catch the exception around the inspection, closing the race completely"><span class="lab">Also catch the exception, closing the race completely<span class="fn">~5 lines in the same method, but it swallows a class of exception instead of testing a condition, which cuts against the repo's fail-fast guidance.</span></span><span></span></label>
       <label class="opt"><input type="radio" name="d1" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Decision 1 — other" placeholder="your answer"></span></span><span></span></label>
     </div>
     <div class="notes"><label>Notes</label><textarea data-q="Decision 1 — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
@@ -261,13 +238,12 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
 
   <div class="item">
     <div class="kind">Decision 2</div>
-    <h3>The full C# test suite is not green on this machine — and it is worse without this change</h3>
-    <p>The project’s own instructions say the full C# suite “is expected to be <strong>green</strong>” when run through the build wrapper. It is not. Run against a pristine checkout of current <span class="mono">origin/master</span>, with this change stashed, <span class="numeral">65</span> tests fail and the run aborts partway through, having reached only <span class="numeral">1678</span> of about <span class="numeral">2962</span> tests. With this change applied, <span class="numeral">36</span> fail and the run gets much further.</p>
-    <p>Two things are worth knowing. First, the failures on my branch are all in publish-side fixtures — ePUB export, <span class="mono">CompressBookForDevice</span>, accessibility checks, audio overlays — none of which this change touches, and the ones I spot-checked fail on pristine master too. Second, the pristine baseline fails <span class="mono">BogusCkeMaterial_Removed("span")</span>, which is precisely the collateral damage BL-16661 describes: a spreadsheet fixture blowing up in setup and taking unrelated tests down with it. So part of what you are seeing on master is this very bug, still live.</p>
-    <p>That leaves a genuine open question about the remaining publish-side failures and the aborting test host, which are a separate problem from this PR.</p>
-    <div class="opts" data-q="Decision 2 — non-green suite">
-      <label class="opt"><input type="radio" name="d2" value="File a YouTrack card for the failing publish-side fixtures and the aborting test host" checked><span class="lab">File a YouTrack card for the remaining failures<span class="tag">recommended</span><span class="fn">No product code; roughly a quarter-hour to write up with the fixture names and both runs’ numbers — recommended because the instructions promise a green suite, so anyone who trusts them will be misled until this is written down somewhere.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d2" value="Investigate the remaining failures now, before this PR merges"><span class="lab">Investigate now, before this PR merges<span class="fn">Open-ended — could be a long session, and it blocks a change that is already green in its own area.</span></span><span></span></label>
+    <h3>One test still fails, and the project's own notes say that particular failure means something</h3>
+    <p>With this branch the suite completes, but <span class="mono">XMatterHelperTests.InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</span> fails: it expects the layout id <span class="mono">customInsideBackCover</span> and gets an empty string, meaning Bloom could not locate the Factory front/back-matter files. It fails identically on a pristine checkout of master, so nothing here causes it.</p>
+    <p>It deserves a decision rather than a shrug because <span class="mono">AGENTS.md</span> singles this exact case out: "If you see the PdfMaker or xmatter-locating tests fail, that is a real regression in the wrapper / <span class="mono">Directory.Build.props</span>, not the known environment noise it used to be." By the project's own account this is a signal — and it is now the only thing between this suite and green.</p>
+    <div class="opts" data-q="Decision 2 — xmatter failure">
+      <label class="opt"><input type="radio" name="d2" value="File a YouTrack card for the xmatter-locating failure" checked><span class="lab">File a card for it<span class="tag">recommended</span><span class="fn">No product code; a few minutes to write up with the assertion, the AGENTS.md note and the fact that it reproduces on pristine master — recommended because it is the last thing standing between this suite and green, and the docs say it indicates a real wrapper regression.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d2" value="Investigate it now"><span class="lab">Investigate it now<span class="fn">Might be quick — a content-copy step the isolated build misses — or might not; it is unrelated to either PR in flight.</span></span><span></span></label>
       <label class="opt"><input type="radio" name="d2" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Decision 2 — leave comment"> Leave comment</span></label>
       <label class="opt"><input type="radio" name="d2" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Decision 2 — other" placeholder="your answer"></span></span><span></span></label>
     </div>
@@ -276,36 +252,26 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
 
   <div class="item fyi">
     <div class="kind">For your information</div>
-    <h3>Folders belonging to renamed or deleted fixtures will linger</h3>
-    <p>The shared <span class="mono">%TEMP%/BloomSpreadsheetTests</span> root is deliberately never deleted — deleting it would destroy the folders of any fixture running at the same time. Each fixture reclaims its own folder by name on the next run, so nothing accumulates in normal use. But if a fixture is renamed or removed, or a run crashes and that fixture is never run again, its folder sits under the root until someone clears it by hand. Devin raised this as an informational note; it is a tidiness issue, not a correctness one.</p>
-    <div class="opts" data-q="FYI — stale fixture folders">
-      <label class="opt"><input type="radio" name="d3" value="Have the helper clear unrecognized subfolders of the root"><span class="lab">Have the helper clear unrecognized subfolders of the root<span class="fn">~10 lines, test-only, but it means deleting folders the helper did not create in this run — a delete-what-we-do-not-own step that could bite if two runs ever overlap.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d3" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI stale folders — leave comment"> Leave comment</span></label>
-      <label class="opt"><input type="radio" name="d3" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI stale folders — other" placeholder="your answer"></span></span><span></span></label>
+    <h3>Both of this repo's automated reviewers were silent today</h3>
+    <p>Two separate things, neither caused by these PRs, but together meaning there is less automated review happening than you might assume.</p>
+    <p>First, <span class="mono">pr-automation.yml</span> — the workflow whose whole job is to open the Devin review page and so start a review — produced <strong>no run at all</strong> for either of today's PRs. Devin reviewed both only because I opened its page by hand. If that workflow has quietly stopped firing, PRs from anyone not doing that manually are going unreviewed.</p>
+    <p>Second, Greptile registered a check suite on every commit and then sat at <span class="mono">queued</span> all session without posting anything. A plausible explanation is that it skips draft pull requests, but GitHub does not say so, so it is recorded as a timeout rather than a pass.</p>
+    <div class="opts" data-q="FYI — silent reviewers">
+      <label class="opt"><input type="radio" name="d3" value="File a card to investigate why pr-automation.yml is not firing"><span class="lab">File a card to investigate the silent PR automation<span class="fn">Small to write up, but diagnosing it needs someone with repo settings access.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d3" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI silent reviewers — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d3" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI silent reviewers — other" placeholder="your answer"></span></span><span></span></label>
     </div>
-    <div class="notes"><label>Notes</label><textarea data-q="FYI stale folders — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
-  </div>
-
-  <div class="item fyi">
-    <div class="kind">For your information</div>
-    <h3>The card is still “In Progress”, and the PR is still a draft</h3>
-    <p>BL-16661 sits in <strong>In Progress</strong>, and PR #8170 is a <strong>draft</strong> with no reviewer requested. Both are deliberate: preflight never promotes work to human review. Moving the card to <strong>Ready For Code Review</strong>, marking the PR ready, and asking a colleague to look is the job of <span class="mono">pr-ready-for-human</span>, which you run after reviewing the change yourself.</p>
-    <div class="opts" data-q="FYI — card state">
-      <label class="opt"><input type="radio" name="d4" value="Move the card to Ready For Code Review now"><span class="lab">Move the card to Ready For Code Review now<span class="fn">One tracker update — but it skips your own review, which is the step this ordering exists to protect.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d4" value="Leave as is" checked><span class="lab">Leave as is<span class="tag">recommended</span></span><span class="leavecomment"><input type="checkbox" data-q="FYI card state — leave comment"> Leave comment</span></label>
-      <label class="opt"><input type="radio" name="d4" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="FYI card state — other" placeholder="your answer"></span></span><span></span></label>
-    </div>
-    <div class="notes"><label>Notes</label><textarea data-q="FYI card state — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
+    <div class="notes"><label>Notes</label><textarea data-q="FYI silent reviewers — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
   </div>
 
   <div class="item">
     <div class="kind">Next step</div>
     <h3>What would you like to happen when you send this back?</h3>
     <div class="opts" data-q="Next step">
-      <label class="opt"><input type="radio" name="d5" value="Implement whatever I chose above, then re-run preflight" checked><span class="lab">Implement what I chose above, then re-run preflight<span class="tag">recommended</span><span class="fn">Any code change is a new commit, so the reviewer gauntlet runs again — recommended because the choices above are small and self-contained.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d5" value="Discuss first, change nothing yet"><span class="lab">Discuss first, change nothing yet<span class="fn">No code moves until we have talked it through.</span></span><span></span></label>
-      <label class="opt"><input type="radio" name="d5" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span></label>
-      <label class="opt"><input type="radio" name="d5" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Next step — other" placeholder="your answer"></span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Implement what I chose, then re-run preflight" checked><span class="lab">Implement what I chose, then re-run preflight<span class="tag">recommended</span><span class="fn">Any code change is a new commit, so the reviewers run again.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Nothing further - I will review the PR myself now"><span class="lab">Nothing further — I'll review the PR myself now<span class="fn">The PR stays draft; <span class="mono">pr-ready-for-human</span> is the step after your own review.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="d4" value="Leave as is"><span class="lab">Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="d4" value="Other"><span class="lab">Other:<span class="otherbox"><input type="text" data-q="Next step — other" placeholder="your answer"></span></span><span></span></label>
     </div>
     <div class="notes"><label>Notes</label><textarea data-q="Next step — notes" placeholder="Caveats, constraints, anything else"></textarea></div>
   </div>
@@ -320,61 +286,40 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
 </div>
 </div>
 
-<footer>
-  Preflight report for <span class="mono">BL-16661-spreadsheet-temp-folders</span> at <span class="mono">26bba0d6</span>. Re-running preflight republishes this page at the same address.
-</footer>
-
+<footer>Preflight report for <span class="mono">BL-16661-spreadsheet-temp-folders</span> at <span class="mono">bf3f174d</span>. Re-running preflight republishes this page at the same address.</footer>
 </div>
-
 <script>
 (function () {
   var payload = document.getElementById("payload");
-
   function serialize() {
-    var lines = ["Preflight answers — BL-16661 (PR #8170, 26bba0d6)", ""];
+    var lines = ["Preflight answers — BL-16661 (PR #8170, bf3f174d)", ""];
     document.querySelectorAll(".opts").forEach(function (group) {
       var q = group.getAttribute("data-q");
       var picked = group.querySelector("input[type=radio]:checked");
       var val = picked ? picked.value : "(no answer)";
       if (val === "Other") {
-        var otherInput = group.querySelector('input[type=text][data-q$="other"]');
-        var typed = otherInput && otherInput.value.trim();
+        var o = group.querySelector('input[type=text][data-q$="other"]');
+        var typed = o && o.value.trim();
         val = "Other: " + (typed ? typed : "(nothing typed)");
       }
       lines.push(q + ": " + val);
-
       var lc = group.querySelector('input[type=checkbox]');
-      if (lc && lc.checked) {
-        lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
-      }
-
+      if (lc && lc.checked) lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
       var item = group.closest(".item");
       var notes = item && item.querySelector('textarea[data-q$="notes"]');
-      if (notes && notes.value.trim()) {
-        lines.push("  Notes: " + notes.value.trim());
-      }
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
       lines.push("");
     });
     payload.value = lines.join("\n").replace(/\n+$/, "\n");
   }
-
   document.addEventListener("input", serialize);
   document.addEventListener("change", serialize);
   serialize();
-
   document.getElementById("copybtn").addEventListener("click", function () {
-    var done = function () {
-      var c = document.getElementById("copied");
-      c.hidden = false;
-      setTimeout(function () { c.hidden = true; }, 2500);
-    };
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function(){c.hidden=true;}, 2500); };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, function () {
-        payload.select(); document.execCommand("copy"); done();
-      });
-    } else {
-      payload.select(); document.execCommand("copy"); done();
-    }
+      navigator.clipboard.writeText(payload.value).then(done, function(){ payload.select(); document.execCommand("copy"); done(); });
+    } else { payload.select(); document.execCommand("copy"); done(); }
   });
 })();
 </script>
