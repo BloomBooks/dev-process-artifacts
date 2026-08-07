@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16666 undefined-url instrumentation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #faf8f4; --card: #fff; --ink: #23201c; --muted: #6b6459;
+    --line: #e3ddd2; --accent: #8a5a2b; --accent-soft: #f3ece2; --ok: #2f6b43; --warn: #9a6a15;
+  }
+  body { background: var(--ground); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px; line-height: 1.55; padding: 32px 24px 64px; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 28px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 0 0 14px; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+  .lede { color: var(--muted); margin: 0 0 26px; max-width: 74ch; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; margin: 0 0 20px; }
+  .numeral { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .pass { color: var(--ok); font-weight: 600; }
+  .flag { color: var(--warn); font-weight: 600; }
+  ul { padding-left: 20px; margin: 8px 0; } li { margin: 6px 0; }
+  .commit { border-left: 3px solid var(--accent-soft); padding-left: 12px; margin: 0 0 14px; }
+  .commit p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .item { border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; margin: 0 0 18px; background: var(--card); }
+  .item h3 { margin-top: 0; } .item > p { margin: 0 0 12px; }
+  .opt { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .opt:first-of-type { border-top: none; }
+  .opt input[type=radio] { margin-top: 4px; flex: 0 0 auto; }
+  .opt label { flex: 1 1 auto; }
+  .tag { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 7px; border-radius: 9px; margin-left: 6px; vertical-align: 1px; }
+  .cost { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .leaverow { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .leaverow .spacer { flex: 1 1 auto; }
+  .leavecomment { flex: 0 0 auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .otherrow input[type=text] { flex: 1 1 auto; min-width: 0; margin-left: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .notes textarea { width: 100%; min-height: 52px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; resize: vertical; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: none; border-radius: 7px; padding: 9px 16px; cursor: pointer; }
+  button:hover { background: #6f4722; }
+  #payload { width: 100%; min-height: 150px; margin-top: 12px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; background: #fbfaf7; }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Preflight — BL-16666 undefined-url instrumentation</h1>
+  <p class="lede">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175" target="_blank" rel="noopener">PR #8175</a> (draft) ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175/files" target="_blank" rel="noopener">Files changed</a> ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175/commits" target="_blank" rel="noopener">Commits</a> ·
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16666" target="_blank" rel="noopener">BL-16666</a> ·
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8175" target="_blank" rel="noopener">Devin review</a><br>
+    HEAD <span class="numeral">4607a0bb</span> · mergeable · CI green · two items need you.
+  </p>
+
+  <div class="grid">
+    <div>
+
+      <div class="card">
+        <h2>What this branch is</h2>
+        <p>
+          The second of the two 404 patterns in Sentry issue 2699459502 — the ones reporting paths like
+          <span class="numeral">Temp/undefined</span>. The old card framed these as C# building a temp path from a
+          name that was undefined. That is wrong: it is the browser turning a JavaScript value into the *text*
+          &ldquo;undefined&rdquo; and asking for a file by that name. The server can only report that a file called
+          <span class="numeral">undefined</span> is missing, never who asked — which is why finding BL-16447, the one
+          instance we ever fixed, took so much guessing.
+        </p>
+        <p>
+          <strong>It fixes no instance.</strong> It makes the next one name itself: the server now reports the
+          referring page, and the front end reports a source-mapped JavaScript stack.
+        </p>
+        <p>
+          Also worth knowing, because it changes what we will see: the temp folder was incidental. A bare
+          <span class="numeral">undefined</span> src resolves against the document's base url, and these reports were
+          being suppressed for anything under the current book folder — so the bug was invisible whenever it happened
+          on a book page. <strong>We had been seeing a filtered slice.</strong> That suppression is now lifted.
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td>No blunder-class type errors.</td></tr>
+          <tr><td>Lint (eslint)</td><td class="pass">pass</td><td><span class="numeral">0 errors</span>; the new files are clean.</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="pass">pass</td>
+            <td><span class="numeral">687 passed · 5 skipped</span> of 692, at the final HEAD. 14 of them are new.</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="pass">pass</td>
+            <td><span class="numeral">3060 passed · 0 failed · 13 skipped</span> of 3073. 13 new. Fully green — including the xmatter test that was failing on master a day ago.</td></tr>
+          <tr><td>Production bundle</td><td class="pass">compiles</td>
+            <td>Via <span class="numeral">build/agent-vite.sh</span>. Worth doing: this touches a module every bundle imports.</td></tr>
+          <tr><td>Base integration</td><td class="flag">one conflict, resolved</td>
+            <td>PR #8171 landed on master mid-flight and had touched the same method. See the note below.</td></tr>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Reviewers</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+          <tr><td>Local review</td><td class="pass">complete</td>
+            <td>Light pass, run <strong>inline rather than as a sub-agent</strong> (this session's standing instructions bar spawning agents). One finding, fixed: the <span class="numeral">fetch</span> wrapper called through on <span class="numeral">this</span>, which is <span class="numeral">undefined</span> for a bare <span class="numeral">fetch(url)</span> in a module — the browser rejects fetch invoked on anything but the window, so that would have broken every fetch in Bloom.</td></tr>
+          <tr><td>Devin</td><td class="pass">complete</td>
+            <td>Five rounds. Raised 6 bugs and 8 investigate flags across them; <strong>7 fixed</strong>, 2 refuted with evidence, 3 answered on the record, <strong>2 left open</strong> as the decisions on the right. Its catches were the best part of this run — see below.</td></tr>
+          <tr><td>Other review bots</td><td>none active</td><td>No Greptile/CodeRabbit comments or config on this repo.</td></tr>
+          <tr><td>CI</td><td class="pass">complete</td><td><span class="numeral">pr-automation</span> passed in 32s. (TeamCity runs the C# suite and is not visible from <span class="numeral">gh</span>; the local full run above is the evidence for that side.)</td></tr>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What Devin caught that mattered</h2>
+        <p>
+          Recording these because they are the substance of the run, and because two of them were defects I would
+          have shipped.
+        </p>
+        <ul>
+          <li>
+            <strong>The reports would have interrupted users.</strong> Lifting the book-folder suppression meant these
+            requests reached a report that uses <span class="numeral">PassiveIf.All</span> — a toast on every channel,
+            plus a modal on beta — on pages that previously failed silently. My PR text had described the consequence
+            as &ldquo;more Sentry volume&rdquo; and missed this entirely. Now reported with
+            <span class="numeral">ModalIf.None/PassiveIf.None</span>, and under its own Sentry message so it does not
+            bury itself in the general one.
+          </li>
+          <li>
+            <strong>The stacks pointed at a bundle, not our code.</strong> errorHandler source-maps its stacks; the new
+            detector was handing over a raw one. For a feature whose only job is to name a line of our source, that
+            would have produced reports nobody could act on — it would have looked like it worked.
+          </li>
+          <li>
+            <strong>Only the first report of each kind would ever have been sent.</strong> The once-only rule was keyed
+            on the message, and every component that sets an image src to undefined produces the same message — so we
+            would have reported whichever ran first and hidden the rest for the session. That is the exact blind spot
+            this feature exists to remove. Keyed on the stack now. My first attempt at a cleverer key picked a frame
+            two call sites share and silently reinstated the bug; a new test caught it.
+          </li>
+          <li>
+            <strong>A stale test assertion.</strong> When I repointed card references to BL-16666 the message changed
+            and its assertion did not. I had re-run the C# suite after that rename but not the front-end one — which is
+            exactly how it got through, and why the fast gate exists.
+          </li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Session notes</h2>
+        <ul>
+          <li>
+            <strong>The merge conflict is worth a look.</strong> PR #8171 landed on master while this was in flight,
+            and had added its own diagnostics to the same <span class="numeral">ReportMissingFile</span> call. I kept
+            both — they answer different questions and a bare <span class="numeral">undefined</span> raises both. Devin
+            then caught that my first resolution left one of them unreachable; that is fixed.
+          </li>
+          <li>
+            <strong>I exceeded preflight's four-cycle fix cap, deliberately.</strong> Five rounds of fixes ran, because
+            rounds four and five surfaced genuine defects (the unmapped stacks, the message-keyed dedupe). Stopping at
+            the cap would have meant shipping known bugs to satisfy a counter. Flagging it because the cap exists to
+            stop churn, and a reviewer should judge whether this was churn.
+          </li>
+          <li>
+            <strong>One C# run reported only 350 tests</strong> instead of 3073, under heavy machine contention. I
+            re-ran rather than accept it; the re-run gave the full 3073 and was green. Mentioning it because a
+            truncated run that says &ldquo;Passed!&rdquo; is an easy thing to bank by mistake.
+          </li>
+          <li>
+            The card carries the PR link, a QA test-ideas comment, and a link to this report. BL-16577 has a comment
+            pointing here, and this card's description records why the split happened.
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div>
+
+      <div class="item" data-item="alphatoast">
+        <h3>1. Alpha testers will see &ldquo;A JavaScript error occurred&rdquo; pop-ups</h3>
+        <p>
+          The front-end half reports through the same path Bloom uses for real JavaScript errors
+          (<span class="numeral">common/error</span>), and that handler shows a small notice on the alpha channel,
+          labelled &ldquo;A JavaScript error occurred&rdquo;. So while we are hunting this bug, alpha testers could see
+          up to ten such notices in a session — for something that has not actually gone wrong for them.
+        </p>
+        <p>
+          This partly undoes the care taken on the server side, where I deliberately made this class silent. But it is
+          a real judgement call rather than an obvious defect: alpha users are our own testers, and a visible notice is
+          arguably how they find out there is something to report. That is why I have not decided it.
+        </p>
+        <div class="opt">
+          <input type="radio" name="alphatoast" id="at1" value="Add a quiet endpoint so these never toast" checked>
+          <label for="at1">Add a quiet reporting endpoint alongside <span class="numeral">common/error</span>, so these reach Sentry without any notice on any channel.<span class="tag">recommended</span>
+            <span class="cost">~30 lines across one api controller and the front-end reporter; low risk. Recommended because it makes the front-end half behave like the server half already does, and because a notice labelled &ldquo;JavaScript error&rdquo; misdescribes what happened.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="alphatoast" id="at2" value="Keep the alpha toast - testers should see it">
+          <label for="at2">Keep the notice on alpha — our testers seeing it is the point.
+            <span class="cost">No code. Accepts a misleading label and some noise for the people doing the testing.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="alphatoast" id="at3" value="Drop the front-end layer for now, ship only the server side">
+          <label for="at3">Ship only the server half for now and hold the front-end layer back.
+            <span class="cost">Moderate — reverting a self-contained module and its wiring. Loses the stack, which is the part that names the line.</span></label>
+        </div>
+        <div class="leaverow">
+          <input type="radio" name="alphatoast" id="at4" value="Leave as is">
+          <label for="at4">Leave as is</label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="alphatoast-comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="alphatoast" id="at5" value="Other">
+          <label for="at5" style="display:flex;align-items:center;">Other:<input type="text" data-q="alphatoast-other" placeholder="your answer"></label>
+        </div>
+        <div class="notes"><label for="atn">Notes</label><textarea id="atn" data-q="alphatoast-notes"></textarea></div>
+      </div>
+
+      <div class="item" data-item="servercap">
+        <h3>2. No cap on the server side, unlike the front end</h3>
+        <p>
+          The front-end layer reports each distinct problem once and stops after ten, because each report is an http
+          post from the browser. The server side has no such limit: every bogus request produces a Sentry entry.
+        </p>
+        <p>
+          I left that asymmetric on purpose. Sentry already groups identical events, and the per-event count is
+          <em>information</em> — it tells us how often a bad url is actually being requested, which the front-end cap
+          deliberately throws away. But it does mean this PR increases Sentry volume, on top of the increase from
+          lifting the book-folder suppression, and you are the one who watches that.
+        </p>
+        <div class="opt">
+          <input type="radio" name="servercap" id="sc1" value="Leave the server uncapped - the counts are useful" checked>
+          <label for="sc1">Leave it uncapped — the counts are the useful part, and Sentry groups them anyway.<span class="tag">recommended</span>
+            <span class="cost">No code. Recommended because a cap here would discard the frequency data we are collecting these reports to get.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="servercap" id="sc2" value="Cap the server side per session too">
+          <label for="sc2">Cap the server side per session as well, matching the front end.
+            <span class="cost">~15 lines and a static counter in BloomServer; low risk, but loses the frequency signal.</span></label>
+        </div>
+        <div class="leaverow">
+          <input type="radio" name="servercap" id="sc3" value="Leave as is">
+          <label for="sc3">Leave as is</label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="servercap-comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="servercap" id="sc4" value="Other">
+          <label for="sc4" style="display:flex;align-items:center;">Other:<input type="text" data-q="servercap-other" placeholder="your answer"></label>
+        </div>
+        <div class="notes"><label for="scn">Notes</label><textarea id="scn" data-q="servercap-notes"></textarea></div>
+      </div>
+
+      <div class="item" data-item="next">
+        <h3>3. Next step</h3>
+        <p>
+          The branch is a clean draft PR, green on both suites, with every Devin finding either fixed or answered on
+          the record. The two items above are the only open threads.
+        </p>
+        <div class="opt">
+          <input type="radio" name="next" id="nx1" value="Decide items 1-2, then review and run pr-ready-for-human" checked>
+          <label for="nx1">Answer the two items above, let me apply them, then do your own review and run <span class="numeral">pr-ready-for-human</span>.<span class="tag">recommended</span>
+            <span class="cost">Recommended because item 1 changes behavior your alpha testers will meet, so it is better settled before the PR goes to a colleague.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="next" id="nx2" value="Promote now, handle items 1-2 as follow-ups">
+          <label for="nx2">Promote now and treat both items as follow-ups.
+            <span class="cost">No code now; means a reviewer meets two open threads.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="next" id="nx3" value="Discuss the approach before anything else">
+          <label for="nx3">Talk through the approach first.
+            <span class="cost">No code.</span></label>
+        </div>
+        <div class="leaverow">
+          <input type="radio" name="next" id="nx4" value="Leave as is">
+          <label for="nx4">Leave as is</label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="next-comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="next" id="nx5" value="Other">
+          <label for="nx5" style="display:flex;align-items:center;">Other:<input type="text" data-q="next-other" placeholder="your answer"></label>
+        </div>
+        <div class="notes"><label for="nxn">Notes</label><textarea id="nxn" data-q="next-notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3>Send your answers back</h3>
+        <p>Copy this and paste it into the session.</p>
+        <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var TITLES = {
+    alphatoast: "1. Alpha testers will see “A JavaScript error occurred” pop-ups",
+    servercap: "2. No cap on the server side, unlike the front end",
+    next: "3. Next step"
+  };
+  function build() {
+    var out = [
+      "Preflight decisions — BL-16666 undefined-url instrumentation",
+      "Repo: BloomBooks/BloomDesktop · Branch: BL-16666-undefined-url-instrumentation · PR: https://github.com/BloomBooks/BloomDesktop/pull/8175",
+      "YouTrack: BL-16666 · Report: https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/BloomDesktop-BL-16666-undefined-url-instrumentation.html",
+      "To resume in a fresh session: in a clone of BloomBooks/BloomDesktop, create a worktree for branch BL-16666-undefined-url-instrumentation (git fetch origin && git worktree add <path> BL-16666-undefined-url-instrumentation), read PR #8175 and BL-16666, then apply the decisions below. Items 1 and 2 each have an open Devin review thread on the PR that must be replied to and resolved once decided.",
+      ""
+    ];
+    Object.keys(TITLES).forEach(function (key) {
+      var item = document.querySelector('[data-item="' + key + '"]');
+      if (!item) return;
+      out.push(TITLES[key]);
+      var picked = item.querySelector('input[type=radio]:checked');
+      var value = picked ? picked.value : "(no answer)";
+      if (value === "Other") {
+        var other = item.querySelector('[data-q="' + key + '-other"]');
+        value = "Other: " + ((other && other.value.trim()) || "(blank)");
+      }
+      out.push("  Answer: " + value);
+      var box = item.querySelector('[data-q="' + key + '-comment"]');
+      if (box && box.checked) out.push("  Leave comment: record this decision as a code comment near the relevant code.");
+      var notes = item.querySelector('[data-q="' + key + '-notes"]');
+      if (notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim());
+      out.push("");
+    });
+    return out.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = build();
+    payload.value = text;
+    function done() {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { payload.select(); document.execCommand("copy"); done(); });
+    } else { payload.select(); document.execCommand("copy"); done(); }
+  });
+})();
+</script>
+</body>
+</html>
