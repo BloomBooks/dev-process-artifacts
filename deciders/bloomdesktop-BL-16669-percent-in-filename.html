@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16669 percent signs in file names</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, dl, dd { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; border-spacing: 0; }
+
+  :root {
+    --ground: #FBFAF7;
+    --card: #FFFFFF;
+    --ink: #1F1D1A;
+    --muted: #6B6560;
+    --rule: #E3DED4;
+    --accent: #8A5A2B;
+    --accent-soft: #F3EAE0;
+    --pass: #3F6B45;
+    --warn: #9A6A18;
+    --skip: #7A7469;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    padding: 40px 28px 72px;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 32px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.75rem, 3.2vw, 2.6rem);
+    font-weight: 600;
+    line-height: 1.15;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .masthead .standfirst {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 62ch;
+  }
+  .metaline {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    margin-top: 18px; font-size: 0.86rem; color: var(--muted);
+  }
+  .metaline a { color: var(--accent); }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  /* ---- layout ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 24px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 22px 24px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .card > h2 + p.lede { color: var(--muted); font-size: 0.92rem; margin-top: -6px; margin-bottom: 14px; }
+
+  /* ---- tables ---- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  tr:last-child th, tr:last-child td { border-bottom: 0; }
+  th { font-weight: 600; }
+  thead th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+  td.res { white-space: normal; }
+
+  .pill {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .pill.ok   { background: #E7F0E7; color: var(--pass); }
+  .pill.warn { background: #FBF0DC; color: var(--warn); }
+  .pill.na   { background: #EEECE7; color: var(--skip); }
+
+  /* ---- prose ---- */
+  .prose p { margin-bottom: 12px; max-width: 68ch; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose ul { display: flex; flex-direction: column; gap: 9px; }
+  .prose li { padding-left: 18px; position: relative; max-width: 68ch; }
+  .prose li::before { content: ""; position: absolute; left: 2px; top: 0.62em; width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .commit { border-left: 2px solid var(--rule); padding-left: 14px; margin-bottom: 16px; }
+  .commit:last-child { margin-bottom: 0; }
+  .commit .sha { font-family: var(--mono); font-size: 0.82rem; }
+  .commit .subject { font-weight: 600; }
+
+  /* ---- decisions ---- */
+  .item { margin-bottom: 26px; padding-bottom: 24px; border-bottom: 1px solid var(--rule); }
+  .item:last-of-type { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+  .item h3 { font-family: var(--serif); font-size: 1.08rem; font-weight: 600; margin-bottom: 4px; text-wrap: balance; }
+  .srcline { font-size: 0.8rem; color: var(--muted); margin-bottom: 10px; }
+  .item .desc { font-size: 0.93rem; margin-bottom: 14px; }
+  .item .desc p { margin-bottom: 10px; }
+  .item .desc p:last-child { margin-bottom: 0; }
+
+  .opts { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+  .opt {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 9px; align-items: start;
+    padding: 9px 11px; border: 1px solid var(--rule); border-radius: 4px;
+    font-size: 0.9rem; cursor: pointer; background: #FDFCFA;
+  }
+  .opt:hover { border-color: #CFC7B8; }
+  .opt input[type=radio] { margin-top: 3px; accent-color: var(--accent); }
+  .opt .fx { display: block; color: var(--muted); font-size: 0.82rem; margin-top: 3px; }
+  .tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 999px; white-space: nowrap; align-self: start; }
+  .leavecomment { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--muted); white-space: nowrap; align-self: center; }
+  .leavecomment input { accent-color: var(--accent); }
+  .otherbox { width: 100%; margin-top: 6px; font: inherit; font-size: 0.88rem; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 3px; background: #fff; }
+  .notes { width: 100%; font: inherit; font-size: 0.88rem; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 3px; background: #fff; resize: vertical; min-height: 42px; }
+  .noteslabel { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 4px; }
+
+  .btn {
+    font: inherit; font-weight: 600; font-size: 0.92rem;
+    background: var(--ink); color: var(--ground);
+    border: 0; border-radius: 3px; padding: 10px 20px; cursor: pointer;
+  }
+  .btn:hover { background: var(--accent); }
+  #payload { width: 100%; min-height: 190px; margin-top: 12px; font-family: var(--mono); font-size: 0.78rem; line-height: 1.45; padding: 10px; border: 1px solid var(--rule); border-radius: 3px; background: #FDFCFA; resize: vertical; }
+  #copied { font-size: 0.84rem; color: var(--pass); margin-left: 12px; font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>A file called <code>photo%41.jpg</code> became <code>photoA.jpg</code></h1>
+    <p class="standfirst">Preflight report for BL-16669 — the branch is green and the PR is open in draft. Three questions are waiting for you, all of them about problems that were already there before this change.</p>
+    <div class="metaline">
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8179" target="_blank" rel="noopener">PR #8179</a> (draft)</span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8179/files" target="_blank" rel="noopener">Files changed</a></span>
+      <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16669" target="_blank" rel="noopener">BL-16669</a></span>
+      <span>branch <code>BL-16669-percent-in-filename</code></span>
+      <span>head <span class="numeral">fafc8092</span></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT: the run ================= -->
+    <div class="stack">
+
+      <section class="card prose">
+        <h2>What was wrong</h2>
+        <p>Choosing a picture called <code>photo%41.jpg</code> in the image chooser left the page pointing at <code>photoA.jpg</code>, which doesn't exist, so nothing appeared. <code>%41</code> is the URL escape for the letter <code>A</code>.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/UrlPathString.cs#L55" target="_blank" rel="noopener"><code>UrlPathString.CreateFromUnencodedString</code></a> has long carried a guess: if the string it is given looks like it contains an escape, assume the caller was wrong about it being unencoded, and decode it. The comment beside it already conceded the cost — “makes it impossible to have, say <code>%20</code> in your actual file name”. <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Edit/PageEditingModel.cs#L68" target="_blank" rel="noopener"><code>PageEditingModel.ChangePicture</code></a> passed it the name of a file it had just written into the book folder, so the guess could only ever be wrong there.</p>
+        <p>The guess has to stay: several callers really do hand that method an already-encoded string and rely on the decode. So the fix is at the call sites — the ones holding a genuine file-system name now say so. All 42 call sites were audited; 29 now declare themselves, 6 are deliberately left guessing, and the rest are empty strings.</p>
+        <p><strong>This is not a regression from BL-16658.</strong> That fix lives in <code>PageListApi</code> and is untouched. It is the same family of mistake, and this bug surfaced while working through that card's test ideas.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><th>C# build</th><td><span class="pill ok">pass</span></td><td class="res">Via <code>build/agent-dotnet.sh</code>, isolated output tree.</td></tr>
+            <tr><th>C# format</th><td><span class="pill ok">pass</span></td><td class="res">CSharpier clean across <span class="numeral">541</span> files; the pre-commit hook reformatted on commit.</td></tr>
+            <tr><th>C# tests</th><td><span class="pill ok">pass</span></td><td class="res">Full suite: <span class="numeral">3053 passed · 0 failed · 13 skipped</span> in 4m36s. Also ran the touched fixtures repeatedly during the change (<span class="numeral">843</span> after integrating master).</td></tr>
+            <tr><th>TypeScript tests</th><td><span class="pill na">not run</span></td><td class="res">No TypeScript in the diff — all 21 changed files are <code>.cs</code>. The Vitest suite neither builds nor reads any of it.</td></tr>
+            <tr><th>TypeScript typecheck / lint</th><td><span class="pill na">not run</span></td><td class="res">Same reason — nothing in the diff can reach them.</td></tr>
+            <tr><th>Base integration</th><td><span class="pill ok">clean</span></td><td class="res"><code>origin/master</code> merged with no conflicts; the gate was re-run afterwards because master had rewritten the spreadsheet tests while this branch changed <code>SpreadsheetImporter.cs</code>.</td></tr>
+            <tr><th>Mergeable</th><td><span class="pill ok">clean</span></td><td class="res">GitHub reports <code>MERGEABLE</code> / <code>CLEAN</code>.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <th>Local review<br><span style="font-weight:400;color:var(--muted);font-size:0.84rem">light sub-agent pass</span></th>
+              <td><span class="pill ok">complete</span></td>
+              <td class="res">2 findings. <strong>1 fixed</strong> — two API handlers were decoding a second time, which would have quietly defeated the fix on the “click here for help” paths. <strong>1 escalated</strong> — the cover-image question, item 3 opposite.</td>
+            </tr>
+            <tr>
+              <th>Devin</th>
+              <td><span class="pill ok">complete</span></td>
+              <td class="res">Finished in ~3.5 min for this head. <strong>0 Bugs</strong>, <strong>3 Investigate</strong>, 3 Informational (not mirrored — low signal). All three flags mirrored as threads: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8179#discussion_r3738333691" target="_blank" rel="noopener">one resolved by us</a>, two left open as items 1 and 2 opposite. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8179" target="_blank" rel="noopener">Devin review</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8179#issuecomment-5221321336" target="_blank" rel="noopener">consultation log</a></td>
+            </tr>
+            <tr>
+              <th>CodeRabbit</th>
+              <td><span class="pill na">did not run</span></td>
+              <td class="res">Automatic review is switched off for this repo in <code>.coderabbit.yml</code> (<code>auto_review.enabled: false</code>). Left alone rather than overriding a deliberate repo setting — see item 4.</td>
+            </tr>
+            <tr>
+              <th>CI</th>
+              <td><span class="pill warn">partial</span></td>
+              <td class="res"><code>pr-automation</code> passed. But that is the <em>only</em> check GitHub can see: the C# suite runs on <strong>TeamCity</strong>, which <code>gh</code> cannot report. A green tick here says nothing about the tests — see item 5.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card prose">
+        <h2>What changed</h2>
+        <div class="commit">
+          <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/c6ce625d0b" target="_blank" rel="noopener">c6ce625d0b</a></div>
+          <div class="subject">Stop treating a literal '%' in a file name as a URL escape</div>
+          <p style="font-size:0.9rem;color:var(--muted);margin-top:4px">21 files. The reported bug plus every sibling that hands a real file name to the browser; the image-metadata path, which would have broken on the same picture moments later; video, spreadsheet, widget, folio and publish paths; and the missing-image scan, which turned a picture that was present into one it reported as missing.</p>
+        </div>
+        <div class="commit">
+          <div class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/fafc8092ea" target="_blank" rel="noopener">fafc8092ea</a></div>
+          <div class="subject">Merge <code>origin/master</code></div>
+          <p style="font-size:0.9rem;color:var(--muted);margin-top:4px">Clean merge; gate re-run afterwards.</p>
+        </div>
+      </section>
+
+      <section class="card prose">
+        <h2>Notes from the run</h2>
+        <ul>
+          <li><strong>Verified against your running Bloom.</strong> A request for the correctly encoded <code>photo%2541.png</code> returns 200 and serves the real file; <code>photoA.png</code> returns 404. So the server side was always right — only the writing of the name was wrong.</li>
+          <li><strong>A test-double bug worth knowing about.</strong> The obvious home for a server-side test, <code>BloomServerTests</code>, cannot host one: <code>PretendRequestInfo</code> decodes the URL <em>twice</em> where the real <code>RequestInfo</code> decodes once. The case is covered against the real class in <code>RequestInfoTests</code> instead, with a note left at the other site. This also means <code>HandleDoubleEncodedUrls</code> currently passes only because of that discrepancy — nothing was changed there, but it is a stale test.</li>
+          <li><strong>The C# suite is fully green.</strong> <span class="numeral">3053/0/13</span>. The project note recorded a lone pre-existing failure in <code>XMatterHelperTests</code> and warned that failure counts here are noise; that failure did not appear in this run — see item 6.</li>
+          <li><strong>The parameter was renamed.</strong> <code>strictlyTreatAsEncoded</code> meant the exact opposite of its name — “trust me, this is <em>not</em> encoded” — so it is now <code>strictlyTreatAsUnencoded</code>. Only the declaration, one comment and two test names referred to it by name.</li>
+          <li><strong>Your Bloom is still running the old build.</strong> Nothing restarted it, so the fix isn't in the app you have open; the launcher control API reports no launcher for this worktree, so restarting is yours to do.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT: decisions ================= -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Over to you</h2>
+
+        <!-- ITEM 1 -->
+        <div class="item">
+          <h3>1. Sound file names are written one way and read back another</h3>
+          <div class="srcline">Devin, Investigate · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8179#discussion_r3738333541" target="_blank" rel="noopener">thread</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Publish/PublishHelper.cs#L1350" target="_blank" rel="noopener">PublishHelper.cs:1350</a></div>
+          <div class="desc">
+            <p>When Bloom publishes a book it tidies up duplicate media files: if two sounds are byte-for-byte identical it keeps one and repoints everything at it. When it repoints a <em>sound</em>, it writes the file's name in plainly, with no encoding. But the code that reads that same attribute back, ten lines above, expects it to be encoded. For a sound whose name contains a percent sign followed by two characters, the name would come back different from what was written, and the sound would go missing from the published book.</p>
+            <p>This is not new and this PR does not touch it. The reason it isn't simply fixed the way everything else here was is that it isn't clear which side is wrong: the editor's own JavaScript also writes these attributes plainly, so the writer is arguably the one that's consistent and the reader is the odd one out. Changing the reader affects how every existing book's sounds are interpreted.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q1" value="Encode on write (make the writer match the reader)"><span>Encode on write, so it matches the reader in the same file<span class="fx">One line, contained — but it makes publish-time rewrites disagree with everything the editor writes.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q1" value="Stop decoding on read (make the reader match the writers)"><span>Stop decoding on read, so it matches what the editor writes<span class="fx">Also small, but it changes how existing books' sound attributes are interpreted — wants a careful look at real books first.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q1" value="Leave as is" checked><span>Leave as is <span class="tag">recommended</span><span class="fx">Recommended because it is pre-existing, only bites on a sound whose name contains a percent escape, and picking a side properly deserves its own card rather than being decided inside a bug fix about pictures.</span></span><label class="leavecomment"><input type="checkbox" data-q="q1-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q1" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q1-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q1notes">Notes</label>
+          <textarea id="q1notes" class="notes" data-q="q1-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- ITEM 2 -->
+        <div class="item">
+          <h3>2. Saving a picture's copyright can quietly do nothing</h3>
+          <div class="srcline">Devin, Investigate · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8179#discussion_r3738333625" target="_blank" rel="noopener">thread</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Edit/EditingModel.cs#L1196" target="_blank" rel="noopener">EditingModel.cs:1196</a></div>
+          <div class="desc">
+            <p>After you edit a picture's copyright and licence, Bloom finds that picture on the page in order to update it — by looking for a picture whose reference matches the file name <em>exactly</em>. Bloom sometimes appends extra information to that reference, such as a marker that the picture should be shown with a transparent background. When it has done so, the exact match finds nothing, and the update silently does not happen. There is no error; the code even carries a comment reading “log? unexpected”.</p>
+            <p>This change fixed a different half of the same method (the name is now encoded to match what the picture chooser writes), which is why it came up. But the exact-match part is pre-existing and fixing it means changing how the picture is located, which is broader than this bug.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q2" value="Match on the file-name part only, ignoring any trailing extras"><span>Match on the file-name part only, ignoring any trailing extras<span class="fx">Small change, but it widens what counts as a match — needs care that it can't hit the wrong picture when a page uses the same file twice.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q2" value="Leave as is but make the silent miss visible in the log"><span>Leave the matching alone, but make the silent miss show up in the log<span class="fx">A few lines, no behaviour change — turns an invisible failure into a diagnosable one.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q2" value="Leave as is" checked><span>Leave as is <span class="tag">recommended</span><span class="fx">Recommended because it is pre-existing and unrelated to the reported bug; the test notes on the card now ask a tester to confirm whether copyright actually sticks on such a picture, which will tell us how real this is before anyone changes the matching.</span></span><label class="leavecomment"><input type="checkbox" data-q="q2-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q2" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q2-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q2notes">Notes</label>
+          <textarea id="q2notes" class="notes" data-q="q2-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- ITEM 3 -->
+        <div class="item">
+          <h3>3. The cover-image entry has the same split, and Bloom disagrees with itself about it</h3>
+          <div class="srcline">Local review · <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Publish/PublishHelper.cs#L1231" target="_blank" rel="noopener">PublishHelper.cs:1231</a> vs <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Publish/PublishHelper.cs#L1216" target="_blank" rel="noopener">:1216</a></div>
+          <div class="desc">
+            <p>Exactly the same shape as item 1, but for the cover image. In the very same method whose picture and video cases I did fix, the entry that records the book's cover image is written plainly and read back as though encoded. For a cover picture whose name contains a percent escape, publishing a book with duplicate images could leave the cover pointing at a name that isn't there.</p>
+            <p>What stopped me fixing it is that Bloom genuinely contradicts itself here. <a href="https://github.com/BloomBooks/BloomDesktop/blob/fafc8092eaa2e3fd33ae8e272c13943ae1a1b618/src/BloomExe/Book/Book.cs#L2490" target="_blank" rel="noopener"><code>Book.cs:2490</code></a>, which is the main place this entry is written, deliberately writes it <em>decoded</em> — while two separate readers treat it as encoded. <code>UrlPathString</code>'s own documentation points at three old cards (BL-3901, BH-6143, BL-11145) about books in the wild that got this wrong in both directions. Guessing here could break cover images on existing books.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q3" value="Encode on write here, matching the two readers"><span>Encode on write here, matching the two readers<span class="fx">One line — but it takes a side in a contradiction that spans several files, without establishing which side is right.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q3" value="Open a separate card to settle the cover-image convention properly"><span>Open a separate card to settle the convention properly<span class="fx">No code now; a genuine investigation later, across the writers, the readers and the three historical cards.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q3" value="Leave as is" checked><span>Leave as is <span class="tag">recommended</span><span class="fx">Recommended because it is pre-existing, needs a percent escape in a cover picture's name <em>and</em> a duplicate-image book to bite, and the contradiction is old enough that settling it deserves its own investigation rather than a guess inside this fix.</span></span><label class="leavecomment"><input type="checkbox" data-q="q3-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q3" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q3-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q3notes">Notes</label>
+          <textarea id="q3notes" class="notes" data-q="q3-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- ITEM 4 -->
+        <div class="item">
+          <h3>4. CodeRabbit did not review this PR</h3>
+          <div class="srcline">For your information · <code>.coderabbit.yml</code></div>
+          <div class="desc">
+            <p>The repo has a CodeRabbit configuration file, but it turns automatic review off (<code>auto_review.enabled: false</code>) and hides review status. So CodeRabbit did not look at this PR and will not unless someone asks it to by name. I did not override that, since it reads as a deliberate team decision rather than an oversight — but it does mean the panel for this PR was the local review, Devin and CI, and nothing else.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q4" value="Ask CodeRabbit to review this PR on demand"><span>Ask CodeRabbit to review this one PR on demand<span class="fx">No code — one comment on the PR, then waiting for its pass.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q4" value="Leave as is" checked><span>Leave as is <span class="tag">recommended</span><span class="fx">Recommended because the setting looks deliberate, and Devin plus the local review already covered this change.</span></span><label class="leavecomment"><input type="checkbox" data-q="q4-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q4" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q4-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q4notes">Notes</label>
+          <textarea id="q4notes" class="notes" data-q="q4-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- ITEM 5 -->
+        <div class="item">
+          <h3>5. A green tick on GitHub does not mean the C# tests passed</h3>
+          <div class="srcline">For your information · CI</div>
+          <div class="desc">
+            <p>The only check GitHub can see on this PR is <code>pr-automation</code>, which is the workflow that kicks off Devin. The actual C# test suite runs on TeamCity, which <code>gh pr checks</code> cannot report — so “CI green” on this PR is a much weaker statement than it looks. I ran the full suite locally instead (3053 passed, 0 failed), which is why the gate above can claim the tests are good.</p>
+            <p>Nothing needs doing for this PR. It is here because it is easy to misread the tick, and because whoever reviews next should know where the real signal lives.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q5" value="Check the TeamCity result for this branch before merging"><span>Check the TeamCity result for this branch before merging<span class="fx">No code — one look at the TeamCity build for this branch.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q5" value="Leave as is" checked><span>Leave as is <span class="tag">recommended</span><span class="fx">Recommended because the full suite was run locally against the merged code and came back completely clean.</span></span><label class="leavecomment"><input type="checkbox" data-q="q5-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q5" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q5-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q5notes">Notes</label>
+          <textarea id="q5notes" class="notes" data-q="q5-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- ITEM 6 -->
+        <div class="item">
+          <h3>6. The known-failing test isn't failing any more</h3>
+          <div class="srcline">For your information · session memory</div>
+          <div class="desc">
+            <p>I keep a note about this repo's C# suite saying that <code>XMatterHelperTests.InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> fails on clean master, and that failure counts here swing wildly (four runs of one unchanged tree gave 135, 1, 32 and 62 failures) because tests share the temp folder and some change the working directory. This run came back <strong>completely clean</strong> — 3053 passed, 0 failed. Either that test was fixed on master since, or the noise was hiding it.</p>
+            <p>Worth deciding whether I should update that note, because it currently tells future sessions to expect a failure that isn't there, which is exactly the kind of stale advice that wastes an hour.</p>
+          </div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="q6" value="Update the note to record the clean run" checked><span>Update the note to record the clean run <span class="tag">recommended</span><span class="fx">No code — a memory edit. Recommended because a note that predicts a failure which no longer happens will send the next session hunting for a phantom.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="q6" value="Leave as is"><span>Leave as is</span><label class="leavecomment"><input type="checkbox" data-q="q6-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="q6" value="Other"><span>Other:<input type="text" class="otherbox" data-q="q6-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="q6notes">Notes</label>
+          <textarea id="q6notes" class="notes" data-q="q6-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+        <!-- NEXT STEP -->
+        <div class="item">
+          <h3>Next step</h3>
+          <div class="desc"><p>The PR is in draft and has not been offered to anyone for review. What would you like to happen once you have answered the above?</p></div>
+          <div class="opts">
+            <label class="opt"><input type="radio" name="qnext" value="Act on my answers, then stop and let me review it myself" checked><span>Act on my answers, then stop so you can review it yourself <span class="tag">recommended</span><span class="fx">Recommended because the next step in the sequence is your own read of the change, before it goes to a colleague.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="qnext" value="Discuss the open items with me before changing anything"><span>Discuss the open items with me before changing anything</span><span></span></label>
+            <label class="opt"><input type="radio" name="qnext" value="Act on my answers and then promote it for peer review"><span>Act on my answers and then promote it for peer review<span class="fx">Runs the promotion step: links the card, moves it, and takes the PR out of draft.</span></span><span></span></label>
+            <label class="opt"><input type="radio" name="qnext" value="Leave as is"><span>Leave as is</span><label class="leavecomment"><input type="checkbox" data-q="qnext-leavecomment"> Leave comment</label></label>
+            <label class="opt"><input type="radio" name="qnext" value="Other"><span>Other:<input type="text" class="otherbox" data-q="qnext-other" placeholder="your answer"></span><span></span></label>
+          </div>
+          <label class="noteslabel" for="qnextnotes">Notes</label>
+          <textarea id="qnextnotes" class="notes" data-q="qnext-notes" placeholder="Anything to add?"></textarea>
+        </div>
+
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the session.</p>
+        <button class="btn" id="copybtn" type="button">Copy answers</button><span id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var LABELS = {
+    q1: "1. Sound file names written one way, read another (PublishHelper audio)",
+    q2: "2. Saving a picture's copyright can quietly do nothing (UpdateMetaData exact match)",
+    q3: "3. Cover-image entry written plainly, read as encoded (PublishHelper data-div)",
+    q4: "4. CodeRabbit did not review this PR",
+    q5: "5. GitHub's green tick does not cover the C# tests",
+    q6: "6. The known-failing XMatterHelper test is passing now",
+    qnext: "Next step"
+  };
+  var ORDER = ["q1", "q2", "q3", "q4", "q5", "q6", "qnext"];
+
+  function val(sel) { var el = document.querySelector(sel); return el ? el.value.trim() : ""; }
+
+  function build() {
+    var out = ["Preflight answers — BL-16669 (PR #8179)", ""];
+    ORDER.forEach(function (q) {
+      var picked = document.querySelector('input[name="' + q + '"]:checked');
+      var answer = picked ? picked.value : "(no answer)";
+      if (answer === "Other") {
+        var otherText = val('[data-q="' + q + '-other"]');
+        answer = "Other: " + (otherText || "(blank)");
+      }
+      out.push(LABELS[q]);
+      out.push("  -> " + answer);
+      var lc = document.querySelector('[data-q="' + q + '-leavecomment"]');
+      if (lc && lc.checked) { out.push("  -> Leave comment: record this decision as a code comment in the repo"); }
+      var notes = val('[data-q="' + q + '-notes"]');
+      if (notes) { out.push("  notes: " + notes); }
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = payload.value;
+    function done() {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2400);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+    function fallback() {
+      payload.focus(); payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
