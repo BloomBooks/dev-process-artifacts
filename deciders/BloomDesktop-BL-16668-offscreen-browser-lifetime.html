@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16668 off-screen browser lifetime</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; border-spacing: 0; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #f6f5f2;
+    --card: #ffffff;
+    --border: #e4e2dc;
+    --border-firm: #d3d0c8;
+    --ink: #23272c;
+    --muted: #606770;
+    --faint: #8b9098;
+    --accent: #2f5d8c;
+    --accent-soft: #eaf0f6;
+    --good: #2c7a57;
+    --good-soft: #e9f3ee;
+    --warn: #8a6410;
+    --warn-soft: #f7f0df;
+    --bad: #a33a3a;
+    --bad-soft: #f8ebeb;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 32px 24px 64px;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.94em; }
+  /* Long C# identifiers must be allowed to break, or one table cell widens its grid column
+     until the whole page scrolls sideways and the decisions column leaves the screen. */
+  code { font-family: var(--mono); font-size: 0.9em; background: #f0efeb; border: 1px solid var(--border); border-radius: 3px; padding: 0.08em 0.32em; overflow-wrap: anywhere; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--border-firm); padding-bottom: 20px; margin-bottom: 28px; }
+  .masthead h1 { font-family: var(--serif); font-size: 30px; line-height: 1.22; font-weight: 600; text-wrap: balance; letter-spacing: -0.01em; }
+  .masthead .sub { color: var(--muted); margin-top: 8px; max-width: 68ch; }
+  .metaline { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
+  .metaline span strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- layout ---- */
+  .cols { display: grid; grid-template-columns: 1.32fr 1fr; gap: 28px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; }
+  .card > h2 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 4px; }
+  .card > .lede { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+
+  /* ---- tables ---- */
+  .tscroll { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th { text-align: left; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); font-weight: 600; padding: 0 10px 7px 0; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px 9px 0; border-bottom: 1px solid #f0efeb; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child, th:first-child { padding-left: 0; }
+  .rowname { font-weight: 600; }
+  .note { color: var(--muted); font-size: 13px; }
+
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 650; letter-spacing: 0.03em; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .p-good { background: var(--good-soft); color: var(--good); }
+  .p-warn { background: var(--warn-soft); color: var(--warn); }
+  .p-bad { background: var(--bad-soft); color: var(--bad); }
+  .p-skip { background: #eeede9; color: var(--muted); }
+  .p-info { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---- commits ---- */
+  .commits { display: flex; flex-direction: column; gap: 12px; }
+  .commit { display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+  .commit .sha { font-family: var(--mono); font-size: 12.5px; color: var(--accent); padding-top: 1px; }
+  .commit .msg { font-weight: 600; font-size: 14px; }
+  .commit .why { color: var(--muted); font-size: 13px; }
+
+  /* ---- decisions ---- */
+  .decision { border-left: 3px solid var(--accent); }
+  .decision.fyi { border-left-color: var(--border-firm); }
+  .dkind { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 6px; }
+  .decision p { margin-bottom: 10px; }
+  .decision p:last-of-type { margin-bottom: 14px; }
+  fieldset { border: none; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: start; padding: 9px 0; border-top: 1px solid #f0efeb; }
+  .opt:first-of-type { border-top: none; }
+  .opt input[type=radio] { margin-top: 4px; accent-color: var(--accent); }
+  .opt .otext { font-size: 14px; }
+  .opt .otext .rec { color: var(--good); font-weight: 650; font-size: 11.5px; letter-spacing: 0.03em; margin-left: 6px; text-transform: uppercase; }
+  .opt .cost { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .leavec { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; padding-top: 3px; }
+  .leavec input { accent-color: var(--accent); }
+  .otherbox { grid-column: 2 / -1; }
+  input[type=text], textarea { width: 100%; background: #fbfaf8; border: 1px solid var(--border-firm); border-radius: 4px; padding: 6px 8px; font-size: 13.5px; }
+  textarea { min-height: 58px; resize: vertical; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 5px; }
+
+  /* ---- copyback ---- */
+  #copyback button {
+    background: var(--accent); color: #fff; border: 1px solid var(--accent); border-radius: 5px;
+    padding: 9px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  #copyback button:hover { background: #27507a; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12px; min-height: 150px; background: #fbfaf8; }
+  .copied { color: var(--good); font-weight: 600; font-size: 13px; margin-left: 12px; opacity: 0; transition: opacity .18s; }
+  .copied.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — taking the off-screen browser thread out of WinForms&rsquo; application lifetime</h1>
+    <p class="sub">BL-16668: the harvester&rsquo;s <code>createArtifacts</code> was dying with <code>ObjectDisposedException</code> on every book with epubs enabled. This is the principled of the two candidate fixes.</p>
+    <div class="metaline">
+      <span><strong>Branch</strong> <code>BL-16668-offscreen-browser-lifetime</code></span>
+      <span><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177" target="_blank" rel="noopener">#8177</a> &middot; draft &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177/files" target="_blank" rel="noopener">files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177/commits" target="_blank" rel="noopener">commits</a></span>
+      <span><strong>HEAD</strong> <span class="numeral">aa4c5702</span></span>
+      <span><strong>Card</strong> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16668" target="_blank" rel="noopener">BL-16668</a></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the report ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="lede">One row per check and per test runner. A suite that was not run says so, and why.</p>
+        <div class="tscroll">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="rowname">C# compile</td>
+              <td><span class="pill p-good">pass</span></td>
+              <td class="note">Via <code>build/agent-dotnet.sh</code> (isolated output tree, so it never collides with a running Bloom).</td>
+            </tr>
+            <tr>
+              <td class="rowname">C# format</td>
+              <td><span class="pill p-good">pass</span></td>
+              <td class="note">csharpier clean on both changed files; the pre-commit hook also formats on the way in.</td>
+            </tr>
+            <tr>
+              <td class="rowname">C# tests — full suite</td>
+              <td><span class="pill p-warn">1 failed</span></td>
+              <td class="note"><span class="numeral">3049 passed &middot; 12 skipped &middot; 1 failed &middot; 3062 total &middot; 3 m 54 s</span>, run twice (before and after the final commit) with identical results. The single failure is <code>RabRealBuildTests.SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>, which fails its own environment precondition &mdash; see the FYI opposite. Nothing to do with this change.</td>
+            </tr>
+            <tr>
+              <td class="rowname">C# tests — targeted</td>
+              <td><span class="pill p-good">pass</span></td>
+              <td class="note"><span class="numeral">173/173</span> across the CLI, off-screen-browser, epub and BookProcessor fixtures &mdash; everything that touches this code path.</td>
+            </tr>
+            <tr>
+              <td class="rowname">TypeScript typecheck</td>
+              <td><span class="pill p-skip">not run</span></td>
+              <td class="note">No TypeScript in the diff &mdash; the change is two C# files, so the front-end gate cannot reach it.</td>
+            </tr>
+            <tr>
+              <td class="rowname">TypeScript lint</td>
+              <td><span class="pill p-skip">not run</span></td>
+              <td class="note">Same reason.</td>
+            </tr>
+            <tr>
+              <td class="rowname">TypeScript tests (vitest)</td>
+              <td><span class="pill p-skip">not run</span></td>
+              <td class="note">Same reason.</td>
+            </tr>
+            <tr>
+              <td class="rowname">Merge cleanliness</td>
+              <td><span class="pill p-good">pass</span></td>
+              <td class="note">Even with <code>origin/master</code> (0 behind, 3 ahead); GitHub reports <code>MERGEABLE</code>. No merge was needed.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What is on the branch</h2>
+        <p class="lede">The first two commits pre-dated this preflight; the third was made during it, in response to Devin.</p>
+        <div class="commits">
+          <div class="commit">
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/5f684600d1" target="_blank" rel="noopener">5f68460</a></span>
+            <div>
+              <div class="msg">Add a createArtifacts regression test that asks for a bloomdigital AND an epub</div>
+              <div class="why">The repro. Every pre-existing test in that file requested a single artifact, which is exactly why CI stayed green through this bug &mdash; with one artifact, nothing runs after the premature disposal. Fails on unmodified <code>master</code> with the production stack trace frame for frame. Byte-identical to the commit on the sibling branch.</div>
+            </div>
+          </div>
+          <div class="commit">
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/41b404ba6c" target="_blank" rel="noopener">41b404b</a></span>
+            <div>
+              <div class="msg">Run OffScreenBrowser&rsquo;s thread on a private Win32 message pump, not Application.Run</div>
+              <div class="why">The fix. <a href="https://github.com/BloomBooks/BloomDesktop/blob/aa4c570295b00792ab8d7ca50e9aafdeb4d40f48/src/BloomExe/Publish/OffScreenBrowser.cs#L156" target="_blank" rel="noopener">OffScreenBrowser.cs:156</a></div>
+            </div>
+          </div>
+          <div class="commit">
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/aa4c570295" target="_blank" rel="noopener">aa4c570</a></span>
+            <div>
+              <div class="msg">Correct and extend the comments on the private message pump</div>
+              <div class="why">Documentation only. Devin was right that a comment overstated what <code>Application.Run</code> used to clean up: its loop teardown destroys the thread&rsquo;s window <em>handles</em>, it does not <code>Dispose()</code> non-Form controls. Also wrote down the deliberate flip side &mdash; <code>Application.Exit()</code> no longer ends this loop either.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <p class="lede">Every reviewer reached a terminal state for HEAD <span class="numeral">aa4c5702</span>.</p>
+        <div class="tscroll">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="rowname">Local review<br><span class="note">light, done inline</span></td>
+              <td><span class="pill p-good">clean</span></td>
+              <td class="note">No high-confidence correctness defects. Checked the P/Invoke signatures and <code>MSG</code> struct layout against the Win32 ABI, the <code>GetMessage</code> return-value handling (0 = WM_QUIT, &minus;1 = error), and every <code>Dispose</code>/startup-failure path. Two pre-existing sharp edges noted and carried into the decisions opposite. Run inline rather than by sub-agent, because this session is configured not to dispatch sub-agents unless asked.</td>
+            </tr>
+            <tr>
+              <td class="rowname">Devin</td>
+              <td><span class="pill p-warn">complete &middot; 4 open</span></td>
+              <td class="note">Run twice (once per commit); the second pass, at this HEAD, raised <strong>1 bug and 3 Investigate flags</strong>, each mirrored to its own thread. One resolved by me with reasoning (the test&rsquo;s WebView2 dependency &mdash; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#discussion_r3737967444" target="_blank" rel="noopener">thread</a>); <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#discussion_r3738008860" target="_blank" rel="noopener">the bug</a> plus <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#discussion_r3737967331" target="_blank" rel="noopener">two</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#discussion_r3738008972" target="_blank" rel="noopener">flags</a> left open as Decisions 1 and 8. Of 3 Informational items, two were already fixed in <span class="numeral">aa4c570</span> in response to the first pass &mdash; and the re-review re-emitted one of those against text that no longer exists, so that one is stale. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8177" target="_blank" rel="noopener">Devin review</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#issuecomment-5220788774" target="_blank" rel="noopener">consultation log</a></td>
+            </tr>
+            <tr>
+              <td class="rowname">CodeRabbit</td>
+              <td><span class="pill p-skip">disabled</span></td>
+              <td class="note">Not a timeout &mdash; this repo&rsquo;s <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it never reviews on push. Left alone rather than overridden.</td>
+            </tr>
+            <tr>
+              <td class="rowname">CI (GitHub checks)</td>
+              <td><span class="pill p-good">pass</span></td>
+              <td class="note">One check, <code>pr-automation</code> (<span class="numeral">37 s</span>). It only opens the Devin review URL and adds that link to the PR body &mdash; it compiles and tests nothing. See the FYI opposite about what that means.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>How the bug worked</h2>
+        <p class="lede">Recorded because the fix only makes sense against the mechanism.</p>
+        <p><code>Application.Run</code> registers the loop it starts as an <em>application</em> message loop. The off-screen browser runs one on its own dedicated thread. The CLI path never calls <code>Application.Run</code> itself &mdash; it waits with <code>Thread.Sleep</code> plus <code>Application.DoEvents</code> &mdash; so that browser thread&rsquo;s loop was the <em>only</em> application message loop in the whole process.</p>
+        <p>So: building the .bloompub disposes a <code>PublishHelper</code>, which releases the browser, which ends that loop. WinForms concludes the application is exiting and raises <code>Application.ApplicationExit</code>. <code>ApplicationContainer</code> believes it and disposes itself &mdash; and it is the <em>parent</em> scope of the <code>ProjectContext</code> still in use. The epub step runs next, asks for <code>BookServer</code>, and gets <code>ObjectDisposedException</code>. The harvester treats any non-<code>FontProblems</code> exit code as failure, so the book was marked failed and <em>nothing</em> was uploaded &mdash; not even the .bloompub that had already been built.</p>
+        <p>In the desktop app this never fired, because the main thread&rsquo;s loop is still running. It only ever bit a non-GUI entry point.</p>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <section class="card decision">
+        <div class="dkind">Decision 1 &middot; Devin bug, open thread &middot; the one that matters</div>
+        <h2>After a crash on the browser thread, Bloom might not start again</h2>
+        <p><code>Application.MessageLoop</code> is a per-thread flag meaning &ldquo;a WinForms message loop is running on this thread&rdquo;. <code>Application.Run</code> used to set it on the browser&rsquo;s thread; a raw message pump does not. That flag is what Bloom&rsquo;s fatal-error handler uses to decide <em>how</em> to die: <a href="https://github.com/BloomBooks/BloomDesktop/blob/aa4c570295b00792ab8d7ca50e9aafdeb4d40f48/src/BloomExe/FatalExceptionHandler.cs#L88" target="_blank" rel="noopener">FatalExceptionHandler.cs:88</a> calls <code>ProgramExit.Exit()</code> when true, and a bare <code>Environment.Exit(1)</code> when false. So an exception escaping a callback on that thread &mdash; a WebView2 event handler, or the <code>_browser.Dispose()</code> we post &mdash; now takes the hard-kill branch.</p>
+        <p>I first raised this as &ldquo;Bloom vanishes rather than closing gracefully&rdquo;, which undersold it. Devin&rsquo;s second pass traced it further and it is worse: <code>Environment.Exit</code> does not run <code>finally</code> blocks, and Bloom releases its <strong>single-instance token</strong> in <code>Main</code>&rsquo;s <code>finally</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/aa4c570295b00792ab8d7ca50e9aafdeb4d40f48/src/BloomExe/Program.cs#L751" target="_blank" rel="noopener">Program.cs:751</a>). So this path exits without releasing it &mdash; precisely the &ldquo;zombie stops the next instance starting&rdquo; condition that <a href="https://github.com/BloomBooks/BloomDesktop/blob/aa4c570295b00792ab8d7ca50e9aafdeb4d40f48/src/BloomExe/ProgramExit.cs#L52" target="_blank" rel="noopener">ProgramExit</a> exists to prevent, and whose own comment says the listener-close and token-release &ldquo;MUST be done so that Bloom can be started again without problems&rdquo;. A user whose Bloom crashed this way could find it will not reopen.</p>
+        <p>What bounds it: the harvester and CLI path &mdash; the one this PR exists to fix &mdash; is <strong>not</strong> affected (<code>UseFallback</code> short-circuits first, and only <code>WorkspaceView</code> ever clears it, which the CLI never builds). It needs a crash on that specific thread to trigger. And how much a stale token actually costs depends on the token&rsquo;s implementation: an OS mutex is released when the process dies whatever happens, a lock file is not &mdash; worth checking before deciding how hard to fix.</p>
+        <fieldset>
+          <legend>What to do about the fatal-error exit path</legend>
+          <div class="opt">
+            <input type="radio" id="d1b" name="d1" value="Base the crash-exit choice on whether the application's main loop is running, not the current thread's" checked>
+            <span class="otext"><label for="d1b">Decide on the <em>application&rsquo;s</em> main loop, not the current thread&rsquo;s</label><span class="rec">recommended</span><span class="cost">Small in size (a flag set around <code>Program</code>&rsquo;s <code>Application.Run</code>, and one changed condition) but it sits in the global fatal-error path, so it wants care and its own testing. Recommended because &ldquo;is there a GUI to shut down?&rdquo; is the question that branch is actually asking, and a per-thread check has always answered the wrong one &mdash; this fix is correct for every worker thread, not just ours.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d1a" name="d1" value="Catch and log around the posted _browser.Dispose() only">
+            <span class="otext"><label for="d1a">Just catch and log around the posted <code>_browser.Dispose()</code></label><span class="cost">~5 lines, confined to this file, low risk &mdash; but it only closes the one trigger I can name, leaves WebView2 event handlers exposed, and swallows a fatal error rather than reporting it.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d1e" name="d1" value="Land this PR as is and fix the exit path on its own ticket">
+            <span class="otext"><label for="d1e">Land this PR as is; fix the exit path on its own ticket</label><span class="cost">No code here. Unblocks harvesting now and treats the global error path as the separate concern it arguably is &mdash; at the cost of shipping a known, if narrow, regression.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d1c" name="d1" value="Leave as is">
+            <span class="otext"><label for="d1c">Leave as is</label></span>
+            <span class="leavec"><input type="checkbox" id="d1lc" data-q="Decision 1 — leave comment"><label for="d1lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d1d" name="d1" value="Other">
+            <span class="otext"><label for="d1d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Decision 1 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <p class="note" style="margin-top:12px">Not fixed here, because changing how Bloom exits on a fatal error is a user-visible behavior call rather than a cleanup detail. The <a href="https://github.com/BloomBooks/BloomDesktop/pull/8177#discussion_r3738008860" target="_blank" rel="noopener">thread on the PR</a> is deliberately still open so whatever you decide gets recorded there.</p>
+        <div class="notes"><label for="d1n">Notes</label><textarea id="d1n" data-q="Decision 1 — notes" placeholder="caveats, constraints, or a different reading"></textarea></div>
+      </section>
+
+      <section class="card decision">
+        <div class="dkind">Decision 2</div>
+        <h2>The sibling branch with the minimal fix is committed locally but not pushed</h2>
+        <p>The card asked for both candidate fixes on separate branches so they could be compared. <code>BL-16668-harvester-exit-guard</code> exists locally with the minimal alternative &mdash; guarding <a href="https://github.com/BloomBooks/BloomDesktop/blob/aa4c570295b00792ab8d7ca50e9aafdeb4d40f48/src/BloomExe/ApplicationContainer.cs#L101" target="_blank" rel="noopener">ApplicationContainer.OnApplicationExit</a> on <code>Program.RunningHarvesterMode</code> &mdash; plus a byte-identical copy of the regression test. It has never been pushed, so a reviewer looking at this PR cannot actually see the thing it is meant to be compared against.</p>
+        <p>You only asked for preflight on this branch, so I have not pushed the other one.</p>
+        <fieldset>
+          <legend>What to do about the sibling branch</legend>
+          <div class="opt">
+            <input type="radio" id="d2a" name="d2" value="Push the sibling branch and open a draft PR for comparison" checked>
+            <span class="otext"><label for="d2a">Push it and open a draft PR for comparison</label><span class="rec">recommended</span><span class="cost">No code &mdash; a push and a draft PR. Recommended because the comparison is the point of having built both, and a branch only on this machine cannot serve it.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d2b" name="d2" value="Push the branch but do not open a PR">
+            <span class="otext"><label for="d2b">Push the branch, no PR</label><span class="cost">No code &mdash; makes it fetchable without adding a second PR to the queue.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d2c" name="d2" value="Leave as is">
+            <span class="otext"><label for="d2c">Leave as is</label></span>
+            <span class="leavec"><input type="checkbox" id="d2lc" data-q="Decision 2 — leave comment"><label for="d2lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d2d" name="d2" value="Other">
+            <span class="otext"><label for="d2d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Decision 2 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <div class="notes"><label for="d2n">Notes</label><textarea id="d2n" data-q="Decision 2 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision">
+        <div class="dkind">Decision 3</div>
+        <h2>Which fix should actually land?</h2>
+        <p>Both fixes make the harvester work and both carry the same test. They differ in reach. The minimal one keeps the false <code>ApplicationExit</code> being raised and just teaches one listener to ignore it when <code>Program.RunningHarvesterMode</code> is set &mdash; which the other CLI verbs (<code>ChangeLayoutCommand</code>, <code>DownloadBookCommand</code>, <code>UploadCommand</code>) never set, so they would stay exposed. This PR stops the false signal being raised at all, so nothing has to know to distrust it.</p>
+        <p>The cost of this PR is the one in Decision 1: leaving WinForms&rsquo; bookkeeping also means leaving its conveniences, and P/Invoke is a heavier tool than a boolean guard.</p>
+        <fieldset>
+          <legend>Which fix lands</legend>
+          <div class="opt">
+            <input type="radio" id="d3a" name="d3" value="Land this PR (Fix 2) alone" checked>
+            <span class="otext"><label for="d3a">Land this PR alone</label><span class="rec">recommended</span><span class="cost">Already built. Recommended because it removes the bug class rather than one instance of it, and covers the CLI verbs that never set the harvester flag.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d3b" name="d3" value="Land both, belt and braces">
+            <span class="otext"><label for="d3b">Land both, belt and braces</label><span class="cost">Both already built; a small merge. Defence in depth, at the price of a guard whose reason is no longer live &mdash; which tends to get deleted later by someone who cannot see why it exists.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d3c" name="d3" value="Land the minimal fix only and close this PR">
+            <span class="otext"><label for="d3c">Land the minimal fix only, close this PR</label><span class="cost">Already built. Smallest diff and no P/Invoke, if you would rather not touch the message loop this close to a release.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d3d" name="d3" value="Leave as is">
+            <span class="otext"><label for="d3d">Leave as is</label></span>
+            <span class="leavec"><input type="checkbox" id="d3lc" data-q="Decision 3 — leave comment"><label for="d3lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d3e" name="d3" value="Other">
+            <span class="otext"><label for="d3e">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Decision 3 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <div class="notes"><label for="d3n">Notes</label><textarea id="d3n" data-q="Decision 3 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision">
+        <div class="dkind">Decision 4 &middot; Devin, informational</div>
+        <h2>Two ways this class now hangs where it used to throw</h2>
+        <p>Devin raised two related observations, and both are fair. First: disposing the synchronization context (which the new pump does, to avoid leaving a control to be finalized on a dead thread) makes <code>Post</code> a silent no-op afterwards, so calling <code>Navigate</code> or <code>RunJavascript</code> on an already-disposed browser would block forever instead of throwing. Second: if the pump&rsquo;s <code>GetMessage</code> ever returned an error, the exception lands in a <code>catch</code> whose <code>_startupError</code>/<code>_ready</code> handshake the constructor has already consumed, so it would be invisible and callers would block forever.</p>
+        <p>Neither is reachable today. No caller reuses or re-disposes an instance &mdash; <code>PublishHelper.ReleaseBrowser</code> nulls its field and <code>BookProcessor</code> uses <code>using</code> &mdash; and <code>GetMessage</code> only fails on an invalid window handle, where we pass <code>IntPtr.Zero</code>. They are latent sharp edges for whoever touches this next, not live bugs. A hang is a nastier thing to debug than an exception, which is the only reason to care.</p>
+        <fieldset>
+          <legend>Whether to harden the hang-instead-of-throw paths</legend>
+          <div class="opt">
+            <input type="radio" id="d4a" name="d4" value="Add a disposed flag that throws ObjectDisposedException, and fault pending waiters if the pump dies">
+            <span class="otext"><label for="d4a">Make both throw instead of hang</label><span class="cost">~15 lines in one file, no behavior change on any live path &mdash; a <code>_disposed</code> flag that <code>RunAndBlock</code> checks, and faulting any pending waiter if the pump exits unexpectedly.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d4b" name="d4" value="Leave as is" checked>
+            <span class="otext"><label for="d4b">Leave as is</label><span class="rec">recommended</span></span>
+            <span class="leavec"><input type="checkbox" id="d4lc" data-q="Decision 4 — leave comment"><label for="d4lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d4c" name="d4" value="Other">
+            <span class="otext"><label for="d4c">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Decision 4 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <p class="note" style="margin-top:12px">Recommending &ldquo;leave as is&rdquo; because neither path is reachable from any current caller, and this PR is a targeted fix for a live production outage &mdash; hardening unreachable paths widens it for no present benefit. Worth doing if you would rather not leave the trap for the next person; the <code>Leave comment</code> box will put the reasoning next to the code instead.</p>
+        <div class="notes"><label for="d4n">Notes</label><textarea id="d4n" data-q="Decision 4 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision">
+        <div class="dkind">Decision 8 &middot; Devin, open thread</div>
+        <h2>Each off-screen browser now leaves a small WinForms bookkeeping object behind</h2>
+        <p>WinForms keeps a per-thread record (a <code>ThreadContext</code>) for any thread that uses its plumbing. <code>Application.Run</code>&rsquo;s teardown used to remove that record and release the thread handle it holds; the private pump never does. The record still gets created &mdash; implicitly, the moment we install the synchronization context &mdash; and disposing that context only disposes the marshaling control, not the record. WinForms holds it in a static table, so nothing reclaims it.</p>
+        <p>Bloom makes one off-screen browser per batch of page checks, so each batch leaves one of these behind. Devin&rsquo;s own read is that it will not grow without bound &mdash; the table is keyed by native thread id, and ids get reused and overwritten &mdash; and the per-instance cost is small. So this looks like a slow, self-limiting drip rather than a leak that ends in trouble, but it is a genuine change from the previous teardown and nobody has measured it.</p>
+        <fieldset>
+          <legend>What to do about the retained ThreadContext</legend>
+          <div class="opt">
+            <input type="radio" id="d8a" name="d8" value="Measure it first — run many publish cycles and watch handle/memory count">
+            <span class="otext"><label for="d8a">Measure before deciding</label><span class="cost">No product code &mdash; publish repeatedly in one session and watch the handle count. Turns a guess into a number, and the number decides whether anything else is needed.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d8b" name="d8" value="Keep one process-lifetime browser thread instead of one per batch">
+            <span class="otext"><label for="d8b">Reuse one browser thread for the process lifetime</label><span class="cost">Moderate &mdash; it removes the per-batch churn entirely and would also settle Decision 1, but it reverses <code>ReleaseBrowser</code>&rsquo;s deliberate &ldquo;don&rsquo;t keep an idle WebView2 around&rdquo; intent, so it is a real design change rather than a tidy-up.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d8c" name="d8" value="Leave as is" checked>
+            <span class="otext"><label for="d8c">Leave as is</label><span class="rec">recommended</span></span>
+            <span class="leavec"><input type="checkbox" id="d8lc" data-q="Decision 8 — leave comment"><label for="d8lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d8d" name="d8" value="Other">
+            <span class="otext"><label for="d8d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Decision 8 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <p class="note" style="margin-top:12px">Recommending &ldquo;leave as is&rdquo; because the cost is small and self-limiting by Devin&rsquo;s own analysis, and the alternative that would truly remove it (option two) undoes a deliberate design decision for a problem nobody has yet observed. If you would rather not take that on trust, option one is cheap.</p>
+        <div class="notes"><label for="d8n">Notes</label><textarea id="d8n" data-q="Decision 8 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision fyi">
+        <div class="dkind">FYI 5</div>
+        <h2>Nothing on the server side builds or tests this branch</h2>
+        <p>Worth knowing when you weigh the green check mark on the PR. The only GitHub check is <code>pr-automation</code>, which opens the Devin review URL and adds that link to the PR body &mdash; it does not compile a line. And TeamCity&rsquo;s Bloom configurations only build default branches: every recent build reports <code>branchName: None</code>, and there is no PR or feature-branch configuration.</p>
+        <p>So the full C# suite run on this machine is the <em>only</em> test evidence this change has, which is why it was run to completion here rather than trusted to CI. It also means a red suite would never have been caught by the PR itself.</p>
+        <fieldset>
+          <legend>Whether to add server-side build and test for branches</legend>
+          <div class="opt">
+            <input type="radio" id="d5a" name="d5" value="Add a GitHub Actions job that builds and runs the C# tests on PRs">
+            <span class="otext"><label for="d5a">Add a GitHub Actions build-and-test job for PRs</label><span class="cost">Large &mdash; a Windows runner, the dependency fetch from build.palaso.org, and WebView2 on the agent. Its own ticket, not this PR.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d5b" name="d5" value="Add a TeamCity configuration that builds PR branches">
+            <span class="otext"><label for="d5b">Add a TeamCity configuration for PR branches</label><span class="cost">Moderate, and outside this repo &mdash; the agents already have the toolchain, so it is mostly configuration.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d5c" name="d5" value="Leave as is" checked>
+            <span class="otext"><label for="d5c">Leave as is</label><span class="rec">recommended</span></span>
+            <span class="leavec"><input type="checkbox" id="d5lc" data-q="FYI 5 — leave comment"><label for="d5lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d5d" name="d5" value="Other">
+            <span class="otext"><label for="d5d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="FYI 5 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <p class="note" style="margin-top:12px">Recommending &ldquo;leave as is&rdquo; only because this is long-standing, deliberate-looking, and far too big to settle inside a bug fix &mdash; not because it is fine. If it bothers you, it deserves its own card.</p>
+        <div class="notes"><label for="d5n">Notes</label><textarea id="d5n" data-q="FYI 5 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision fyi">
+        <div class="dkind">FYI 6</div>
+        <h2>One test will fail on your machine on every full-suite run</h2>
+        <p><code>RabRealBuildTests.SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code> is an opt-in check against a real Reading App Builder install. It skips itself unless <code>BLOOM_RUN_RAB_MANUAL_TESTS=1</code>, and that variable <em>is</em> set in your user environment &mdash; but <code>buildapp.bat</code> is not on your PATH, so the test opts in and then fails its own precondition with &ldquo;Reading App Builder&rsquo;s build tools are not installed&rdquo;.</p>
+        <p>It is marked <code>SkipOnTeamCity</code>, so CI never runs it and it cannot block a merge. But it does mean every local full-suite run shows one red test that has nothing to do with whatever you are working on &mdash; which is the kind of noise that eventually gets a real failure ignored.</p>
+        <fieldset>
+          <legend>What to do about the always-red RAB test</legend>
+          <div class="opt">
+            <input type="radio" id="d6a" name="d6" value="Unset BLOOM_RUN_RAB_MANUAL_TESTS so the test skips itself again" checked>
+            <span class="otext"><label for="d6a">Unset <code>BLOOM_RUN_RAB_MANUAL_TESTS</code></label><span class="rec">recommended</span><span class="cost">No code &mdash; one environment variable. Recommended because the variable&rsquo;s whole purpose is to opt in when the toolchain is present, and it is not; re-set it when you next want that check.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d6b" name="d6" value="Install the Reading App Builder build tools so the test can really run">
+            <span class="otext"><label for="d6b">Install the RAB build tools</label><span class="cost">No code &mdash; an install, if you actually want that verification running locally.</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d6c" name="d6" value="Leave as is">
+            <span class="otext"><label for="d6c">Leave as is</label></span>
+            <span class="leavec"><input type="checkbox" id="d6lc" data-q="FYI 6 — leave comment"><label for="d6lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d6d" name="d6" value="Other">
+            <span class="otext"><label for="d6d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="FYI 6 — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <div class="notes"><label for="d6n">Notes</label><textarea id="d6n" data-q="FYI 6 — notes"></textarea></div>
+      </section>
+
+      <section class="card decision">
+        <div class="dkind">Next step</div>
+        <h2>How would you like me to proceed?</h2>
+        <p>The PR is left as a draft either way &mdash; preflight never promotes it to human review. That is <code>pr-ready-for-human</code>, which you run after reviewing the work yourself.</p>
+        <fieldset>
+          <legend>Next step</legend>
+          <div class="opt">
+            <input type="radio" id="d7a" name="d7" value="Implement the chosen options now" checked>
+            <span class="otext"><label for="d7a">Implement whatever I chose above, now</label><span class="rec">recommended</span></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d7b" name="d7" value="Discuss first before changing anything">
+            <span class="otext"><label for="d7b">Discuss first, change nothing yet</label></span>
+            <span></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d7c" name="d7" value="Leave as is">
+            <span class="otext"><label for="d7c">Leave as is</label></span>
+            <span class="leavec"><input type="checkbox" id="d7lc" data-q="Next step — leave comment"><label for="d7lc">Leave comment</label></span>
+          </div>
+          <div class="opt">
+            <input type="radio" id="d7d" name="d7" value="Other">
+            <span class="otext"><label for="d7d">Other:</label></span>
+            <span></span>
+            <span class="otherbox"><input type="text" data-q="Next step — other" placeholder="your own answer"></span>
+          </div>
+        </fieldset>
+        <div class="notes"><label for="d7n">Notes</label><textarea id="d7n" data-q="Next step — notes"></textarea></div>
+      </section>
+
+      <section class="card" id="copyback">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copies your choices as plain text &mdash; paste it into the session and I will act on it.</p>
+        <button type="button" id="copybtn">Copy my answers</button>
+        <span class="copied" id="copied">Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers as plain text"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { name: "d1", label: "Decision 1 — crash on the browser thread may stop Bloom restarting" },
+    { name: "d2", label: "Decision 2 — push the sibling branch with the minimal fix" },
+    { name: "d3", label: "Decision 3 — which fix should land" },
+    { name: "d4", label: "Decision 4 — harden the hang-instead-of-throw paths" },
+    { name: "d8", label: "Decision 8 — retained WinForms ThreadContext per browser" },
+    { name: "d5", label: "FYI 5 — no server-side build/test for this branch" },
+    { name: "d6", label: "FYI 6 — always-red RAB test on this machine" },
+    { name: "d7", label: "Next step" }
+  ];
+
+  function val(sel) { var el = document.querySelector(sel); return el ? el.value.trim() : ""; }
+
+  function build() {
+    var out = [
+      "Preflight answers — BL-16668-offscreen-browser-lifetime (PR #8177)",
+      "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16668-offscreen-browser-lifetime.html",
+      ""
+    ];
+    ITEMS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.name + '"]:checked');
+      var answer = picked ? picked.value : "(no answer)";
+      if (answer === "Other") {
+        var other = val('input[data-q="' + item.label.split(" — ")[0] + ' — other"]');
+        answer = other ? "Other: " + other : "Other: (nothing typed)";
+      }
+      out.push(item.label);
+      out.push("  -> " + answer);
+      var lc = document.getElementById(item.name + "lc");
+      if (lc && lc.checked) out.push("  -> Leave comment: record this decision as a code comment in the repo");
+      var notes = val("#" + item.name + "n");
+      if (notes) out.push("  -> Notes: " + notes);
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  function refresh() { document.getElementById("payload").value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var ta = document.getElementById("payload");
+    refresh();
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.classList.add("on");
+      setTimeout(function () { c.classList.remove("on"); }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () {
+        ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      });
+    } else {
+      ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
