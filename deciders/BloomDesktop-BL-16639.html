@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16639 (BloomDesktop PR #8187)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --ink: #23201c;
+    --ink-soft: #5d564d;
+    --ink-faint: #8b8378;
+    --rule: #e4ded3;
+    --accent: #8a5a2b;
+    --accent-soft: #f3ebe0;
+    --ok: #2f6f4e;
+    --warn: #9a6a12;
+    --bad: #a33a2a;
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 32px 24px 72px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.25; margin: 0; }
+  h1 { font-size: 30px; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16px; margin-bottom: 6px; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code, .numeral { font-family: var(--mono); font-size: 0.9em; font-variant-numeric: tabular-nums; }
+  code { background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+  header.masthead { border-bottom: 2px solid var(--rule); padding-bottom: 18px; margin-bottom: 26px; }
+  .subtitle { color: var(--ink-soft); margin-top: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid var(--rule); background: var(--card);
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .chip strong { color: var(--ink); font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 10px; padding: 20px 22px; margin-bottom: 22px;
+  }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .st { font-weight: 600; white-space: nowrap; }
+  .st.ok { color: var(--ok); }
+  .st.warn { color: var(--warn); }
+  .st.bad { color: var(--bad); }
+  .st.na { color: var(--ink-faint); }
+
+  ul.tight { margin: 0 0 12px; padding-left: 20px; }
+  ul.tight li { margin-bottom: 7px; }
+  .muted { color: var(--ink-soft); }
+  .small { font-size: 13.5px; }
+
+  .item { border: 1px solid var(--rule); border-radius: 10px; background: var(--card); padding: 20px 22px; margin-bottom: 20px; }
+  .item .kind {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 700; margin-bottom: 6px;
+  }
+  .opts { margin-top: 14px; border-top: 1px solid var(--rule); padding-top: 12px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; }
+  .opt input[type=radio] { margin-top: 5px; flex: none; }
+  .opt label { flex: 1; min-width: 0; }
+  .opt .fx { color: var(--ink-faint); font-size: 13px; display: block; margin-top: 2px; }
+  .rec { display: inline-block; margin-left: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+         color: var(--ok); border: 1px solid var(--ok); border-radius: 999px; padding: 0 7px; vertical-align: 1px; }
+  .leaverow { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; }
+  .leaverow .lc { margin-left: auto; display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-soft); flex: none; }
+  input[type=text], textarea {
+    width: 100%; font-family: var(--sans); font-size: 14px; color: var(--ink);
+    background: var(--ground); border: 1px solid var(--rule); border-radius: 6px; padding: 7px 9px;
+  }
+  textarea { resize: vertical; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 4px; }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent);
+    border: none; border-radius: 7px; padding: 9px 16px; cursor: pointer;
+  }
+  button:hover { background: #74491f; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12.5px; min-height: 150px; }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>Preflight — BL-16639</h1>
+  <p class="subtitle">Extra text in the “By Sentence” tooltip when a page has no text area. One commit, one file, on a draft PR against <code>Version6.4</code>.</p>
+  <div class="chips">
+    <span class="chip"><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8187" target="_blank" rel="noopener">#8187</a> · draft</span>
+    <span class="chip"><strong>Branch</strong> BL-16639 → Version6.4</span>
+    <span class="chip"><strong>HEAD</strong> <a href="https://github.com/BloomBooks/BloomDesktop/commit/db97a8baffed16301a3ad94481257d2b907f5f5c" target="_blank" rel="noopener"><span class="numeral">db97a8b</span></a></span>
+    <span class="chip"><strong>Card</strong> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16639" target="_blank" rel="noopener">BL-16639</a></span>
+    <span class="chip"><strong>Waiting on you</strong> 5 items</span>
+  </div>
+</header>
+
+<div class="grid">
+
+<!-- ============ LEFT: the report ============ -->
+<div>
+
+  <section class="card">
+    <h2>Quality gates</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Gate</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Typecheck (TypeScript)</td>
+          <td class="st warn">not a gate here</td>
+          <td>This branch has no <code>typecheck</code> script. A bare <code>tsc --noEmit</code> reports <span class="numeral">1107</span> pre-existing errors across the repo, so it cannot be used as a pass/fail gate. The changed file itself has <strong>zero</strong> errors.</td>
+        </tr>
+        <tr>
+          <td>Lint (ESLint)</td>
+          <td class="st ok">pass</td>
+          <td>Exit 0 over the whole front end. <span class="numeral">0</span> errors, <span class="numeral">775</span> pre-existing warnings; <strong>none</strong> in the changed file.</td>
+        </tr>
+        <tr>
+          <td>Prettier</td>
+          <td class="st ok">pass</td>
+          <td>Reports the changed file unchanged (already correctly formatted).</td>
+        </tr>
+        <tr>
+          <td>Merge cleanliness</td>
+          <td class="st ok">clean</td>
+          <td>Base <code>origin/Version6.4</code> has not moved; the branch sits directly on it with one commit. No merge needed, no conflicts.</td>
+        </tr>
+        <tr>
+          <td>TypeScript tests — changed area</td>
+          <td class="st ok">pass</td>
+          <td><span class="numeral">213</span> tests across <span class="numeral">3</span> files in <code>bookEdit/toolbox/talkingBook</code>, including <code>talkingBookSpec.ts</code> and <code>audioRecordingSpec.ts</code>.</td>
+        </tr>
+        <tr>
+          <td>TypeScript tests — full suite</td>
+          <td class="st ok">pass</td>
+          <td><span class="numeral">48</span> files passed, <span class="numeral">1</span> skipped (<span class="numeral">49</span> total); <span class="numeral">524</span> tests passed, <span class="numeral">5</span> skipped. Exit <span class="numeral">0</span> in <span class="numeral">209</span> s. Run with <code>--no-file-parallelism</code> — see the row below.</td>
+        </tr>
+        <tr>
+          <td>&nbsp;&nbsp;↳ default (parallel) run</td>
+          <td class="st warn">wedges — environmental</td>
+          <td>The plain <code>vitest run</code> stalls after roughly <span class="numeral">15</span> files and never proceeds; killed at <span class="numeral">15</span> min (exit <span class="numeral">124</span>). It is <strong>not</strong> a failing test — nothing failed in any run — and it is not this branch. It is also not what was previously recorded on this machine: <code>audioRecordingSpec.ts</code> passed cleanly, and excluding the talkingBook specs entirely just moved the stall elsewhere. Pinned down this run to vitest’s <em>file parallelism</em>: running the files sequentially completes the whole suite green. That is decision item 4.</td>
+        </tr>
+        <tr>
+          <td>C# tests (<code>dotnet test</code>)</td>
+          <td class="st na">not run — no C# in the diff</td>
+          <td>The change is a single <code>.tsx</code> file. The .NET suite neither builds nor reads BloomBrowserUI TypeScript, so nothing in this diff can reach it. Deliberate exemption, not an oversight.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <ul class="tight">
+      <li><strong>Retargeted the branch.</strong> It was based on <code>origin/master</code>; you asked for <code>Version6.4</code>, so it was moved. Nothing was lost — the branch had no commits of its own at that point and was not on the remote. The changed file is byte-identical on both bases, and prettier v3 formatting is present on both, so the fix applied cleanly.</li>
+      <li><strong>One commit:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/commit/db97a8baffed16301a3ad94481257d2b907f5f5c" target="_blank" rel="noopener"><span class="numeral">db97a8b</span></a> — “Fix BL-16639 Extra text in &quot;By Sentence&quot; tooltip in disabled state on page with no text area”. <span class="numeral">+11 / −3</span> in one file (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8187/files" target="_blank" rel="noopener">files changed</a>).</li>
+      <li><strong>Pushed and opened draft PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8187" target="_blank" rel="noopener">#8187</a></strong> against <code>Version6.4</code>.</li>
+      <li><strong>Posted to the card:</strong> the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16639" target="_blank" rel="noopener">PR link</a> and a QA test-ideas comment.</li>
+      <li><strong>No XLF changes</strong> — no localizable string was added or modified, so the localization skill has nothing to do here.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>The fix, in one paragraph</h2>
+    <p>The “By Sentence” radio sits inside <em>two</em> nested <code>BloomTooltip</code>s. Hover bubbles from the inner span to the outer one, so MUI opened both at once and they overlapped: the outer group tooltip (<a href="https://github.com/BloomBooks/BloomDesktop/blob/db97a8baffed16301a3ad94481257d2b907f5f5c/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/talkingBookAdvancedSection.tsx#L95-L103" target="_blank" rel="noopener">lines 95–103</a>) saying “First, put the cursor in a box which has something to record,” and the radio’s own tooltip unconditionally saying “…use the &quot;Clear&quot; button to remove your <strong>recording.</strong>” The second is a line taller, so its last word peeked out below — the stray text in the report. The fix (<a href="https://github.com/BloomBooks/BloomDesktop/blob/db97a8baffed16301a3ad94481257d2b907f5f5c/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/talkingBookAdvancedSection.tsx#L137-L147" target="_blank" rel="noopener">lines 137–147</a>) gives the radio a disabled tip only when it is genuinely disabled because of existing audio. When <code>hasRecordableDivs</code> is true the expression yields exactly the object it did before, so the has-audio path is untouched.</p>
+    <p class="small muted">Verified live in a running Bloom over CDP on a picture-only page, counting open tooltips in the DOM: with the original code restored, <strong>2</strong> tooltips overlapping at nearly identical coordinates; with the fix, exactly <strong>1</strong>, correct text. On a page with text the radio is enabled and still shows “Record one sentence at a time…”.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Findings</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Local review<br><span class="small muted">light pass, done inline</span></td>
+          <td class="st ok">complete</td>
+          <td>One observation raised, none fixed, none dismissed: the same unreachable <code>hasAudio &amp;&amp; !hasRecordableDivs</code> edge Devin later flagged independently. Done inline rather than via a sub-agent, because this session is configured not to dispatch agents unless you ask.</td>
+        </tr>
+        <tr>
+          <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8187" target="_blank" rel="noopener">Devin</a></td>
+          <td class="st ok">complete</td>
+          <td><strong>0 bugs.</strong> 1 Investigate flag — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8187#discussion_r3753853742" target="_blank" rel="noopener">mirrored as a thread</a>, assessed as not-an-issue with reasoning, and resolved. 1 Informational item (not mirrored; it is decision item 1 on the right). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8187#issuecomment-5246717292" target="_blank" rel="noopener">Consultation log</a>.</td>
+        </tr>
+        <tr>
+          <td>CodeRabbit</td>
+          <td class="st na">not active here</td>
+          <td>The repo has a <code>.coderabbit.yml</code>, but it sets <code>auto_review.enabled: false</code>, and CodeRabbit appears on none of the recent PRs. Detected by config, confirmed inactive — so nothing to wait for.</td>
+        </tr>
+        <tr>
+          <td>CI (GitHub checks)</td>
+          <td class="st ok">complete — green</td>
+          <td>Both checks terminal and passing: <code>pr-automation</code> and <code>track / set-waiting</code>. Note BloomDesktop’s TeamCity builds do not report to GitHub PR checks, so this row covers only what GitHub sees.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <ul class="tight">
+      <li><strong>The worktree had no dependencies at all</strong> before this run — <code>node_modules</code> held only an aborted pnpm tree, while <code>Version6.4</code> uses yarn 1.22.22. <code>./init.sh</code> rebuilt it (yarn install ×2, dotnet build, full front-end build).</li>
+      <li><strong>Bloom is still running</strong> from this worktree (PID <span class="numeral">30560</span>, HTTP <span class="numeral">8089</span>, CDP <span class="numeral">8091</span>, Vite <span class="numeral">53860</span>) with the fix live. Its launcher terminal is gone, so it is orphaned but working.</li>
+      <li><strong>A test page was added and removed.</strong> Verifying needed a text-free page, so a “Just an Image” page was added to the scratch book <code>asdf</code> and then deleted again; the book is back to its original 8 pages.</li>
+      <li><strong>Version6.4’s <code>AGENTS.md</code> is the older revision</strong> — it lacks the “Issue tracker” section that <code>master</code> has, and still describes yarn and a plain <code>yarn build</code> rather than master’s pnpm and the isolated <code>agent-dotnet</code>/<code>agent-vite</code> wrappers. The tracker declaration this run relied on came from the root <code>CLAUDE.md</code> instead. That is decision item 3.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ============ RIGHT: decisions ============ -->
+<div>
+
+  <div class="item">
+    <div class="kind">Decision 1 — from Devin (informational)</div>
+    <h3>A pre-existing mismatch: the tooltip and the radio button disagree about when “By Sentence” is disabled</h3>
+    <p>In the Talking Book tool’s Advanced section, the “By Sentence” radio button and the tooltip wrapped around it each decide independently whether the option is unavailable — and they use <em>different</em> rules.</p>
+    <p>The tooltip treats it as disabled when there is nothing recordable on the page <strong>or when the page has audio at all</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/db97a8baffed16301a3ad94481257d2b907f5f5c/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/talkingBookAdvancedSection.tsx#L132-L136" target="_blank" rel="noopener">lines 132–136</a>). The radio button itself greys out when there is nothing recordable <strong>or when there is a whole-text-box recording specifically</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/db97a8baffed16301a3ad94481257d2b907f5f5c/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/talkingBookAdvancedSection.tsx#L150-L156" target="_blank" rel="noopener">lines 150–156</a>, where the audio condition is commented out).</p>
+    <p>So in the gap between those two rules — a page that has sentence-by-sentence audio but no whole-text-box recording — a user sees a button that looks and behaves as clickable, while hovering it produces the message “If you want to change this mode, first use the &quot;Clear&quot; button to remove your recording.” The message says you can’t, the button says you can.</p>
+    <p>This is <strong>not</strong> introduced by this PR and this PR does not change it; Devin raised it only because the fix touches the very line that selects that message. Fixing it means deciding which rule is the correct one, which changes what users can actually click — a real behavior change well beyond the tooltip bug on this card.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" data-q="Decision 1 — tooltip/radio disabled-state mismatch" value="File a separate YouTrack card and leave the code alone here" checked>
+        <label for="q1a">File a separate YouTrack card for it and leave the code alone in this PR<span class="rec">RECOMMENDED</span>
+          <span class="fx">No code change — just a new card. Recommended because the mismatch is real and worth fixing, but choosing which of the two rules wins changes what users can click, needs its own testing, and does not belong in a one-line tooltip fix.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" data-q="Decision 1 — tooltip/radio disabled-state mismatch" value="Align the two conditions now, in this PR">
+        <label for="q1b">Align the two conditions now, in this PR
+          <span class="fx">Small in lines (~2), but user-facing: it changes when the radio is clickable or when the tip appears, and would need the recording scenarios tested by hand.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1c" data-q="Decision 1 — tooltip/radio disabled-state mismatch" value="Leave as is">
+        <label for="q1c">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q1lc" data-q="Decision 1 — tooltip/radio disabled-state mismatch"><label for="q1lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" data-q="Decision 1 — tooltip/radio disabled-state mismatch" value="Other">
+        <label for="q1d">Other: <input type="text" data-q="Decision 1 — tooltip/radio disabled-state mismatch (other)" placeholder="your answer"></label>
+      </div>
+      <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" rows="2" data-q="Decision 1 — notes"></textarea></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Decision 2 — verification gap</div>
+    <h3>The “you already have a recording” branch was not exercised in the real app</h3>
+    <p>The bug on this card was reproduced and the fix confirmed in a running Bloom: on a picture-only page, the old code opened two overlapping tooltips and the new code opens exactly one, with the right text.</p>
+    <p>The <em>other</em> branch — where “By Sentence” is greyed out because you already recorded the text box as a whole, and the tooltip should still say “use the Clear button to remove your recording” — was <strong>not</strong> tested by hand, because producing that state needs a working microphone (or an imported recording) and a subscription that includes whole-text-box audio.</p>
+    <p>By inspection the risk is low: when the page has something recordable, the new expression evaluates to exactly the same object the old code passed, so that message cannot have changed. But “low risk by inspection” is not the same as “someone saw it work”, and this is precisely the message the fix suppresses elsewhere — so if the change were wrong anywhere, this is where it would show. It is already written up as its own section in the QA test-ideas comment on the card.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" data-q="Decision 2 — unverified has-audio branch" value="Leave it to QA via the test-ideas comment already on the card" checked>
+        <label for="q2a">Leave it to QA — it is already called out in the test-ideas comment on the card<span class="rec">RECOMMENDED</span>
+          <span class="fx">No further work now. Recommended because a tester with a microphone can confirm it in under a minute, and the code path provably did not change.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" data-q="Decision 2 — unverified has-audio branch" value="I will verify it myself before this goes to peer review">
+        <label for="q2b">You verify it yourself before this goes to peer review
+          <span class="fx">A few minutes with a mic; no code change.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2c" data-q="Decision 2 — unverified has-audio branch" value="Add an automated test that pins which tooltip appears in each disabled state">
+        <label for="q2c">Add an automated test pinning which tooltip appears in each disabled state
+          <span class="fx">Moderate — this component has no existing render tests, so it means standing up a first one for it (~40–60 lines plus setup).</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2d" data-q="Decision 2 — unverified has-audio branch" value="Leave as is">
+        <label for="q2d">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q2lc" data-q="Decision 2 — unverified has-audio branch"><label for="q2lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2e" data-q="Decision 2 — unverified has-audio branch" value="Other">
+        <label for="q2e">Other: <input type="text" data-q="Decision 2 — unverified has-audio branch (other)" placeholder="your answer"></label>
+      </div>
+      <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" rows="2" data-q="Decision 2 — notes"></textarea></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Decision 3 — FYI, about the repo not the code</div>
+    <h3>On <code>Version6.4</code>, the project instructions are missing the “Issue tracker” section that <code>master</code> has</h3>
+    <p>When this branch was moved from <code>master</code> to <code>Version6.4</code>, the repo’s own agent instructions changed with it, because <code>AGENTS.md</code> is older on that branch. Master’s version has an explicit “Issue tracker” section naming YouTrack, the <code>BL-nnnnn</code> ticket format, and the <code>youtrack-api</code> skill. Version6.4’s does not.</p>
+    <p>Preflight requires that declaration before it will post anything to a card, and it is meant to stop and ask when there isn’t one. Here it proceeded because the root <code>CLAUDE.md</code> — which <em>is</em> the same on both branches — names all three things in passing (“the <code>youtrack-*</code> skills — e.g. when the user gives a YouTrack issue id like <code>BL-1234</code>, follow <code>youtrack-fix</code>”). That satisfied the letter of the rule, but it is a thinner declaration than master’s, and you should know the run leaned on it.</p>
+    <p>The same staleness affects other guidance on that branch: it still says yarn (correct for 6.4) and still tells agents to avoid a plain <code>yarn build</code>, with none of master’s notes about the isolated <code>agent-dotnet</code> / <code>agent-vite</code> wrappers or the pnpm migration.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q3" id="q3a" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4" value="Back-port just the Issue tracker section to Version6.4, separately from this PR" checked>
+        <label for="q3a">Back-port just the “Issue tracker” section to <code>Version6.4</code>, separately from this PR<span class="rec">RECOMMENDED</span>
+          <span class="fx">Tiny — a documentation-only paragraph. Recommended because every future agent run on a 6.4 branch hits this, and the section is branch-independent fact.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3b" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4" value="Back-port the whole current AGENTS.md guidance to Version6.4">
+        <label for="q3b">Back-port the wider agent guidance to <code>Version6.4</code>
+          <span class="fx">Larger and needs judgment — some of master’s guidance (pnpm, the build wrappers) is simply wrong for 6.4 and must not be copied across.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3c" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4" value="Leave as is">
+        <label for="q3c">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q3lc" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4"><label for="q3lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3d" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4" value="Other">
+        <label for="q3d">Other: <input type="text" data-q="Decision 3 — AGENTS.md tracker section missing on Version6.4 (other)" placeholder="your answer"></label>
+      </div>
+      <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" rows="2" data-q="Decision 3 — notes"></textarea></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Decision 4 — tooling finding</div>
+    <h3>The front-end test suite only completes here if vitest runs the files one at a time</h3>
+    <p>Running <code>vitest run</code> the normal way on this machine does not finish. It gets through roughly fifteen test files and then simply stops — no error, no failing test, no further output — until something kills it. Because it dies without a summary, it reads like a broken test suite, and it was previously written off as “the Version6.4 suite hangs in the talking-book audio specs”.</p>
+    <p>That description turns out to be wrong. This run, the talking-book audio specs passed cleanly, and excluding the talking-book tests altogether just moved the stall to a different file. What actually matters is <strong>how many files vitest runs at once</strong>: adding <code>--no-file-parallelism</code>, so files run one after another instead of spread across worker processes, makes the entire suite complete — <span class="numeral">48</span> files and <span class="numeral">524</span> tests, all green, in about three and a half minutes.</p>
+    <p>So there is nothing wrong with the tests, and nothing wrong with this branch; the parallel worker pool wedges on this machine. The open question is whether to leave that as folklore each of us rediscovers, or to write it down somewhere it will be found.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q4" id="q4a" data-q="Decision 4 — vitest file-parallelism wedge" value="Record the workaround in the project instructions (AGENTS.md) without changing the test script" checked>
+        <label for="q4a">Write the workaround down in the project instructions, leaving the test script alone<span class="rec">RECOMMENDED</span>
+          <span class="fx">Documentation only, a few lines. Recommended because it costs nothing and stops the next person (or agent) reporting a green suite as broken — while leaving the faster parallel run as the default for anyone it works for.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4b" data-q="Decision 4 — vitest file-parallelism wedge" value="Change the repo's test script to use --no-file-parallelism">
+        <label for="q4b">Change the repo’s <code>test</code> script to pass <code>--no-file-parallelism</code>
+          <span class="fx">One line, but it slows the suite for everyone including CI, to work around something that may only affect this machine. Worth it only if others hit it too.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4c" data-q="Decision 4 — vitest file-parallelism wedge" value="Investigate the root cause — find what wedges the worker pool">
+        <label for="q4c">Dig for the root cause of the wedge
+          <span class="fx">Open-ended — likely a leaked handle or an unresolved promise in a shared worker; could be an afternoon, could be five minutes.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4d" data-q="Decision 4 — vitest file-parallelism wedge" value="Leave as is">
+        <label for="q4d">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q4lc" data-q="Decision 4 — vitest file-parallelism wedge"><label for="q4lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4e" data-q="Decision 4 — vitest file-parallelism wedge" value="Other">
+        <label for="q4e">Other: <input type="text" data-q="Decision 4 — vitest file-parallelism wedge (other)" placeholder="your answer"></label>
+      </div>
+      <div class="notes"><label for="q4n">Notes</label><textarea id="q4n" rows="2" data-q="Decision 4 — notes"></textarea></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <div class="kind">Decision 5 — next step</div>
+    <h3>Where should this go from here?</h3>
+    <p>The PR is deliberately still a <strong>draft</strong>, and no teammate has been asked to review it — promoting it is your call, not preflight’s. Everything else is done: the code is committed and pushed, CI is green, Devin is complete with its one flag answered and resolved, and the card has both the PR link and the QA test ideas.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q5" id="q5a" data-q="Decision 5 — next step" value="Implement the choices above straight away" checked>
+        <label for="q5a">Implement the choices above straight away<span class="rec">RECOMMENDED</span>
+          <span class="fx">Recommended because none of the items above are large; whichever you pick can be actioned in one pass.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q5" id="q5b" data-q="Decision 5 — next step" value="Discuss first before changing anything">
+        <label for="q5b">Discuss first before anything else changes
+          <span class="fx">No work now; the PR stays exactly as it is.</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q5" id="q5c" data-q="Decision 5 — next step" value="Leave as is">
+        <label for="q5c">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q5lc" data-q="Decision 5 — next step"><label for="q5lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q5" id="q5d" data-q="Decision 5 — next step" value="Other">
+        <label for="q5d">Other: <input type="text" data-q="Decision 5 — next step (other)" placeholder="your answer"></label>
+      </div>
+      <div class="notes"><label for="q5n">Notes</label><textarea id="q5n" rows="2" data-q="Decision 5 — notes"></textarea></div>
+    </div>
+  </div>
+
+  <div class="item">
+    <h3>Send your answers back</h3>
+    <p class="small muted">Copy this and paste it into the session.</p>
+    <button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>Copied</span>
+    <textarea id="payload" readonly rows="10"></textarea>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { name: "q1", label: "Decision 1 — tooltip/radio disabled-state mismatch", lc: "q1lc", notes: "q1n" },
+    { name: "q2", label: "Decision 2 — unverified has-audio branch", lc: "q2lc", notes: "q2n" },
+    { name: "q3", label: "Decision 3 — AGENTS.md tracker section missing on Version6.4", lc: "q3lc", notes: "q3n" },
+    { name: "q4", label: "Decision 4 — vitest file-parallelism wedge", lc: "q4lc", notes: "q4n" },
+    { name: "q5", label: "Decision 5 — next step", lc: "q5lc", notes: "q5n" }
+  ];
+
+  function serialize() {
+    var out = ["Preflight answers — BL-16639 (BloomDesktop PR #8187)", ""];
+    ITEMS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.name + '"]:checked');
+      var value = picked ? picked.value : "(no answer)";
+      if (value === "Other") {
+        var box = picked.parentNode.querySelector('input[type=text]');
+        var typed = box && box.value.trim();
+        value = typed ? "Other: " + typed : "Other: (nothing typed)";
+      }
+      out.push(item.label + ": " + value);
+      var lc = document.getElementById(item.lc);
+      if (lc && lc.checked) out.push("  Leave comment: yes — record this decision as a code comment in the repo");
+      var n = document.getElementById(item.notes);
+      if (n && n.value.trim()) out.push("  Notes: " + n.value.trim());
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  function refresh() { document.getElementById("payload").value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var ta = document.getElementById("payload");
+    var msg = document.getElementById("copiedMsg");
+    function done() { msg.hidden = false; setTimeout(function () { msg.hidden = true; }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); document.execCommand("copy"); done(); });
+    } else {
+      ta.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
