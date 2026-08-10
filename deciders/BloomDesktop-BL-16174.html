@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BloomDesktop BL-16174</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground:  #FAF7F2;
+    --card:    #FFFFFF;
+    --rule:    #E6DFD4;
+    --rule-soft: #F0EAE1;
+    --ink:     #2B2723;
+    --muted:   #6D645A;
+    --accent:  #1B5E5A;
+    --accent-wash: #EAF2F1;
+    --pass:    #2F7A4F;
+    --note:    #96660F;
+    --skip:    #7A7168;
+
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 32px 28px 64px;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(28px, 3.4vw, 40px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .masthead .sub {
+    margin-top: 8px;
+    color: var(--muted);
+    max-width: 68ch;
+  }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 16px; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--rule); background: var(--card);
+    border-radius: 3px; padding: 4px 10px;
+    font-size: 13px; color: var(--muted);
+  }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .chip.draft { border-color: var(--accent); color: var(--accent); background: var(--accent-wash); }
+  .chip.draft b { color: var(--accent); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.94em; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- two columns ---- */
+  .cols { display: grid; grid-template-columns: 1.35fr 1fr; gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 21px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .card > .lede { color: var(--muted); font-size: 14px; margin-bottom: 14px; max-width: 66ch; }
+  .card > h2 + .tblwrap, .card > h2 + .list { margin-top: 14px; }
+
+  /* ---- tables ---- */
+  .tblwrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; vertical-align: top; border-bottom: 1px solid var(--rule-soft); }
+  th {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 500; }
+  td.detail { color: var(--muted); }
+
+  .status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .status.pass { color: var(--pass); } .status.pass::before { background: var(--pass); }
+  .status.note { color: var(--note); } .status.note::before { background: var(--note); }
+  .status.skip { color: var(--skip); } .status.skip::before { background: var(--skip); border-radius: 1px; }
+
+  /* ---- commit / reviewer lists ---- */
+  .list { display: flex; flex-direction: column; gap: 14px; }
+  .item { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+  .item .sha { font-family: var(--mono); font-size: 12.5px; grid-row: span 2; padding-top: 2px; }
+  .item .title { font-weight: 500; }
+  .item .body { grid-column: 2; color: var(--muted); font-size: 14px; }
+  @media (max-width: 520px) {
+    .item { grid-template-columns: 1fr; }
+    .item .sha { grid-row: auto; }
+    .item .body { grid-column: 1; }
+  }
+
+  .rev { border-top: 1px solid var(--rule-soft); padding-top: 12px; }
+  .rev:first-child { border-top: none; padding-top: 0; }
+  .rev .head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; }
+  .rev .name { font-weight: 600; }
+  .rev .body { color: var(--muted); font-size: 14px; margin-top: 3px; max-width: 64ch; }
+
+  .prose p { max-width: 66ch; }
+  .prose p + p { margin-top: 10px; }
+  .prose .muted { color: var(--muted); font-size: 14px; }
+  ul.bullets { display: flex; flex-direction: column; gap: 9px; }
+  ul.bullets li { position: relative; padding-left: 16px; color: var(--muted); font-size: 14px; max-width: 66ch; }
+  ul.bullets li::before {
+    content: ""; position: absolute; left: 2px; top: 9px;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--rule);
+  }
+  ul.bullets li b { color: var(--ink); font-weight: 600; }
+
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--accent-wash); border-radius: 3px; padding: 1px 4px;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---- decisions ---- */
+  .decision { border-left: 3px solid var(--accent); }
+  .kind {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em;
+    font-weight: 700; color: var(--accent); margin-bottom: 6px;
+  }
+  .kind.fyi { color: var(--note); }
+  fieldset { border: none; margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .opt {
+    display: grid; grid-template-columns: auto 1fr auto auto; gap: 4px 10px;
+    align-items: start; padding: 9px 10px; border-radius: 4px;
+  }
+  .opt:hover { background: var(--ground); }
+  .opt input[type=radio] { margin-top: 3px; accent-color: var(--accent); }
+  .opt .lbl { font-size: 14px; }
+  .opt .foot { grid-column: 2 / -1; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .opt .tag {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700;
+    color: var(--accent); background: var(--accent-wash);
+    border-radius: 3px; padding: 2px 6px; white-space: nowrap; margin-top: 1px;
+    grid-column: 3;
+  }
+  .leavecomment {
+    grid-column: 4; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted); white-space: nowrap; margin-top: 1px;
+  }
+  .leavecomment input { accent-color: var(--accent); }
+  .opt .otherbox { grid-column: 2 / -1; margin-top: 6px; }
+  input[type=text], textarea {
+    width: 100%; border: 1px solid var(--rule); border-radius: 3px;
+    background: var(--ground); padding: 7px 9px; font-size: 13.5px; font-family: var(--sans);
+  }
+  textarea { resize: vertical; min-height: 54px; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+
+  /* ---- copy back ---- */
+  .copyback button {
+    background: var(--accent); color: #fff; border: none; border-radius: 3px;
+    padding: 9px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  .copyback button:hover { background: #17504D; }
+  .copyback .row { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .copyback .ok { color: var(--pass); font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .18s; }
+  .copyback .ok.show { opacity: 1; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12px; min-height: 150px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — one record of which tab you’re on</h1>
+    <p class="sub">BL-16174: a BloomPUB preview that sometimes refused to build, and left the Collection and Edit tabs greyed out. The branch is integrated, pushed and reviewed, and a draft PR is open. Four things are waiting on you. Three are design questions; the fourth is one red test that I am confident this branch did not cause but could not clear from here.</p>
+    <div class="facts">
+      <span class="chip"><b>Branch</b> <span class="num">BL-16174</span></span>
+      <span class="chip"><b>Base</b> <span class="num">master</span></span>
+      <span class="chip draft"><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8183" target="_blank" rel="noopener">#8183 — draft</a></span>
+      <span class="chip"><b>HEAD</b> <span class="num">e2c4649515</span></span>
+      <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8183/files" target="_blank" rel="noopener">Files changed</a></span>
+      <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16174" target="_blank" rel="noopener">BL-16174 on YouTrack</a></span>
+      <span class="chip"><b>Waiting on you</b> <span class="num">4</span></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the run ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tblwrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">C# build</td>
+                <td><span class="status pass">pass</span></td>
+                <td class="detail">Compiles clean via <code>build/agent-dotnet.sh</code>. For this stack the build is the typecheck.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests — <code>dotnet test</code></td>
+                <td><span class="status note">1 failed</span></td>
+                <td class="detail">At the final HEAD: <span class="num">3066 passed · 1 failed · 12 skipped</span>. The one failure is the Reading App Builder real-build test, its own row below. Everything else passes, including the 4 new <code>WorkspaceTabSelectionTests</code>. The two earlier full runs on this branch — at <span class="num">49eaf0f0</span> and <span class="num">2ce2afc3</span>, which already contain the entire production change — were <span class="num">3067 passed · 0 failed · 12 skipped</span>, that test included.</td>
+              </tr>
+              <tr>
+                <td class="what">…of which: RAB real build</td>
+                <td><span class="status note">environmental</span></td>
+                <td class="detail"><code>RabRealBuildTests.SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code> — see the item on the right. It runs a real Gradle/APK build, is excluded from CI, and does not touch any code this branch changes.</td>
+              </tr>
+              <tr>
+                <td class="what">C# formatting — csharpier</td>
+                <td><span class="status pass">pass</span></td>
+                <td class="detail">Applied by the repo’s pre-commit hook on every commit in this run.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript typecheck</td>
+                <td><span class="status skip">not run</span></td>
+                <td class="detail">No TypeScript in the diff — the change is four <code>.cs</code> files, and nothing the front end consumes (schema, generated content, build config) is touched.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript lint — eslint</td>
+                <td><span class="status skip">not run</span></td>
+                <td class="detail">Same reason: nothing in the diff can reach it.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests — vitest</td>
+                <td><span class="status skip">not run</span></td>
+                <td class="detail">Same reason: nothing in the diff can reach it.</td>
+              </tr>
+              <tr>
+                <td class="what">Merge with <code>master</code></td>
+                <td><span class="status pass">clean</span></td>
+                <td class="detail">Merged before pushing; already up to date. GitHub reports the PR <span class="num">MERGEABLE / CLEAN</span>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What the change does</h2>
+        <div class="prose">
+          <p>Bloom kept <b>two</b> records of “we are in the Publish tab”, written at different moments. The authoritative one is <code>WorkspaceTabSelection.ActiveTab</code>, assigned in <a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Workspace/WorkspaceView.cs#L1457" target="_blank" rel="noopener">WorkspaceView.cs:1457</a>. The other was the static <code>PublishHelper.InPublishTab</code>, which the book-staging code actually checks, maintained separately by <code>PublishView.Activate()/Deactivate()</code> — always <i>later</i>, after <code>ActiveTab</code> had already changed and after however many other event subscribers had run.</p>
+          <p>The log on the card shows them disagreeing at the moment of failure: the guard in <a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/web/controllers/PublishApi.cs#L621" target="_blank" rel="noopener">PublishApi.cs:621</a> (abort if <code>ActiveTab != publish</code>) let the request through, so <code>ActiveTab</code> said “publish”; the guard at <a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Publish/PublishHelper.cs#L40" target="_blank" rel="noopener">PublishHelper.cs:40</a> fired, so the flag still said “not publish”.</p>
+          <p class="muted">The second symptom falls out of the same cause: <code>PublishView.Activate()</code> is also what calls <code>SetTabsEnabled(true)</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Publish/PublishView.cs#L108" target="_blank" rel="noopener">PublishView.cs:108</a>), the safety net that releases the Edit tab’s save lock. A skipped activation loses that too — hence the greyed-out tabs.</p>
+        </div>
+        <ul class="bullets" style="margin-top:14px">
+          <li><b>One owner.</b> <code>ActiveTab</code> is now a property whose setter also sets the static mirror (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Workspace/WorkspaceTabSelection.cs#L47" target="_blank" rel="noopener">WorkspaceTabSelection.cs:47</a>). One assignment, no window. It also clears the flag when a new collection initialises to the Collection tab (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Workspace/WorkspaceView.cs#L192" target="_blank" rel="noopener">WorkspaceView.cs:192</a>) — the static previously survived a collection switch.</li>
+          <li><b>No second writer.</b> <code>PublishView</code> no longer touches the flag; comments at both former sites point at the new owner.</li>
+          <li><b>A latch that can’t go stale.</b> <code>_isActive</code> is set before <code>Activate()</code>/<code>Deactivate()</code> rather than after (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/Publish/PublishView.cs#L64" target="_blank" rel="noopener">PublishView.cs:64</a>), so a throw inside either can’t leave us believing we’re still where we just left. Exceptions still propagate; nothing is swallowed.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Commits this run</h2>
+        <div class="list">
+          <div class="item">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/49eaf0f06b88fb0ed2a25081e1cf0aadc47a5ab6" target="_blank" rel="noopener">49eaf0f0</a>
+            <div class="title">The fix, plus four new tests</div>
+            <div class="body">Moves the flag into the <code>ActiveTab</code> setter, removes <code>PublishView</code>’s writes, and makes the <code>_isActive</code> latch failure-proof. Adds <code>WorkspaceTabSelectionTests</code> covering both directions and the stale-static-across-collections case.</div>
+          </div>
+          <div class="item">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/2ce2afc3a92f9bd4133e02661bb250081b81e9ad" target="_blank" rel="noopener">2ce2afc3</a>
+            <div class="title">Two of Devin’s informational points</div>
+            <div class="body">A fixture comment implied that <i>constructing</i> a new <code>WorkspaceTabSelection</code> clears the stale static — it doesn’t; the new <code>WorkspaceView</code> constructor’s assignment does. Also marks the fixture <a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomTests/Workspace/WorkspaceTabSelectionTests.cs#L19" target="_blank" rel="noopener"><code>[NonParallelizable]</code></a>, matching the existing use in <code>RabRealBuildTests</code>.</div>
+          </div>
+          <div class="item">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/e2c4649515f8808dd0ed364217c6fea540929d69" target="_blank" rel="noopener">e2c46495</a>
+            <div class="title">Corrects a comment that now overclaims</div>
+            <div class="body">The comment on the e2e staging affordance (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e2c4649515f8808dd0ed364217c6fea540929d69/src/BloomExe/web/controllers/PublishApi.cs#L786" target="_blank" rel="noopener">PublishApi.cs:786</a>) said the guard meant the publish tab had finished its setup. Since the flag now flips ahead of the subscribers, that isn’t what it proves — what makes the e2e flow safe is that <code>selectTab</code> runs the whole switch synchronously inside its own awaited API call. Comment only.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <div class="list">
+          <div class="rev">
+            <div class="head"><span class="name">Local review — light sub-agent pass</span><span class="status pass">clean</span></div>
+            <div class="body">One pass over the diff for correctness only. It traced every remaining writer and reader of the static, both assignment sites of <code>ActiveTab</code>, the DI lifetime, and both failure directions of the reordered latch. No findings. It reported the DI lifetime as <code>InstancePerLifetimeScope</code>, which I verified directly — it sits under the comment “Other classes which are also singletons”, so one instance per collection is shared by <code>WorkspaceView</code>, <code>PublishApi</code> and <code>PublishView</code>. That’s load-bearing for the diagnosis, and it holds.</div>
+          </div>
+          <div class="rev">
+            <div class="head"><span class="name"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8183" target="_blank" rel="noopener">Devin</a></span><span class="status pass">complete</span></div>
+            <div class="body" id="devin-body">Ran three times, once per commit, each completing in about a minute; the last run is against the final HEAD. <b>Zero bugs and zero Investigate flags on every pass</b> — the <span class="num">7</span> items on the final run are all Informational, which by convention aren’t mirrored as PR threads. Two were worth acting on and became commits <span class="num">2ce2afc3</span> and <span class="num">e2c46495</span>; one had already been handled; the rest are the items in this column. The run is recorded in a <a href="https://github.com/BloomBooks/BloomDesktop/pull/8183#issuecomment-5244555623" target="_blank" rel="noopener">consultation comment</a> on the PR.</div>
+          </div>
+          <div class="rev">
+            <div class="head"><span class="name">CodeRabbit</span><span class="status skip">disabled on this repo</span></div>
+            <div class="body">A <code>.coderabbit.yml</code> exists but sets <code>auto_review.enabled: false</code> and <code>review_status: false</code>, so it does not review PRs here. Confirmed against four recent PRs (#8178, #8177, #8170, #8155) — no CodeRabbit comments on any. Nothing to wait for.</div>
+          </div>
+          <div class="rev">
+            <div class="head"><span class="name">CI — GitHub checks</span><span class="status pass">pass</span></div>
+            <div class="body"><code>pr-automation</code> is the only check GitHub runs on this repo, and it succeeded. It is also what triggers Devin on each push. Bloom’s heavier CI lives on TeamCity and does not report a status context here.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="bullets">
+          <li><b>Tracker.</b> The PR link and a fresh QA test-ideas comment are both on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16174" target="_blank" rel="noopener">BL-16174</a>, posted once each under the Bot account with the usual attribution prefix. The test ideas lead on rushing the Edit → Publish transition, since the original report says this happened only “sometimes”.</li>
+          <li><b>This worktree had no dependencies yet.</b> The first build failed with the documented <code>PodcastUtilities</code> / <code>IDevice</code> errors, so I ran <code>./init.sh</code>. That touched <code>src/BloomBrowserUI/package.json</code> and <code>src/content/package.json</code> with line-ending-only changes — <code>git diff</code> on both is empty, and neither is in any commit.</li>
+          <li><b>The branch already existed</b> when I started, at <code>master</code>’s tip with a clean tree, so I worked on it rather than creating <code>BL-16174-&lt;words&gt;</code>. You approved that at the time.</li>
+          <li><b>The PR is deliberately still a draft.</b> Preflight never marks a PR ready or requests a reviewer — that’s <code>pr-ready-for-human</code>, after your own review.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <section class="card decision">
+        <div class="kind">Decision</div>
+        <h2>Should the static flag exist at all?</h2>
+        <div class="prose">
+          <p class="muted">The fix removed the <i>disagreement</i> between the two records of “which tab are we on”, but it did not remove the <i>duplication</i>. There is still a static <code>bool</code> that mirrors <code>ActiveTab</code>, and it is now written by the <code>ActiveTab</code> setter — which means <code>Bloom.Workspace</code>, previously an inert data holder, now has a compile-time dependency on <code>Bloom.Publish</code> and a side effect on process-wide state whenever anyone constructs one.</p>
+          <p class="muted">Devin’s suggestion is to point the dependency the other way instead: make <code>PublishHelper.InPublishTab</code> a <i>read-only</i> property that consults a registered <code>WorkspaceTabSelection</code>. There would then be exactly one piece of state, read at the moment the guard runs, and <code>Bloom.Workspace</code> would go back to knowing nothing about publishing. The mirror only exists because the staging code is static and has no way to reach the one <code>WorkspaceTabSelection</code>, so this trades the mirror for a static registration point instead.</p>
+        </div>
+        <fieldset>
+          <legend>Should the static flag exist at all?</legend>
+          <label class="opt">
+            <input type="radio" name="q1" value="Invert the dependency now — InPublishTab becomes a read-only property over a registered WorkspaceTabSelection">
+            <span class="lbl">Invert the dependency now — <code>InPublishTab</code> reads from a registered <code>WorkspaceTabSelection</code></span>
+            <span class="foot">Removes the duplicated state entirely and takes <code>Bloom.Publish</code> back out of <code>Bloom.Workspace</code>. Moderate: a static registration point set up at <code>ProjectContext</code> creation and torn down with it, plus deciding what the property answers before any collection is open and in console/harvester runs. Touches startup ordering, so it wants its own review pass.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Leave as is" checked>
+            <span class="lbl">Leave as is</span>
+            <span class="tag">Recommended</span>
+            <span class="leavecomment"><input type="checkbox" data-q="Should the static flag exist at all?" data-leavecomment="1"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Other">
+            <span class="lbl">Other:</span>
+            <span class="otherbox"><input type="text" data-q="Should the static flag exist at all?" data-other="1" placeholder="…"></span>
+          </label>
+        </fieldset>
+        <div class="prose" style="margin-top:12px">
+          <p class="muted">Recommended because the bug on the card is fixed and provably so, the coupling is one line inside one small file with a comment explaining exactly why it’s there, and the alternative moves work into application startup — a riskier place — for a design win rather than a behavioural one. That’s a fine follow-up card, but a poor thing to fold into a fix you want to ship.</p>
+        </div>
+        <div class="notes">
+          <label for="n1">Notes</label>
+          <textarea id="n1" data-q="Should the static flag exist at all?" data-notes="1" placeholder="Anything to add?"></textarea>
+        </div>
+      </section>
+
+      <section class="card decision">
+        <div class="kind fyi">For your information</div>
+        <h2>A second behaviour change I didn’t call out</h2>
+        <div class="prose">
+          <p class="muted">Moving <code>_isActive = shouldBeActive</code> ahead of the work fixes the case I described: if deactivating throws, we no longer skip the next activation and strand the tabs greyed out. Devin pointed out it also changes the mirror-image case, which my commit message didn’t mention.</p>
+          <p class="muted">If <code>Activate()</code> throws part-way, the view now counts as active, so the <i>next</i> tab switch will run <code>Deactivate()</code> against a publish view that never finished activating — cancelling any PDF/ePUB/video work and broadcasting <code>switchOutOfPublishTab</code>. Every one of those calls is null-safe or idempotent (<code>_model.IsMakingPdf</code> is checked first, the API calls are null-conditional, <code>PublishHelper.Cancel()</code> just clears a reference), so it is harmless — and better than the old behaviour, which skipped the cleanup entirely. But it is a real second change, and you should know it’s there rather than find it later.</p>
+        </div>
+        <fieldset>
+          <legend>A second behaviour change I didn’t call out</legend>
+          <label class="opt">
+            <input type="radio" name="q2" value="Note it in the commit message / PR description so the record matches the code">
+            <span class="lbl">Add it to the PR description so the record matches the code</span>
+            <span class="foot">No code — a couple of sentences on the PR. Cheap, and means nobody has to rediscover it from the diff.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Leave as is" checked>
+            <span class="lbl">Leave as is</span>
+            <span class="tag">Recommended</span>
+            <span class="leavecomment"><input type="checkbox" data-q="A second behaviour change I didn't call out" data-leavecomment="1"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Other">
+            <span class="lbl">Other:</span>
+            <span class="otherbox"><input type="text" data-q="A second behaviour change I didn't call out" data-other="1" placeholder="…"></span>
+          </label>
+        </fieldset>
+        <div class="prose" style="margin-top:12px">
+          <p class="muted">Recommended because the comment already sitting above that line explains the reasoning, and the new behaviour is the one you’d want anyway — cleanup that runs is better than cleanup that’s skipped. Worth a tick on “Leave comment” if you’d rather it were spelled out in the source.</p>
+        </div>
+        <div class="notes">
+          <label for="n2">Notes</label>
+          <textarea id="n2" data-q="A second behaviour change I didn't call out" data-notes="1" placeholder="Anything to add?"></textarea>
+        </div>
+      </section>
+
+      <section class="card decision">
+        <div class="kind fyi">For your information</div>
+        <h2>One path still sets the flag only indirectly</h2>
+        <div class="prose">
+          <p class="muted">Opening a different collection goes through <code>WorkspaceView.OpenSpecificCollection</code>, which raises the tab-changed events with no destination tab and never assigns <code>ActiveTab</code>. So during the tear-down and rebuild, the static keeps whatever it had; what actually resets it is the <i>new</i> <code>WorkspaceView</code> constructor assigning <code>ActiveTab = collection</code>.</p>
+          <p class="muted">That is a genuine improvement on before — previously nothing reset it at all across a collection switch — and a leftover value can only be <code>true</code>, which is the permissive direction: it would allow a staging call, never refuse one, so it cannot produce the crash on this card. The catch is that the invariant now quietly depends on that one line in the constructor continuing to exist. The new test stands in for it and its comment says so explicitly, which is the cheapest guard available short of adding code.</p>
+        </div>
+        <fieldset>
+          <legend>One path still sets the flag only indirectly</legend>
+          <label class="opt">
+            <input type="radio" name="q3" value="Belt and braces: clear the flag explicitly in OpenSpecificCollection too">
+            <span class="lbl">Belt and braces: clear it explicitly in <code>OpenSpecificCollection</code> as well</span>
+            <span class="foot">One line, localized, low risk — but it reintroduces a second writer, which is precisely the shape of thing this fix set out to remove.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Leave as is" checked>
+            <span class="lbl">Leave as is</span>
+            <span class="tag">Recommended</span>
+            <span class="leavecomment"><input type="checkbox" data-q="One path still sets the flag only indirectly" data-leavecomment="1"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Other">
+            <span class="lbl">Other:</span>
+            <span class="otherbox"><input type="text" data-q="One path still sets the flag only indirectly" data-other="1" placeholder="…"></span>
+          </label>
+        </fieldset>
+        <div class="prose" style="margin-top:12px">
+          <p class="muted">Recommended because the whole point of the fix is that exactly one place writes this. A second writer to cover a stale value that can’t cause the failure would trade the invariant for reassurance, and the test comment already documents the dependency.</p>
+        </div>
+        <div class="notes">
+          <label for="n3">Notes</label>
+          <textarea id="n3" data-q="One path still sets the flag only indirectly" data-notes="1" placeholder="Anything to add?"></textarea>
+        </div>
+      </section>
+
+      <section class="card decision">
+        <div class="kind">Decision</div>
+        <h2>One red test I couldn’t clear from here</h2>
+        <div class="prose">
+          <p class="muted">The last full run of the C# suite came back with one failure: <code>RabRealBuildTests.SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>, the opt-in test that drives a genuine Reading App Builder + Gradle build all the way to a signed Android APK. It is excluded from CI and only runs when <code>BLOOM_RUN_RAB_MANUAL_TESTS</code> is set, which it is on this machine.</p>
+          <p class="muted"><b>I do not believe this branch caused it.</b> The same test passed in <i>both</i> earlier full runs on this branch, at <span class="num">49eaf0f0</span> and <span class="num">2ce2afc3</span> — commits that already contain the whole production change. The only difference in the failing run is five lines of comment in <code>PublishApi.cs</code>. Nothing in the diff is under <code>src/BloomExe/Publish/Rab/</code>, and the RAB path reaches the tab-state guard only under <code>Program.RunningUnitTests</code>, where it is bypassed entirely.</p>
+          <p class="muted">What the two failures actually say is that the shared build tree is wedged. The first complained that <code>classes2.dex</code> was “being used by another process”; the re-run then failed differently, on missing intermediates (<code>values-ro.json</code>, <code>AndroidManifest.xml</code>) and Gradle refusing to read its own outputs — the wreckage a build killed mid-flight leaves behind. Reading App Builder puts all of this in <code>C:\temp\SIL\build\RAB.000</code>, which is machine-global: it is shared by every worktree on this machine, and <code>gradle clean</code> is itself one of the steps that now fails.</p>
+          <p class="muted">Clearing that directory would very likely fix it, but it is outside the repo and shared — another worktree (there is a <code>BL-16190-rab-prepare-taglib</code> branch) could be part-way through its own RAB work — so I left it alone rather than delete it on my own initiative.</p>
+        </div>
+        <fieldset>
+          <legend>One red test I couldn’t clear from here</legend>
+          <label class="opt">
+            <input type="radio" name="q5" value="Clear C:\temp\SIL\build\RAB.000 and re-run the RAB test" checked>
+            <span class="lbl">Tell me to clear <code>C:\temp\SIL\build\RAB.000</code> and re-run the test</span>
+            <span class="tag">Recommended</span>
+            <span class="foot">No code. Deletes a scratch build tree Reading App Builder recreates from scratch, then re-runs the one test (~2 minutes). Recommended because it settles the question rather than leaving a red row on a branch that didn’t cause it — but say so explicitly, and only if you know no other worktree is mid-RAB-build.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q5" value="Leave as is — accept the red row as environmental">
+            <span class="lbl">Leave as is</span>
+            <span class="leavecomment"><input type="checkbox" data-q="One red test I couldn't clear from here" data-leavecomment="1"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q5" value="Other">
+            <span class="lbl">Other:</span>
+            <span class="otherbox"><input type="text" data-q="One red test I couldn't clear from here" data-other="1" placeholder="…"></span>
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n5">Notes</label>
+          <textarea id="n5" data-q="One red test I couldn't clear from here" data-notes="1" placeholder="Anything to add?"></textarea>
+        </div>
+      </section>
+
+      <section class="card decision">
+        <div class="kind">Next step</div>
+        <h2>Where would you like this to go?</h2>
+        <fieldset>
+          <legend>Where would you like this to go?</legend>
+          <label class="opt">
+            <input type="radio" name="q4" value="Nothing more from me — I'll review it myself, then run pr-ready-for-human" checked>
+            <span class="lbl">Nothing more from me — you’ll review it and run <code>pr-ready-for-human</code></span>
+            <span class="tag">Recommended</span>
+            <span class="foot">The branch is green, integrated, and quiet; the PR sits in draft waiting for your own read-through. Recommended because nothing above blocks it.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Implement my choices above, then re-run preflight">
+            <span class="lbl">Implement my choices above, then re-run preflight</span>
+            <span class="foot">Any picked fix becomes a new commit, which restarts Devin and the gate — roughly ten minutes.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Let's talk it through before touching anything">
+            <span class="lbl">Let’s talk it through before touching anything</span>
+            <span class="foot">No code — useful if the layering question is worth thinking about more broadly than this branch.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Leave as is">
+            <span class="lbl">Leave as is</span>
+            <span class="leavecomment"><input type="checkbox" data-q="Where would you like this to go?" data-leavecomment="1"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Other">
+            <span class="lbl">Other:</span>
+            <span class="otherbox"><input type="text" data-q="Where would you like this to go?" data-other="1" placeholder="…"></span>
+          </label>
+        </fieldset>
+        <div class="notes">
+          <label for="n4">Notes</label>
+          <textarea id="n4" data-q="Where would you like this to go?" data-notes="1" placeholder="Anything to add?"></textarea>
+        </div>
+      </section>
+
+      <section class="card copyback">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copies your choices as plain text — paste it into the session and I’ll act on it.</p>
+        <div class="row">
+          <button type="button" id="copybtn">Copy my answers</button>
+          <span class="ok" id="ok">Copied</span>
+        </div>
+        <textarea id="payload" readonly aria-label="Your answers, ready to copy"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    { name: "q1", q: "Should the static flag exist at all?" },
+    { name: "q2", q: "A second behaviour change I didn't call out" },
+    { name: "q3", q: "One path still sets the flag only indirectly" },
+    { name: "q5", q: "One red test I couldn't clear from here" },
+    { name: "q4", q: "Where would you like this to go?" }
+  ];
+
+  function findByAttr(q, attr) {
+    var all = document.querySelectorAll("[" + attr + "]");
+    for (var i = 0; i < all.length; i++) {
+      if (all[i].getAttribute("data-q") === q) return all[i];
+    }
+    return null;
+  }
+
+  function build() {
+    var lines = ["Preflight answers — BloomDesktop BL-16174 (PR #8183, HEAD e2c4649515)", ""];
+    QUESTIONS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.name + '"]:checked');
+      var answer = picked ? picked.value : "(no answer)";
+      if (answer === "Other") {
+        var other = findByAttr(item.q, "data-other");
+        var txt = other && other.value.trim();
+        answer = txt ? "Other: " + txt : "Other: (nothing typed)";
+      }
+      lines.push(item.q);
+      lines.push("  -> " + answer);
+
+      var lc = findByAttr(item.q, "data-leavecomment");
+      if (lc && lc.checked) {
+        lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      }
+      var notes = findByAttr(item.q, "data-notes");
+      var nv = notes && notes.value.trim();
+      if (nv) lines.push("  Notes: " + nv);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  var ok = document.getElementById("ok");
+  function flash() { ok.classList.add("show"); setTimeout(function () { ok.classList.remove("show"); }, 1800); }
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var text = payload.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(flash, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); flash(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
