@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16209 (BloomDesktop PR 8186)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #f5f4f1;
+    --card: #ffffff;
+    --border: #e2e1da;
+    --border-soft: #ecebe4;
+    --ink: #22282a;
+    --muted: #677175;
+    --accent: #14707c;
+    --accent-soft: #e6f0f0;
+    --pass: #2c7a4b;
+    --warn: #966c1c;
+    --skip: #7b8488;
+
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.55;
+    padding: 34px 26px 70px;
+  }
+
+  .wrap { max-width: 1320px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+  .masthead { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 26px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    line-height: 1.2;
+  }
+  .masthead .sub { color: var(--muted); margin-top: 7px; max-width: 66ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 16px; }
+  .fact {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+  .fact b { font-weight: 600; }
+  .fact .numeral { font-family: var(--mono); font-size: 12.5px; }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 1.12fr 0.88fr; gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 960px) { .cols { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .card p { max-width: 68ch; }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { font-weight: 500; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13.5px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .tag.pass { color: var(--pass); background: #eaf3ec; }
+  .tag.na   { color: var(--skip); background: #eeeeea; }
+  .tag.done { color: var(--accent); background: var(--accent-soft); }
+
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(20,112,124,0.32); }
+  a:hover { border-bottom-color: var(--accent); }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    background: #f1f0ea;
+    padding: 1px 4px;
+    border-radius: 2px;
+    overflow-wrap: anywhere;
+  }
+
+  .commits { display: flex; flex-direction: column; gap: 12px; }
+  .commit { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; }
+  .commit .sha { font-family: var(--mono); font-size: 12.5px; }
+  .commit .msg { max-width: 62ch; }
+  .commit .msg span { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+
+  .notelist { display: flex; flex-direction: column; gap: 11px; }
+  .notelist li { padding-left: 15px; position: relative; max-width: 68ch; }
+  .notelist li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em;
+    width: 5px; height: 5px; background: var(--muted); border-radius: 50%;
+  }
+
+  /* ---------- decisions ---------- */
+  .item + .item { margin-top: 20px; }
+  .item h3 {
+    font-family: var(--serif);
+    font-size: 17.5px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    text-wrap: balance;
+  }
+  .item .src { font-size: 12.5px; color: var(--muted); margin-bottom: 9px; }
+  .item p { margin-bottom: 10px; }
+  .item p:last-of-type { margin-bottom: 14px; }
+
+  .choices { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+  .choice {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 9px;
+    align-items: start;
+    padding: 8px 10px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .choice:hover { background: #faf9f5; border-color: var(--border-soft); }
+  .choice input[type="radio"] { margin-top: 0.32em; accent-color: var(--accent); }
+  .choice .label { font-size: 14.5px; }
+  .rec {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 1px 6px;
+    border-radius: 2px;
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .fc { display: block; color: var(--muted); font-size: 13px; font-style: normal; margin-top: 3px; }
+  .lc {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12.5px; color: var(--muted); white-space: nowrap;
+    align-self: center;
+  }
+  .lc input { accent-color: var(--accent); }
+  .othertext {
+    grid-column: 2 / -1;
+    width: 100%;
+    margin-top: 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 14px;
+    background: #fdfdfb;
+  }
+  .notes { display: block; font-size: 12.5px; color: var(--muted); }
+  .notes textarea {
+    display: block;
+    width: 100%;
+    margin-top: 5px;
+    min-height: 54px;
+    resize: vertical;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 7px 9px;
+    font-size: 14px;
+    font-family: var(--sans);
+    background: #fdfdfb;
+    color: var(--ink);
+  }
+
+  .hr { border: none; border-top: 1px solid var(--border-soft); margin: 18px 0; }
+
+  button.copy {
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    border-radius: 3px;
+    padding: 8px 16px;
+    font-size: 14.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.copy:hover { background: #0f5b65; }
+  #copied { font-size: 13px; color: var(--pass); margin-left: 10px; }
+  #payload {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    min-height: 190px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.5;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px;
+    background: #fbfaf6;
+    color: var(--ink);
+    resize: vertical;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — BL-16209: a collection with a quote in its language name wouldn&rsquo;t open</h1>
+    <p class="sub">Everything that could be done without you is done: the fix is committed, pushed, reviewed by Devin, and the full C# suite is green. Four things are left that are yours to decide.</p>
+    <div class="facts">
+      <span class="fact"><b>Branch</b> <span class="numeral">BL-16209</span></span>
+      <span class="fact"><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8186" target="_blank" rel="noopener">#8186</a> &mdash; draft</span>
+      <span class="fact"><b>HEAD</b> <a class="numeral" href="https://github.com/BloomBooks/BloomDesktop/commit/2462597c0340c037bbe1dbe602ce8eec56ddad66" target="_blank" rel="noopener">2462597c</a></span>
+      <span class="fact"><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16209" target="_blank" rel="noopener">BL-16209</a></span>
+      <span class="fact"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8186/files" target="_blank" rel="noopener">Files changed</a></span>
+      <span class="fact"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8186/commits" target="_blank" rel="noopener">Commits</a></span>
+      <span class="fact"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8186" target="_blank" rel="noopener">Devin review</a></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the report ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>C# tests (<code>dotnet test</code>)</td>
+                <td><span class="tag pass">pass</span></td>
+                <td><span class="numeral">3066 passed &middot; 0 failed &middot; 12 skipped</span> in <span class="numeral">6m 26s</span>, at HEAD <span class="numeral">2462597c</span></td>
+              </tr>
+              <tr>
+                <td>TypeScript tests (vitest)</td>
+                <td><span class="tag na">not run</span></td>
+                <td>No <code>.ts</code>/<code>.tsx</code>/<code>.less</code> in the diff, and the front-end suite neither reads nor builds any of the three changed C# files.</td>
+              </tr>
+              <tr>
+                <td>TypeScript typecheck</td>
+                <td><span class="tag na">not run</span></td>
+                <td>Same reason &mdash; nothing in the diff is TypeScript.</td>
+              </tr>
+              <tr>
+                <td>Lint (eslint, front-end)</td>
+                <td><span class="tag na">not run</span></td>
+                <td>Same reason. C# formatting is enforced instead by CSharpier, which the pre-commit hook ran on all three files.</td>
+              </tr>
+              <tr>
+                <td>Merge with <code>master</code></td>
+                <td><span class="tag pass">clean</span></td>
+                <td>Already up to date &mdash; <code>master</code> has not moved since this branch left it, so there was nothing to integrate.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <div class="commits">
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/6c241ac4e7f413ffeb309520b74206099afefbba" target="_blank" rel="noopener">6c241ac4</a>
+            <div class="msg">The fix itself: serialize the <code>settings/languageData</code> reply with <code>JsonConvert</code> instead of pasting the name into a hand-built string, and do the same for the Synphony <code>LangName</code> value. Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/2462597c0340c037bbe1dbe602ce8eec56ddad66/src/BloomTests/web/controllers/CollectionSettingsApiTests.cs" target="_blank" rel="noopener">CollectionSettingsApiTests</a>.
+              <span>Verified in the real app with the collection attached to the card &mdash; blank screen before, full Collections tab after.</span>
+            </div>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/ff8bba45fb1a406696dea6de71a73631b3b2c8f6" target="_blank" rel="noopener">ff8bba45</a>
+            <div class="msg">From the local review: keep coercing a null name to an empty string.
+              <span>The old hand-built string did that for free; <code>JsonConvert</code> would have sent a JSON null, which lands in the front-end as <code>null</code> and crashes <a href="https://github.com/BloomBooks/BloomDesktop/blob/2462597c0340c037bbe1dbe602ce8eec56ddad66/src/BloomBrowserUI/booksOnBlorg/BooksOnBlorgProgressBar.tsx#L36" target="_blank" rel="noopener">the same line</a> &mdash; the identical blank screen by another route.</span>
+            </div>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/2462597c0340c037bbe1dbe602ce8eec56ddad66" target="_blank" rel="noopener">2462597c</a>
+            <div class="msg">From Devin: escape the <code>LangID</code> value too.
+              <span>It sat two lines below the <code>LangName</code> splice this branch had just fixed, still hand-quoted. Fair catch &mdash; now no value in <a href="https://github.com/BloomBooks/BloomDesktop/blob/2462597c0340c037bbe1dbe602ce8eec56ddad66/src/BloomExe/web/ReadersApi.cs#L750" target="_blank" rel="noopener">that method</a> is hand-quoted.</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Local review<br><span class="numeral" style="font-size:12px;color:var(--muted)">light pass</span></td>
+                <td><span class="tag done">complete</span></td>
+                <td>Done inline rather than by sub-agent, per your standing instruction not to spawn agents unasked. <b>1 raised, 1 fixed, 0 escalated, 0 dismissed</b> &mdash; the null-coercion regression, fixed in <span class="numeral">ff8bba45</span>.</td>
+              </tr>
+              <tr>
+                <td>Devin<br><span class="numeral" style="font-size:12px;color:var(--muted)">2 runs</span></td>
+                <td><span class="tag done">complete</span></td>
+                <td><b>0 bugs, 0 investigate, 6 informational</b> at HEAD (3 on the previous commit). Nothing needed mirroring as a thread. One informational point was acted on (<span class="numeral">2462597c</span>), one is raised as an FYI opposite, and one is stale (it describes the code before <span class="numeral">2462597c</span>). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8186#issuecomment-5246683645" target="_blank" rel="noopener">Consultation log</a>.</td>
+              </tr>
+              <tr>
+                <td>CodeRabbit</td>
+                <td><span class="tag na">not a reviewer here</span></td>
+                <td>The repo&rsquo;s <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code> and <code>review_status: false</code>, and the last three merged PRs have no CodeRabbit comments. So this is a deliberate repo setting, not a review we are waiting on.</td>
+              </tr>
+              <tr>
+                <td>CI &mdash; GitHub Actions</td>
+                <td><span class="tag pass">pass</span></td>
+                <td><code>pr-automation</code> passed. It is the <i>only</i> workflow this repo triggers on a pull request &mdash; its job is to kick off the Devin review.</td>
+              </tr>
+              <tr>
+                <td>CI &mdash; TeamCity</td>
+                <td><span class="tag na">not applicable</span></td>
+                <td>Queried <code>build.palaso.org</code> directly: zero builds exist for branch <span class="numeral">BL-16209</span>, so TeamCity does not build feature branches and nothing there gates this PR.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="notelist">
+          <li>The root cause was confirmed against the running app, not inferred: the endpoint really did return unparseable JSON, and the throw at <a href="https://github.com/BloomBooks/BloomDesktop/blob/2462597c0340c037bbe1dbe602ce8eec56ddad66/src/BloomBrowserUI/booksOnBlorg/BooksOnBlorgProgressBar.tsx#L36" target="_blank" rel="noopener">BooksOnBlorgProgressBar.tsx:36</a> was captured over CDP.</li>
+          <li>The fix also repairs a second screen nobody had connected to this bug: the <b>Make Reader Template Bloom Pack</b> dialog reads the <a href="https://github.com/BloomBooks/BloomDesktop/blob/2462597c0340c037bbe1dbe602ce8eec56ddad66/src/BloomBrowserUI/react_components/makeReaderTemplateBloomPackDialog.tsx#L53" target="_blank" rel="noopener">same endpoint</a> and was showing <code>undefined</code> for such a collection.</li>
+          <li>The test collection was installed under <code>Documents\Bloom</code> and Bloom&rsquo;s <code>user.config</code> was edited to open it. Both were <b>restored</b> afterwards and the Bloom stack shut down; your collection list is as it was.</li>
+          <li>Two files show as modified in <code>git status</code> and are deliberately <b>not</b> in any commit: <code>src/BloomBrowserUI/package.json</code> and <code>src/content/package.json</code>, whose diffs are line-endings only and were not made by this work.</li>
+          <li>Posted to the card: the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16209" target="_blank" rel="noopener">PR link</a> and a QA test-ideas comment (shortened to about half length at your request).</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Your decisions</h2>
+
+        <div class="item" data-item="1. Ampersands are being double-escaped when collection settings are saved">
+          <h3>Ampersands look double-escaped when collection settings are saved</h3>
+          <p class="src">Found while investigating this card &mdash; not fixed here.</p>
+          <p>The reporter typed a plain <code>&amp;</code> into the language display name. What ended up stored in the collection file is the six characters <code>&amp;amp;</code> &mdash; that is, the ampersand was escaped once too often somewhere on the way in. The same thing happened in the Country, Province and District fields of the same collection, which suggests it is not specific to language names but to how those settings text fields are saved.</p>
+          <p>For a user, the symptom would be that typing <code>Smith &amp; Sons</code> as a display name and reopening the collection shows <code>Smith &amp;amp; Sons</code>. I did not verify whether current Bloom still does this &mdash; the collection on the card was made by an older version, so it may already be fixed, or it may not be ours at all (the language chooser is a shared SIL component). Confirming it is a few minutes&rsquo; work; chasing the cause could be more.</p>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="q1" data-q="Ampersand double-escaping" value="File a separate YouTrack card" checked>
+              <span class="label">File a separate YouTrack card for it<span class="rec">recommended</span>
+                <em class="fc">No code change here &mdash; a card that records the evidence and the reproduction. Recommended because it is a genuinely different defect from the one this PR fixes, it needs its own verification against current Bloom, and folding it in would widen a small, well-verified fix.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q1" data-q="Ampersand double-escaping" value="Investigate and fix it on this branch">
+              <span class="label">Investigate and fix it on this branch
+                <em class="fc">Unknown size until the cause is found: possibly a one-line encode/decode fix, possibly in a shared SIL component we do not control. Would also restart the review cycle on this PR.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q1" data-q="Ampersand double-escaping" value="Leave as is">
+              <span class="label">Leave as is</span>
+              <span class="lc"><input type="checkbox" data-q="Ampersand double-escaping :: Leave comment"> Leave comment</span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q1" data-q="Ampersand double-escaping" value="Other">
+              <span class="label">Other:</span>
+              <input type="text" class="othertext" data-q="Ampersand double-escaping :: Other" placeholder="your instruction">
+            </label>
+          </div>
+          <label class="notes">Notes
+            <textarea data-q="Ampersand double-escaping :: Notes" placeholder="anything to add"></textarea>
+          </label>
+        </div>
+
+        <hr class="hr">
+
+        <div class="item" data-item="2. Any drawing error in the UI blanks the whole of Bloom, silently">
+          <h3>Any drawing error in the UI blanks the whole of Bloom, silently</h3>
+          <p class="src">Found while investigating this card, and independently raised by Devin &mdash; not fixed here.</p>
+          <p>This is why BL-16209 was so severe. The actual defect was one bad value in one small progress bar, but because there is no error boundary above the screen, React tore down the entire tree and the user got an empty window. The error <i>was</i> reported to Bloom&rsquo;s <code>common/error</code> endpoint &mdash; but that only raises a toast, and the toast is drawn by the same tree that had just died, so nothing appeared at all. Not even a hint.</p>
+          <p>That means any future render-time mistake anywhere in the Collections tab produces the same outcome: a blank Bloom, no message, and a user who can only report &ldquo;it stopped working&rdquo;. An error boundary around the app shell would turn that class of bug into something visible and reportable. The toast-only policy itself is deliberate (BL-4301), so this is about the boundary, not about making JS errors modal.</p>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="q2" data-q="No error boundary blanks the app" value="File a separate YouTrack card" checked>
+              <span class="label">File a separate YouTrack card for it<span class="rec">recommended</span>
+                <em class="fc">No code change here. Recommended because it is a real resilience gap worth fixing deliberately, but it changes what users see when things go wrong across the whole app &mdash; that deserves its own card, its own decision about the message, and its own testing, rather than riding along on a one-endpoint bug fix.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q2" data-q="No error boundary blanks the app" value="Add the error boundary on this branch">
+              <span class="label">Add an error boundary around the app shell on this branch
+                <em class="fc">Moderate: a small new component, but it introduces user-facing behavior (what the screen says when a tab fails) and touches the top of the tree, so it needs design agreement and a way to test it.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q2" data-q="No error boundary blanks the app" value="Leave as is">
+              <span class="label">Leave as is</span>
+              <span class="lc"><input type="checkbox" data-q="No error boundary blanks the app :: Leave comment"> Leave comment</span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q2" data-q="No error boundary blanks the app" value="Other">
+              <span class="label">Other:</span>
+              <input type="text" class="othertext" data-q="No error boundary blanks the app :: Other" placeholder="your instruction">
+            </label>
+          </div>
+          <label class="notes">Notes
+            <textarea data-q="No error boundary blanks the app :: Notes" placeholder="anything to add"></textarea>
+          </label>
+        </div>
+
+        <hr class="hr">
+
+        <div class="item" data-item="3. FYI: the language tag still goes straight into a file name">
+          <h3>FYI: the language tag still goes straight into a file name</h3>
+          <p class="src">Devin, informational &mdash; pre-existing, out of scope for this card.</p>
+          <p>The Decodable Reader keeps a per-collection data file whose name is built from the language tag, and that tag is dropped into the file name and folder path with no checking. Escaping it for JSON, which this PR now does, has no bearing on that path. A tag containing a character that is illegal in a file name, or a path separator, would fail or write somewhere unintended.</p>
+          <p>In practice language tags come from the language chooser and are well-formed, so this is latent rather than live &mdash; which is why it is an FYI rather than a decision I acted on.</p>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="q3" data-q="Language tag interpolated into a file name" value="File a low-priority YouTrack card">
+              <span class="label">File a low-priority YouTrack card
+                <em class="fc">No code change here &mdash; just a record so it is not rediscovered from scratch.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q3" data-q="Language tag interpolated into a file name" value="Leave as is" checked>
+              <span class="label">Leave as is<span class="rec">recommended</span></span>
+              <span class="lc"><input type="checkbox" data-q="Language tag interpolated into a file name :: Leave comment"> Leave comment</span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q3" data-q="Language tag interpolated into a file name" value="Other">
+              <span class="label">Other:</span>
+              <input type="text" class="othertext" data-q="Language tag interpolated into a file name :: Other" placeholder="your instruction">
+            </label>
+          </div>
+          <label class="notes">Notes
+            <textarea data-q="Language tag interpolated into a file name :: Notes" placeholder="anything to add"></textarea>
+          </label>
+        </div>
+
+        <hr class="hr">
+
+        <div class="item" data-item="4. Next step">
+          <h3>Next step</h3>
+          <p>The PR is a clean draft with everything green, deliberately left for your own review before it goes to a colleague. What would you like to happen with the answers above?</p>
+          <div class="choices">
+            <label class="choice">
+              <input type="radio" name="q4" data-q="Next step" value="Implement my answers now" checked>
+              <span class="label">Carry out my answers straight away<span class="rec">recommended</span>
+                <em class="fc">Files the cards and makes any fixes chosen above, then re-runs the checks for anything that produced a new commit. Recommended because the recommended answers are all record-keeping, so this costs little.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q4" data-q="Next step" value="Discuss first">
+              <span class="label">Talk it through with me first
+                <em class="fc">Nothing is filed or changed until we have agreed.</em>
+              </span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q4" data-q="Next step" value="Leave as is">
+              <span class="label">Leave as is</span>
+              <span class="lc"><input type="checkbox" data-q="Next step :: Leave comment"> Leave comment</span>
+            </label>
+            <label class="choice">
+              <input type="radio" name="q4" data-q="Next step" value="Other">
+              <span class="label">Other:</span>
+              <input type="text" class="othertext" data-q="Next step :: Other" placeholder="your instruction">
+            </label>
+          </div>
+          <label class="notes">Notes
+            <textarea data-q="Next step :: Notes" placeholder="anything to add"></textarea>
+          </label>
+        </div>
+
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p style="margin-bottom:12px">Copy this and paste it into the session.</p>
+        <button class="copy" id="copybtn" type="button">Copy answers</button><span id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var items = Array.prototype.slice.call(document.querySelectorAll(".item"));
+
+  function serialize() {
+    var out = ["Preflight answers — BL-16209 / BloomDesktop PR 8186 (HEAD 2462597c)", ""];
+    items.forEach(function (item) {
+      out.push("## " + item.getAttribute("data-item"));
+      var chosen = item.querySelector('input[type="radio"]:checked');
+      var answer = chosen ? chosen.value : "(no answer selected)";
+      if (answer === "Other") {
+        var otherBox = item.querySelector(".othertext");
+        var typed = otherBox && otherBox.value.trim();
+        answer = typed ? "Other: " + typed : "Other: (nothing typed)";
+      }
+      out.push("Answer: " + answer);
+
+      var lc = item.querySelector('input[type="checkbox"]');
+      if (lc && lc.checked) {
+        out.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+      }
+
+      var notes = item.querySelector(".notes textarea");
+      var noteText = notes && notes.value.trim();
+      if (noteText) { out.push("Notes: " + noteText); }
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  var btn = document.getElementById("copybtn");
+  var flag = document.getElementById("copied");
+  btn.addEventListener("click", function () {
+    refresh();
+    function confirmCopied() {
+      flag.hidden = false;
+      setTimeout(function () { flag.hidden = true; }, 2200);
+    }
+    function fallback() {
+      payload.removeAttribute("readonly");
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); } catch (e) { /* user can Ctrl+C */ }
+      payload.setAttribute("readonly", "readonly");
+      confirmCopied();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(confirmCopied, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
