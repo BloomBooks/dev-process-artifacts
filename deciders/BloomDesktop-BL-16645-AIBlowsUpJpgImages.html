@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16645 · AI PNG bloats the JPEG it replaces</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --paper:   #f7f5f0;
+    --card:    #ffffff;
+    --ink:     #23211c;
+    --muted:   #6b665c;
+    --rule:    #e3ded3;
+    --accent:  #34506b;
+    --good:    #2f6b4f;
+    --bad:     #a33a2b;
+    --warn:    #8a6a1f;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 1.1rem; margin-bottom: 1.75rem; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.6rem, 3.4vw, 2.35rem);
+    line-height: 1.15;
+    font-weight: 600;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .masthead .sub { color: var(--muted); margin-top: .5rem; font-size: .95rem; }
+  .masthead .sub a { color: var(--accent); }
+  .chip {
+    display: inline-block; font-size: .72rem; text-transform: uppercase;
+    letter-spacing: .09em; font-weight: 700; padding: .18rem .5rem;
+    border: 1px solid var(--rule); border-radius: 2px; background: var(--card);
+    color: var(--muted); vertical-align: 2px;
+  }
+  .chip.draft { color: var(--warn); border-color: #ddd0a8; background: #fdf8ea; }
+  .chip.open  { color: var(--bad); border-color: #e5c4bd; background: #fdf1ef; }
+
+  /* ---- layout ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 2rem; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 1.5rem; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1.25rem 1.35rem 1.35rem;
+  }
+  .card > h2 {
+    font-family: var(--serif); font-size: 1.18rem; font-weight: 600;
+    margin-bottom: .85rem; text-wrap: balance;
+  }
+  .card > h2 + .lede { color: var(--muted); font-size: .9rem; margin: -.55rem 0 .95rem; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .9em; }
+  code { font-family: var(--mono); font-size: .875em; background: #f2efe8; padding: .1em .32em; border-radius: 2px; }
+
+  /* ---- tables ---- */
+  .tscroll { overflow-x: auto; }
+  table { width: 100%; font-size: .92rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th {
+    font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--ink);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; }
+  .verdict { font-weight: 700; font-size: .82rem; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+  .v-pass { color: var(--good); }
+  .v-fail { color: var(--bad); }
+  .v-skip { color: var(--muted); }
+  .v-note { color: var(--warn); }
+
+  /* ---- commit list ---- */
+  .commits { display: flex; flex-direction: column; gap: .9rem; }
+  .commit { padding-left: .85rem; border-left: 2px solid var(--rule); }
+  .commit .sha { font-family: var(--mono); font-size: .82rem; }
+  .commit .title { font-weight: 600; display: block; margin-top: .1rem; }
+  .commit p { color: var(--muted); font-size: .89rem; margin-top: .25rem; }
+
+  .notes li { position: relative; padding-left: 1rem; margin-bottom: .6rem; font-size: .92rem; color: var(--ink); }
+  .notes li::before { content: ""; position: absolute; left: 0; top: .6em; width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
+  .notes li:last-child { margin-bottom: 0; }
+
+  /* ---- decisions ---- */
+  .item { border-top: 1px solid var(--rule); padding-top: 1rem; margin-top: 1rem; }
+  .item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+  .item h3 { font-family: var(--serif); font-size: 1.03rem; font-weight: 600; margin-bottom: .4rem; text-wrap: balance; }
+  .item .src { font-size: .78rem; color: var(--muted); margin-bottom: .5rem; }
+  .item p { font-size: .92rem; margin-bottom: .6rem; }
+  .opts { display: flex; flex-direction: column; gap: .45rem; margin: .7rem 0 .5rem; }
+  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .55rem; align-items: start; font-size: .91rem; }
+  .opt input[type=radio] { margin-top: .3rem; }
+  .opt .fx { display: block; color: var(--muted); font-size: .84rem; margin-top: .1rem; }
+  .tag { font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 700; color: var(--good); }
+  .leaverow { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .55rem; align-items: start; font-size: .91rem; }
+  .leaverow .lc { font-size: .8rem; color: var(--muted); display: flex; gap: .3rem; align-items: center; white-space: nowrap; }
+  .otherrow input[type=text] { width: 100%; margin-top: .3rem; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: .9rem; color: var(--ink);
+    background: #fcfbf8; border: 1px solid var(--rule); border-radius: 2px; padding: .4rem .5rem;
+  }
+  textarea { width: 100%; min-height: 3.1rem; resize: vertical; }
+  .notelabel { display: block; font-size: .78rem; color: var(--muted); margin: .55rem 0 .2rem; }
+
+  button {
+    font-family: var(--sans); font-size: .92rem; font-weight: 600;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 2px; padding: .5rem 1rem; cursor: pointer;
+  }
+  button:hover { background: #2a4258; }
+  #payload { min-height: 9rem; font-family: var(--mono); font-size: .8rem; margin-top: .7rem; }
+  .copied { font-size: .82rem; color: var(--good); font-weight: 600; margin-left: .6rem; }
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .82rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — an AI-generated PNG that bloats the JPEG it replaces</h1>
+    <p class="sub">
+      <strong>BL-16645</strong> · BloomDesktop ·
+      branch <code>BL-16645-AIBlowsUpJpgImages</code> ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188" target="_blank" rel="noopener">PR&nbsp;#8188</a>
+      <span class="chip draft">draft</span>
+      <span class="chip open">2 open threads</span>
+      <br>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/files" target="_blank" rel="noopener">Files changed</a> ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/commits" target="_blank" rel="noopener">Commits</a> ·
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8188" target="_blank" rel="noopener">Devin review</a> ·
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16645" target="_blank" rel="noopener">YouTrack card</a>
+    </p>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the report ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="lede">Every stack in the repo gets a row, including the ones deliberately not run.</p>
+        <div class="tscroll">
+        <table>
+          <thead>
+            <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="what">C# build</td>
+              <td class="verdict v-pass">Pass</td>
+              <td><code>dotnet build</code> via the isolated wrapper, no errors.</td>
+            </tr>
+            <tr>
+              <td class="what">C# tests</td>
+              <td class="verdict v-pass">Pass</td>
+              <td><span class="numeral">3070 passed · 13 skipped · 0 failed</span> — the full <code>BloomTests</code> suite at the final commit. Eight of these are new, covering the new helper.</td>
+            </tr>
+            <tr>
+              <td class="what">C# formatting</td>
+              <td class="verdict v-pass">Pass</td>
+              <td>CSharpier, applied and verified by the pre-commit hook on every commit.</td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript typecheck</td>
+              <td class="verdict v-skip">Not run</td>
+              <td>No TypeScript in the diff — see the note below about the two <code>package.json</code> files.</td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript lint</td>
+              <td class="verdict v-skip">Not run</td>
+              <td>Same reason: nothing in the diff that ESLint reads.</td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript tests</td>
+              <td class="verdict v-skip">Not run</td>
+              <td>Same reason. The Vitest suite neither builds nor reads any changed file.</td>
+            </tr>
+            <tr>
+              <td class="what">Base integration</td>
+              <td class="verdict v-pass">Clean</td>
+              <td><code>origin/master</code> merged before the first push; already up to date, no conflicts. PR is mergeable.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+        <ul class="notes" style="margin-top:1rem">
+          <li>Git reported <code>src/BloomBrowserUI/package.json</code> and <code>src/content/package.json</code> as
+              modified, but both differed only in line endings — zero content difference. They dropped out of the
+              staged set on their own, so the committed diff really is C#-only, and the three TypeScript rows above
+              are a judgment call rather than an oversight.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p class="lede">The branch had no commits at all when this started — the work was sitting uncommitted.</p>
+        <div class="commits">
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/382422a72f7232eba341f309b70c48fb0e63b5c4" target="_blank" rel="noopener">382422a72</a>
+            <span class="title">Re-encode an AI PNG that bloats the JPEG it replaces</span>
+            <p>The uncommitted work, restructured into a testable
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1207" target="_blank" rel="noopener"><code>ConvertPngToJpegIfItBloatsTheJpegItReplaces</code></a>
+              helper, with four correctness fixes folded in (see the reviewer table) and five tests.</p>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/9f5b0b1a594edbeb8465d196f20de9ae38f95fe0" target="_blank" rel="noopener">9f5b0b1a5</a>
+            <span class="title">Never re-encode a transparent PNG, and survive an undecodable one</span>
+            <p>Devin's two actionable findings. The
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1245" target="_blank" rel="noopener">transparency guard</a>
+              is the important one — without it a see-through picture would have been flattened onto a solid
+              background and the original deleted.</p>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/414cade60a1e296370cb1cd36ad3808715545594" target="_blank" rel="noopener">414cade60</a>
+            <span class="title">Don't leave a stray <code>ai-image*.jpg</code> behind when the conversion is declined</span>
+            <p>A GraphicsMagick run that fails partway can leave its half-written output in the book folder.
+              Cleaned up at our own call site, since ours is the only caller whose destination is the book folder.</p>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/90ba50f5006f81c0aab5a8d87056a08036d7340d" target="_blank" rel="noopener">90ba50f50</a>
+            <span class="title">Say what the transparency guard really promises, and don't let the cleanup delete abort a commit</span>
+            <p>The doc comment claimed more than the check delivers (see decision 1), so it now states the real
+              guarantee and names the gap. And deleting the superseded PNG sat outside any handler — a momentarily
+              locked file would have discarded every replacement in the commit, even though the JPEG was already
+              written.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <p class="lede">Every reviewer reached a terminal state at the final commit.</p>
+        <div class="tscroll">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="what">Local review<br><span style="font-weight:400;color:var(--muted);font-size:.85rem">light pass, done inline</span></td>
+              <td class="verdict v-pass">Complete</td>
+              <td>
+                Four findings, all four fixed:
+                <strong>(1)</strong> the JPEG was written to the PNG's name with the extension swapped, which could
+                silently overwrite another picture already in the book;
+                <strong>(2)</strong> the superseded PNG was never deleted, leaving the bulk we had just converted away from;
+                <strong>(3)</strong> the loaded image was never disposed;
+                <strong>(4)</strong> re-encoding a reused book picture could lose the credits embedded in its file,
+                which nothing on that path re-writes.
+              </td>
+            </tr>
+            <tr>
+              <td class="what">Devin<br><span style="font-weight:400;color:var(--muted);font-size:.85rem">4 rounds</span></td>
+              <td class="verdict v-pass">Complete</td>
+              <td>
+                <strong>Round 1</strong> (<span class="numeral">382422a72</span>): one <strong>severe</strong> bug —
+                transparency loss — and one Investigate flag (an unhandled decode failure would abort the whole
+                commit), plus 3 informational. Both actionable ones fixed and their threads
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3754104722" target="_blank" rel="noopener">replied to and resolved</a>.<br>
+                <strong>Round 2</strong> (<span class="numeral">9f5b0b1a5</span>): marked the severe bug resolved;
+                raised the
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3754134272" target="_blank" rel="noopener">corner-heuristic flag</a>
+                (left open — decision 1) and one informational, the stray file, which is fixed.<br>
+                <strong>Round 3</strong> (<span class="numeral">414cade60</span>): restated the corner heuristic as a
+                Bug (same thread), raised
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3754162145" target="_blank" rel="noopener">the empty-slot scope question</a>
+                (left open — decision 2), and two informational, of which I fixed the unguarded delete and assessed
+                the other (a speculative image-cache interaction it calls pre-existing) as not an issue for this PR.<br>
+                <strong>Round 4</strong> (<span class="numeral">90ba50f50</span>): the same Bug plus the two Investigate flags already open above, and re-raises of findings already fixed — including the decode failure, whose text still claims there is no <code>try</code>/<code>catch</code> where there now plainly is one. Nothing new and actionable, so this is where the fix–push–re-review loop stopped, at its cap of four rounds. The remaining nine informational items were assessed and left: the JPEG-marker coverage (decision 5) and an image-cache/name-reuse observation both concern pre-existing shared code and fail in the safe direction, and a check-then-write window on the reserved filename isn’t reachable because the commit handler is synchronised.
+              </td>
+            </tr>
+            <tr>
+              <td class="what">CodeRabbit</td>
+              <td class="verdict v-skip">Not active</td>
+              <td>
+                <code>.coderabbit.yml</code> in this repo sets <code>auto_review.enabled: false</code>, so it never
+                reviews on its own and posted nothing. I did not summon it manually — that config looks like a
+                deliberate team choice, not an accident.
+              </td>
+            </tr>
+            <tr>
+              <td class="what">CI</td>
+              <td class="verdict v-pass">Pass</td>
+              <td>
+                The single <code>pr-automation</code> check passed in <span class="numeral">31s</span>. Worth knowing:
+                that workflow runs <em>no tests</em> — its only job is to open the Devin review URL. So the C# suite
+                above is the whole test gate for this PR, which is why it was run in full at every commit.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="notes">
+          <li>The local review was done <strong>inline rather than by a sub-agent</strong>: this session's
+              configuration forbids dispatching the Agent tool unless you ask for it. That is the fallback the
+              preflight skill specifies, and it is why the reviewer row above reads "done inline".</li>
+          <li>The card already carried a PR link — but to <strong>#8146</strong>, the earlier piece of work on this
+              same ticket. Since #8188 is a genuinely different PR rather than a duplicate link, I posted it as a
+              new comment.</li>
+          <li>The test ideas went on as a <strong>round-2 comment</strong> instead of overwriting the existing one.
+              Testers had already worked through those notes — that is how this bug was found — so overwriting
+              would have thrown away the record of what they had already checked. The new comment says plainly
+              what needs re-testing and what does not.</li>
+          <li>I also kept the new notes short. There is a request on the card asking for these write-ups to be
+              trimmed ("I usually have to delete about half of it").</li>
+          <li>The transparency hazard was <strong>verified, not assumed</strong>: running GraphicsMagick over the
+              transparent test image produces a JPEG <span class="numeral">23%</span> of the PNG's size, comfortably
+              inside the "worth keeping" threshold. So it really would have converted and destroyed the
+              transparency, and the new test guarding it cannot pass vacuously.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Your decisions</h2>
+        <p class="lede">Six things I did not want to settle on your behalf. The first two have open threads on the PR waiting on them.</p>
+
+        <!-- ---------- 1 ---------- -->
+        <div class="item">
+          <h3>Transparency is detected by sampling only the top-left corner</h3>
+          <p class="src">From Devin ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3754134272" target="_blank" rel="noopener">open thread</a> ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/ImageProcessing/ImageUtils.cs#L1859" target="_blank" rel="noopener">ImageUtils.cs:1859</a>
+          </p>
+          <p>
+            Before re-encoding a picture as a JPEG we now ask whether it has any see-through areas, because a JPEG
+            cannot store them. That question is answered by Bloom's existing <code>HasTransparency</code>, which is
+            exact for palette-based images but, for an ordinary bitmap, only looks at a 15&times;15 block in the
+            <em>top-left corner</em> — on the reasoning that a see-through picture is nearly always see-through at
+            its corners.
+          </p>
+          <p>
+            That shortcut is safe everywhere Bloom currently uses it, because there the original file survives and
+            the JPEG is only a cache copy. Here it is different: if the guess is wrong we re-encode <em>and delete
+            the original</em>, so the see-through areas are gone for good. The picture that would slip through is one
+            transparent only in its interior — a subject cut out on a canvas whose corners happen to be opaque, or a
+            picture with a hole in the middle. Narrow, but silent and unrecoverable when it happens. I recommend
+            leaving it: it is the same heuristic Bloom trusts everywhere else, the case is genuinely rare, and both
+            alternatives cost something real.
+          </p>
+          <p>
+            One part of this I did fix without asking: the helper's own doc comment claimed "a PNG with any
+            transparency is left alone whatever its size", which promises more than a corner sample can deliver. It
+            now states the real guarantee and names this gap, so nobody reads it as settled. Devin also escalated
+            this from a flag to a Bug in its final round.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q1" value="Scan the image properly for any non-opaque pixel before converting" data-q="Transparency detection">
+              <span>Scan the image properly for any non-opaque pixel before converting
+                <span class="fx">Accurate and closes the case completely. ~15 lines using <code>LockBits</code>; adds a full pixel pass before each conversion (noticeably slower if written with <code>GetPixel</code>).</span>
+              </span>
+            </label>
+            <label class="opt">
+              <input type="radio" name="q1" value="Refuse to convert anything whose pixel format has an alpha channel" data-q="Transparency detection">
+              <span>Refuse to convert anything whose pixel format merely <em>has</em> an alpha channel
+                <span class="fx">~3 lines, safest for transparency — but AI tools commonly emit opaque RGBA, so this would switch the optimization off for many results and largely defeat this PR.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q1" value="Leave as is" data-q="Transparency detection" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q1lc" data-q="Transparency detection"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q1" value="__OTHER__" data-q="Transparency detection">
+              <span>Other:
+                <input type="text" name="q1other" data-q="Transparency detection (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q1notes">Notes</label>
+          <textarea id="q1notes" name="q1notes" data-q="Transparency detection (notes)"></textarea>
+        </div>
+
+        <!-- ---------- empty slots (q7) ---------- -->
+        <div class="item">
+          <h3>A picture generated into an empty slot is never re-encoded at all</h3>
+          <p class="src">From Devin ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3754162145" target="_blank" rel="noopener">open thread</a> ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1219" target="_blank" rel="noopener">AiImageEditorApi.cs:1219</a>
+          </p>
+          <p>
+            The whole mechanism is comparative: it only acts when the picture being replaced <em>was</em> a JPEG,
+            because that is what gives it a size to judge "too big" against. So if you generate a picture into a slot
+            that was empty — a placeholder, or no picture at all — nothing happens, however large a photographic PNG
+            arrives. Devin's point, which is fair, is that this is arguably the most common case in a fresh book: the
+            saving only ever materialises when you re-edit a slot that already had a photo.
+          </p>
+          <p>
+            I did not widen it, because doing so is a design decision rather than a tweak. With no previous file
+            there is no size to compare against, so it would need its own rule for when a generated PNG is worth
+            re-encoding at all — and it would put <em>every</em> new AI picture through a lossy conversion, which
+            turns the transparency question above from a narrow edge case into something much more pressing. I
+            recommend leaving it here and treating the empty-slot case as its own ticket if the bloat shows up in
+            practice.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q7" value="Widen it to empty and placeholder slots too, with its own rule for when re-encoding is worth it" data-q="Empty slots">
+              <span>Widen it to empty and placeholder slots too, with its own rule for when re-encoding is worth it
+                <span class="fx">Large: a new policy decision plus code and tests, and it raises the stakes on decision 1 considerably. Better as its own ticket than bolted onto this PR.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q7" value="Leave as is" data-q="Empty slots" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q7lc" data-q="Empty slots"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q7" value="__OTHER__" data-q="Empty slots">
+              <span>Other:
+                <input type="text" name="q7other" data-q="Empty slots (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q7notes">Notes</label>
+          <textarea id="q7notes" name="q7notes" data-q="Empty slots (notes)"></textarea>
+        </div>
+
+        <!-- ---------- 2 ---------- -->
+        <div class="item">
+          <h3>Only freshly generated pictures are re-encoded, never reused ones</h3>
+          <p class="src">My scoping decision during this run ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1046" target="_blank" rel="noopener">AiImageEditorApi.cs:1046</a>
+          </p>
+          <p>
+            The AI editor can put two kinds of picture into a book: one it has just generated or you uploaded, and
+            one already in the book that you picked to reuse. As written, the code would have re-encoded both. I
+            limited it to the first kind, because a reused picture carries its credits <em>inside its own file</em>
+            and nothing on that path writes them back afterwards — and re-encoding runs the file through
+            GraphicsMagick, which can drop them. That is the same reason the reuse path already declines to resize.
+            A freshly generated picture is safe because its credits are written in immediately after.
+          </p>
+          <p>
+            I recommend leaving this as it stands: the bug reported on the card is a generated result, and a reused
+            picture cannot blow a book up anyway, since it was already tidied up on its own way in. Silently losing a
+            picture's copyright information would be a worse bug than the one we are fixing.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q2" value="Extend it to reused pictures too, carrying the credits across the conversion" data-q="Reused pictures">
+              <span>Extend it to reused pictures too, carrying the credits across the conversion
+                <span class="fx">Moderate: read the metadata off the PNG and write it onto the JPEG, plus a test proving the credits survive. Touches a path that deliberately doesn't re-write credits today.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q2" value="Leave as is" data-q="Reused pictures" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q2lc" data-q="Reused pictures"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q2" value="__OTHER__" data-q="Reused pictures">
+              <span>Other:
+                <input type="text" name="q2other" data-q="Reused pictures (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q2notes">Notes</label>
+          <textarea id="q2notes" name="q2notes" data-q="Reused pictures (notes)"></textarea>
+        </div>
+
+        <!-- ---------- 3 ---------- -->
+        <div class="item">
+          <h3>A PNG has to be more than 1.5&times; the JPEG before we try anything</h3>
+          <p class="src">FYI ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1178" target="_blank" rel="noopener">AiImageEditorApi.cs:1178</a>
+          </p>
+          <p>
+            The threshold is the number that came with the original work and I kept it. A PNG up to half again the
+            size of the JPEG it replaces is simply left alone, so a picture that grows by, say, 40% still grows. The
+            case reported on the card was <strong>ten times</strong>, so the threshold is nowhere near it — its real
+            job is to avoid spending a GraphicsMagick run and a lossy re-encode chasing a marginal saving, which is
+            why I recommend leaving it.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q3" value="Lower or drop the threshold so any PNG replacing a JPEG is considered" data-q="Size threshold">
+              <span>Lower or drop the threshold so any PNG replacing a JPEG is considered
+                <span class="fx">One line. Catches more cases, at the cost of a GraphicsMagick run on every such commit and a lossy re-encode for small gains.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q3" value="Leave as is" data-q="Size threshold" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q3lc" data-q="Size threshold"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q3" value="__OTHER__" data-q="Size threshold">
+              <span>Other:
+                <input type="text" name="q3other" data-q="Size threshold (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q3notes">Notes</label>
+          <textarea id="q3notes" name="q3notes" data-q="Size threshold (notes)"></textarea>
+        </div>
+
+        <!-- ---------- 4 ---------- -->
+        <div class="item">
+          <h3>See-through pictures still land in the book at full size</h3>
+          <p class="src">FYI — a consequence of the transparency fix</p>
+          <p>
+            Because a see-through picture is now never re-encoded, an AI result with a transparent background that
+            happens to be ten times the size of the JPEG it replaces will stay ten times the size. That is the price
+            of not destroying it, and it is not a regression — it is what Bloom did before this PR — but it does mean
+            the fix has a hole in it exactly where the pictures are most likely to be overlays. I recommend leaving
+            it for now and treating it as its own piece of work if it turns out to matter.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q4" value="Also try re-compressing such a PNG as a PNG to claw back some size" data-q="Transparent pictures stay large">
+              <span>Also try re-compressing such a PNG (still as a PNG) to claw back some size
+                <span class="fx">Moderate: a second, different GraphicsMagick path and its own accept/reject rule and tests. Real but smaller savings than a JPEG.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q4" value="Leave as is" data-q="Transparent pictures stay large" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q4lc" data-q="Transparent pictures stay large"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q4" value="__OTHER__" data-q="Transparent pictures stay large">
+              <span>Other:
+                <input type="text" name="q4other" data-q="Transparent pictures stay large (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q4notes">Notes</label>
+          <textarea id="q4notes" name="q4notes" data-q="Transparent pictures stay large (notes)"></textarea>
+        </div>
+
+        <!-- ---------- 5 ---------- -->
+        <div class="item">
+          <h3>Some JPEGs aren't recognized as JPEGs, so they never get the benefit</h3>
+          <p class="src">From Devin (informational) ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/90ba50f5006f81c0aab5a8d87056a08036d7340d/src/BloomExe/ImageProcessing/ImageUtils.cs#L645" target="_blank" rel="noopener">ImageUtils.cs:645</a>
+          </p>
+          <p>
+            Deciding whether the picture being replaced was a JPEG is done by reading the first few bytes of the
+            file, and that check only recognizes the two most common JPEG variants. A JPEG written by some other tool
+            will not be recognized, and the new optimization will quietly not happen for it. This is a shared helper
+            used elsewhere in Bloom, not something this PR introduced. It also fails in the safe direction — an
+            unrecognized JPEG means no conversion, never a wrong one — which is why I recommend leaving it out of
+            this PR.
+          </p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q5" value="Widen the JPEG marker check in ImageUtils.IsJpegFile" data-q="JPEG detection coverage">
+              <span>Widen the JPEG marker check in <code>ImageUtils.IsJpegFile</code>
+                <span class="fx">~5 lines, but it is a shared helper other code depends on, so it wants its own thought and its own tests rather than riding along here.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q5" value="Leave as is" data-q="JPEG detection coverage" checked>
+              <span>Leave as is <span class="tag">recommended</span></span>
+              <label class="lc"><input type="checkbox" name="q5lc" data-q="JPEG detection coverage"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q5" value="__OTHER__" data-q="JPEG detection coverage">
+              <span>Other:
+                <input type="text" name="q5other" data-q="JPEG detection coverage (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q5notes">Notes</label>
+          <textarea id="q5notes" name="q5notes" data-q="JPEG detection coverage (notes)"></textarea>
+        </div>
+
+        <!-- ---------- next step ---------- -->
+        <div class="item">
+          <h3>Next step</h3>
+          <p>Everything is green and the PR is sitting in draft, waiting on your own review.</p>
+          <div class="opts">
+            <label class="opt">
+              <input type="radio" name="q6" value="Implement whatever I chose above, then re-run preflight" data-q="Next step" checked>
+              <span>Implement whatever I chose above, then re-run preflight <span class="tag">recommended</span>
+                <span class="fx">Any code change is a new commit, so the bot gauntlet runs again.</span>
+              </span>
+            </label>
+            <label class="opt">
+              <input type="radio" name="q6" value="Discuss first" data-q="Next step">
+              <span>Discuss one or more of these before touching the code
+                <span class="fx">No code. Use the notes boxes to say which.</span>
+              </span>
+            </label>
+            <div class="leaverow">
+              <input type="radio" name="q6" value="Leave as is" data-q="Next step">
+              <span>Leave as is — nothing further, it's ready for my review</span>
+              <label class="lc"><input type="checkbox" name="q6lc" data-q="Next step"> Leave comment</label>
+            </div>
+            <label class="opt otherrow">
+              <input type="radio" name="q6" value="__OTHER__" data-q="Next step">
+              <span>Other:
+                <input type="text" name="q6other" data-q="Next step (other)" placeholder="your answer">
+              </span>
+            </label>
+          </div>
+          <label class="notelabel" for="q6notes">Notes</label>
+          <textarea id="q6notes" name="q6notes" data-q="Next step (notes)"></textarea>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the Claude Code session.</p>
+        <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </section>
+
+    </div>
+  </div>
+
+  <footer>
+    Preflight report for BL-16645 · final commit
+    <span class="numeral">90ba50f50</span> · PR #8188 left in draft; no teammate review requested.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { name: "q1", label: "Transparency detection (corner-only sample)" },
+    { name: "q7", label: "Pictures generated into an empty slot" },
+    { name: "q2", label: "Only freshly generated pictures are re-encoded" },
+    { name: "q3", label: "The 1.5x size threshold" },
+    { name: "q4", label: "See-through pictures stay full size" },
+    { name: "q5", label: "JPEG detection coverage" },
+    { name: "q6", label: "Next step" }
+  ];
+
+  function serialize() {
+    var out = ["Preflight decisions — BL-16645 / PR #8188 (final commit 90ba50f50)", ""];
+    ITEMS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.name + '"]:checked');
+      var answer = "(no answer)";
+      if (picked) {
+        if (picked.value === "__OTHER__") {
+          var box = document.querySelector('input[name="' + item.name + 'other"]');
+          var typed = box && box.value.trim();
+          answer = typed ? "Other: " + typed : "Other: (nothing typed)";
+        } else {
+          answer = picked.value;
+        }
+      }
+      out.push("## " + item.label);
+      out.push("Decision: " + answer);
+
+      var lc = document.querySelector('input[name="' + item.name + 'lc"]');
+      if (lc && lc.checked) {
+        out.push("Leave comment: yes — record this decision as a code comment in the repo.");
+      }
+      var notes = document.querySelector('textarea[name="' + item.name + 'notes"]');
+      var n = notes && notes.value.trim();
+      if (n) { out.push("Notes: " + n); }
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = serialize();
+    payload.value = text;
+    function done() {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is right there for Ctrl+C */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
