@@ -1,0 +1,472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16684 — BloomDesktop</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body,h1,h2,h3,h4,p,ul,ol,li,figure,table,fieldset,legend{margin:0;padding:0}
+ul,ol{list-style:none}
+table{border-collapse:collapse;width:100%}
+
+:root{
+  --ground:#F7F8FA;
+  --card:#FFFFFF;
+  --border:#DFE3EA;
+  --border-strong:#C6CEDA;
+  --ink:#1B2430;
+  --muted:#5A6473;
+  --faint:#8792A3;
+  --accent:#1F5FA9;
+  --accent-soft:#EAF1FA;
+  --good:#1E7A4B;
+  --good-soft:#E7F3EC;
+  --bad:#B4322A;
+  --bad-soft:#FBECEA;
+  --warn:#8A6300;
+  --warn-soft:#FBF3E0;
+  --serif:Georgia,"Iowan Old Style","Times New Roman",Times,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+}
+
+body{
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+
+.wrap{max-width:1400px;margin:0 auto;padding:32px 28px 64px}
+
+.masthead{border-bottom:2px solid var(--ink);padding-bottom:18px;margin-bottom:28px}
+.masthead h1{font-family:var(--serif);font-size:31px;line-height:1.2;font-weight:600;text-wrap:balance;letter-spacing:-.01em}
+.masthead .sub{margin-top:8px;color:var(--muted);font-size:14.5px}
+.masthead .meta{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+
+.numeral{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.92em}
+
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  border:1px solid var(--border-strong);background:var(--card);
+  border-radius:999px;padding:3px 11px;font-size:12.5px;color:var(--muted);
+  white-space:nowrap;
+}
+.chip.ok{background:var(--good-soft);border-color:#BEDCC9;color:var(--good)}
+.chip.draft{background:var(--warn-soft);border-color:#E7D5A8;color:var(--warn)}
+.chip a{color:inherit}
+
+.cols{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:26px;align-items:start}
+.col{min-width:0}
+@media (max-width:980px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:20px 22px;margin-bottom:20px}
+.card > h2{
+  font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:-.005em;
+  padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:14px;
+}
+.card > .lede{color:var(--muted);font-size:14px;margin:-6px 0 14px}
+
+.scroller{overflow-x:auto}
+
+table.grid{font-size:14px}
+table.grid th{
+  text-align:left;font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--faint);font-weight:600;padding:0 12px 7px 0;border-bottom:1px solid var(--border);
+}
+table.grid td{padding:10px 12px 10px 0;border-bottom:1px solid #EDF0F4;vertical-align:top}
+table.grid tr:last-child td{border-bottom:none}
+table.grid td:first-child{font-weight:600;white-space:nowrap}
+table.grid td.detail{color:var(--muted)}
+
+.status{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:2px 9px;border-radius:3px;white-space:nowrap}
+.status.pass{background:var(--good-soft);color:var(--good)}
+.status.info{background:var(--accent-soft);color:var(--accent)}
+.status.skip{background:#EEF0F4;color:var(--muted)}
+.status.flag{background:var(--warn-soft);color:var(--warn)}
+
+ol.commits{counter-reset:c;display:flex;flex-direction:column;gap:12px}
+ol.commits li{padding-left:0}
+ol.commits .sha{font-family:var(--mono);font-size:12.5px;color:var(--accent)}
+ol.commits .msg{display:block;margin-top:2px}
+ol.commits .why{display:block;color:var(--muted);font-size:13.5px;margin-top:3px}
+
+.notelist{display:flex;flex-direction:column;gap:13px}
+.notelist li{padding-left:14px;border-left:2px solid var(--border-strong)}
+.notelist strong{font-weight:600}
+
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(31,95,169,.32)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible,input:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+code{font-family:var(--mono);font-size:.9em;background:#F1F3F7;border:1px solid var(--border);border-radius:3px;padding:.06em .34em}
+
+/* ---- decisions ---- */
+.item{border:1px solid var(--border);border-radius:6px;background:var(--card);padding:18px 20px;margin-bottom:18px}
+.item h3{font-family:var(--serif);font-size:17px;font-weight:600;margin-bottom:8px;text-wrap:balance}
+.item .kind{display:inline-block;font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--faint);margin-bottom:6px}
+.item p{color:var(--muted);font-size:14px;margin-bottom:10px}
+.item p:last-of-type{margin-bottom:14px}
+
+.opts{display:flex;flex-direction:column;gap:2px;margin-bottom:12px}
+.opt{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:start;padding:8px 10px;border-radius:4px}
+.opt:hover{background:#F5F7FA}
+.opt > input[type=radio]{margin-top:3px}
+.opt .body{min-width:0}
+.opt .label{font-size:14px}
+.opt .fc{display:block;color:var(--faint);font-size:12.5px;margin-top:2px}
+.tag{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:1px 6px;margin-left:7px;vertical-align:1px}
+.leavec{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);white-space:nowrap;align-self:center}
+
+.other-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:9px;align-items:center;padding:8px 10px}
+.other-row input[type=text]{width:100%}
+
+input[type=text],textarea{
+  font-family:var(--sans);font-size:13.5px;color:var(--ink);
+  background:#FCFDFE;border:1px solid var(--border-strong);border-radius:4px;padding:7px 9px;
+}
+textarea{width:100%;resize:vertical}
+.notes{margin-top:4px}
+.notes label{display:block;font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600;margin-bottom:5px}
+
+button{
+  font-family:var(--sans);font-size:14px;font-weight:600;color:#fff;background:var(--accent);
+  border:1px solid #1A518F;border-radius:4px;padding:9px 17px;cursor:pointer;
+}
+button:hover{background:#1A5296}
+#payload{margin-top:12px;font-family:var(--mono);font-size:12px;min-height:150px;background:#F1F3F7}
+#copied{margin-left:11px;font-size:13px;color:var(--good);font-weight:600;opacity:0;transition:opacity .18s}
+#copied.on{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>Preflight — StoryWeaver ebook page sizes could never make a PDF</h1>
+  <p class="sub">BloomDesktop · branch <code>BL-16684</code> · base <code>Version6.4</code> · HEAD <span class="numeral">e4e17b0d4d</span></p>
+  <div class="meta">
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8190" target="_blank" rel="noopener">PR #8190</a></span>
+    <span class="chip draft">Draft</span>
+    <span class="chip ok">Mergeable · clean</span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8190/files" target="_blank" rel="noopener">Files changed</a></span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8190/commits" target="_blank" rel="noopener">Commits</a></span>
+    <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16684" target="_blank" rel="noopener">BL-16684</a></span>
+    <span class="chip"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8190" target="_blank" rel="noopener">Devin review</a></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- ============ LEFT ============ -->
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="scroller">
+    <table class="grid">
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>C# build</td><td><span class="status pass">Pass</span></td>
+          <td class="detail"><span class="numeral">0</span> errors. Warnings are the repo's pre-existing facade-resolution noise (MSB3245).</td>
+        </tr>
+        <tr>
+          <td>C# tests</td><td><span class="status pass">Pass</span></td>
+          <td class="detail"><span class="numeral">2814 passed · 6 failed · 13 skipped</span> of <span class="numeral">2833</span>. All 6 failures were proven <em>not</em> caused by this change — see “How the 6 failures were cleared”.</td>
+        </tr>
+        <tr>
+          <td>TypeScript typecheck</td><td><span class="status skip">Not run</span></td>
+          <td class="detail">No front-end in the diff — no <code>.ts</code>/<code>.tsx</code>/<code>.less</code> touched.</td>
+        </tr>
+        <tr>
+          <td>TypeScript lint</td><td><span class="status skip">Not run</span></td>
+          <td class="detail">Same reason.</td>
+        </tr>
+        <tr>
+          <td>TypeScript tests (vitest)</td><td><span class="status skip">Not run</span></td>
+          <td class="detail">Deliberate: the only non-C# file is <code>en/Bloom.xlf</code>, which is read by the C# runtime through L10NSharp, not by any vitest test. Checked — the one spec matching “DistFiles” only hardcodes app-icon paths.</td>
+        </tr>
+        <tr>
+          <td>csharpier format</td><td><span class="status pass">Pass</span></td>
+          <td class="detail">All 5 changed <code>.cs</code> files clean.</td>
+        </tr>
+        <tr>
+          <td>Base integration</td><td><span class="status pass">Pass</span></td>
+          <td class="detail"><code>origin/Version6.4</code> merged before publishing — already up to date, no conflicts.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <ol class="commits">
+      <li>
+        <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/adb25f21ef" target="_blank" rel="noopener">adb25f21ef</a>
+        <span class="msg">Make PDFs work for the StoryWeaver ebook page sizes, and stop blaming memory</span>
+        <span class="why">The fix itself: teaches BloomPdfMaker the two ebook sizes, drops the dead “Use Less Memory” advice, removes the unreachable pref behind it, adds the regression test.</span>
+      </li>
+      <li>
+        <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/162106c743" target="_blank" rel="noopener">162106c743</a>
+        <span class="msg">Log two pre-commit hook papercuts hit during this work</span>
+        <span class="why">Adds both hook problems to <code>PAPERCUTS.md</code> so they get triaged rather than rediscovered.</span>
+      </li>
+      <li>
+        <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a4284dbf14" target="_blank" rel="noopener">a4284dbf14</a>
+        <span class="msg">Mark the retired string obsolete instead of deleting it</span>
+        <span class="why">Acting on Devin's Bug — then reversed, see next.</span>
+      </li>
+      <li>
+        <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/e4e17b0d4d" target="_blank" rel="noopener">e4e17b0d4d</a>
+        <span class="msg">Delete the retired string after all</span>
+        <span class="why">You pointed out the option died in 5.5, not 6.4. The file only retains entries retired in 6.2–6.4, so a 5.5-era string belongs gone. Net effect on <code>en/Bloom.xlf</code> is a clean deletion.</span>
+      </li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="scroller">
+    <table class="grid">
+      <thead><tr><th>Reviewer</th><th>State</th><th>Findings</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Local review</td><td><span class="status pass">Clean</span></td>
+          <td class="detail">Light pass, run <strong>inline rather than via a sub-agent</strong> — this session's operating instructions bar dispatching agents unless you ask. No correctness findings. Verified the riskiest assumption directly: both ebook sizes are single-orientation, so storing portrait dimensions and letting landscape swap them is safe.</td>
+        </tr>
+        <tr>
+          <td>Devin</td><td><span class="status pass">Complete</span></td>
+          <td class="detail">
+            Terminal for HEAD <span class="numeral">e4e17b0d4d</span>. <strong>1 Bug</strong> + <strong>1 Investigate</strong>, both mirrored as threads, answered and resolved; <strong>4 informational</strong> (not mirrored) — two of which independently re-checked this PR's arithmetic and agreed.
+            <br><a href="https://github.com/BloomBooks/BloomDesktop/pull/8190#discussion_r3754205067" target="_blank" rel="noopener">Bug thread</a> ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8190#discussion_r3754212178" target="_blank" rel="noopener">Investigate thread</a> ·
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8190#issuecomment-5247252702" target="_blank" rel="noopener">consultation log</a>
+          </td>
+        </tr>
+        <tr>
+          <td>CodeRabbit</td><td><span class="status skip">Disabled</span></td>
+          <td class="detail">Configured in <code>.coderabbit.yml</code> but with <code>auto_review.enabled: false</code> repo-wide, so it does not review on push. Not a pending reviewer.</td>
+        </tr>
+        <tr>
+          <td>CI</td><td><span class="status pass">Green</span></td>
+          <td class="detail">Both checks terminal and passing: <code>pr-automation</code>, <code>track / set-waiting</code>. No test job runs on PRs in this repo.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>How the 6 test failures were cleared</h2>
+    <p class="lede">A red suite is worth nothing if the reason isn't established, so this was measured rather than assumed.</p>
+    <ul class="notelist">
+      <li><strong>First attempt was much worse:</strong> <span class="numeral">1456</span> of <span class="numeral">2833</span> failed. Cause: I had isolated the build output to a scratch folder <em>outside</em> the repo, so every repo-root-relative lookup (<code>output/browser</code>, <code>DistFiles</code>) failed. Moving the isolated output inside the repo — which is exactly why master's wrapper uses <code>output/agent/&lt;key&gt;/</code> — dropped it to 6.</li>
+      <li><strong>The remaining 6:</strong> five xmatter-locating tests (<code>XMatterHelperTests</code>, <code>InsertPageAfter_FromDifferentBook_MergesStyles</code>) plus the opt-in Reading App Builder real-build test.</li>
+      <li><strong>The decisive experiment:</strong> I reverted all six of my changed files to their base versions <em>in this same worktree, with the same harness</em>, rebuilt, and re-ran. The same five still failed. The change is therefore not the cause — it is this worktree's isolated-output harness. The files were then restored and verified byte-identical to HEAD.</li>
+      <li><strong>The RAB test</strong> is the documented opt-in real-build test; it found a real Reading App Builder install and failed in Gradle for environment reasons, as it does on this machine generally.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>What the fix actually does</h2>
+    <ul class="notelist">
+      <li><strong>Two page sizes went from impossible to working.</strong> <code>Ebook2x3Portrait</code> and <code>Ebook7x5Landscape</code> are offered in Bloom but were never added to BloomPdfMaker's size list, so PDF generation failed outright — which also blocked <em>uploading</em>, since upload makes a PDF preview. Added at <a href="https://github.com/BloomBooks/BloomDesktop/blob/e4e17b0d4d3525233a9ad74119b4ec0cea7a20fb/src/WebView2PdfMaker/Program.cs#L271" target="_blank" rel="noopener">Program.cs:271</a>, converting at 96px/inch (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e4e17b0d4d3525233a9ad74119b4ec0cea7a20fb/src/WebView2PdfMaker/Program.cs#L295" target="_blank" rel="noopener">:295</a>) since these are the only Bloom sizes declared in CSS pixels.</li>
+      <li><strong>Geometry verified against real output</strong>, not assumed: <code>Ebook7x5</code> landscape renders <span class="numeral">719.04 × 516.96</span> pt and <code>Ebook2x3</code> portrait <span class="numeral">355.92 × 525.12</span> pt, both matching <code>paperDimensions.less</code> to within WebView2's 1/100-inch rounding.</li>
+      <li><strong>The misleading advice is gone</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e4e17b0d4d3525233a9ad74119b4ec0cea7a20fb/src/BloomExe/Publish/PDF/MakePdfUsingExternalPdfMakerProgram.cs#L213" target="_blank" rel="noopener">MakePdfUsingExternalPdfMakerProgram.cs:213</a>), along with the dead pref chain behind it — <code>UserPrefs.ReducePdfMemoryUse</code> had been unsettable since 5.5.</li>
+      <li><strong>The test would have caught this</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e4e17b0d4d3525233a9ad74119b4ec0cea7a20fb/src/BloomTests/Publish/PDF/PdfMakerTests.cs#L193" target="_blank" rel="noopener">PdfMakerTests.cs:193</a>): sanity-checked by reverting the fix, at which point the two ebook cases fail and the <code>Device16x9</code> control passes.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <ul class="notelist">
+      <li><strong>Three commits used <code>--no-verify</code>,</strong> per your call. The husky runner isn't installed in this worktree, so the hook cannot run at all here. Its checks were run by hand instead and all passed.</li>
+      <li><strong>The branch was re-pointed from master to <code>Version6.4</code></strong> once it emerged the ebook sizes shipped in 6.4 (<span class="numeral">1c8e24b50d</span>, 2026-06-25), so released 6.4 users are affected, not just the 6.5 alpha the bug was filed against.</li>
+      <li><strong>Two papercuts logged</strong> in <code>PAPERCUTS.md</code>, both about the pre-commit hook.</li>
+      <li><strong>The QA test-ideas comment</strong> was posted to BL-16684, leading with the page-proportion check as the highest-value thing for a tester to look at.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ============ RIGHT ============ -->
+<div class="col">
+
+  <section class="item">
+    <span class="kind">Decision</span>
+    <h3>Version6.4 has no isolated-build wrapper, so agents can't reliably test on it</h3>
+    <p>On <code>master</code>, <code>build/agent-dotnet.sh</code> plus some <code>Directory.Build.props</code> logic redirect a build into a private per-terminal tree, so an agent can build and run the C# suite while your Bloom keeps running. <strong>Version6.4 has neither.</strong></p>
+    <p>That cost real time in this run. A plain build fails outright because your running Bloom locks the shared output, and my hand-rolled substitute produced first 1456 and then 6 phantom test failures that each had to be chased down and disproved. Any agent doing 6.4 work — and 6.4 is where shipped bugs get fixed — will hit exactly this and may not bother to disprove it, which is the worse outcome: a real regression dismissed as “probably the harness”.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q1" data-q="6.4 build wrapper" value="Port the wrapper to Version6.4" checked>
+        <span class="body"><span class="label">Port <code>agent-dotnet.sh</code> and the <code>Directory.Build.props</code> isolation back to Version6.4<span class="tag">Recommended</span></span>
+        <span class="fc">Small and mechanical — copy two known-good files from master and confirm one build. Recommended because 6.4 is a maintenance branch that will keep receiving agent-assisted fixes, and this removes a whole class of false test failures rather than paying to re-diagnose them each time.</span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q1" data-q="6.4 build wrapper" value="Document the workaround only">
+        <span class="body"><span class="label">Just document the in-repo <code>-p:OutDir=</code> workaround in 6.4's AGENTS.md</span>
+        <span class="fc">Very small — a doc paragraph, no code. Keeps the phantom-failure trap but at least names it.</span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q1" data-q="6.4 build wrapper" value="Leave as is">
+        <span class="body"><span class="label">Leave as is</span></span>
+        <span class="leavec"><input type="checkbox" data-q="6.4 build wrapper — leave comment"> Leave comment</span>
+      </label>
+      <div class="other-row">
+        <input type="radio" name="q1" data-q="6.4 build wrapper" value="__OTHER__">
+        <input type="text" data-q="6.4 build wrapper — other" placeholder="Other:">
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="6.4 build wrapper — notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <span class="kind">FYI</span>
+    <h3>The failure message still won't explain the next unknown page size</h3>
+    <p>You chose “drop the sentence only”, so the message now reads as the summary plus whatever BloomPdfMaker printed on its <em>standard output</em> — which for this failure was just “Starting WebView2PdfMaker”. The sentence that actually explained the problem (“…has a very limited set of paper sizes…”) came on <em>standard error</em>, which Bloom still discards.</p>
+    <p>For this bug it no longer matters — the two sizes now work. It matters the next time a size or option reaches BloomPdfMaker that it doesn't recognize: the user and the error report will again show a failure with no visible reason. Flagging it because it's a one-line change if you ever want it, not because this PR needs it.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q2" data-q="Surface stderr" value="Leave as is" checked>
+        <span class="body"><span class="label">Leave as is<span class="tag">Recommended</span></span></span>
+        <span class="leavec"><input type="checkbox" data-q="Surface stderr — leave comment"> Leave comment</span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q2" data-q="Surface stderr" value="Append StandardError too">
+        <span class="body"><span class="label">Also append <code>res.StandardError</code> to the message</span>
+        <span class="fc">One line, localized to the same block, low risk — but it does put raw developer text in front of users.</span></span>
+      </label>
+      <div class="other-row">
+        <input type="radio" name="q2" data-q="Surface stderr" value="__OTHER__">
+        <input type="text" data-q="Surface stderr — other" placeholder="Other:">
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="Surface stderr — notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <span class="kind">FYI</span>
+    <h3>PictureStory is the third page size BloomPdfMaker doesn't know</h3>
+    <p>While mapping the gap I found a third name that falls through to the unknown-size error: <code>PictureStory</code>. Its dimensions in <code>paperDimensions.less</code> are identical to <code>Device16x9Landscape</code> (100 × 177.77778 mm), so it would be a one-line addition. You said it's vestigial and a user can never select it, so I left it out of this PR deliberately.</p>
+    <p>Recorded here only so the omission is a decision on the record rather than something that looks overlooked if someone reads the size list later.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q3" data-q="PictureStory" value="Leave as is" checked>
+        <span class="body"><span class="label">Leave as is<span class="tag">Recommended</span></span></span>
+        <span class="leavec"><input type="checkbox" data-q="PictureStory — leave comment"> Leave comment</span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q3" data-q="PictureStory" value="Add PictureStory too">
+        <span class="body"><span class="label">Add <code>PictureStory</code> to the size list as well</span>
+        <span class="fc">One line, same shape as the entries just added, low risk.</span></span>
+      </label>
+      <div class="other-row">
+        <input type="radio" name="q3" data-q="PictureStory" value="__OTHER__">
+        <input type="text" data-q="PictureStory — other" placeholder="Other:">
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="PictureStory — notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <span class="kind">Decision</span>
+    <h3>Next step</h3>
+    <p>Nothing is blocking. The PR is a clean, mergeable draft; every reviewer reached a terminal state; the only red in the suite has been positively attributed elsewhere. Per the rules I have not marked it ready for review or requested anyone — that's yours to do after your own read.</p>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q4" data-q="Next step" value="Implement the choices above" checked>
+        <span class="body"><span class="label">Implement whatever is chosen above, then re-run preflight<span class="tag">Recommended</span></span>
+        <span class="fc">Each choice is small; re-running the gauntlet after is routine.</span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" data-q="Next step" value="Discuss first">
+        <span class="body"><span class="label">Discuss before changing anything</span>
+        <span class="fc">No code movement until we've talked it through.</span></span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" data-q="Next step" value="Leave as is">
+        <span class="body"><span class="label">Leave as is</span></span>
+        <span class="leavec"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span>
+      </label>
+      <div class="other-row">
+        <input type="radio" name="q4" data-q="Next step" value="__OTHER__">
+        <input type="text" data-q="Next step — other" placeholder="Other:">
+      </div>
+    </div>
+    <div class="notes"><label>Notes</label><textarea rows="2" data-q="Next step — notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Send your answers back</h3>
+    <p>Copy this and paste it into the session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span id="copied">Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+  var GROUPS = ["q1","q2","q3","q4"];
+
+  function build(){
+    var out = ["Preflight answers — BloomDesktop BL-16684 (PR #8190, HEAD e4e17b0d4d)",
+               "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16684.html",""];
+    GROUPS.forEach(function(name){
+      var checked = document.querySelector('input[name="'+name+'"]:checked');
+      if(!checked) return;
+      var q = checked.getAttribute("data-q");
+      var val = checked.value;
+      if(val === "__OTHER__"){
+        var otherBox = document.querySelector('input[type=text][data-q="'+q+' — other"]');
+        val = "Other: " + ((otherBox && otherBox.value.trim()) || "(nothing typed)");
+      }
+      out.push(q + ": " + val);
+
+      // Leave comment — only when actually ticked
+      var lc = document.querySelector('input[type=checkbox][data-q="'+q+' — leave comment"]');
+      if(lc && lc.checked) out.push("  Leave comment");
+
+      var notes = document.querySelector('textarea[data-q="'+q+' — notes"]');
+      if(notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim());
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/,"\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh(){ payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function(){
+    var text = payload.value;
+    function ok(){
+      var c = document.getElementById("copied");
+      c.classList.add("on");
+      setTimeout(function(){ c.classList.remove("on"); }, 1600);
+    }
+    function fallback(){
+      payload.removeAttribute("readonly");
+      payload.select();
+      try { document.execCommand("copy"); ok(); } catch(e){ /* user can Ctrl+C */ }
+      payload.setAttribute("readonly","");
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(ok, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
