@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight report — BL-15971</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --ink: #23262b;
+    --muted: #6e6a62;
+    --line: #e4dfd6;
+    --accent: #17708f;
+    --pass: #2e7d4f;
+    --warn: #a05c0a;
+    --pass-bg: #e9f4ec;
+    --warn-bg: #fbf0dd;
+  }
+  html { font-size: 16px; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    line-height: 1.55;
+    padding: 2rem 1.25rem 4rem;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1, h2, h3 { font-family: Charter, Georgia, "Times New Roman", serif; text-wrap: balance; }
+  h1 { font-size: 1.7rem; margin-bottom: .3rem; }
+  h2 { font-size: 1.22rem; margin-bottom: .7rem; }
+  h3 { font-size: 1.02rem; margin-bottom: .35rem; }
+  a { color: var(--accent); }
+  header { margin-bottom: 1.6rem; }
+  header .meta { color: var(--muted); font-size: .95rem; }
+  header .meta a { white-space: nowrap; }
+  .numeral, code {
+    font-family: ui-monospace, Consolas, "Cascadia Mono", monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: .92em;
+  }
+  code { background: #f2efe8; padding: .05em .3em; border-radius: 3px; }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 1.4rem;
+    align-items: start;
+  }
+  .grid > * { min-width: 0; }
+  @media (max-width: 920px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1.3rem;
+  }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { text-align: left; padding: .45rem .6rem .45rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+  .pill {
+    display: inline-block; border-radius: 99px; padding: .06rem .6rem;
+    font-size: .82rem; font-weight: 600; white-space: nowrap;
+  }
+  .pill.pass { background: var(--pass-bg); color: var(--pass); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: .35rem; }
+  .qitem { border-bottom: 1px solid var(--line); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .qitem:last-of-type { border-bottom: none; margin-bottom: 0; }
+  .qitem p { margin-bottom: .6rem; font-size: .95rem; }
+  .opt { display: flex; align-items: flex-start; gap: .5rem; margin-bottom: .45rem; font-size: .95rem; }
+  .opt input[type=radio], .opt input[type=checkbox] { margin-top: .28rem; flex-shrink: 0; }
+  .opt label { cursor: pointer; }
+  .opt .foot { color: var(--muted); font-size: .88rem; }
+  .rec {
+    color: var(--pass); font-size: .78rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .05em; margin-left: .35rem; white-space: nowrap;
+  }
+  .leaverow { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+  .leaverow .lc { display: flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .85rem; white-space: nowrap; }
+  .otherbox, .notes {
+    width: 100%; font: inherit; font-size: .92rem; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 5px; padding: .35rem .5rem; background: #fdfcfa;
+  }
+  .otherbox { margin-top: .2rem; }
+  .notes { margin-top: .45rem; min-height: 2.2rem; resize: vertical; }
+  .noteslabel { color: var(--muted); font-size: .82rem; margin-top: .5rem; }
+  button#copyback {
+    background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    font: inherit; font-weight: 600; padding: .55rem 1.1rem; cursor: pointer;
+  }
+  button#copyback:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #copied { color: var(--pass); font-weight: 600; margin-left: .6rem; visibility: hidden; }
+  #payload {
+    width: 100%; margin-top: .7rem; min-height: 9rem; font-family: ui-monospace, Consolas, monospace;
+    font-size: .82rem; border: 1px solid var(--line); border-radius: 5px; padding: .5rem; background: #fdfcfa;
+  }
+  .small { font-size: .88rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Preflight report — BL-15971</h1>
+  <div class="meta">
+    State Machine doesn't disable during new book selection ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8185" target="_blank" rel="noopener">PR #8185 (draft)</a> ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8185/files" target="_blank" rel="noopener">files changed</a> ·
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-15971" target="_blank" rel="noopener">YouTrack card</a> ·
+    branch <code>BL-15971</code> at <code>63ac774</code> · 2026-08-10
+  </div>
+</header>
+
+<div class="grid">
+<div><!-- LEFT column: the report -->
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+      <tr><td>TypeScript typecheck</td><td><span class="pill pass">pass</span></td><td>clean on the integrated tree</td></tr>
+      <tr><td>Lint (eslint)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">0</span> errors (764 pre-existing warnings)</td></tr>
+      <tr><td>Merge with <code>origin/master</code></td><td><span class="pill pass">clean</span></td><td>no conflicts; one unrelated file folded in</td></tr>
+      <tr><td>Front-end tests (Vitest)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">674 passed · 5 skipped</span>, full suite at HEAD</td></tr>
+      <tr><td>C# tests (dotnet test, full suite)</td><td><span class="pill warn">2 environmental fails</span></td><td><span class="numeral">3061 passed · 12 skipped · 2 failed</span> — both failures are local-machine issues unrelated to this branch (see decisions #2 and the session notes)</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <ul>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/901493b2a6c5c8f393c782fac2f667d50f781010" target="_blank" rel="noopener"><code>901493b</code></a> — the fix itself, three parts:
+        <ul>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/63ac774dd305928de22cae0ddd728768ff2fd0f0/src/BloomExe/web/controllers/CollectionApi.cs#L175" target="_blank" rel="noopener">CollectionApi.cs</a> — the <code>selected-book</code> and <code>selectAndEditBook</code> handlers lock the workspace tabs (<code>SetTabsEnabled(false)</code> … <code>finally</code> re-enable) while the newly selected book is loaded, the same mechanism Edit-tab saves and uploads use.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/63ac774dd305928de22cae0ddd728768ff2fd0f0/src/BloomBrowserUI/collectionsTab/collectionsTabBookPane/CollectionsTabBookPane.tsx#L137" target="_blank" rel="noopener">CollectionsTabBookPane.tsx</a> — the "Edit this book" / "Make a book" button now honors the existing <code>navigationLocked</code> flag, so it greys out in step with the tabs.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/63ac774dd305928de22cae0ddd728768ff2fd0f0/src/BloomExe/Edit/EditingView.cs#L337" target="_blank" rel="noopener">EditingView.cs</a> — entering the Edit tab after the book changed blanks the content browser (<code>ClearOutDisplay()</code>) instead of leaving the old book's page visible while the new book navigates.</li>
+        </ul>
+      </li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/63ac774dd305928de22cae0ddd728768ff2fd0f0" target="_blank" rel="noopener"><code>63ac774</code></a> — merge of <code>origin/master</code> (three Leveled Reader commits; no conflicts).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+      <tr>
+        <td>Local review (light)</td>
+        <td><span class="pill pass">complete</span></td>
+        <td>Done inline after the review sub-agent was lost to a session restart. Clean — no high-confidence correctness problems.</td>
+      </tr>
+      <tr>
+        <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8185" target="_blank" rel="noopener">Devin</a></td>
+        <td><span class="pill pass">complete</span></td>
+        <td><span class="numeral">0</span> bugs, <span class="numeral">0</span> Investigate flags, <span class="numeral">4</span> Informational observations — all assessed, none actionable (one is decision #1). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8185#issuecomment-5245024653" target="_blank" rel="noopener">Consultation log</a>.</td>
+      </tr>
+      <tr>
+        <td>CodeRabbit</td>
+        <td><span class="pill pass">not applicable</span></td>
+        <td>Installed on the repo, but <code>.coderabbit.yml</code> disables auto-review, so it was deliberately not triggered.</td>
+      </tr>
+      <tr>
+        <td>CI</td>
+        <td><span class="pill pass">complete</span></td>
+        <td><a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/31424104747/job/93571601777" target="_blank" rel="noopener"><code>pr-automation</code></a> — the only check on this PR — passed.</td>
+      </tr>
+    </table>
+    </div>
+    <p class="small" style="margin-top:.6rem">PR is mergeable; no human comments have been posted yet; all bot feedback is settled. The PR stays a draft.</p>
+  </div>
+
+  <div class="card">
+    <h2>Session notes</h2>
+    <ul>
+      <li>The two C# failures are environmental: the opt-in Reading App Builder real-build test (a known local-install problem on this machine, runs because <code>BLOOM_RUN_RAB_MANUAL_TESTS=1</code> is set machine-wide), and <code>NoErrorForEmptyAudio</code> (decision #2 — the test's regex trips over this session's temp-folder name; nothing near this branch's diff).</li>
+      <li>A papercut about the <code>NoErrorForEmptyAudio</code> fragility was logged in <code>PAPERCUTS.md</code>. Per that skill's convention it is uncommitted and will ride along with the branch's next commit; if no further commit happens, it stays in the worktree.</li>
+      <li>The fresh worktree needed <code>./init.sh</code> before the C# build would run — the known missing-dependencies symptom.</li>
+      <li>No personal board skill is installed, so board moves were skipped. The YouTrack card is In Progress (preflight does not move card states).</li>
+      <li>QA test-ideas comment posted to the card; PR link posted to the card.</li>
+    </ul>
+  </div>
+
+</div>
+<div><!-- RIGHT column: decisions -->
+
+  <div class="card">
+    <h2>Decisions</h2>
+
+    <div class="qitem">
+      <h3>1 — FYI: importing TopBar into the Collections pane drags in a global side effect</h3>
+      <p>The fix makes the "Edit this book" button watch the same navigation-lock signal as the main tabs, by importing a hook (<code>useWorkspaceTabInfo</code>) that lives in <a href="https://github.com/BloomBooks/BloomDesktop/blob/63ac774dd305928de22cae0ddd728768ff2fd0f0/src/BloomBrowserUI/react_components/TopBar/TopBar.tsx#L81" target="_blank" rel="noopener">TopBar.tsx</a>. That file also registers the TopBar component globally when it loads. Devin (informationally) noted this is harmless today — the Publish tab already imports it the same way, and each screen re-registers its own root component afterwards, so the right one always wins — but that a shared hook living in a file with a global side effect is fragile if the loading order ever changes. Leaving it as is matches the existing pattern in the codebase; a refactor is easy but belongs to a housekeeping change, not this bug fix.</p>
+      <div class="opt"><input type="radio" name="q1" id="q1a" value="Extract the hook into a side-effect-free module" data-q="1"><label for="q1a">Extract <code>useWorkspaceTabInfo</code> (and its types) into a small new file with no side effects, and update the three importers. <span class="foot">(~30 lines across 4 files, mechanical, low risk; restarts the review cycle)</span></label></div>
+      <div class="leaverow">
+        <div class="opt"><input type="radio" name="q1" id="q1b" value="Leave as is" data-q="1" checked><label for="q1b">Leave as is<span class="rec">recommended</span></label></div>
+        <div class="lc"><input type="checkbox" id="q1lc" data-q="1" data-role="leavecomment"><label for="q1lc">Leave comment</label></div>
+      </div>
+      <div class="opt"><input type="radio" name="q1" id="q1c" value="Other" data-q="1"><label for="q1c">Other:</label></div>
+      <input type="text" class="otherbox" id="q1other" data-q="1" data-role="other" aria-label="Other answer for question 1">
+      <div class="noteslabel">Notes</div>
+      <textarea class="notes" id="q1notes" data-q="1" data-role="notes" aria-label="Notes for question 1"></textarea>
+    </div>
+
+    <div class="qitem">
+      <h3>2 — FYI: a C# test fails whenever the test session's temp folder contains "17"</h3>
+      <p><code>NoErrorForEmptyAudio</code> (spreadsheet audio import) asserts that no import message mentions "17", to prove page 17 imported cleanly. But import messages include full file paths, and this session's isolated temp folder happened to be named <code>a7817563‑…</code> — which contains "17" — so an unrelated "file not found" message tripped the check. It will fail this way for anyone whose temp-folder name contains "17", and has nothing to do with this branch. Leaving it as is is reasonable because a papercut is already logged in <code>PAPERCUTS.md</code> for the next housekeeping pass, and fixing it here would put an unrelated test change into this PR and restart the review cycle.</p>
+      <div class="opt"><input type="radio" name="q2" id="q2a" value="Fix the test on this branch now" data-q="2"><label for="q2a">Fix the test on this branch now — tighten the assertion to match "page 17" instead of any "17". <span class="foot">(1-line test change, low risk, but off-topic for this PR and restarts the review cycle)</span></label></div>
+      <div class="leaverow">
+        <div class="opt"><input type="radio" name="q2" id="q2b" value="Leave as is" data-q="2" checked><label for="q2b">Leave as is<span class="rec">recommended</span></label></div>
+        <div class="lc"><input type="checkbox" id="q2lc" data-q="2" data-role="leavecomment"><label for="q2lc">Leave comment</label></div>
+      </div>
+      <div class="opt"><input type="radio" name="q2" id="q2c" value="Other" data-q="2"><label for="q2c">Other:</label></div>
+      <input type="text" class="otherbox" id="q2other" data-q="2" data-role="other" aria-label="Other answer for question 2">
+      <div class="noteslabel">Notes</div>
+      <textarea class="notes" id="q2notes" data-q="2" data-role="notes" aria-label="Notes for question 2"></textarea>
+    </div>
+
+    <div class="qitem">
+      <h3>3 — Next step</h3>
+      <p>Everything is green and settled; nothing here blocks your own review of the PR.</p>
+      <div class="opt"><input type="radio" name="q3" id="q3a" value="Nothing further — I'll review the PR myself" data-q="3" checked><label for="q3a">Nothing further — I'll review the PR myself<span class="rec">recommended</span></label></div>
+      <div class="opt"><input type="radio" name="q3" id="q3b" value="Implement the fixes I selected above" data-q="3"><label for="q3b">Implement the fixes I selected above (then re-run the gauntlet)</label></div>
+      <div class="opt"><input type="radio" name="q3" id="q3c" value="Other" data-q="3"><label for="q3c">Other:</label></div>
+      <input type="text" class="otherbox" id="q3other" data-q="3" data-role="other" aria-label="Other answer for question 3">
+      <div class="noteslabel">Notes</div>
+      <textarea class="notes" id="q3notes" data-q="3" data-role="notes" aria-label="Notes for question 3"></textarea>
+    </div>
+
+  </div>
+
+  <div class="card">
+    <h2>Send your answers back</h2>
+    <p class="small">Copies your selections as text — paste it into the Claude Code session to act on them.</p>
+    <p style="margin-top:.6rem"><button id="copyback">Copy answers</button><span id="copied">Copied ✓</span></p>
+    <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+  </div>
+
+</div>
+</div>
+
+</div>
+<script>
+const QTITLES = {
+  "1": "TopBar import side effect",
+  "2": "NoErrorForEmptyAudio test fragility",
+  "3": "Next step"
+};
+function serialize() {
+  const lines = ["Preflight decisions for BL-15971 (PR #8185):", ""];
+  for (const q of ["1", "2", "3"]) {
+    const sel = document.querySelector(`input[type=radio][data-q="${q}"]:checked`);
+    let answer = sel ? sel.value : "(no selection)";
+    if (answer === "Other") {
+      const other = document.querySelector(`input[data-q="${q}"][data-role="other"]`);
+      answer = "Other: " + (other && other.value.trim() ? other.value.trim() : "(blank)");
+    }
+    lines.push(`${q}. ${QTITLES[q]}: ${answer}`);
+    const lc = document.querySelector(`input[data-q="${q}"][data-role="leavecomment"]`);
+    if (lc && lc.checked) lines.push(`   Leave comment (record this decision as a code comment near the relevant code)`);
+    const notes = document.querySelector(`textarea[data-q="${q}"][data-role="notes"]`);
+    if (notes && notes.value.trim()) lines.push(`   Notes: ${notes.value.trim()}`);
+  }
+  return lines.join("\n");
+}
+function refreshPayload() { document.getElementById("payload").value = serialize(); }
+document.querySelectorAll("input, textarea").forEach(el => {
+  if (el.id === "payload") return;
+  el.addEventListener("input", refreshPayload);
+  el.addEventListener("change", refreshPayload);
+});
+refreshPayload();
+document.getElementById("copyback").addEventListener("click", async () => {
+  refreshPayload();
+  const text = document.getElementById("payload").value;
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {}
+  if (!ok) {
+    const ta = document.getElementById("payload");
+    ta.select();
+    try { ok = document.execCommand("copy"); } catch (e) {}
+  }
+  document.getElementById("copied").style.visibility = ok ? "visible" : "hidden";
+});
+</script>
+</body>
+</html>
