@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16682-top-window-overlay (PR 8191)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, figure, table, td, th, textarea, input { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #f7f5f1;
+    --card: #ffffff;
+    --line: #e3ded4;
+    --line-soft: #efeae1;
+    --ink: #23211e;
+    --muted: #6d675e;
+    --accent: #1d6b58;
+    --accent-soft: #e8f0ec;
+    --pass: #2c7a5b;
+    --open: #8a5a2b;
+    --open-soft: #f7efe4;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", system-ui, "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 34px 26px 64px; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 26px; }
+  header.top h1 {
+    font-family: var(--serif); font-size: 30px; line-height: 1.15;
+    font-weight: 600; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  header.top .sub { color: var(--muted); margin-top: 8px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; color: var(--muted); font-size: 13.5px; }
+  .chip {
+    display: inline-block; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--card); font-size: 12.5px; color: var(--ink);
+  }
+  .chip.draft { background: var(--open-soft); border-color: #e2d2bc; color: var(--open); }
+
+  .cols { display: grid; grid-template-columns: 1.12fr 1fr; gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: 20px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; }
+  .card > h2 {
+    font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 4px;
+  }
+  .card > .hint { color: var(--muted); font-size: 13.5px; margin-bottom: 14px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.what { font-weight: 500; }
+  .verdict { font-weight: 600; white-space: nowrap; }
+  .verdict.ok { color: var(--pass); }
+  .verdict.info { color: var(--muted); }
+
+  .commits { display: flex; flex-direction: column; gap: 14px; }
+  .commit { display: grid; grid-template-columns: auto 1fr; gap: 12px; }
+  .commit .sha { font-family: var(--mono); font-size: 12.5px; padding-top: 2px; }
+  .commit p { font-size: 14px; }
+  .commit .title { font-weight: 500; }
+
+  .rev { display: flex; flex-direction: column; gap: 14px; }
+  .rev > li { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: baseline; }
+  .rev .who { font-weight: 600; }
+  .rev .state { font-size: 12.5px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .rev .state.na { background: #f2f0ec; color: var(--muted); }
+  .rev .detail { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; }
+
+  .notes-list { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+  .notes-list strong { font-weight: 600; }
+
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; }
+  .item.open { border-left: 3px solid var(--open); }
+  .item h3 { font-family: var(--serif); font-size: 18px; font-weight: 600; margin-bottom: 6px; text-wrap: balance; }
+  .item .src { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+  .item p.desc { font-size: 14px; margin-bottom: 8px; }
+  .item p.desc + p.desc { margin-bottom: 14px; }
+
+  .opts { display: flex; flex-direction: column; gap: 9px; margin: 14px 0 12px; }
+  .opt {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 10px;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer;
+    background: #fdfcfa;
+  }
+  .opt:hover { border-color: #cfc8bb; }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .lbl { font-size: 14px; font-weight: 500; }
+  .opt .fx { grid-column: 2; color: var(--muted); font-size: 13px; }
+  .opt .rec {
+    font-style: normal; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent); border: 1px solid #bcd6cb; background: var(--accent-soft);
+    padding: 1px 7px; border-radius: 999px; margin-left: 7px; white-space: nowrap;
+  }
+  .opt.leave { grid-template-columns: auto 1fr auto; align-items: center; }
+  .opt.leave .lc { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .opt .other { grid-column: 2; width: 100%; font: inherit; font-size: 14px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 4px; background: var(--card); color: var(--ink); }
+
+  textarea.notes {
+    width: 100%; min-height: 62px; resize: vertical; font: inherit; font-size: 14px;
+    padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; background: #fdfcfa; color: var(--ink);
+  }
+
+  .sendback .btn {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid #17594a;
+    padding: 9px 18px; border-radius: 5px; margin: 4px 0 12px;
+  }
+  .sendback .btn:hover { background: #1a6151; }
+  .sendback .ok { color: var(--pass); font-size: 13.5px; margin-left: 12px; }
+  #payload {
+    width: 100%; min-height: 190px; resize: vertical; font-family: var(--mono); font-size: 12.5px;
+    line-height: 1.5; padding: 10px; border: 1px solid var(--line); border-radius: 4px;
+    background: #fbfaf7; color: var(--ink);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — save the page before opening the AI Image Tools, with the overlay moved to the top window</h1>
+  <p class="sub">Everything automatic is done and green. Two things below need your judgment, and one of them is which of the two designs on this branch you want to keep.</p>
+  <div class="meta">
+    <span><span class="chip draft">draft</span></span>
+    <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8191" target="_blank" rel="noopener">PR 8191</a>
+      · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191/files" target="_blank" rel="noopener">files changed</a>
+      · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191/commits" target="_blank" rel="noopener">commits</a></span>
+    <span>branch <span class="numeral">BL-16682-top-window-overlay</span> → <span class="numeral">master</span></span>
+    <span>head <a class="numeral" href="https://github.com/BloomBooks/BloomDesktop/commit/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3" target="_blank" rel="noopener">bcab9a5</a></span>
+    <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16682" target="_blank" rel="noopener">BL-16682</a></span>
+    <span>mergeable · clean</span>
+  </div>
+</header>
+
+<div class="cols">
+
+  <!-- ============ LEFT: the report ============ -->
+  <div class="stack">
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <p class="hint">All at the final commit, <span class="numeral">bcab9a5</span>.</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="what">Typecheck</td><td class="verdict ok">pass</td><td><span class="numeral">pnpm typecheck</span> — no type errors</td></tr>
+            <tr><td class="what">Lint</td><td class="verdict ok">pass</td><td><span class="numeral">pnpm lint</span> — no errors; 5 pre-existing <span class="numeral">no-explicit-any</span> warnings in a file I didn't add them to</td></tr>
+            <tr><td class="what">TypeScript tests (vitest)</td><td class="verdict ok">pass</td><td><span class="numeral">686 passed · 5 skipped · 62 files</span> — full suite, run with <span class="numeral">--no-file-parallelism</span> (this machine's worker pool wedges without it)</td></tr>
+            <tr><td class="what">C# tests (dotnet test)</td><td class="verdict ok">pass</td><td><span class="numeral">3063 passed · 0 failed · 12 skipped</span> — full <span class="numeral">BloomTests</span> suite; in scope because the diff changes <span class="numeral">AiImageEditorApi.cs</span></td></tr>
+            <tr><td class="what">Production bundle</td><td class="verdict ok">pass</td><td><span class="numeral">build/agent-vite.sh</span> — the real bundle compiles, in an isolated tree</td></tr>
+            <tr><td class="what">Base integration</td><td class="verdict ok">clean</td><td><span class="numeral">origin/master</span> merged with no conflict (it removed obsolete XLF entries; no overlap with this work)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <div class="commits">
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/19aee1dc1e" target="_blank" rel="noopener">19aee1d</a></span>
+          <div>
+            <p class="title">Move the AI Image Editor overlay to the top window</p>
+            <p>The refactor itself. <span class="numeral">aiEditorLauncher.ts</span> splits along the frame boundary into
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3/src/BloomBrowserUI/bookEdit/toolbox/canvas/aiEditorOverlay.ts#L43" target="_blank" rel="noopener">aiEditorOverlay.ts</a> (top window),
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3/src/BloomBrowserUI/bookEdit/toolbox/canvas/aiEditorPageCommands.ts#L62" target="_blank" rel="noopener">aiEditorPageCommands.ts</a> (page frame) and a shared types module. Reverts the previous commit's addition to <span class="numeral">EditingModel</span>.</p>
+          </div>
+        </div>
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/b0945333a5" target="_blank" rel="noopener">b094533</a></span>
+          <div>
+            <p class="title">Report why a current-page swap failed, not just the count</p>
+            <p>From my own review pass. Splitting the frames turned a thrown error into a returned one, and the path that tells the editor about it only read the counts — so a failed picture swap reported “Only 1 of 2 …” with the reason silently dropped.</p>
+          </div>
+        </div>
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/bcab9a5bfb" target="_blank" rel="noopener">bcab9a5</a></span>
+          <div>
+            <p class="title">Address Devin review</p>
+            <p>Open the editor even when the save fails (<a href="https://github.com/BloomBooks/BloomDesktop/blob/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3/src/BloomExe/web/controllers/AiImageEditorApi.cs#L298" target="_blank" rel="noopener">AiImageEditorApi.cs:298</a>); convert five helpers to <span class="numeral">function</span> syntax per the front-end style rule; say which pages <em>were</em> saved when a commit can't finish (<a href="https://github.com/BloomBooks/BloomDesktop/blob/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3/src/BloomBrowserUI/bookEdit/toolbox/canvas/aiEditorOverlay.ts#L281" target="_blank" rel="noopener">aiEditorOverlay.ts:281</a>).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <ul class="rev">
+        <li>
+          <span class="who">Local review — light pass</span><span class="state">complete</span>
+          <span class="detail">1 raised · 1 fixed · 0 escalated · 0 dismissed. Done inline rather than by sub-agent, per your standing instruction not to use the agent tool unless asked. The finding became <span class="numeral">b094533</span>.</span>
+        </li>
+        <li>
+          <span class="who"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8191" target="_blank" rel="noopener">Devin</a> — first pass</span><span class="state">complete</span>
+          <span class="detail">~5 min. 1 Bug + 3 Investigate. Resolved:
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755582821" target="_blank" rel="noopener">arrow-const style</a> (fixed),
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755582901" target="_blank" rel="noopener">menu item could silently do nothing</a> (fixed — a real bug, and one this design caused),
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755583059" target="_blank" rel="noopener">CDP driver script</a> (checked, no change needed).
+            Left open: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755582979" target="_blank" rel="noopener">retrying a partially-applied commit</a>.</span>
+        </li>
+        <li>
+          <span class="who"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8191" target="_blank" rel="noopener">Devin</a> — re-review</span><span class="state">complete</span>
+          <span class="detail">~6 min, on <span class="numeral">bcab9a5</span>. One new flag, left open:
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755632892" target="_blank" rel="noopener">the overlay is created before the post-save navigation</a>.
+            Plus 6 informational items, two of which I checked and neither needs action. It also re-reported two already-fixed findings using its original pre-fix wording — see the session notes.</span>
+        </li>
+        <li>
+          <span class="who">CodeRabbit</span><span class="state na">not a reviewer here</span>
+          <span class="detail">Configured but switched off — <span class="numeral">.coderabbit.yml</span> sets <span class="numeral">auto_review.enabled: false</span> — and confirmed silent on PRs 8178, 8160 and 8155. Recorded rather than omitted so it's clear this wasn't skipped.</span>
+        </li>
+        <li>
+          <span class="who">CI</span><span class="state">complete</span>
+          <span class="detail"><span class="numeral">pr-automation</span> passed in 30 s. That is the only check GitHub sees on this repo — see the session notes.</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Session notes</h2>
+      <div class="notes-list">
+        <p><strong>The premise of this design was verified by reading, not by running.</strong> Everything here depends on a page save reloading only the inner <span class="numeral">page</span> frame and never the outer window. I checked that in the code: <span class="numeral">switchContentPage</span> sets <span class="numeral">iframe.src</span> on that frame alone, and the outer window's address only changes through <span class="numeral">history.replaceState</span>, which does not reload anything. It is also why the image-gallery and copyright dialogs already live in the outer window. That is a solid argument, but it is not the same as watching it work.</p>
+        <p><strong>Devin's second pass re-reported two findings it had already been shown were fixed</strong>, reusing its original text — still describing a helper as an arrow function when it is now a <span class="numeral">function</span>, and still saying no failure handler is supplied when one sits at <a href="https://github.com/BloomBooks/BloomDesktop/blob/bcab9a5bfb647b6c9af7994d6d702f90c0f256b3/src/BloomExe/web/controllers/AiImageEditorApi.cs#L298" target="_blank" rel="noopener">AiImageEditorApi.cs:298</a>. I checked both against the working tree rather than taking the re-report at face value, left those threads resolved, and noted the staleness in the log comment on the PR so it doesn't mislead a later reader.</p>
+        <p><strong>“CI green” is worth less on this repo than it sounds.</strong> <span class="numeral">pr-automation</span> — the workflow whose real job is to trigger Devin — is the only check reporting to the PR. TeamCity isn't wired into GitHub checks, so the actual test coverage for this branch is the two local suites in the gate table above, which is why both were run in full.</p>
+        <p><strong>Nothing was silently skipped.</strong> Both stacks in the repo had their full suites run, because the diff touches TypeScript and C#. The two AI-editor <span class="numeral">uitest</span> files were checked and need no change: they exercise the HTTP endpoints directly rather than the front-end, so moving code between frames doesn't affect them.</p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ============ RIGHT: decisions ============ -->
+  <div class="stack">
+
+    <section class="item" data-item="Which design to keep">
+      <h3>Which of the two designs do you want to keep?</h3>
+      <p class="src">The branch carries both. This is the decision the comparison was for.</p>
+      <p class="desc">Both designs fix the reported bug the same way — Bloom saves the page before opening the AI Image Tools, so a picture you have just added is actually there to edit. They differ in where the code that carries on after that save lives.</p>
+      <p class="desc">The first commit keeps the tools window inside the page area and adds a small general-purpose hook to Bloom's editing model so that something remembers, across the page reload, to open the window afterwards. The second moves the tools window out to Bloom's outer window, which is where the picture chooser and the copyright dialog already live for exactly this reason — and then the hook is unnecessary and gets removed. The second one also fixes a further bug on the way: replacing a picture twice without closing the tools used to fail the second time. Against that, it is a much larger change, and it is the one you have not yet seen running.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q1" data-q="Which design to keep" value="Keep the top-window design (this PR, both commits)" checked>
+          <span class="lbl">Keep the top-window design — this PR, both commits <em class="rec">recommended</em></span>
+          <span class="fx">No further code needed beyond one live run. Ends up with less machinery than the minimal fix (no addition to Bloom's editing model, no deferred-save workaround) and fixes the repeat-replacement bug too — recommended because the extra risk is concentrated in one thing you can check in a few minutes at the keyboard.</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" data-q="Which design to keep" value="Keep only the minimal fix (branch BL-16682, commit b7ca592); close PR 8191">
+          <span class="lbl">Keep only the minimal fix, and close this PR</span>
+          <span class="fx">Smallest change, and it is the one already confirmed working on your machine. Cost: keeps the addition to the editing model and the deferred save, and leaves the repeat-replacement bug in place.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q1" data-q="Which design to keep" value="Leave as is">
+          <span class="lbl">Leave as is</span>
+          <span class="lc"><input type="checkbox" data-q="Which design to keep — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" data-q="Which design to keep" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="Which design to keep — Other" placeholder="e.g. keep the split but put the hook back">
+        </label>
+      </div>
+      <textarea class="notes" data-q="Which design to keep — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item open" data-item="Live verification of the top-window variant">
+      <h3>How should the top-window version get its live check?</h3>
+      <p class="src">Open thread — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755632892" target="_blank" rel="noopener">Devin flagged this too</a></p>
+      <p class="desc">One step in this design has no automated coverage at all: Bloom's C# side reaching into the browser to open the tools window at the moment a page save has just finished and the page is about to reload. Unit tests can't exercise it, and neither can the existing end-to-end tests, which talk to Bloom's web endpoints rather than driving the actual menu. If that call were wrong, the symptom would be obvious and harmless — you choose “Edit with AI…”, the page redraws, and no window appears.</p>
+      <p class="desc">You confirmed the other design working live earlier; this one has not been run. A Bloom belonging to a different worktree was holding the collection for the whole of this session, which is why I couldn't do it.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q2" data-q="Live verification of the top-window variant" value="I'll run it live myself before merging" checked>
+          <span class="lbl">You run it yourself before merging <em class="rec">recommended</em></span>
+          <span class="fx">A couple of minutes: add a picture, choose “Edit with AI…”, confirm the picture appears in the “Image to Edit” box, replace it twice without closing the window. Recommended because you are already set up for it and just did the equivalent check on the other design.</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" data-q="Live verification of the top-window variant" value="Have the agent drive it over CDP once Bloom is free">
+          <span class="lbl">I drive it over CDP once no other Bloom holds the collection</span>
+          <span class="fx">~10 minutes, no product code. The <span class="numeral">driveAiImageEditor.mjs</span> helper already covers this exact flow with a free no-AI model, so it needs no new test written.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q2" data-q="Live verification of the top-window variant" value="Leave as is">
+          <span class="lbl">Leave as is</span>
+          <span class="lc"><input type="checkbox" data-q="Live verification of the top-window variant — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" data-q="Live verification of the top-window variant" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="Live verification of the top-window variant — Other" placeholder="e.g. leave it for QA with the test notes on the card">
+        </label>
+      </div>
+      <textarea class="notes" data-q="Live verification of the top-window variant — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item open" data-item="Retrying a partially-applied commit">
+      <h3>What should happen when someone retries a picture replacement that only partly worked?</h3>
+      <p class="src">Open thread — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8191#discussion_r3755582979" target="_blank" rel="noopener">raised by Devin</a></p>
+      <p class="desc">When the user tells the AI tools to put results into the book, Bloom does the pictures on other pages itself and saves them straight away, and hands the ones on the page currently being edited back to the browser to apply. If that second part fails, the user is told the operation didn't fully succeed — but the other pages have already been changed and saved. If they then simply try again, Bloom redoes those other pages, this time against pictures that have already been replaced, so it fails again and leaves behind unused image files in the book folder.</p>
+      <p class="desc">This is not new to this branch and it isn't a defect in the diff — it is a gap in the agreement between Bloom and the separate AI tools app about what a retry means. I've already made the message honest about which pages were saved, which is what stops someone retrying blindly, and that is why leaving the rest alone is the recommendation: a proper fix means changing the exchange between the two apps, which is a different piece of work with its own card.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q3" data-q="Retrying a partially-applied commit" value="Tell the AI tools which slots already landed so a retry can skip them">
+          <span class="lbl">Tell the tools which pictures already landed, so a retry skips them</span>
+          <span class="fx">Moderate — changes the reply Bloom sends on a commit and needs a matching change in the separate <span class="numeral">bloom-ai-image-tools</span> app, so two repos and a version dependency.</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" data-q="Retrying a partially-applied commit" value="Make Bloom refuse a retry that names already-replaced pictures">
+          <span class="lbl">Have Bloom refuse a retry that names already-replaced pictures</span>
+          <span class="fx">~20 lines, Bloom only, no coordination with the other app. But the user then meets a flat refusal instead of a working retry, so it trades one rough edge for another.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q3" data-q="Retrying a partially-applied commit" value="Leave as is" checked>
+          <span class="lbl">Leave as is <em class="rec">recommended</em></span>
+          <span class="lc"><input type="checkbox" data-q="Retrying a partially-applied commit — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" data-q="Retrying a partially-applied commit" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="Retrying a partially-applied commit — Other" placeholder="e.g. file a card for the two-app fix">
+        </label>
+      </div>
+      <textarea class="notes" data-q="Retrying a partially-applied commit — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item" data-item="FYI — GitHub sees only one check on this repo">
+      <h3>For information: GitHub sees only one check on this repo</h3>
+      <p class="src">Not about this branch — it affects how much any preflight's “CI green” means</p>
+      <p class="desc">The only check reporting to a BloomDesktop pull request is <span class="numeral">pr-automation</span>, whose actual job is to kick off the Devin review. TeamCity's builds and tests aren't wired into GitHub's checks, so a pull request can look entirely green while nothing has compiled or tested it on a build machine. On this branch that gap is covered, because both full local suites were run — but it will quietly mislead anyone reading a green tick on any PR here.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q4" data-q="FYI — GitHub sees only one check on this repo" value="File a card to report TeamCity results into GitHub PR checks">
+          <span class="lbl">File a card to report TeamCity results into GitHub checks</span>
+          <span class="fx">No product code — a tracker card plus TeamCity/GitHub configuration, done once for the whole repo.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q4" data-q="FYI — GitHub sees only one check on this repo" value="Leave as is" checked>
+          <span class="lbl">Leave as is <em class="rec">recommended</em></span>
+          <span class="lc"><input type="checkbox" data-q="FYI — GitHub sees only one check on this repo — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q4" data-q="FYI — GitHub sees only one check on this repo" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="FYI — GitHub sees only one check on this repo — Other" placeholder="">
+        </label>
+      </div>
+      <textarea class="notes" data-q="FYI — GitHub sees only one check on this repo — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item" data-item="FYI — Devin re-reported fixed findings with stale text">
+      <h3>For information: Devin re-reported fixed findings using its old text</h3>
+      <p class="desc">After the fixes were pushed, Devin's second look repeated two of its earlier findings word-for-word, including details that were no longer true — describing a helper as an arrow function when it had been converted, and saying no failure handler was supplied when one had just been added. Taken at face value that would have sent me round in a circle re-fixing done work, or worse, re-posting settled findings onto the pull request. I checked both against the code instead and left the threads resolved.</p>
+      <p class="desc">Worth knowing because the review skill currently treats a re-review's findings as describing current code. Leaving it alone is reasonable — it cost one verification step here — but a note in the skill would save the next person the same double-take.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q5" data-q="FYI — Devin re-reported fixed findings with stale text" value="Add a note about re-review staleness to the devin-review skill">
+          <span class="lbl">Add a note about re-review staleness to the <span class="numeral">devin-review</span> skill</span>
+          <span class="fx">No product code — a short paragraph in the shared skill, in the bloom-team-skills repo.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q5" data-q="FYI — Devin re-reported fixed findings with stale text" value="Leave as is" checked>
+          <span class="lbl">Leave as is <em class="rec">recommended</em></span>
+          <span class="lc"><input type="checkbox" data-q="FYI — Devin re-reported fixed findings with stale text — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q5" data-q="FYI — Devin re-reported fixed findings with stale text" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="FYI — Devin re-reported fixed findings with stale text — Other" placeholder="">
+        </label>
+      </div>
+      <textarea class="notes" data-q="FYI — Devin re-reported fixed findings with stale text — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item" data-item="Next step">
+      <h3>Next step</h3>
+      <p class="desc">Once you've answered the above, should I act on the answers straight away, or talk them through with you first?</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q6" data-q="Next step" value="Implement my choices now">
+          <span class="lbl">Implement my choices now</span>
+          <span class="fx">I carry out whatever you picked, and re-run the gauntlet on any new commit.</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q6" data-q="Next step" value="Discuss first" checked>
+          <span class="lbl">Discuss first <em class="rec">recommended</em></span>
+          <span class="fx">Recommended because the first question decides which of two architectures the feature keeps, which is worth a conversation rather than a checkbox.</span>
+        </label>
+        <label class="opt leave">
+          <input type="radio" name="q6" data-q="Next step" value="Leave as is">
+          <span class="lbl">Leave as is</span>
+          <span class="lc"><input type="checkbox" data-q="Next step — Leave comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q6" data-q="Next step" value="Other:">
+          <span class="lbl">Other:</span>
+          <input class="other" type="text" data-q="Next step — Other" placeholder="">
+        </label>
+      </div>
+      <textarea class="notes" data-q="Next step — notes" placeholder="Notes (optional)"></textarea>
+    </section>
+
+    <section class="item sendback">
+      <h3>Send your answers back</h3>
+      <p class="desc">Copies your answers as plain text — paste it into the session.</p>
+      <button class="btn" id="copyBtn" type="button">Copy my answers</button><span class="ok" id="okMsg" hidden>Copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to copy"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var HEADER = [
+    "Preflight answers — BL-16682-top-window-overlay (PR 8191)",
+    "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16682-top-window-overlay.html",
+    ""
+  ].join("\n");
+
+  function serialize() {
+    var out = [HEADER];
+    var items = document.querySelectorAll("section.item[data-item]");
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var label = item.getAttribute("data-item");
+      var lines = [];
+      var chosen = item.querySelector("input[type=radio]:checked");
+      if (chosen) {
+        var value = chosen.value;
+        if (value === "Other:") {
+          var other = item.querySelector("input.other");
+          var typed = other && other.value.trim();
+          value = typed ? "Other: " + typed : "Other: (nothing typed)";
+        }
+        lines.push("  Answer: " + value);
+        if (value === "Leave as is") {
+          var lc = item.querySelector(".opt.leave input[type=checkbox]");
+          if (lc && lc.checked) {
+            lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+          }
+        }
+      }
+      var notes = item.querySelector("textarea.notes");
+      if (notes && notes.value.trim()) {
+        lines.push("  Notes: " + notes.value.trim().replace(/\n/g, "\n         "));
+      }
+      if (lines.length) {
+        out.push(label);
+        out.push(lines.join("\n"));
+        out.push("");
+      }
+    }
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  var okMsg = document.getElementById("okMsg");
+
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    refresh();
+    function done() {
+      okMsg.hidden = false;
+      window.setTimeout(function () { okMsg.hidden = true; }, 2400);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
