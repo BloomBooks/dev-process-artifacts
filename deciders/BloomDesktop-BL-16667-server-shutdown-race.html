@@ -86,12 +86,13 @@
 
 <h1>Preflight — BL-16667, the BloomServer shutdown race</h1>
 <p class="lede">
-  Everything below has already been done. The right-hand column is the part that needs you: three
-  things worth a decision, none of them blocking. PR
+  Second run, after your decisions came back. Everything below has already been done, and
+  nothing is left for you: the one open question &mdash; an unexplained red test run &mdash; has been
+  hunted down, named and fixed. PR
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8192" target="_blank" rel="noopener">#8192</a>
   (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8192/files" target="_blank" rel="noopener">files changed</a>,
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8192/commits" target="_blank" rel="noopener">commits</a>)
-  is still a <strong>draft</strong>, at <code>bdd087735d</code>, and merges cleanly into master.
+  is still a <strong>draft</strong>, at <code>fd62e496da</code>, and merges cleanly into master.
 </p>
 
 <div class="grid">
@@ -106,7 +107,7 @@
       <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
       <tbody>
         <tr><td>C# build</td><td class="pass">pass</td><td><span class="numeral">0 errors</span>; no new warnings from the changed files</td></tr>
-        <tr><td>C# tests (<code>dotnet test</code>)</td><td class="pass">pass</td><td><span class="numeral">3072 passed · 13 skipped · 3085 total</span>. See the note on the intermittent failure in the decisions column.</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td class="pass">pass</td><td><span class="numeral">3072 passed · 13 skipped · 3085 total</span>. Run <span class="numeral">22</span> times end to end across the two preflight runs. Two failures, both the same flake, now identified and fixed.</td></tr>
         <tr><td>TypeScript typecheck</td><td class="note">not run</td><td>No front-end files in the diff. The pre-commit hook did run it over the merge commit's staged files and passed.</td></tr>
         <tr><td>TypeScript lint (eslint)</td><td class="note">not run</td><td>Same reason; the pre-commit hook ran eslint on the merge commit's staged files and passed.</td></tr>
         <tr><td>TypeScript tests (vitest)</td><td class="note">not run</td><td>Nothing in the diff the front-end builds or reads &mdash; it is C#, build scripts and docs only.</td></tr>
@@ -147,6 +148,10 @@
           <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/bdd087735de0cca44de197c9c3291e1509996e86" target="_blank" rel="noopener"><code>bdd087735d</code></a></td>
           <td>Devin: one crash phrase was written in the wrong capitalisation, so after the case fix it could never match.</td>
         </tr>
+        <tr>
+          <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/fd62e496da84038b864dd65c464094cd394dbec4" target="_blank" rel="noopener"><code>fd62e496da</code></a></td>
+          <td>The flake hunt you asked for: stops <code>NoErrorForEmptyAudio</code> failing whenever the test host&rsquo;s process id happens to contain &quot;17&quot;.</td>
+        </tr>
       </tbody>
     </table>
     </div>
@@ -162,16 +167,16 @@
       process. Bloom now issues the same asynchronous write &mdash; same I/O completion port, same
       thread, no change to when the data goes out &mdash; but supplies the completion itself, in the
       new
-      <a href="https://github.com/BloomBooks/BloomDesktop/blob/bdd087735de0cca44de197c9c3291e1509996e86/src/BloomExe/web/PendingResponseWrites.cs" target="_blank" rel="noopener">PendingResponseWrites</a>.
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/fd62e496da84038b864dd65c464094cd394dbec4/src/BloomExe/web/PendingResponseWrites.cs" target="_blank" rel="noopener">PendingResponseWrites</a>.
       Owning that last step means a failure at the end of a send is ours to swallow, and that
-      <a href="https://github.com/BloomBooks/BloomDesktop/blob/bdd087735de0cca44de197c9c3291e1509996e86/src/BloomExe/web/BloomServer.cs#L2884" target="_blank" rel="noopener">shutdown can wait</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/fd62e496da84038b864dd65c464094cd394dbec4/src/BloomExe/web/BloomServer.cs#L2884" target="_blank" rel="noopener">shutdown can wait</a>
       for sends still in flight. Three other things in the same area that could also kill the
       process &mdash; a <code>Debug.Fail</code>, an unguarded I/O callback, and a
       <code>Debug.Assert</code> &mdash; are fixed too.
     </p>
     <p>
       The bug is reproduced <strong>deterministically</strong> by
-      <a href="https://github.com/BloomBooks/BloomDesktop/blob/bdd087735de0cca44de197c9c3291e1509996e86/src/BloomTests/web/ServeFileAndShutDownTests.cs#L136" target="_blank" rel="noopener">a new test</a>:
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/fd62e496da84038b864dd65c464094cd394dbec4/src/BloomTests/web/ServeFileAndShutDownTests.cs#L136" target="_blank" rel="noopener">a new test</a>:
       with the old call restored it kills the test host with exactly the stack from the card, and
       the new wrapper reports that run as aborted. It passes with the fix.
     </p>
@@ -191,17 +196,17 @@
         <tr>
           <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8192" target="_blank" rel="noopener">Devin</a></td>
           <td class="pass">complete</td>
-          <td>Three rounds, each re-run after fixes; the last is clean. 4 bugs raised, all fixed and all now marked resolved by Devin; 2 Investigate flags assessed as needing no change, each with the reasoning written on its thread; 13 informational items not mirrored. Every thread is replied-to and resolved.</td>
+          <td>Four rounds, each re-run after fixes; the last two are clean. 4 bugs raised, all fixed and all now marked resolved by Devin; 2 Investigate flags assessed as needing no change, each with the reasoning written on its thread; 13 informational items not mirrored. Every thread is replied-to and resolved.</td>
         </tr>
         <tr>
           <td>CodeRabbit</td>
-          <td class="note">did not run</td>
-          <td>A <code>.coderabbit.yml</code> exists in the repo, but it has posted nothing here and nothing on the last several PRs either. See the decision on the right.</td>
+          <td class="note">not expected</td>
+          <td>Expected, and not waited for: the team&rsquo;s free monthly allowance is used up. Recorded so future runs stop raising it.</td>
         </tr>
         <tr>
           <td>CI (<code>pr-automation</code>)</td>
           <td class="pass">complete</td>
-          <td>Green at <code>bdd087735d</code>. It is the only check GitHub reports on this repo.</td>
+          <td>Green at <code>fd62e496da</code>. It is the only check GitHub reports on this repo.</td>
         </tr>
       </tbody>
     </table>
@@ -211,11 +216,11 @@
   <div class="card">
     <h2>Session notes</h2>
     <ul>
-      <li>The full C# suite was run <strong>eleven times end to end</strong> across the session. Ten completed clean; one reported a single failure whose identity was lost to a truncated log &mdash; see the first decision on the right.</li>
-      <li>Every server fixture in the repo was then run <strong>15 times in a row</strong> with no failure, which makes the new tests an unlikely culprit but does not clear them.</li>
+      <li>The full C# suite has now been run <strong>22 times end to end</strong> across the two preflight runs. Exactly two failed, both the same test, and it is fixed &mdash; see the panel on the right.</li>
+      <li>Every server fixture in the repo was also run <strong>15 times in a row</strong> with no failure, which is what first pointed the search away from this branch&rsquo;s new tests.</li>
       <li>The PR link and a QA test-ideas comment were posted to the card. The test-ideas note is aimed at the two things a tester can actually check: that everything in a book still loads and plays, and that Bloom still quits promptly and cleanly.</li>
       <li>A <code>PAPERCUTS.md</code> entry &mdash; the wrapper reporting a failing suite as a success &mdash; is fixed by this change, so it was deleted per that file's house rules.</li>
-      <li><code>chrome-devtools</code> would not start on this machine, so the usual visual check of this very page could not be run. That is the third decision on the right.</li>
+      <li><code>chrome-devtools</code> was updated to 1.7.0 and now works, so this page was checked in a real browser: no sideways scroll at 1440px or 620px, and the copy-back verified control by control.</li>
     </ul>
   </div>
 
@@ -225,107 +230,74 @@
 <div>
 
   <div class="card item">
-    <h3>1. One unexplained test failure, in eleven full runs</h3>
+    <h3>The unexplained red run: found, named, fixed</h3>
     <p>
-      The C# suite was run eleven times end to end during this session. Ten were completely clean.
-      One reported <span class="numeral">1 failed, 3071 passed, 3085 total</span> &mdash; and the
-      name of the failing test was lost, because that run's output was piped through
-      <code>tail</code> and only the last three lines survived.
+      You asked for ten more full runs with all output saved. The eighth failed, and the test was
+      <code>SpreadsheetAudioImportTests.NoErrorForEmptyAudio</code>. It has nothing to do with this
+      branch.
     </p>
     <p>
-      Re-running the same commit immediately afterwards was clean, four further full runs after that were clean, and running every server fixture in the repo fifteen times in a row was clean. So the new tests are not the obvious culprit,
-      but nothing here proves they are innocent either &mdash; and this repo has a documented history
-      of intermittent failures under load that turned out to be shared-scratch-folder collisions
-      (BL-16661, BL-16664). What is uncomfortable is precisely that a preflight found a red run it
-      cannot name.
+      The test covers a spreadsheet row for page 17 that deliberately has no audio, and checks that
+      no error was reported about it. But it was written as "no error message contains
+      <code>17</code> anywhere", and the error messages for the <em>other</em> pages quote full file
+      paths. Since BL-16664 every temp path contains this process's id &mdash; so any test host whose
+      process id happens to contain "17" fails the test. In that run the process id was
+      <span class="numeral">178640</span>.
     </p>
-    <div data-q="Unexplained one-off test failure">
-      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Keep hunting until it is named" checked><span class="body"><strong>Keep hunting until it is named</strong><span class="tag">recommended</span><span class="cost">Loop the full suite with full output captured until it reproduces, then name the test and judge it. Recommended because an unnamed red run is exactly the thing this card is about &mdash; a test run that stops being trustworthy &mdash; and because the fix's own new tests cannot be ruled out. Cost is machine time, roughly five minutes per attempt, and it may take many attempts.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Treat as pre-existing flake and move on"><span class="body"><strong>Treat it as a pre-existing flake and move on</strong><span class="cost">No code change. Reasonable if you already recognise the pattern from before this branch; the risk is shipping a branch that made an existing flake more likely without anyone noticing.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Leave as is"><span class="body"><strong>Leave as is</strong></span><span class="leaveComment"><label><input type="checkbox" data-q="Unexplained one-off test failure — leave comment"> Leave comment</label></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="Unexplained one-off test failure — other" placeholder="something else"></span></span></label>
-      <div class="notes"><label>Notes</label><textarea data-q="Unexplained one-off test failure — notes"></textarea></div>
-    </div>
+    <p>
+      That is roughly one run in ten, and it presents exactly as the thing that had us puzzled: a
+      single red run naming a test unrelated to whatever branch you are on, which passes when you
+      re-run it. It also retroactively explains the first unexplained failure earlier in the day.
+      The assertion now says <code>page 17</code>, which is what it always meant and which a file
+      path cannot trip. Checked against the exact error list from the failing run: the old pattern
+      matches it, the new one does not, and the new one still catches a genuine page-17 error.
+    </p>
+    <p class="meta">
+      Fixed in
+      <a href="https://github.com/BloomBooks/BloomDesktop/commit/fd62e496da84038b864dd65c464094cd394dbec4" target="_blank" rel="noopener"><code>fd62e496da</code></a>.
+      Not caused by this branch &mdash; BL-16664 is already on master &mdash; but this is where it
+      surfaced, and a known one-in-ten flake would undermine the very thing this card is about.
+    </p>
   </div>
 
   <div class="card item">
-    <h3>2. CodeRabbit is configured here but never speaks</h3>
-    <p>
-      The repository contains a <code>.coderabbit.yml</code>, which normally means CodeRabbit
-      reviews every pull request and posts its comments on GitHub. It posted nothing on this PR, and
-      nothing on any of the last several PRs in this repo either &mdash; only humans have commented on
-      those. So either it was turned off at some point and the config file was left behind, or its
-      GitHub app has lost access.
-    </p>
-    <p>
-      Nothing about this branch depends on the answer. It matters because preflight reports
-      CodeRabbit as a reviewer that "did not run", and if it is genuinely gone, that row is noise on
-      every future run; if it is meant to be running, we have been missing a reviewer for a while.
-    </p>
-    <div data-q="CodeRabbit configured but silent">
-      <label class="opt"><span class="optrow"><input type="radio" name="q2" value="Find out which it is" checked><span class="body"><strong>Find out which it is, then either fix it or delete the config</strong><span class="tag">recommended</span><span class="cost">A few minutes in the repo's GitHub app settings. Recommended because the current state is the worst of both: no reviews, and a file that says there should be. No code change either way beyond possibly deleting one file.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q2" value="Delete the config file"><span class="body"><strong>Just delete <code>.coderabbit.yml</code></strong><span class="cost">One file removed, no risk &mdash; but only correct if you already know CodeRabbit was deliberately dropped.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q2" value="Leave as is"><span class="body"><strong>Leave as is</strong></span><span class="leaveComment"><label><input type="checkbox" data-q="CodeRabbit configured but silent — leave comment"> Leave comment</label></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q2" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="CodeRabbit configured but silent — other" placeholder="something else"></span></span></label>
-      <div class="notes"><label>Notes</label><textarea data-q="CodeRabbit configured but silent — notes"></textarea></div>
-    </div>
-  </div>
-
-  <div class="card item">
-    <h3>3. The browser automation tool will not start on this machine</h3>
-    <p>
-      <code>chrome-devtools</code> reports "daemon is not running" and will not come up, however it
-      is started or restarted, with no error message to go on. It offers an update from 1.5.0.
-    </p>
-    <p>
-      Two consequences. This report page could not be opened and looked at before publishing, which
-      is normally part of making one &mdash; so if a column is in the wrong place or a control does not
-      work, that is why. And it blocks anything that drives the running Bloom over the browser
-      protocol: taking screenshots, inspecting the DOM, the <code>run-bloom</code> skill. Devin was
-      not affected, because its data turned out to be reachable with a plain web request instead.
-    </p>
-    <div data-q="chrome-devtools will not start">
-      <label class="opt"><span class="optrow"><input type="radio" name="q3" value="Update the global package" checked><span class="body"><strong>Update the globally installed package</strong><span class="tag">recommended</span><span class="cost">One command (<code>npm install -g chrome-devtools-mcp@latest</code>), a minute. Recommended because a broken 1.5.0 daemon with a newer version available is the likeliest explanation. Not done unprompted, because it changes a tool installed machine-wide that other sessions may be using right now.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q3" value="Investigate before changing anything"><span class="body"><strong>Investigate before changing anything</strong><span class="cost">Slower, but tells you whether this is the package, a stale daemon, or something about Chrome itself &mdash; worth it if it has been failing for a while.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q3" value="Leave as is"><span class="body"><strong>Leave as is</strong></span><span class="leaveComment"><label><input type="checkbox" data-q="chrome-devtools will not start — leave comment"> Leave comment</label></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q3" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="chrome-devtools will not start — other" placeholder="something else"></span></span></label>
-      <div class="notes"><label>Notes</label><textarea data-q="chrome-devtools will not start — notes"></textarea></div>
-    </div>
-  </div>
-
-  <div class="card item">
-    <h3>FYI: a trade-off accepted on your behalf</h3>
-    <p>
-      The two wrapper scripts now strip the indentation off each line of test output before looking
-      for crash phrases. That was necessary &mdash; the two scripts genuinely disagreed about
-      tab-indented lines &mdash; but Devin pointed out it also means a test's own indented output
-      could trip a crash phrase and produce a false "run aborted" on a run that actually finished.
-    </p>
-    <p>
-      This was assessed as acceptable and the thread closed with that reasoning: the patterns always
-      allowed indentation, so nothing new was opened up; being wrong in that direction is the safe
-      one; and the verdict prints the exact line it matched, so a false alarm takes one look to
-      diagnose. Flagged here in case you would rather it were tighter.
-    </p>
-    <div data-q="FYI: indentation trimming trade-off">
-      <label class="opt"><span class="optrow"><input type="radio" name="q4" value="Leave as is" checked><span class="body"><strong>Leave as is</strong><span class="tag">recommended</span></span><span class="leaveComment"><label><input type="checkbox" data-q="FYI: indentation trimming trade-off — leave comment"> Leave comment</label></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q4" value="Tighten the phrases so a false alarm is less likely"><span class="body"><strong>Tighten the phrases so a false alarm is less likely</strong><span class="cost">Small &mdash; a few lines in the marker file, e.g. requiring more of the surrounding wording. Low risk, but each phrase made stricter is one that can also miss a real crash.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q4" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="FYI: indentation trimming trade-off — other" placeholder="something else"></span></span></label>
-      <div class="notes"><label>Notes</label><textarea data-q="FYI: indentation trimming trade-off — notes"></textarea></div>
-    </div>
+    <h3>Your other decisions</h3>
+    <ul>
+      <li>
+        <strong>CodeRabbit &mdash; left as is.</strong> Your note (the free monthly allowance is
+        used up; let it run when it can, but never wait for it) is recorded so future runs report
+        its silence as expected rather than raising it as a problem again, and do not propose
+        deleting the config.
+      </li>
+      <li>
+        <strong><code>chrome-devtools</code> &mdash; updated.</strong>
+        <code>npm install -g chrome-devtools-mcp@latest</code> took it from 1.5.0 to 1.7.0 and the
+        daemon now starts. This report was checked in a real browser as a result: no sideways scroll
+        at either width, both columns present, and the copy-back verified control by control. It
+        also found a stale number in a heading, now corrected.
+      </li>
+      <li>
+        <strong>The indentation trade-off &mdash; left as is.</strong> Your decision is recorded as a
+        reply on the Devin thread it came from, so the reasoning sits with the finding rather than
+        only in this report.
+      </li>
+    </ul>
   </div>
 
   <div class="card item">
     <h3>Next step</h3>
     <p>
-      The PR is a clean draft: everything green, every reviewer finished, every thread closed. What
-      would you like to happen with the decisions above?
+      Nothing is waiting on you. The PR is a clean draft at
+      <code>fd62e496da</code>: every check green, every reviewer finished, every thread closed, and
+      the one loose end from the last run resolved. The normal next move is your own read-through
+      of the diff, then <code>pr-ready-for-human</code> to hand it to a colleague &mdash; neither of
+      which this run does for you.
     </p>
     <div data-q="Next step">
-      <label class="opt"><span class="optrow"><input type="radio" name="q5" value="Implement the chosen options, then re-run preflight" checked><span class="body"><strong>Implement whatever you chose above, then re-run preflight</strong><span class="tag">recommended</span><span class="cost">Recommended because none of the three needs a conversation first &mdash; they are each a small, self-contained job.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q5" value="Discuss first"><span class="body"><strong>Talk it through first</strong><span class="cost">Nothing changes until we have talked.</span></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q5" value="Leave as is"><span class="body"><strong>Leave as is</strong></span><span class="leaveComment"><label><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label></span></span></label>
-      <label class="opt"><span class="optrow"><input type="radio" name="q5" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="Next step — other" placeholder="something else"></span></span></label>
+      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="I will review it myself, then promote it" checked><span class="body"><strong>I&rsquo;ll read the diff myself, then promote it</strong><span class="tag">recommended</span><span class="cost">The intended path: this run has taken it as far as automation should, and a human read of the diff is the step it cannot do.</span></span></span></label>
+      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Something still needs work"><span class="body"><strong>Something in here still needs work</strong><span class="cost">Say what in the notes and it gets picked up before the PR goes any further.</span></span></span></label>
+      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Leave as is"><span class="body"><strong>Leave as is</strong></span><span class="leaveComment"><label><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label></span></span></label>
+      <label class="opt"><span class="optrow"><input type="radio" name="q1" value="Other"><span class="body"><strong>Other:</strong><input type="text" data-q="Next step — other" placeholder="something else"></span></span></label>
       <div class="notes"><label>Notes</label><textarea data-q="Next step — notes"></textarea></div>
     </div>
   </div>
@@ -344,7 +316,7 @@
 <script>
 (function () {
   function build() {
-    var out = ['Preflight answers — BL-16667 (PR #8192, bdd087735d)', ''];
+    var out = ['Preflight answers — BL-16667 (PR #8192, fd62e496da)', ''];
     document.querySelectorAll('.card.item > div[data-q]').forEach(function (block) {
       var title = block.getAttribute('data-q');
       var radios = block.querySelectorAll('input[type=radio]');
