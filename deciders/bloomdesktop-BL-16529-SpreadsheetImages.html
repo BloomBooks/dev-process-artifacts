@@ -1,0 +1,683 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16529 spreadsheet image resolution (PR #8197)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, h1, h2, h3, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  li { list-style: none; }
+
+  :root {
+    --ground: #faf8f5;
+    --card: #ffffff;
+    --line: #e6e0d8;
+    --line-soft: #f0ebe4;
+    --ink: #2a2724;
+    --muted: #6f6862;
+    --accent: #1f6f6b;
+    --accent-soft: #eaf2f1;
+    --pass: #2f7d4f;
+    --pass-soft: #eaf4ee;
+    --warn: #9a6b17;
+    --warn-soft: #faf1e0;
+    --skip: #6f6862;
+    --skip-soft: #f2efea;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 40px 28px 72px; }
+
+  /* ---------- header ---------- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 32px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(26px, 3.4vw, 38px);
+    line-height: 1.15;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    max-width: 30ch;
+  }
+  .masthead .sub { color: var(--muted); margin-top: 10px; font-size: 15px; max-width: 68ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 26px; margin-top: 18px; font-size: 13.5px; }
+  .facts div { color: var(--muted); }
+  .facts b { color: var(--ink); font-weight: 600; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.94em; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px;
+  }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 30px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px 24px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .card > .lede { color: var(--muted); font-size: 13.5px; margin-bottom: 16px; }
+
+  /* ---------- tables ---------- */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px 10px 0; vertical-align: top; border-bottom: 1px solid var(--line-soft); }
+  th {
+    font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; width: 30%; }
+  td.detail { color: var(--muted); }
+
+  .chip {
+    display: inline-block; white-space: nowrap;
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 3px;
+  }
+  .chip.pass { background: var(--pass-soft); color: var(--pass); }
+  .chip.skip { background: var(--skip-soft); color: var(--skip); }
+  .chip.note { background: var(--warn-soft); color: var(--warn); }
+  .chip.done { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- reviewer rows ---------- */
+  .rev { display: flex; flex-direction: column; gap: 0; }
+  .rev li { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; padding: 13px 0; border-bottom: 1px solid var(--line-soft); }
+  .rev li:last-child { border-bottom: none; }
+  .rev .who { font-weight: 600; grid-column: 1; }
+  .rev .state { grid-column: 2; justify-self: start; }
+  .rev .say { grid-column: 1 / -1; color: var(--muted); font-size: 13.5px; }
+
+  /* ---------- commits / notes ---------- */
+  .commits li { padding: 11px 0; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+  .commits li:last-child { border-bottom: none; }
+  .commits .msg { font-weight: 600; }
+  .commits .meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  .notes-list li { padding-left: 18px; position: relative; margin-bottom: 11px; color: var(--ink); font-size: 14px; }
+  .notes-list li:last-child { margin-bottom: 0; }
+  .notes-list li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em;
+    width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  }
+
+  code {
+    font-family: var(--mono); font-size: 0.9em;
+    background: var(--skip-soft); padding: 1px 4px; border-radius: 3px;
+  }
+
+  /* ---------- decisions ---------- */
+  .item + .item { margin-top: 0; }
+  .kind {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 5px;
+  }
+  .kind.fyi { color: var(--muted); }
+  .item h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; line-height: 1.3; margin-bottom: 8px; text-wrap: balance; }
+  .item p { color: var(--ink); font-size: 14px; margin-bottom: 9px; }
+  .item p:last-of-type { margin-bottom: 14px; }
+
+  .choices { display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px; }
+  .choice {
+    display: flex; align-items: flex-start; gap: 9px;
+    padding: 9px 10px; border: 1px solid transparent; border-radius: 4px;
+  }
+  .choice:hover { background: var(--ground); }
+  .choice.sel { border-color: var(--line); background: var(--ground); }
+  .choice > label { display: flex; align-items: flex-start; gap: 9px; flex: 1 1 auto; min-width: 0; cursor: pointer; }
+  .choice input[type="radio"] { margin: 4px 0 0; flex: none; accent-color: var(--accent); }
+  .ctext { font-size: 14px; }
+  .fx { color: var(--muted); font-style: normal; font-size: 13px; }
+  .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+    padding: 1px 6px; border-radius: 3px; margin-left: 4px; white-space: nowrap;
+  }
+  .lc { flex: none; display: flex; align-items: center; }
+  .lc label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .lc input { accent-color: var(--accent); }
+  .otherbox {
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 3px; padding: 3px 7px;
+    background: var(--card); min-width: 0; width: 100%; max-width: 320px; margin-top: 4px;
+  }
+  .notes {
+    display: block; width: 100%; font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 3px; padding: 8px 10px;
+    background: var(--card); resize: vertical; min-height: 46px; line-height: 1.5;
+  }
+  .notes::placeholder, .otherbox::placeholder { color: #a49b93; }
+
+  /* ---------- copy-back ---------- */
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    color: #fff; background: var(--accent); border: none; border-radius: 4px;
+    padding: 9px 18px; cursor: pointer;
+  }
+  button:hover { background: #185955; }
+  .copied { color: var(--pass); font-size: 13px; font-weight: 600; margin-left: 12px; }
+  #payload {
+    display: block; width: 100%; margin-top: 14px; min-height: 150px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.55; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 3px; padding: 10px; background: var(--ground);
+    resize: vertical; white-space: pre;
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Spreadsheet export no longer depends on the exporting machine's display</h1>
+    <p class="sub">Preflight report for <b>BL-16529</b>. The branch is committed, integrated with
+    <code>master</code>, pushed, and open as a draft PR. Every reviewer has finished. One decision and
+    three notices are waiting on you.</p>
+    <div class="facts">
+      <div><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8197" target="_blank" rel="noopener">#8197 (draft)</a></div>
+      <div><b>Branch</b> <span class="numeral">BL-16529-SpreadsheetImages</span></div>
+      <div><b>HEAD</b> <a href="https://github.com/BloomBooks/BloomDesktop/commit/77f3bb53e1a38de95ec03aaf809300d98e5d4101" target="_blank" rel="noopener"><span class="numeral">77f3bb5</span></a></div>
+      <div><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16529" target="_blank" rel="noopener">BL-16529</a></div>
+      <div><b>Links</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8197/files" target="_blank" rel="noopener">Files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8197/commits" target="_blank" rel="noopener">Commits</a></div>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT: the run ================= -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>What this change does</h2>
+        <p class="lede">Context for anyone reading this cold.</p>
+        <p style="font-size:14px; margin-bottom:10px;">Exporting a book to a spreadsheet embeds a small
+        preview of each picture. Bloom builds that preview by asking Windows for a blank image to draw
+        into, and Windows stamps every such image with <em>the current screen's</em> resolution. Since
+        Bloom started declaring itself
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/77f3bb53e1a38de95ec03aaf809300d98e5d4101/src/BloomExe/Program.cs#L153" target="_blank" rel="noopener">PerMonitorV2 DPI aware</a>,
+        that stamp is 192 on a 200%-scaled display instead of 96. The spreadsheet library sizes a picture
+        by dividing its pixel count by its own claimed resolution, so a preview claiming 192 was laid out
+        at <em>half</em> the intended size — the reported "images only take up half the column width".</p>
+        <p style="font-size:14px; margin-bottom:10px;">This was measured, not guessed. The three exports
+        of the same book attached to the card show a picture identical in pixels but differing in claimed
+        resolution, and the extent follows the arithmetic exactly:</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Export</th><th>Preview pixels</th><th>Claimed dpi</th><th>Laid out over</th></tr></thead>
+            <tbody>
+              <tr><td class="what">6.4 at 100%</td><td><span class="numeral">150 &times; 104</span></td><td><span class="numeral">96</span></td><td><span class="numeral">150 px</span> <span class="chip pass">right</span></td></tr>
+              <tr><td class="what">6.5 at 100%</td><td><span class="numeral">150 &times; 104</span></td><td><span class="numeral">192</span></td><td><span class="numeral">75 px</span> <span class="chip note">half</span></td></tr>
+              <tr><td class="what">6.5 at 200%</td><td><span class="numeral">300 &times; 208</span></td><td><span class="numeral">192</span></td><td><span class="numeral">150 px</span> <span class="chip pass">right</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:14px; margin-top:12px; margin-bottom:10px;">The earlier fix doubled the pixel
+        count, which cancels a 192-dpi error only when the scale is exactly 200%; in general it produced
+        <code>150 px &times; scale / 200</code>. That also explains the reproducibility split: the two
+        errors cancel whenever the screen's stamp and the scale factor agree, which they did on your
+        machine and did not on Heather's.</p>
+        <p style="font-size:14px; margin-bottom:0;">The fix
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/77f3bb53e1a38de95ec03aaf809300d98e5d4101/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L242" target="_blank" rel="noopener">stamps every preview with 96 dpi</a>
+        and removes the display compensation entirely, so export now queries no monitor at all and any
+        machine produces the same file.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="lede">One row per check, and one per test runner.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="what">C# build</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="detail"><span class="numeral">0</span> errors, <span class="numeral">20</span> warnings — all pre-existing NuGet/SDK advisories, none from this change</td>
+              </tr>
+              <tr>
+                <td class="what">Format (csharpier)</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="detail">All <span class="numeral">3</span> changed files clean</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests — full suite</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="detail"><span class="numeral">3063</span> passed, <span class="numeral">13</span> skipped, <span class="numeral">0</span> failed <span class="numeral">(3m 28s)</span>, run against the merged HEAD</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests — changed area</td>
+                <td><span class="chip pass">pass</span></td>
+                <td class="detail"><span class="numeral">749</span> passed, <span class="numeral">3</span> skipped — every Spreadsheet and Image fixture, run before and after the base merge</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript — typecheck, lint, vitest</td>
+                <td><span class="chip skip">not run</span></td>
+                <td class="detail">Deliberate: the diff is C# only. No <code>.ts</code>, <code>.tsx</code>, <code>.less</code>, asset, schema or dependency file is touched, and the front-end suite neither reads nor builds any of the changed C#</td>
+              </tr>
+              <tr>
+                <td class="what">Merge with <code>master</code></td>
+                <td><span class="chip pass">clean</span></td>
+                <td class="detail">Base had <span class="numeral">2</span> new commits; folded in with no conflict, then the changed-area suite re-run on the result</td>
+              </tr>
+              <tr>
+                <td class="what">PR mergeability</td>
+                <td><span class="chip pass">clean</span></td>
+                <td class="detail">GitHub reports <code>MERGEABLE</code> / <code>CLEAN</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <p class="lede">Every reviewer reached a terminal state for <span class="numeral">77f3bb5</span>.</p>
+        <ul class="rev">
+          <li>
+            <span class="who">Local review</span>
+            <span class="state"><span class="chip done">complete &mdash; clean</span></span>
+            <span class="say">Light pass, run inline in-session rather than dispatched to a sub-agent. No
+            findings. It specifically confirmed the two things that could have been luck: the new
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/77f3bb53e1a38de95ec03aaf809300d98e5d4101/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L221" target="_blank" rel="noopener"><code>(Bitmap)</code> cast</a>
+            is valid on every path <code>ResizeImageIfNecessary</code> can return, and the new
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/77f3bb53e1a38de95ec03aaf809300d98e5d4101/src/BloomTests/Spreadsheet/SpreadsheetImagesTests.cs#L796" target="_blank" rel="noopener">lower bound on row height</a>
+            holds for any image height, because the row's 3-point pad always exceeds the 1-point
+            truncation.</span>
+          </li>
+          <li>
+            <span class="who">Devin</span>
+            <span class="state"><span class="chip done">complete &mdash; no bugs, no flags</span></span>
+            <span class="say">Finished in about a minute for the right commit:
+            <span class="numeral">0</span> bugs, <span class="numeral">0</span> Investigate flags, so
+            nothing was mirrored as a review thread. It raised <span class="numeral">4</span>
+            informational items; two of them independently reproduce the local review's cast and
+            truncation reasoning, one notes the test image is RGBA and gets flattened to JPEG (pre-existing
+            and irrelevant to what the test asserts), and one is the CI-coverage gap raised as a decision
+            opposite.
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8197" target="_blank" rel="noopener">Review page</a> &middot;
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8197#issuecomment-5272693626" target="_blank" rel="noopener">consultation log</a></span>
+          </li>
+          <li>
+            <span class="who">CodeRabbit</span>
+            <span class="state"><span class="chip skip">not active here</span></span>
+            <span class="say">Switched off for this repository in <code>.coderabbit.yml</code>
+            (<code>auto_review.enabled: false</code>, <code>review_status: false</code>), so it will never
+            post. Not a timeout.</span>
+          </li>
+          <li>
+            <span class="who">Greptile</span>
+            <span class="state"><span class="chip skip">not active here</span></span>
+            <span class="say">It commented on this card's July PRs, but it no longer runs on this
+            repository: no config file, and no bot comment on any of the three most recent PRs
+            (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8195" target="_blank" rel="noopener">#8195</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8194" target="_blank" rel="noopener">#8194</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8187" target="_blank" rel="noopener">#8187</a>).</span>
+          </li>
+          <li>
+            <span class="who">CI</span>
+            <span class="state"><span class="chip pass">complete &mdash; pass</span></span>
+            <span class="say"><a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/31639685068" target="_blank" rel="noopener">PR Automation</a>
+            passed in <span class="numeral">41s</span>. It is the only <code>pull_request</code>-triggered
+            workflow in the repo — Bloom's build and test run on TeamCity and do not report back to the
+            PR, which is why the full C# suite was run locally here instead.</span>
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Commits on this branch</h2>
+        <ul class="commits">
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/dd9f9a4da2211a5936c35bb483a6920c5dbba06b" target="_blank" rel="noopener">Set spreadsheet export image resolution to 96dpi (BL-16529)</a></div>
+            <div class="meta"><span class="numeral">dd9f9a4</span> — the fix, its two tests, and the removal of the now-dead monitor-scaling helper. Authored by you before this run, so preflight had nothing of its own to commit.</div>
+          </li>
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/77f3bb53e1a38de95ec03aaf809300d98e5d4101" target="_blank" rel="noopener">Merge remote-tracking branch 'origin/master'</a></div>
+            <div class="meta"><span class="numeral">77f3bb5</span> — folds in the two new commits on <code>master</code>, one of which touches a neighbouring Spreadsheet test file. Clean; the changed-area suite was re-run afterwards.</div>
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="notes-list">
+          <li>Nothing needed fixing during the run: the gate was green first time, the base merged
+          cleanly, and no reviewer raised an actionable finding — so there was no fix-and-re-push cycle
+          and no reviewer had to be re-triggered.</li>
+          <li>The PR link and a round-2 QA test-ideas comment were posted to
+          <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16529" target="_blank" rel="noopener">BL-16529</a>.
+          The test ideas lead with the cross-scale comparison — export at several display scales, then
+          open them all at one scale — which is the check every earlier round of testing missed, because
+          testing and viewing at the same scale hides this bug by construction.</li>
+          <li>No personal board skill is installed, so no board state was moved.</li>
+          <li>The PR is deliberately still a <b>draft</b>. Preflight never marks a PR ready for review or
+          requests a teammate's review; that is <code>pr-ready-for-human</code>, after your own review.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT: decisions ================= -->
+    <div class="stack">
+
+      <section class="card item" data-item="ci-coverage">
+        <div class="kind">Decision</div>
+        <h3>Our automated tests cannot actually catch this bug coming back</h3>
+        <p>The whole fix is a single line that stamps each preview picture with 96 dpi. The catch is that
+        on a computer whose Windows display Scale is 100% — which is what our build machines use — Windows
+        already stamps 96 anyway. So the two new tests pass whether or not that line is present, and they
+        will keep passing on the build server if someone later deletes it while tidying up.</p>
+        <p>The bug would then come back silently, and only on high-DPI machines: exactly the situation that
+        made this card take three rounds of fixes and more than two days to pin down, because it was
+        invisible on the developer's own machine. Devin raised the same point independently. The test's
+        doc comment does say this out loud, so nothing here is hidden — the question is whether to close
+        the gap.</p>
+        <div class="choices">
+          <div class="choice sel">
+            <label>
+              <input type="radio" name="q-ci" value="Extract the save step and unit-test it with a deliberately 192dpi bitmap" data-q="CI coverage for the 96dpi stamp" checked>
+              <span class="ctext">Pull the save-the-preview step out into its own small method, and test it
+              directly by handing it a picture deliberately stamped 192 dpi and checking what comes back is
+              96. That test behaves identically on every machine, so the build server really would catch a
+              removal.
+              <em class="fx">(small — roughly a ten-line extraction plus one focused test, no change to
+              behaviour; recommended because the line it protects is a one-liner whose absence is invisible
+              on the machines CI runs on, and this exact bug already escaped three rounds of review)</em>
+              <span class="tag">Recommended</span></span>
+            </label>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-ci" value="Leave as is" data-q="CI coverage for the 96dpi stamp">
+              <span class="ctext">Leave as is</span>
+            </label>
+            <span class="lc"><label><input type="checkbox" data-lc="CI coverage for the 96dpi stamp"> Leave comment</label></span>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-ci" value="Other" data-q="CI coverage for the 96dpi stamp">
+              <span class="ctext">Other:
+              <input type="text" class="otherbox" data-other="CI coverage for the 96dpi stamp" placeholder="your answer"></span>
+            </label>
+          </div>
+        </div>
+        <textarea class="notes" data-notes="CI coverage for the 96dpi stamp" placeholder="Notes (optional)"></textarea>
+      </section>
+
+      <section class="card item" data-item="smaller-previews">
+        <div class="kind fyi">For your information</div>
+        <h3>On a scaled-up display, previews will look smaller than 6.5 shows them today</h3>
+        <p>If your Windows Scale is above 100%, the current 6.5 build enlarges the preview pictures so they
+        fill the image column. After this change it stops doing that, and previews go back to the size
+        Bloom 6.4 produced — which on a scaled-up display looks narrower than the column.</p>
+        <p>That is the deliberate trade, and the reason to accept it is that it is the only way the same
+        book can export to the same spreadsheet on every machine: any sizing keyed to the exporting
+        computer's display is wrong the moment the file is opened somewhere else. Heather already said on
+        the card that she can live with the small picture being a bit smaller, and you chose this approach
+        knowing the trade-off. Recorded here so the change of appearance is not a surprise to anyone
+        reviewing.</p>
+        <div class="choices">
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-smaller" value="Narrow the image column so previews fill it at any scale" data-q="Previews look smaller on a scaled-up display">
+              <span class="ctext">Revisit it: narrow the image column instead, so previews fill it at any
+              scale.
+              <em class="fx">(moderate — column width affects every export, and it would need its own
+              round of checking in both LibreOffice and Excel)</em></span>
+            </label>
+          </div>
+          <div class="choice sel">
+            <label>
+              <input type="radio" name="q-smaller" value="Leave as is" data-q="Previews look smaller on a scaled-up display" checked>
+              <span class="ctext">Leave as is <span class="tag">Recommended</span></span>
+            </label>
+            <span class="lc"><label><input type="checkbox" data-lc="Previews look smaller on a scaled-up display"> Leave comment</label></span>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-smaller" value="Other" data-q="Previews look smaller on a scaled-up display">
+              <span class="ctext">Other:
+              <input type="text" class="otherbox" data-other="Previews look smaller on a scaled-up display" placeholder="your answer"></span>
+            </label>
+          </div>
+        </div>
+        <textarea class="notes" data-notes="Previews look smaller on a scaled-up display" placeholder="Notes (optional)"></textarea>
+      </section>
+
+      <section class="card item" data-item="book-thumbnails">
+        <div class="kind fyi">For your information</div>
+        <h3>The same underlying problem probably exists in book thumbnails</h3>
+        <p>The reason the previews carried a wrong resolution is not specific to spreadsheets: it is that
+        Bloom asks Windows for a blank image to draw into and inherits the screen's stamp. The
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/77f3bb53e1a38de95ec03aaf809300d98e5d4101/src/BloomExe/ImageProcessing/ImageUtils.cs#L2530" target="_blank" rel="noopener">shared helper that does that</a>
+        is also used to make the small book thumbnails, so those are very likely carrying a
+        screen-dependent resolution too.</p>
+        <p>Nothing visibly wrong has been reported there — a thumbnail Bloom draws itself at a known pixel
+        size may never expose it — and chasing it is out of scope for this card. Left untouched on purpose.</p>
+        <div class="choices">
+          <div class="choice sel">
+            <label>
+              <input type="radio" name="q-thumbs" value="File a separate YouTrack card for the shared-helper resolution issue" data-q="Book thumbnails may have the same latent issue" checked>
+              <span class="ctext">File a separate YouTrack card so it is written down somewhere rather than
+              living only in this report.
+              <em class="fx">(no code — just a card; recommended because the finding is cheap to record now
+              and expensive to rediscover later, as this one was)</em>
+              <span class="tag">Recommended</span></span>
+            </label>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-thumbs" value="Leave as is" data-q="Book thumbnails may have the same latent issue">
+              <span class="ctext">Leave as is</span>
+            </label>
+            <span class="lc"><label><input type="checkbox" data-lc="Book thumbnails may have the same latent issue"> Leave comment</label></span>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-thumbs" value="Other" data-q="Book thumbnails may have the same latent issue">
+              <span class="ctext">Other:
+              <input type="text" class="otherbox" data-other="Book thumbnails may have the same latent issue" placeholder="your answer"></span>
+            </label>
+          </div>
+        </div>
+        <textarea class="notes" data-notes="Book thumbnails may have the same latent issue" placeholder="Notes (optional)"></textarea>
+      </section>
+
+      <section class="card item" data-item="stale-test-ideas">
+        <div class="kind fyi">For your information</div>
+        <h3>Two out-of-date test-ideas comments are still on the card</h3>
+        <p>The card carries test-ideas comments from the two earlier rounds, and they tell a tester to
+        expect the preview pictures to grow with the Windows Scale setting — the opposite of how it now
+        works. They could not be corrected in place: the tracker Bot is refused permission to edit
+        comments written under your own account.</p>
+        <p>So a fresh round-2 comment was posted instead, opening with a plain statement that it supersedes
+        them. A tester reading the card from the top will still meet the stale advice first, which is the
+        only reason this is worth your attention.</p>
+        <div class="choices">
+          <div class="choice sel">
+            <label>
+              <input type="radio" name="q-stale" value="Edit or delete the two superseded test-ideas comments myself" data-q="Superseded test-ideas comments on the card" checked>
+              <span class="ctext">Edit or delete the two old comments yourself — your own account has the
+              permission the Bot lacks.
+              <em class="fx">(no code — two edits on the card; recommended because a tester meeting the
+              stale advice first is how the wrong thing gets tested)</em>
+              <span class="tag">Recommended</span></span>
+            </label>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-stale" value="Leave as is" data-q="Superseded test-ideas comments on the card">
+              <span class="ctext">Leave as is</span>
+            </label>
+            <span class="lc"><label><input type="checkbox" data-lc="Superseded test-ideas comments on the card"> Leave comment</label></span>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-stale" value="Other" data-q="Superseded test-ideas comments on the card">
+              <span class="ctext">Other:
+              <input type="text" class="otherbox" data-other="Superseded test-ideas comments on the card" placeholder="your answer"></span>
+            </label>
+          </div>
+        </div>
+        <textarea class="notes" data-notes="Superseded test-ideas comments on the card" placeholder="Notes (optional)"></textarea>
+      </section>
+
+      <section class="card item" data-item="next-step">
+        <div class="kind">Next step</div>
+        <h3>What should happen after you answer</h3>
+        <p>The branch is green and mergeable as it stands, so nothing above blocks it. This just tells me
+        whether to start work on your answers or hold.</p>
+        <div class="choices">
+          <div class="choice sel">
+            <label>
+              <input type="radio" name="q-next" value="Implement the choices above, then re-run preflight" data-q="Next step" checked>
+              <span class="ctext">Implement whatever you chose above, then re-run preflight over the new
+              commit.
+              <em class="fx">(recommended — the changes on offer are small and self-contained, and a
+              re-run re-checks every reviewer against the new commit)</em>
+              <span class="tag">Recommended</span></span>
+            </label>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-next" value="Discuss before making any further code changes" data-q="Next step">
+              <span class="ctext">Discuss it with me first, before any further code changes.
+              <em class="fx">(no code yet)</em></span>
+            </label>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-next" value="Leave as is" data-q="Next step">
+              <span class="ctext">Leave as is — no further changes; the branch goes to your own final
+              review exactly as it is.</span>
+            </label>
+            <span class="lc"><label><input type="checkbox" data-lc="Next step"> Leave comment</label></span>
+          </div>
+          <div class="choice">
+            <label>
+              <input type="radio" name="q-next" value="Other" data-q="Next step">
+              <span class="ctext">Other:
+              <input type="text" class="otherbox" data-other="Next step" placeholder="your answer"></span>
+            </label>
+          </div>
+        </div>
+        <textarea class="notes" data-notes="Next step" placeholder="Notes (optional)"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the session.</p>
+        <button id="copyBtn" type="button">Copy answers</button>
+        <span class="copied" id="copiedMsg" hidden>Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers, ready to copy"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById('payload');
+  var btn = document.getElementById('copyBtn');
+  var msg = document.getElementById('copiedMsg');
+
+  function markSelected() {
+    document.querySelectorAll('.choice').forEach(function (c) {
+      var r = c.querySelector('input[type="radio"]');
+      c.classList.toggle('sel', !!(r && r.checked));
+    });
+  }
+
+  function serialize() {
+    var lines = ['Preflight answers — BL-16529 / PR #8197 (HEAD 77f3bb5)', ''];
+    document.querySelectorAll('.item').forEach(function (item) {
+      var checked = item.querySelector('input[type="radio"]:checked');
+      if (!checked) return;
+      var q = checked.getAttribute('data-q') || item.getAttribute('data-item');
+      var answer = checked.value;
+      if (answer === 'Other') {
+        var ob = item.querySelector('.otherbox');
+        var typed = ob && ob.value.trim();
+        answer = 'Other: ' + (typed ? typed : '(nothing typed)');
+      }
+      lines.push('## ' + q);
+      lines.push('Answer: ' + answer);
+
+      // "Leave comment" only appears when actually ticked.
+      var lc = item.querySelector('input[data-lc]');
+      if (lc && lc.checked) {
+        lines.push('Leave comment: yes — record this decision as a code comment near the relevant code.');
+      }
+
+      var notes = item.querySelector('.notes');
+      if (notes && notes.value.trim()) {
+        lines.push('Notes: ' + notes.value.trim());
+      }
+      lines.push('');
+    });
+    payload.value = lines.join('\n').replace(/\n+$/, '\n');
+  }
+
+  function refresh() { markSelected(); serialize(); }
+
+  document.addEventListener('change', refresh);
+  document.addEventListener('input', function (e) {
+    // Typing in an "Other:" box implies choosing Other.
+    if (e.target.classList && e.target.classList.contains('otherbox')) {
+      var choice = e.target.closest('.choice');
+      var radio = choice && choice.querySelector('input[type="radio"]');
+      if (radio && !radio.checked) radio.checked = true;
+    }
+    refresh();
+  });
+
+  btn.addEventListener('click', function () {
+    serialize();
+    function done() {
+      msg.hidden = false;
+      setTimeout(function () { msg.hidden = true; }, 2200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand('copy'); done(); } catch (err) { payload.focus(); payload.select(); }
+    }
+  });
+
+  refresh();
+})();
+</script>
+</body>
+</html>
