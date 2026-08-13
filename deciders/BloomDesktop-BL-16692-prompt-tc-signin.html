@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sign-In Invitation Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    /* Palette: Bloom's teal, cooled-off paper, ink with a blue-green bias */
+    --paper:      #f7f6f3;
+    --card:       #ffffff;
+    --ink:        #1e2a2c;
+    --ink-soft:   #536367;
+    --rule:       #dfdcd5;
+    --teal:       #1d94a4;
+    --teal-deep:  #14707d;
+    --teal-wash:  #e8f2f3;
+    --good:       #2c7a4b;
+    --good-wash:  #e6f1ea;
+    --warn:       #9a6b12;
+    --warn-wash:  #f6eeda;
+    --quiet:      #6d6a63;
+    --quiet-wash: #efece5;
+
+    --sans: ui-sans-serif, "Segoe UI", system-ui, sans-serif;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 32px 28px 64px;
+  }
+
+  .wrap { max-width: 1320px; margin: 0 auto; }
+
+  header.masthead {
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px;
+    padding-bottom: 18px; border-bottom: 2px solid var(--ink);
+    margin-bottom: 26px;
+  }
+  header.masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(26px, 3.2vw, 38px);
+    font-weight: 600; letter-spacing: -0.015em; text-wrap: balance;
+    line-height: 1.15;
+  }
+  .masthead .ticket {
+    font-family: var(--mono); font-size: 13px; letter-spacing: 0.04em;
+    color: var(--teal-deep); text-transform: uppercase;
+  }
+  .masthead .spacer { flex: 1 1 40px; }
+  .masthead .state {
+    font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  section.card, .decision, .copyback {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 20px 22px;
+  }
+  h2 {
+    font-family: var(--serif); font-size: 20px; font-weight: 600;
+    margin-bottom: 14px; letter-spacing: -0.01em;
+  }
+  h3 { font-size: 14.5px; font-weight: 650; margin-bottom: 6px; }
+  p { max-width: 68ch; }
+  p + p { margin-top: 10px; }
+  a { color: var(--teal-deep); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--teal); outline-offset: 2px;
+  }
+  code, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 12.8px; background: var(--quiet-wash); padding: 1px 4px; border-radius: 2px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; }
+
+  .pill {
+    display: inline-block; font-size: 11.5px; font-weight: 650;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 100px; white-space: nowrap;
+  }
+  .pill.pass { background: var(--good-wash); color: var(--good); }
+  .pill.info { background: var(--teal-wash); color: var(--teal-deep); }
+  .pill.none { background: var(--quiet-wash); color: var(--quiet); }
+  .pill.warn { background: var(--warn-wash); color: var(--warn); }
+
+  ul.commits { display: flex; flex-direction: column; gap: 14px; }
+  ul.commits li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; }
+  ul.commits .sha { font-family: var(--mono); font-size: 12.5px; padding-top: 2px; }
+  ul.commits .msg { font-weight: 600; }
+  ul.commits .why { color: var(--ink-soft); font-size: 14px; margin-top: 2px; }
+
+  ul.notes { display: flex; flex-direction: column; gap: 10px; }
+  ul.notes li { padding-left: 14px; position: relative; color: var(--ink-soft); }
+  ul.notes li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em;
+    width: 5px; height: 5px; background: var(--teal); border-radius: 50%;
+  }
+  ul.notes strong { color: var(--ink); }
+
+  .rev { display: flex; flex-direction: column; gap: 4px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .rev:last-child { border-bottom: none; }
+  .rev .top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .rev .who { font-weight: 650; }
+  .rev .detail { color: var(--ink-soft); font-size: 14px; }
+
+  /* decisions column */
+  .decision h2 { margin-bottom: 4px; }
+  .decision .kind {
+    font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase;
+    color: var(--teal-deep); font-weight: 650; margin-bottom: 8px; display: block;
+  }
+  .decision .body { color: var(--ink-soft); }
+  .decision .body strong { color: var(--ink); }
+  fieldset { border: none; margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .opt { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 9px; align-items: start; }
+  .opt input[type=radio], .opt input[type=checkbox] { margin-top: 4px; accent-color: var(--teal); }
+  .opt .label { font-weight: 600; }
+  .opt .fx { display: block; font-weight: 400; color: var(--ink-soft); font-size: 13.5px; margin-top: 2px; }
+  .opt .tag {
+    font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; font-weight: 700;
+    color: var(--teal-deep); background: var(--teal-wash); padding: 1px 6px; border-radius: 100px;
+    margin-left: 6px; white-space: nowrap;
+  }
+  .leaveasis { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; }
+  .leaveasis .comment { display: inline-flex; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-soft); margin-left: auto; }
+  input[type=text], textarea {
+    width: 100%; background: var(--paper); border: 1px solid var(--rule);
+    border-radius: 2px; padding: 6px 8px; font-size: 14px;
+  }
+  textarea { min-height: 60px; resize: vertical; }
+  .notesbox { margin-top: 12px; }
+  .notesbox label { display: block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 4px; }
+
+  .copyback button {
+    background: var(--teal); color: #fff; border: none; border-radius: 3px;
+    padding: 9px 18px; font-weight: 650; cursor: pointer;
+  }
+  .copyback button:hover { background: var(--teal-deep); }
+  .copyback .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+  .copyback .confirm { color: var(--good); font-weight: 600; font-size: 14px; }
+  .copyback textarea { min-height: 150px; font-family: var(--mono); font-size: 12.5px; }
+
+  footer.foot { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--ink-soft); font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Prompt Team Collection users to sign in</h1>
+    <span class="ticket">BL-16692</span>
+    <span class="spacer"></span>
+    <span class="state">Draft PR #8202 &middot; branch BL-16692-prompt-tc-signin &middot; 1 decision for you</span>
+  </header>
+
+  <div class="cols">
+
+    <!-- LEFT: the report -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="what">TypeScript type check</td><td><span class="pill pass">pass</span></td><td>No blunder-class errors. The stricter full <code>tsgo --noEmit</code> was also run: none of the remaining repo-wide errors are in this branch's files.</td></tr>
+            <tr><td class="what">Lint (eslint)</td><td><span class="pill pass">pass</span></td><td>No errors anywhere; no new warnings in the files this branch touches.</td></tr>
+            <tr><td class="what">TypeScript tests (vitest)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">694 passed &middot; 5 skipped &middot; 63 files</span>, run single-threaded. Includes the 7 new tests for this dialog.</td></tr>
+            <tr><td class="what">C# tests (dotnet test)</td><td><span class="pill pass">pass</span></td><td><span class="numeral">3095 passed &middot; 13 skipped</span> at the final commit. Includes the 3 new <code>AccountApiTests</code>.</td></tr>
+            <tr><td class="what">Production bundle</td><td><span class="pill pass">pass</span></td><td>Built in an isolated tree, so the running Bloom was undisturbed. Confirms the new module bundles.</td></tr>
+            <tr><td class="what">Base integration</td><td><span class="pill pass">clean</span></td><td><code>origin/master</code> merged in before publishing; no conflicts, and GitHub reports the PR mergeable.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <ul class="commits">
+          <li>
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/1236feec90" target="_blank" rel="noopener">1236fee</a></span>
+            <span>
+              <span class="msg">The feature itself</span>
+              <span class="why">The new dialog, the <code>account/signInInvitationNeeded</code> endpoint, five English strings, a Storybook story, and both sets of tests.</span>
+            </span>
+          </li>
+          <li>
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/852ac45f2c" target="_blank" rel="noopener">852ac45</a></span>
+            <span>
+              <span class="msg">Merge <code>origin/master</code></span>
+              <span class="why">Folded in before publishing, so the PR's first pushed state was already the mergeable one.</span>
+            </span>
+          </li>
+          <li>
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/a21971b8ce" target="_blank" rel="noopener">a21971b</a></span>
+            <span>
+              <span class="msg">Use up the invitation when the dialog is shown, not when the front end asks about it</span>
+              <span class="why">From Devin. Also fixed a required-prop mistake the local review found, which would have thrown in Storybook, and stopped the new C# tests writing fake login data into your real Bloom settings.</span>
+            </span>
+          </li>
+          <li>
+            <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/c0edab3e2f" target="_blank" rel="noopener">c0edab3</a></span>
+            <span>
+              <span class="msg">Stop being defensive about the injected team collection manager</span>
+              <span class="why">From Devin, citing this repo's own fail-fast rule: the <code>?.</code> could only ever have turned the whole prompt off silently.</span>
+            </span>
+          </li>
+        </ul>
+        <p style="margin-top:14px"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8202" target="_blank" rel="noopener">Pull request</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202/files" target="_blank" rel="noopener">Files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202/commits" target="_blank" rel="noopener">Commits</a></p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+
+        <div class="rev">
+          <div class="top"><span class="who">Local review</span><span class="pill info">light pass &middot; 1 fixed</span></div>
+          <div class="detail">One sub-agent over the whole diff. It found that <code>BloomDialog</code> requires an <code>onClose</code>, which the Storybook story didn't pass &mdash; pressing Escape there would have thrown. The dialog now builds its own dialog props from the <code>closeDialog</code> it already takes, so no caller can get that wrong. Nothing else.</div>
+        </div>
+
+        <div class="rev">
+          <div class="top"><span class="who">Devin</span><span class="pill pass">complete</span></div>
+          <div class="detail">
+            Three reviews across the branch's commits. It raised 1 bug and 2 things to investigate; all three now have a documented, resolved thread on the PR, and Devin's own re-review marks the bug resolved. Of its 9 informational notes, two led to changes, two were mistaken, and the rest were fair observations we accepted.
+            <br /><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8202" target="_blank" rel="noopener">Devin's review page</a>
+            &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202#discussion_r3779215994" target="_blank" rel="noopener">bug thread</a>
+            &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202#discussion_r3779172031" target="_blank" rel="noopener">invitation-timing thread</a>
+            &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202#discussion_r3779175302" target="_blank" rel="noopener">XLF-priority thread</a>
+            &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202#issuecomment-5286613758" target="_blank" rel="noopener">consultation log</a>
+          </div>
+        </div>
+
+        <div class="rev">
+          <div class="top"><span class="who">CodeRabbit</span><span class="pill none">did not run</span></div>
+          <div class="detail">Silent, which on this repo means the team's free monthly allowance is used up rather than anything about this branch. Nothing was waited on and <code>.coderabbit.yml</code> was left alone.</div>
+        </div>
+
+        <div class="rev">
+          <div class="top"><span class="who">Greptile</span><span class="pill none">not configured</span></div>
+          <div class="detail">No Greptile config, check, or prior comment on this repo, so there was nothing to trigger or wait for.</div>
+        </div>
+
+        <div class="rev">
+          <div class="top"><span class="who">CI (GitHub checks)</span><span class="pill pass">pass</span></div>
+          <div class="detail"><code>pr-automation</code> green in 30s at the final commit &mdash; the only GitHub check this repo runs on a PR (it is also what triggers Devin).</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>How it behaves, and how that was checked</h2>
+        <p>When Bloom opens a Team Collection and nobody is signed in, the collection tab asks the server whether to invite the user, and puts up the <strong>&ldquo;Please sign in to Bloom&rdquo;</strong> dialog if so. Clicking <strong>Sign in to BloomLibrary.org</strong> opens the login page in the browser exactly as the top-bar Sign in button always has; the dialog stays up and closes itself when the login comes back.</p>
+        <ul class="notes" style="margin-top:14px">
+          <li><strong>Verified live in the Deutsch Books Team Collection</strong>, signed out: the dialog appears on its own at startup, and no dialog appears at all once signed in.</li>
+          <li><strong>You confirmed the full round trip yourself</strong> &mdash; you clicked Sign in, went through a couple of buttons in the browser, and the dialog closed and the avatar appeared. (Automated clicking couldn't complete the browser side; a synthetic run got the login page but no callback.)</li>
+          <li><strong>The one-invitation-per-run rule was checked at the source:</strong> after the dialog had been shown, <code>account/signInInvitationNeeded</code> answers <code>{"needed":false}</code> &mdash; which is exactly what a rebuilt collection tab reads when you come back from the Edit or Publish tab.</li>
+          <li><strong>Why the server has to remember it:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomBrowserUI/app/App.tsx#L36" target="_blank" rel="noopener">App.tsx:36</a> renders the collection tab only while it is the active tab, so anything the front end remembered would be thrown away on a visit to Edit or Publish.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="notes">
+          <li><strong>The websocket approach the Forum nag uses does not work here.</strong> The first attempt pushed a <code>LaunchDialog</code> event from a startup action, like <code>ShowForumInvitationDialogIfNeeded</code> does. In a Team Collection the workspace page finished loading about 7 seconds <em>after</em> the startup actions ran (the collection sync goes first), the <code>collectionButtonsDrawn</code> milestone timed out, and the event was sent to nobody. Worth knowing: the Forum invitation has the same exposure on a slow-starting collection.</li>
+          <li><strong>An installed Bloom Alpha had the same collection open</strong> for part of the session, which made every dev-build launch hang before its server started (the startup sync couldn't get the collection files) with nothing on stdout. Not a code problem, but it looks exactly like one.</li>
+          <li><strong>While diagnosing that, six orphaned WebView2 processes were killed</strong> that turned out to belong to that Bloom Alpha, blanking its window. It had exited on its own by the time this was understood.</li>
+          <li><strong><code>dotnet watch</code>'s hot-reload engine crashed once</strong> (a Roslyn edit-and-continue delta error) and took the dev stack down with it; a fresh launch was fine.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Where the code is</h2>
+        <ul class="notes">
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomBrowserUI/react_components/signInInvitationDialog.tsx#L27" target="_blank" rel="noopener">signInInvitationDialog.tsx:27</a> &mdash; the launcher that asks, and <a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomBrowserUI/react_components/signInInvitationDialog.tsx#L42" target="_blank" rel="noopener">line 42</a>, where it reports that the dialog is up.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomExe/web/controllers/AccountApi.cs#L161" target="_blank" rel="noopener">AccountApi.cs:161</a> &mdash; the three conditions for inviting someone; <a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomExe/web/controllers/AccountApi.cs#L151" target="_blank" rel="noopener">line 151</a> &mdash; the endpoint that uses the invitation up.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomBrowserUI/collectionsTab/CollectionsTabPane.tsx#L709" target="_blank" rel="noopener">CollectionsTabPane.tsx:709</a> &mdash; where the launcher is mounted, beside the Forum invitation's.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/DistFiles/localization/en/BloomMediumPriority.xlf#L1609" target="_blank" rel="noopener">BloomMediumPriority.xlf:1609</a> &mdash; the five new strings, with translator notes.</li>
+          <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c0edab3e2f5c32a95967c6061add6ca2536aa1a4/src/BloomBrowserUI/react_components/signInInvitationDialog.tsx#L21" target="_blank" rel="noopener">signInInvitationDialog.tsx:21</a> &mdash; the documentation URL behind the help link (see the decision opposite).</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- RIGHT: decisions -->
+    <div class="stack">
+
+      <div class="decision">
+        <span class="kind">Decision</span>
+        <h2>The help link points at a page that isn't there yet</h2>
+        <div class="body">
+          <p>The dialog offers a <strong>&ldquo;Learn about Bloom Collaboration&rdquo;</strong> link, which opens <code>docs.bloomlibrary.org/collaboration</code> in the user's browser &mdash; the address you picked when I asked. Checking it just now, <strong>that page returns 404</strong>; the closest thing that does exist today is <code>docs.bloomlibrary.org/team-collections</code>.</p>
+          <p>So as things stand, a Team Collection user who accepts our invitation to learn more lands on a &ldquo;not found&rdquo; page. That only matters if this ships before the page is written &mdash; which is your call, since you know whether the Bloom Collaboration documentation is coming as part of the same rollout.</p>
+        </div>
+        <fieldset data-q="Help link target">
+          <label class="opt">
+            <input type="radio" name="q1" value="Point the link at docs.bloomlibrary.org/team-collections until the Collaboration page exists" />
+            <span><span class="label">Point it at the existing Team Collections page for now<span class="tag">fix</span></span>
+            <span class="fx">One-line URL change plus a note to switch it back later. Nothing breaks, but the page is about how Team Collections work today, not about the change the dialog is announcing.</span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Remove the help link from the dialog until the documentation page exists" />
+            <span><span class="label">Drop the help link until the page exists<span class="tag">fix</span></span>
+            <span class="fx">Small &mdash; removes the link, its icon, and one of the five new strings. Guarantees nobody hits a 404, at the cost of the dialog no longer offering anywhere to read more.</span></span>
+          </label>
+          <label class="opt leaveasis">
+            <input type="radio" name="q1" value="Leave as is" checked />
+            <span><span class="label">Leave as is<span class="tag">recommended</span></span>
+            <span class="fx">Keeps <code>/collaboration</code>, the address you chose and the natural permanent home for this topic, on the understanding that the page gets written as part of the same rollout. Recommended because switching the URL twice is worse than writing the page once, and this is a 6.5 card &mdash; there is time.</span></span>
+            <span class="comment"><input type="checkbox" data-q="Help link target &mdash; leave a code comment" /> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Other" />
+            <span><span class="label">Other:</span>
+            <input type="text" data-q="Help link target &mdash; other" placeholder="your answer" /></span>
+          </label>
+        </fieldset>
+        <div class="notesbox"><label>Notes</label><textarea data-q="Help link target &mdash; notes" placeholder="anything to add"></textarea></div>
+      </div>
+
+      <div class="decision">
+        <span class="kind">For your information</span>
+        <h2>Three of Devin's observations we accepted rather than engineered around</h2>
+        <div class="body">
+          <p>None of these seemed worth added complexity, but you should know they exist:</p>
+          <p><strong>Reloading the page while the dialog is up loses that run's invitation.</strong> The invitation is used up the moment the dialog appears, so if the workspace page reloaded right then, the user wouldn't be re-invited until the next time they start Bloom. They will already have seen the dialog, and a spontaneous reload doesn't really happen outside development.</p>
+          <p><strong>A restored login is validated in the background.</strong> If someone's saved login has been revoked on the server, Bloom still counts them as signed in when it decides whether to invite them, so they wouldn't be invited that run. (Today the validation is a stub on master anyway.)</p>
+          <p><strong>The once-per-run flag is a plain boolean touched from server threads.</strong> With one page ever asking, the worst imaginable outcome is one extra dialog, so no locking was added.</p>
+        </div>
+        <fieldset data-q="Accepted observations">
+          <label class="opt">
+            <input type="radio" name="q2" value="Open a follow-up card for one or more of these" />
+            <span><span class="label">Open a follow-up card for one or more of these<span class="tag">fix</span></span>
+            <span class="fx">No code &mdash; a tracker card, with the details in the notes box below.</span></span>
+          </label>
+          <label class="opt leaveasis">
+            <input type="radio" name="q2" value="Leave as is" checked />
+            <span><span class="label">Leave as is<span class="tag">recommended</span></span></span>
+            <span class="comment"><input type="checkbox" data-q="Accepted observations &mdash; leave a code comment" /> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Other" />
+            <span><span class="label">Other:</span>
+            <input type="text" data-q="Accepted observations &mdash; other" placeholder="your answer" /></span>
+          </label>
+        </fieldset>
+        <div class="notesbox"><label>Notes</label><textarea data-q="Accepted observations &mdash; notes" placeholder="anything to add"></textarea></div>
+      </div>
+
+      <div class="decision">
+        <span class="kind">For your information</span>
+        <h2>The Forum invitation may have the same lost-event problem</h2>
+        <div class="body">
+          <p>This feature originally used the same mechanism as the Forum invitation dialog: a startup action pushing a websocket event to the collection tab. That silently failed here because the page wasn't listening yet &mdash; in a Team Collection it finished loading about seven seconds after the startup actions ran.</p>
+          <p>Nothing was changed about the Forum dialog, but the same thing can presumably happen to it on any slow-starting collection: it would just never appear that run, with no error anywhere.</p>
+        </div>
+        <fieldset data-q="Forum invitation timing">
+          <label class="opt">
+            <input type="radio" name="q3" value="Open a card to give the Forum invitation the same ask-don't-push treatment" />
+            <span><span class="label">Open a card to give the Forum invitation the same treatment<span class="tag">fix</span></span>
+            <span class="fx">Separate, small piece of work &mdash; the pattern now exists to copy; roughly an endpoint and a hook, plus retiring its startup action.</span></span>
+          </label>
+          <label class="opt leaveasis">
+            <input type="radio" name="q3" value="Leave as is" checked />
+            <span><span class="label">Leave as is<span class="tag">recommended</span></span></span>
+            <span class="comment"><input type="checkbox" data-q="Forum invitation timing &mdash; leave a code comment" /> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Other" />
+            <span><span class="label">Other:</span>
+            <input type="text" data-q="Forum invitation timing &mdash; other" placeholder="your answer" /></span>
+          </label>
+        </fieldset>
+        <div class="notesbox"><label>Notes</label><textarea data-q="Forum invitation timing &mdash; notes" placeholder="anything to add"></textarea></div>
+      </div>
+
+      <div class="decision">
+        <span class="kind">Next step</span>
+        <h2>What should happen after you answer</h2>
+        <div class="body">
+          <p>The branch is otherwise finished: every check is green, every reviewer thread is documented and resolved, and the PR is mergeable and still a draft, waiting for your own review before it goes to a colleague.</p>
+        </div>
+        <fieldset data-q="Next step">
+          <label class="opt">
+            <input type="radio" name="q4" value="Implement my answers, then it is ready for my review" checked />
+            <span><span class="label">Implement my answers, then hand it back for my review<span class="tag">recommended</span></span>
+            <span class="fx">Anything chosen above gets done and re-checked; then you review and run pr-ready-for-human yourself.</span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Let's discuss before changing anything" />
+            <span><span class="label">Let's talk it through first<span class="tag">fix</span></span>
+            <span class="fx">No code changes until we've agreed.</span></span>
+          </label>
+          <label class="opt leaveasis">
+            <input type="radio" name="q4" value="Leave as is" />
+            <span><span class="label">Leave as is</span></span>
+            <span class="comment"><input type="checkbox" data-q="Next step &mdash; leave a code comment" /> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Other" />
+            <span><span class="label">Other:</span>
+            <input type="text" data-q="Next step &mdash; other" placeholder="your answer" /></span>
+          </label>
+        </fieldset>
+        <div class="notesbox"><label>Notes</label><textarea data-q="Next step &mdash; notes" placeholder="anything to add"></textarea></div>
+      </div>
+
+      <div class="copyback">
+        <h2>Send your answers back</h2>
+        <p>Copy this and paste it into the session.</p>
+        <div class="row">
+          <button type="button" id="copybtn">Copy answers</button>
+          <span class="confirm" id="confirm" hidden>Copied</span>
+        </div>
+        <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="foot">
+    Preflight report for BL-16692, at commit c0edab3e2f5c32a95967c6061add6ca2536aa1a4. Draft PR
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8202" target="_blank" rel="noopener">BloomBooks/BloomDesktop#8202</a>.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+  var confirmEl = document.getElementById("confirm");
+
+  function serialize() {
+    var lines = ["Preflight answers — BL-16692 (PR #8202)", ""];
+    document.querySelectorAll("fieldset[data-q]").forEach(function (fs) {
+      var q = fs.getAttribute("data-q");
+      var chosen = fs.querySelector("input[type=radio]:checked");
+      var value = chosen ? chosen.value : "(no answer)";
+      if (value === "Other") {
+        var otherInput = fs.querySelector('input[type=text][data-q$="other"]');
+        var typed = otherInput && otherInput.value.trim();
+        value = typed ? "Other: " + typed : "Other: (nothing typed)";
+      }
+      lines.push(q + ": " + value);
+
+      var leaveComment = fs.querySelector('input[type=checkbox][data-q*="leave a code comment"]');
+      if (leaveComment && leaveComment.checked) {
+        lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      }
+
+      var notes = document.querySelector('textarea[data-q="' + q + ' — notes"]');
+      if (notes && notes.value.trim()) {
+        lines.push("  Notes: " + notes.value.trim());
+      }
+      lines.push("");
+    });
+    return lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      confirmEl.hidden = false;
+      window.setTimeout(function () { confirmEl.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible for manual copy */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
