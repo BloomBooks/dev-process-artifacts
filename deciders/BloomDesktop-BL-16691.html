@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Paused Checkouts Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, dl, dd { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #eceff1;
+    --card: #ffffff;
+    --ink: #16242a;
+    --muted: #5c7178;
+    --faint: #8298a0;
+    --accent: #14808f;
+    --accent-soft: #e2f0f2;
+    --line: #d5dee0;
+    --line-soft: #e6ecee;
+    --pass: #2c7355;
+    --fail: #ad3a2c;
+    --warn: #8f6413;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    padding: 32px 24px 72px;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+  .masthead {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 26px 30px;
+    margin-bottom: 22px;
+  }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin-bottom: 6px;
+  }
+  .masthead .sub { color: var(--muted); font-size: 15px; margin-bottom: 18px; }
+  .facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 30px;
+    border-top: 1px solid var(--line-soft);
+    padding-top: 16px;
+  }
+  .fact { min-width: 0; }
+  .fact dt {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--faint);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .fact dd { font-size: 14.5px; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---------- two-column grid ---------- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 22px 24px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .card > .lede { color: var(--muted); font-size: 14px; margin-bottom: 16px; }
+  .card > h2 + .tbl-wrap, .card > h2 + ol, .card > h2 + ul, .card > h2 + p { margin-top: 14px; }
+
+  /* ---------- tables ---------- */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14.5px; table-layout: fixed; }
+  th, td {
+    text-align: left; padding: 9px 12px 9px 0; vertical-align: top;
+    border-bottom: 1px solid var(--line-soft);
+    /* long identifiers (test names, settings keys) must break rather than widen the column */
+    overflow-wrap: anywhere;
+  }
+  col.c-what { width: 22%; }
+  col.c-state { width: 20%; }
+  th {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.09em;
+    color: var(--faint); font-weight: 700; border-bottom: 1px solid var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; padding-right: 18px; }
+
+  .pill {
+    display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; padding: 2px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .pill.pass { background: #e2efe9; color: var(--pass); }
+  .pill.fail { background: #f7e5e2; color: var(--fail); }
+  .pill.warn { background: #f8eedb; color: var(--warn); }
+  .pill.na   { background: #e9eef0; color: var(--muted); }
+
+  /* ---------- commit list ---------- */
+  .commits li { display: flex; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft); font-size: 14.5px; }
+  .commits li:last-child { border-bottom: none; }
+  .commits .sha { font-family: var(--mono); font-size: 12.5px; padding-top: 2px; flex: 0 0 auto; }
+
+  .notes li { padding: 7px 0 7px 16px; position: relative; font-size: 14.5px; border-bottom: 1px solid var(--line-soft); }
+  .notes li:last-child { border-bottom: none; }
+  .notes li::before { content: ""; position: absolute; left: 0; top: 15px; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  code {
+    font-family: var(--mono); font-size: 0.87em;
+    background: #eef2f3; padding: 1px 5px; border-radius: 2px;
+  }
+
+  /* ---------- decisions ---------- */
+  .decision { border-left: 3px solid var(--accent); }
+  .decision .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--accent); margin-bottom: 6px;
+  }
+  .decision p { font-size: 14.5px; margin-bottom: 11px; }
+  .decision p:last-of-type { margin-bottom: 16px; }
+
+  .opts { display: flex; flex-direction: column; gap: 2px; }
+  .opt {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 10px 12px; border: 1px solid transparent; border-radius: 3px;
+    cursor: pointer; font-size: 14.5px;
+  }
+  .opt:hover { background: #f4f7f8; }
+  .opt input[type=radio] { margin-top: 4px; flex: 0 0 auto; accent-color: var(--accent); }
+  .opt .body { flex: 1 1 auto; min-width: 0; }
+  .opt .lab { font-weight: 600; }
+  .opt .rec {
+    display: inline-block; margin-left: 7px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+    padding: 1px 6px; border-radius: 2px; vertical-align: 1px;
+  }
+  .opt .cost { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+  .leaverow { display: flex; align-items: center; gap: 12px; }
+  .leaverow .opt { flex: 1 1 auto; }
+  .leavecomment {
+    display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted);
+    white-space: nowrap; padding-right: 4px; cursor: pointer;
+  }
+  .leavecomment input { accent-color: var(--accent); }
+
+  .otherwrap { display: flex; align-items: center; gap: 8px; width: 100%; }
+  .otherwrap input[type=text] {
+    flex: 1 1 auto; min-width: 0; font: inherit; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 3px; padding: 5px 8px; background: #fbfcfc; color: var(--ink);
+  }
+
+  .notebox { margin-top: 12px; }
+  .notebox label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); font-weight: 700; margin-bottom: 5px; }
+  .notebox textarea {
+    width: 100%; font: inherit; font-size: 14px; border: 1px solid var(--line);
+    border-radius: 3px; padding: 8px 10px; resize: vertical; min-height: 54px; background: #fbfcfc; color: var(--ink);
+  }
+
+  /* ---------- copy back ---------- */
+  #copyback button {
+    font: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer;
+    background: var(--accent); color: #fff; border: none; border-radius: 3px; padding: 9px 18px;
+  }
+  #copyback button:hover { background: #10707d; }
+  #payload {
+    width: 100%; margin-top: 14px; min-height: 190px; font-family: var(--mono); font-size: 12px;
+    line-height: 1.5; border: 1px solid var(--line); border-radius: 3px; padding: 10px; background: #fbfcfc; color: var(--ink);
+  }
+  #copied { margin-left: 12px; font-size: 13px; color: var(--pass); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Honor no-checkout flag</h1>
+    <p class="sub">Preflight report for BL-16691 — letting a Team Collection administrator pause checkouts for the whole team.</p>
+    <dl class="facts">
+      <div class="fact"><dt>Pull request</dt><dd><a href="https://github.com/BloomBooks/BloomDesktop/pull/8199" target="_blank" rel="noopener">#8199</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8199/files" target="_blank" rel="noopener">files changed</a></dd></div>
+      <div class="fact"><dt>Status</dt><dd>Draft — not marked ready</dd></div>
+      <div class="fact"><dt>Branch → base</dt><dd><span class="numeral">BL-16691</span> → <span class="numeral">Version6.4</span></dd></div>
+      <div class="fact"><dt>Head</dt><dd><a class="numeral" href="https://github.com/BloomBooks/BloomDesktop/commit/30d4ced7a2d72059c7774c3cd1e63bc5f3d6efdc" target="_blank" rel="noopener">30d4ced7a2</a></dd></div>
+      <div class="fact"><dt>Card</dt><dd><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16691" target="_blank" rel="noopener">BL-16691</a></dd></div>
+      <div class="fact"><dt>Waiting on you</dt><dd><strong>4 items</strong></dd></div>
+    </dl>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the report ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="lede">All run against the final commit.</p>
+        <div class="tbl-wrap">
+          <table>
+            <colgroup><col class="c-what"><col class="c-state"><col></colgroup>
+            <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="what">Typecheck</td>
+                <td><span class="pill pass">Pass</span></td>
+                <td>No errors in any changed file. Note this repo has no clean whole-project <code>tsc</code> baseline — a full run reports <span class="numeral">1107</span> pre-existing errors in untouched legacy code, and there is no <code>typecheck</code> script.</td>
+              </tr>
+              <tr>
+                <td class="what">Lint</td>
+                <td><span class="pill pass">Pass</span></td>
+                <td><code>yarn lint</code> exits 0. <span class="numeral">775</span> warnings repo-wide, all pre-existing; the two in touched files are hook-dependency warnings on lines this branch does not modify.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests</td>
+                <td><span class="pill pass">Pass</span></td>
+                <td><code>vitest run --no-file-parallelism</code> — <span class="numeral">524 passed · 5 skipped · 0 failed</span> across <span class="numeral">48</span> files.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests</td>
+                <td><span class="pill warn">Environmental</span></td>
+                <td><code>dotnet test</code> — <span class="numeral">2824 passed · 13 skipped · 1 failed</span>. The failure is <code>SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>, which needs Reading App Builder installed on the machine (<code>'buildapp.bat' is not recognized</code>). It lives in <code>Publish/Rab</code> and this branch touches nothing it uses.</td>
+              </tr>
+              <tr>
+                <td class="what">Base merge</td>
+                <td><span class="pill pass">Clean</span></td>
+                <td>Branch already contains all of <code>origin/Version6.4</code>; nothing to merge. GitHub reports the PR <strong>mergeable / clean</strong>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p class="lede">Five commits, two of which exist only because a review finding was reversed mid-run.</p>
+        <ul class="commits">
+          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/d82729128a63d634e63c59b585d44030719e7ab7" target="_blank" rel="noopener">d82729128a</a><span>The feature: read and write <code>AllowCheckouts</code>, report it to the panel, disable the button, show the note, and refuse the checkout server-side. Plus three unit tests.</span></li>
+          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/39c6e75a3d0685124f71cfae7204ded2aa4076e6" target="_blank" rel="noopener">39c6e75a3d</a><span>Dim the button's icon when it is disabled — MUI greys the label but not an <code>&lt;img&gt;</code>, so the button read as only half-disabled.</span></li>
+          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a6b8086545f856937bb36d832826a15708bfb1ed" target="_blank" rel="noopener">a6b8086545</a><span>First answer to Devin's l10n finding: look the string up with the i18n warning suppressed. <em>Superseded by the next commit.</em></span></li>
+          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/8847605e28aac4fef61292c1de91664aa034749d" target="_blank" rel="noopener">8847605e28</a><span>Replaced that with the simpler approach you asked for: ship the note as plain English and drop the XLF entry entirely, so this branch no longer touches <code>Bloom.xlf</code>.</span></li>
+          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/30d4ced7a2d72059c7774c3cd1e63bc5f3d6efdc" target="_blank" rel="noopener">30d4ced7a2</a><span>Corrected the comment justifying the server-side guard — it claimed a staleness mechanism that cannot happen.</span></li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <div class="tbl-wrap">
+          <table>
+            <colgroup><col class="c-what"><col class="c-state"><col></colgroup>
+            <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="what">Local review</td>
+                <td><span class="pill pass">Clean</span></td>
+                <td>Light pass, done inline rather than by sub-agent (this session restricts agent dispatch). No correctness problems. Specifically checked that the <code>disabledBackground</code> change cannot regress the check-in button, that <code>AttemptLock</code> has only one production caller so the guard covers every checkout path, and that the round-trip test uses unique collection names so it cannot collide in the shared fixture folder.</td>
+              </tr>
+              <tr id="devin-row">
+                <td class="what">Devin</td>
+                <td><span class="pill pass">Complete</span></td>
+                <td id="devin-cell">Ran on every commit; final review complete against <span class="numeral">30d4ced7a2</span>. Across the run it raised <strong>2 real findings</strong> and <strong>1 investigate flag</strong>, all mirrored to the PR as threads.
+                  <br><br>
+                  <a href="https://github.com/BloomBooks/BloomDesktop/pull/8199#discussion_r3771212163" target="_blank" rel="noopener">The XLF string was never registered</a> — real, and fixed (see decision history below). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8199#discussion_r3771213359" target="_blank" rel="noopener">The disabled-background change affects other buttons</a> — assessed as not reachable and resolved with the reasoning. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8199#discussion_r3771319536" target="_blank" rel="noopener">A blocked checkout can pop up an error report</a> — real, verified, and <strong>left open</strong> as Decision 2.
+                  <br><br>
+                  The final review still lists the XLF finding against <code>Bloom.xlf:5682</code>, which no longer exists — the branch does not touch that file at all now. Devin is carrying it forward from the commits that added and then removed it; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8199#discussion_r3771291206" target="_blank" rel="noopener">recorded on the thread</a> so nobody re-opens it. <span class="numeral">10</span> informational items were assessed but not mirrored; the substantive ones became the decisions here.
+                  <br><br>
+                  <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8199" target="_blank" rel="noopener">Devin review page</a></td>
+              </tr>
+              <tr>
+                <td class="what">CodeRabbit</td>
+                <td><span class="pill na">Switched off</span></td>
+                <td>Turned off for this repo in <code>.coderabbit.yml</code> (<code>auto_review: enabled: false</code>, <code>review_status: false</code>), and it has posted on none of the recent PRs. So it is switched off, not slow.</td>
+              </tr>
+              <tr>
+                <td class="what">CI</td>
+                <td><span class="pill pass">Pass</span></td>
+                <td>Both checks green at the final commit: <code>pr-automation</code> and <code>track / set-waiting</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul class="notes">
+          <li>The PR targets <strong>Version6.4</strong>, not master. The branch was already sitting exactly on <code>origin/Version6.4</code>, so no rebase was needed.</li>
+          <li>This worktree had never been initialised — no <code>node_modules</code>, no <code>lib/dotnet</code>. I ran <code>yarn install</code> and <code>build/getDependencies-windows.sh</code> to make it buildable. I did <strong>not</strong> run <code>yarn build</code>, per AGENTS.md.</li>
+          <li>Because the CSS was not rebuilt, the running Bloom will not show the dimmed button icon from <a href="https://github.com/BloomBooks/BloomDesktop/commit/39c6e75a3d0685124f71cfae7204ded2aa4076e6" target="_blank" rel="noopener">39c6e75a3d</a> until the LESS is compiled.</li>
+          <li>Running only the <code>BloomTests.TeamCollection</code> namespace produces 7 <code>SyncAtStartup</code> failures that look alarming but are an isolation artifact — they need <code>output/browser/appearanceMigrations</code>, and they pass in the full suite.</li>
+          <li>The QA test-ideas comment was posted fresh to the card (there was no previous one to update).</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <section class="card decision" data-item="save-writes-element">
+        <span class="tag">Decision 1</span>
+        <h2>Every collection file gains an <code>AllowCheckouts</code> line</h2>
+        <p>Bloom does not edit the collection settings file in place — whenever collection settings are saved it rebuilds the whole file from scratch. That is why this change has to write the new <code>AllowCheckouts</code> line out as well as read it: a setting that is read but never written would be silently erased the next time anything saved settings, quietly un-pausing checkouts for the whole team. (There is a unit test guarding exactly that.)</p>
+        <p>The side effect is that the line is now written for <em>every</em> collection, including the overwhelming majority that will never use the feature. So the first time anyone saves collection settings after upgrading, that collection's file changes. In a Team Collection, Bloom watches those files and pushes local changes up to the shared folder, so this one-off change travels to the team too. Nothing breaks — it is churn, not damage.</p>
+        <p>The recommendation is to leave it: every other true/false setting in that file (<code>AllowNewBooks</code>, <code>IsSourceCollection</code>, <code>ShowBlorgLanguageQrCode</code> and the rest) is written unconditionally, so making this one the single exception would be a surprise for the next person to read the file, and the churn is one-off per collection either way.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q1" value="Write the line only when checkouts are paused">
+            <span class="body"><span class="lab">Write the line only when checkouts are paused</span>
+            <span class="cost">~2 lines, low risk — an absent line already means &ldquo;allowed&rdquo;, so it still round-trips correctly. Cost is that it becomes the only conditionally-written setting in the file.</span></span>
+          </label>
+          <div class="leaverow">
+            <label class="opt">
+              <input type="radio" name="q1" value="Leave as is" checked>
+              <span class="body"><span class="lab">Leave as is<span class="rec">Recommended</span></span></span>
+            </label>
+            <label class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave a code comment"> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="q1" value="__OTHER__">
+            <span class="otherwrap"><span class="lab">Other:</span><input type="text" data-q="Decision 1 — other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notebox"><label for="n1">Notes</label><textarea id="n1" data-q="Decision 1 — notes" placeholder="Anything to add?"></textarea></div>
+      </section>
+
+      <section class="card decision" data-item="silent-refusal">
+        <span class="tag">Decision 2 · open thread on the PR</span>
+        <h2>A refused checkout can pop up an error report</h2>
+        <p>Bloom now refuses a checkout on the server side when checkouts are paused, as a backstop in case the button is somehow clickable. Devin flagged what happens when that backstop fires, and having checked it, it is worse than I first thought — there are two paths and neither tells the person what is going on.</p>
+        <p>Pressing the disabled button's normal path just clears the busy cursor, so the click appears to do nothing. But the checkout that Bloom posts <em>after the registration dialog</em> — the one that runs once someone saves an email address — is sent with no failure handling at all, and a rejected post with no handler ends up in Bloom's standard <strong>&ldquo;something went wrong&rdquo; problem-report window</strong>. So that person is told Bloom has a problem when in fact the administrator simply paused checkouts. I confirmed this by following the post through <code>wrapAxios</code>, which reports the error unless explicitly told not to.</p>
+        <p>How reachable is it? Narrow. The button is already disabled in that state, and the setting cannot change while Bloom is running, since collection settings are only read as the collection opens — so it needs the panel to be working from a snapshot taken before the setting took effect. But the registration path is precisely where that is most likely, because it posts without re-checking. This is also a defect this branch introduces: before the guard existed, that endpoint only failed on a genuine exception.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q2" value="Handle the failure on both paths and refresh the book status" checked>
+            <span class="body"><span class="lab">Handle the failure on both paths and refresh the book status<span class="rec">Recommended</span></span>
+            <span class="cost">~8 lines: give the registration-dialog post a failure handler so it stops raising a problem report, and have both handlers re-fetch the book status so the panel redraws into the paused state and explains itself. Recommended because a wrongly-blamed &ldquo;Bloom has a problem&rdquo; dialog is a bad thing to ship knowingly, and this branch is what introduces it. Contained to the two handlers.</span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Only silence the spurious error report, don't add a status refresh">
+            <span class="body"><span class="lab">Only silence the spurious error report, don't add a status refresh</span>
+            <span class="cost">~2 lines: give the registration-dialog post an empty failure handler. Removes the misleading problem-report window, but leaves both paths silently doing nothing.</span></span>
+          </label>
+          <div class="leaverow">
+            <label class="opt">
+              <input type="radio" name="q2" value="Leave as is">
+              <span class="body"><span class="lab">Leave as is</span></span>
+            </label>
+            <label class="leavecomment"><input type="checkbox" data-q="Decision 2 — leave a code comment"> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="q2" value="__OTHER__">
+            <span class="otherwrap"><span class="lab">Other:</span><input type="text" data-q="Decision 2 — other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notebox"><label for="n2">Notes</label><textarea id="n2" data-q="Decision 2 — notes" placeholder="Anything to add?"></textarea></div>
+      </section>
+
+      <section class="card decision" data-item="typo-pauses">
+        <span class="tag">For your information</span>
+        <h2>A typo in the setting pauses the team's checkouts</h2>
+        <p>Bloom reads true/false settings with a helper that hands back whatever the parse produced, and a failed parse produces <em>false</em>. So <code>&lt;AllowCheckouts&gt;no&lt;/AllowCheckouts&gt;</code>, or a stray character, does not get ignored — it pauses checkouts for everyone. A missing line is still safely &ldquo;allowed&rdquo;, because in that case it is the default text that gets parsed.</p>
+        <p>This is inherited, not introduced: every true/false setting in that file has always behaved this way. It is called out here only because this is the first one where an administrator's typo is felt by the whole team at once, and because there is no screen to set it from — hand-editing is the only way in. It is written up in the QA notes on the card so a tester confirms the behavior rather than reporting it as new.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q3" value="Parse this one setting strictly and fall back to allowed">
+            <span class="body"><span class="lab">Parse this one setting strictly and fall back to allowed</span>
+            <span class="cost">~5 lines. Makes a typo harmless, at the cost of this setting behaving differently from every other true/false setting in the file — a reader could reasonably be caught out by the inconsistency.</span></span>
+          </label>
+          <div class="leaverow">
+            <label class="opt">
+              <input type="radio" name="q3" value="Leave as is" checked>
+              <span class="body"><span class="lab">Leave as is<span class="rec">Recommended</span></span></span>
+            </label>
+            <label class="leavecomment"><input type="checkbox" data-q="FYI typo-parsing — leave a code comment"> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="q3" value="__OTHER__">
+            <span class="otherwrap"><span class="lab">Other:</span><input type="text" data-q="FYI typo-parsing — other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notebox"><label for="n3">Notes</label><textarea id="n3" data-q="FYI typo-parsing — notes" placeholder="Anything to add?"></textarea></div>
+      </section>
+
+      <section class="card decision" data-item="admin-workflow">
+        <span class="tag">For your information</span>
+        <h2>Where an administrator has to edit the setting</h2>
+        <p>In a Team Collection, editing your local <code>.bloomCollection</code> while Bloom is closed achieves nothing. On startup Bloom replaces the local settings files with the team's copies from the shared folder — &ldquo;whatever wins in the repo wins everywhere&rdquo; — so the edit is thrown away before anyone sees it. This cost us a round of confusion while testing the feature.</p>
+        <p>It sticks in two ways: edit the local file <em>while Bloom is running</em>, so the collection-file watcher pushes it up to the shared folder, or edit the copy inside the shared folder's <code>Other Collection Files.zip</code> directly. The first is confirmed working. This is pre-existing behavior for every collection-level setting rather than anything this change introduced, but since this setting has no UI at all, hand-editing is the only route in — so it is the first thing an administrator will hit. It is recorded in the PR description and the QA notes; the recommendation is to leave it there until there is somewhere real for administrator instructions to live.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q4" value="Write it into the administrator documentation now">
+            <span class="body"><span class="lab">Write it into the administrator documentation now</span>
+            <span class="cost">No code — a documentation note. Needs somewhere to put it, which may not exist yet for an unreleased setting.</span></span>
+          </label>
+          <div class="leaverow">
+            <label class="opt">
+              <input type="radio" name="q4" value="Leave as is" checked>
+              <span class="body"><span class="lab">Leave as is<span class="rec">Recommended</span></span></span>
+            </label>
+            <label class="leavecomment"><input type="checkbox" data-q="FYI admin-workflow — leave a code comment"> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="q4" value="__OTHER__">
+            <span class="otherwrap"><span class="lab">Other:</span><input type="text" data-q="FYI admin-workflow — other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notebox"><label for="n4">Notes</label><textarea id="n4" data-q="FYI admin-workflow — notes" placeholder="Anything to add?"></textarea></div>
+      </section>
+
+      <section class="card decision" data-item="next-step">
+        <span class="tag">Next step</span>
+        <h2>What should I do with your answers?</h2>
+        <p>Whatever you choose above, the PR stays a draft and no teammate is asked to review it — promoting it to human review is a separate step you run yourself.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q5" value="Implement the choices above straight away" checked>
+            <span class="body"><span class="lab">Implement the choices above straight away<span class="rec">Recommended</span></span>
+            <span class="cost">Recommended because every option offered is small and self-contained; each fix then re-runs the review gauntlet as a new commit.</span></span>
+          </label>
+          <div class="leaverow">
+            <label class="opt">
+              <input type="radio" name="q5" value="Leave as is">
+              <span class="body"><span class="lab">Leave as is</span></span>
+            </label>
+            <label class="leavecomment"><input type="checkbox" data-q="Next step — leave a code comment"> Leave comment</label>
+          </div>
+          <label class="opt">
+            <input type="radio" name="q5" value="__OTHER__">
+            <span class="otherwrap"><span class="lab">Other:</span><input type="text" data-q="Next step — other" placeholder="e.g. talk it through first"></span>
+          </label>
+        </div>
+        <div class="notebox"><label for="n5">Notes</label><textarea id="n5" data-q="Next step — notes" placeholder="Anything to add?"></textarea></div>
+      </section>
+
+      <section class="card" id="copyback">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the session.</p>
+        <button type="button" id="copybtn">Copy answers</button><span id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { name: "q1", label: "Decision 1 — every collection file gains an AllowCheckouts line" },
+    { name: "q2", label: "Decision 2 — a refused checkout can pop up an error report" },
+    { name: "q3", label: "FYI — a typo in the setting pauses the team's checkouts" },
+    { name: "q4", label: "FYI — where an administrator has to edit the setting" },
+    { name: "q5", label: "Next step" }
+  ];
+
+  function sectionFor(name) {
+    var input = document.querySelector('input[name="' + name + '"]');
+    return input ? input.closest("section") : null;
+  }
+
+  function build() {
+    var out = ["Preflight answers — BL-16691 (PR #8199)", ""];
+    ITEMS.forEach(function (item) {
+      var sec = sectionFor(item.name);
+      if (!sec) return;
+      var chosen = sec.querySelector('input[name="' + item.name + '"]:checked');
+      var answer = "(no answer)";
+      if (chosen) {
+        if (chosen.value === "__OTHER__") {
+          var otherBox = sec.querySelector('.otherwrap input[type=text]');
+          var typed = otherBox && otherBox.value.trim();
+          answer = typed ? "Other: " + typed : "Other: (blank)";
+        } else {
+          answer = chosen.value;
+        }
+      }
+      out.push(item.label);
+      out.push("  -> " + answer);
+
+      var lc = sec.querySelector('.leavecomment input[type=checkbox]');
+      if (lc && lc.checked) out.push("  -> Leave comment: record this decision as a code comment in the repo");
+
+      var notes = sec.querySelector('.notebox textarea');
+      var noteVal = notes && notes.value.trim();
+      if (noteVal) out.push("  -> Notes: " + noteVal);
+
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.hidden = false;
+      setTimeout(function () { tag.hidden = true; }, 2200);
+    };
+    var text = payload.value;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
