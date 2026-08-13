@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Undo &amp; Redo Highlights Preflight</title>
+<style>
+  :root {
+    --ground: #f6f7f5;
+    --card: #ffffff;
+    --ink: #1b201e;
+    --ink-soft: #55605c;
+    --ink-faint: #7d8783;
+    --rule: #dfe3e0;
+    --rule-soft: #ecefec;
+    --accent: #0e6156;
+    --accent-wash: rgba(14, 97, 86, 0.13);
+    --ok: #2f6d3c;
+    --ok-wash: rgba(47, 109, 60, 0.12);
+    --warn: #8a5d0c;
+    --warn-wash: rgba(138, 93, 12, 0.13);
+    --idle: #5d6763;
+    --idle-wash: rgba(93, 103, 99, 0.12);
+    --focus: #0e6156;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #141817;
+      --card: #1c2120;
+      --ink: #e8ece9;
+      --ink-soft: #a9b3af;
+      --ink-faint: #7e8884;
+      --rule: #2e3533;
+      --rule-soft: #262c2a;
+      --accent: #5fc6b4;
+      --accent-wash: rgba(95, 198, 180, 0.16);
+      --ok: #7fc98c;
+      --ok-wash: rgba(127, 201, 140, 0.15);
+      --warn: #d9ab5c;
+      --warn-wash: rgba(217, 171, 92, 0.15);
+      --idle: #949e9a;
+      --idle-wash: rgba(148, 158, 154, 0.15);
+      --focus: #5fc6b4;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #141817;
+    --card: #1c2120;
+    --ink: #e8ece9;
+    --ink-soft: #a9b3af;
+    --ink-faint: #7e8884;
+    --rule: #2e3533;
+    --rule-soft: #262c2a;
+    --accent: #5fc6b4;
+    --accent-wash: rgba(95, 198, 180, 0.16);
+    --ok: #7fc98c;
+    --ok-wash: rgba(127, 201, 140, 0.15);
+    --warn: #d9ab5c;
+    --warn-wash: rgba(217, 171, 92, 0.15);
+    --idle: #949e9a;
+    --idle-wash: rgba(148, 158, 154, 0.15);
+    --focus: #5fc6b4;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  h1, h2, h3 {
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    font-weight: 600;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+  p { margin: 0 0 0.7em; }
+  p:last-child { margin-bottom: 0; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  code, .numeral, .sha {
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+    font-size: 0.92em;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 32px 28px 64px; }
+
+  header.masthead { border-bottom: 1px solid var(--rule); padding-bottom: 20px; margin-bottom: 26px; }
+  header.masthead h1 {
+    font-size: clamp(26px, 3.2vw, 36px);
+    display: inline;
+    background-image: linear-gradient(var(--accent-wash), var(--accent-wash));
+    background-repeat: no-repeat;
+    background-position: 0 0.82em;
+    background-size: 100% 0.34em;
+  }
+  .meta { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 18px; color: var(--ink-soft); font-size: 13.5px; }
+  .meta span { display: inline-flex; align-items: baseline; gap: 6px; }
+  .meta b { font-weight: 600; color: var(--ink); font-size: 13px; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 950px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+  .col { display: flex; flex-direction: column; gap: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; }
+  .card > h2 { font-size: 19px; margin-bottom: 4px; }
+  .card > h2 + .sub { color: var(--ink-soft); font-size: 13.5px; margin-bottom: 14px; }
+  .card > h2:only-child { margin-bottom: 0; }
+
+  .tablewrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 500; }
+  td.detail { color: var(--ink-soft); }
+
+  .pill {
+    display: inline-block; white-space: nowrap; border-radius: 100px;
+    padding: 2px 10px; font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .pill.ok { color: var(--ok); background: var(--ok-wash); }
+  .pill.warn { color: var(--warn); background: var(--warn-wash); }
+  .pill.idle { color: var(--idle); background: var(--idle-wash); }
+
+  ol.commits { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 13px; }
+  ol.commits li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: baseline; }
+  ol.commits .sha a { color: var(--ink-faint); text-decoration: none; border-bottom: 1px solid var(--rule); }
+  ol.commits .sha a:hover { color: var(--accent); border-color: var(--accent); }
+  ol.commits .msg { font-weight: 500; }
+  ol.commits .why { display: block; font-weight: 400; color: var(--ink-soft); font-size: 13.5px; margin-top: 2px; }
+
+  .reviewers { display: flex; flex-direction: column; gap: 16px; }
+  .reviewer { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: baseline; }
+  .reviewer .who { font-weight: 600; }
+  .reviewer .said { grid-column: 1 / -1; color: var(--ink-soft); font-size: 13.5px; }
+
+  .note { color: var(--ink-soft); font-size: 14px; }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  .item { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; }
+  .item h3 { font-size: 16.5px; margin-bottom: 8px; }
+  .item .body { color: var(--ink-soft); font-size: 14px; }
+  .item .body strong { color: var(--ink); font-weight: 600; }
+  .kind { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; margin-bottom: 6px; }
+
+  .choices { display: flex; flex-direction: column; gap: 2px; margin: 16px 0 0; }
+  .choice {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px;
+    align-items: start; padding: 9px 10px; border-radius: 5px; cursor: pointer;
+  }
+  .choice:hover { background: var(--rule-soft); }
+  .choice input[type="radio"] { margin: 3px 0 0; accent-color: var(--accent); }
+  .choice .label { font-size: 14px; }
+  .choice .fix { display: block; color: var(--ink-faint); font-size: 12.5px; margin-top: 2px; }
+  .choice .rec { color: var(--accent); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-left: 6px; }
+  .leavebox { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; cursor: pointer; }
+  .leavebox input { accent-color: var(--accent); margin: 0; }
+
+  .choice.otherrow { grid-template-columns: auto auto minmax(0, 1fr); align-items: center; }
+  .choice.otherrow .label { white-space: nowrap; }
+  input[type="text"], textarea {
+    width: 100%; font: inherit; font-size: 13.5px; color: var(--ink);
+    background: var(--ground); border: 1px solid var(--rule); border-radius: 4px; padding: 7px 9px;
+  }
+  textarea { resize: vertical; min-height: 58px; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin-bottom: 5px; }
+
+  button.copy {
+    font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+    background: var(--accent); color: var(--card); border: none; border-radius: 5px; padding: 10px 18px;
+  }
+  button.copy:hover { filter: brightness(1.08); }
+  #payload { margin-top: 12px; font-size: 12.5px; min-height: 130px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .copied { color: var(--ok); font-size: 13px; font-weight: 600; margin-left: 12px; }
+
+  footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--rule); color: var(--ink-faint); font-size: 12.5px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>Undo &amp; Redo highlights</h1>
+  <div class="meta">
+    <span><b>Branch</b> <code>BL-16558-undo-highlights</code></span>
+    <span><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201" target="_blank" rel="noopener">#8201</a> — draft, mergeable</span>
+    <span><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16558" target="_blank" rel="noopener">BL-16558</a></span>
+    <span><b>HEAD</b> <code class="sha">3c857036</code></span>
+    <span><b>Waiting on you</b> 2 decisions, 1 FYI</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ================= LEFT: the report ================= -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <p class="sub">Everything below is at the final commit, <code class="sha">3c857036</code>.</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td class="what">Typecheck</td><td><span class="pill ok">pass</span></td><td class="detail">No blunder-class type errors.</td></tr>
+          <tr><td class="what">Lint</td><td><span class="pill ok">pass</span></td><td class="detail"><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings, unchanged by this branch).</td></tr>
+          <tr><td class="what">TypeScript tests (vitest)</td><td><span class="pill ok">pass</span></td><td class="detail"><span class="numeral">674 passed · 5 skipped · 62 files</span>. Ran in full four times across the run.</td></tr>
+          <tr><td class="what">C# tests (dotnet test)</td><td><span class="pill idle">not run</span></td><td class="detail">No C# in the diff. All six changed files are front-end TypeScript under <code>bookEdit/</code>, and nothing the C# suite builds or reads is touched — no XLF, no schema, no build config.</td></tr>
+          <tr><td class="what">Production bundle</td><td><span class="pill ok">builds</span></td><td class="detail">Via <code>build/agent-vite.sh</code>, into an isolated tree.</td></tr>
+          <tr><td class="what">Base merged in</td><td><span class="pill ok">clean</span></td><td class="detail"><code>origin/master</code> merged with no conflicts; its one new commit touched only C#, build and docs.</td></tr>
+          <tr><td class="what">Mergeable</td><td><span class="pill ok">clean</span></td><td class="detail">GitHub reports <code>MERGEABLE</code> / <code>CLEAN</code>. PR left as a draft.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note" style="margin-top:14px;">One wobble worth knowing about: on the third of the four full-suite runs, <code>scripts/__tests__/watchLess.test.ts</code> failed. It passed on the other three and passes on its own. It is a LESS-watcher tooling test that asserts a file's timestamp went up after a <span class="numeral">30ms</span> sleep, so under full-suite load the two writes land in the same timestamp tick. Nothing in this diff touches LESS watching. See the FYI on the right.</p>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p class="sub">Four commits plus the base merge, in order.</p>
+      <ol class="commits">
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/2dd2a7db45faa700480462910d6833f51cedef0c" target="_blank" rel="noopener">2dd2a7d</a></span>
+          <span class="msg">Re-mark up the page after an Undo or Redo
+            <span class="why">The work itself: one entry point, <code>updateMarkupAfterUndoOrRedo()</code>, called from every undo path we own, and a trigger argument on <code>handlePageEditing</code> that carries the four undo-specific behaviours.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e77ecf94778dd96182abe8b279b676da81f7548d" target="_blank" rel="noopener">e77ecf9</a></span>
+          <span class="msg">Merge master into the branch
+            <span class="why">Clean; base had one commit, touching only C#, build scripts and docs.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/8ff980defa034a998868144c6bd0b1e62a1012b6" target="_blank" rel="noopener">8ff980d</a></span>
+          <span class="msg">Only make an undo wait behind a pass that did the markup
+            <span class="why">From Devin: the new throttle stamped its timestamp before knowing whether the pass would do anything, so an attempt that gave up still made the next undo wait.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/659c8061d0ebbe4ee436bb6f8f27100fb6d1d22e" target="_blank" rel="noopener">659c806</a></span>
+          <span class="msg">Stamp the undo throttle only where the markup is certain
+            <span class="why">Devin's follow-up on the same point: two more guards sat below the new placement, so the stamp moved to where the markup actually begins.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/3c857036a8423478da38dd724b82610a03a2fe83" target="_blank" rel="noopener">3c85703</a></span>
+          <span class="msg">Use function syntax for the two new helpers
+            <span class="why">Devin's one bug: <code>src/BloomBrowserUI/AGENTS.md</code> asks for <code>function</code> syntax over <code>const foo = () =&gt;</code>.</span>
+          </span>
+        </li>
+      </ol>
+      <p class="note" style="margin-top:16px;"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8201/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201/commits" target="_blank" rel="noopener">All commits</a></p>
+    </section>
+
+    <section class="card">
+      <h2>What the change does</h2>
+      <p class="note">An undo does not edit text in place — it writes a saved snapshot over the whole text box, rebuilding every text node in it. Since <a href="https://github.com/BloomBooks/BloomDesktop/pull/8123" target="_blank" rel="noopener">#8123</a> the reader and Talking Book highlights are <code>::highlight()</code> pseudo-elements painted over live <code>Range</code> objects into those nodes, so every highlight in the box dies at that moment: still registered, painting nothing. Only a markup pass re-creates them, and three separate things stopped one from running.</p>
+      <div class="tablewrap" style="margin-top:14px;">
+      <table>
+        <thead><tr><th>Why no repaint</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">Nothing scheduled one. The top-bar Undo button produces no keystroke, so the keyup-driven update never ran.</td>
+            <td class="detail">Every undo path calls <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1441" target="_blank" rel="noopener">updateMarkupAfterUndoOrRedo()</a> — CKEditor's own undo/redo commands via a new <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L2031" target="_blank" rel="noopener">afterCommandExec hook</a>, the <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/workspaceRoot.ts#L114" target="_blank" rel="noopener">top bar's two text-changing branches</a>, and the <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/toolbox/readers/decodableReader/decodableReaderTool.tsx#L180" target="_blank" rel="noopener">reader tools' Ctrl+Z interception</a>.</td>
+          </tr>
+          <tr>
+            <td class="what">The pass gave up when the selection was a range rather than a caret — and an undo restores whatever selection its snapshot held.</td>
+            <td class="detail"><a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1556" target="_blank" rel="noopener">The guard</a> now lets an undo through; the bookmark machinery preserves a range just as it does a caret.</td>
+          </tr>
+          <tr>
+            <td class="what"><code>jquery.longpress</code> sets its "evaluating" flag on <em>every</em> keydown and clears it on keyup. Ctrl+Z does its work on the keydown, so the flag was always set.</td>
+            <td class="detail"><a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1517" target="_blank" rel="noopener">Undo is exempt</a> from that flag — Ctrl+Z can't be a longpress, which is about holding a letter key on its own.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note" style="margin-top:14px;">Undo also waits on <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c857036a8423478da38dd724b82610a03a2fe83/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L41" target="_blank" rel="noopener">its own timer</a> rather than the shared one, because the keyup that ends Ctrl+Z would otherwise cancel the very update the undo just asked for. It runs immediately, spaced at least <span class="numeral">150ms</span> apart so a held Ctrl+Z doesn't re-mark the page on every auto-repeat.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewers</h2>
+      <div class="reviewers">
+        <div class="reviewer">
+          <span class="who">Local review — light sub-agent pass</span><span class="pill ok">complete</span>
+          <span class="said"><strong>3 raised, 2 fixed, 1 escalated.</strong> It caught that a held Ctrl+Z would run a full markup pass per auto-repeat (fixed with the throttle), and that the undo trigger had no retries when the selection isn't usable yet — which matters because the top-bar button has no keystroke to bring a second chance (fixed). The third is decision 1 on the right.</span>
+        </div>
+        <div class="reviewer">
+          <span class="who"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8201" target="_blank" rel="noopener">Devin</a></span><span class="pill ok">complete</span>
+          <span class="said"><strong>1 bug (fixed, and Devin now marks it resolved), 3 to investigate, 8 informational.</strong> It ran on every commit as it was pushed; the final pass is against <code class="sha">3c857036</code>. Of the three flags, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201#discussion_r3778162849" target="_blank" rel="noopener">the one about bookmarks around a range selection</a> was checked in a running Bloom and resolved; the other two are decisions 1 and 2 on the right and are deliberately left open. Two informational notes led to fixes anyway (<code class="sha">8ff980d</code>, <code class="sha">659c806</code>). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201#issuecomment-5285042024" target="_blank" rel="noopener">Consultation log</a>.</span>
+        </div>
+        <div class="reviewer">
+          <span class="who">CI — <code>pr-automation</code></span><span class="pill ok">pass</span>
+          <span class="said">The only GitHub check on this repo; it is what loads the Devin review URL. TeamCity runs the real build elsewhere.</span>
+        </div>
+        <div class="reviewer">
+          <span class="who">CodeRabbit</span><span class="pill idle">not active</span>
+          <span class="said">Configured in the repo but switched off: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>. Not woken deliberately — that looks like a team choice.</span>
+        </div>
+        <div class="reviewer">
+          <span class="who">Other comment-posting bots</span><span class="pill idle">none</span>
+          <span class="said">No bot has posted on any recent PR in this repo (checked #8196, #8186, #8123 — humans only).</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Notes from the session</h2>
+      <p class="note"><strong>This fixes something a tester already reported on the card.</strong> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16558#focus=Comments-102-75392.0-0" target="_blank" rel="noopener">Comment 102-75392</a> describes exactly the top-bar-Undo path: select highlighted text in a decodable reader, delete it, click Undo, and all the highlighting is gone until you click outside the box. It was logged there as a regression from 6.4.107 Beta. The PR description now says so.</p>
+      <p class="note" style="margin-top:10px;"><strong>Everything was measured, not reasoned about.</strong> The three failures and the four fixed cases were checked by driving the Edit tab over CDP and reading <code>CSS.highlights</code> directly — for each painted <code>Range</code>, whether it had collapsed and whether it still had client rects — sampled every <span class="numeral">10ms</span> across each undo. Before: the top-bar button and a Ctrl+Z that restores a range selection both left the highlight dead permanently (still dead <span class="numeral">5.8s</span> later); a plain Ctrl+Z blanked it for about half a second. After: all four cases stay alive, with at most a sub-frame blip.</p>
+      <p class="note" style="margin-top:10px;"><strong>Round-2 test notes are on the card.</strong> Because a tester has already worked through the round-1 notes and replied to them, this run added a <em>new</em> comment rather than overwriting theirs, saying what to re-test and what does not need retesting.</p>
+      <p class="note" style="margin-top:10px;"><strong>The test book was borrowed and put back.</strong> Verification used your "Large birds" book; both text boxes were restored to byte-identical HTML and the Leveled Reader flag turned back off, but it was saved in the modified state in between.</p>
+    </section>
+
+  </div>
+
+  <!-- ================= RIGHT: decisions ================= -->
+  <div class="col">
+
+    <section class="item">
+      <div class="kind">Decision 1</div>
+      <h3>Talking Book's undo doesn't get the fast repaint on Ctrl+Z</h3>
+      <div class="body">
+        <p>Every markup pass stamps a shared counter, and a pass that has to wait for an answer from the server throws its own result away if the counter moved while it waited. That guard is there for a good reason: Talking Book's markup is computed from a <em>copy</em> of the text box taken before the wait, so applying it late could overwrite a character the user typed in the meantime.</p>
+        <p>The snag is that pressing Ctrl+Z ends with a key-up, and that key-up bumps the counter. So with the Talking Book tool open, the undo's own markup pass is discarded and the key-up's ordinary pass does the work half a second later. Nothing is broken — that is exactly today's behaviour, and the yellow sentence highlight is repaired instantly by other machinery regardless — but the "repaint immediately" benefit doesn't reach that one path. The top-bar Undo button, which produces no key-up, does get it.</p>
+        <p>Recommendation is to leave it: the visible symptom is already handled, and every way of closing the gap means touching a guard that protects against losing a keystroke. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201#discussion_r3778161743" target="_blank" rel="noopener">Devin's flag</a> (open).</p>
+      </div>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q1" value="Track whether the text actually changed, instead of counting keystrokes">
+          <span class="label">Track whether the text actually changed, instead of counting keystrokes
+            <span class="fix">Moderate — the guard is shared by every markup pass, including typing and paste, so it needs care and its own testing.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q1" value="Stop the key-up that ends Ctrl+Z from bumping the counter">
+          <span class="label">Stop the key-up that ends Ctrl+Z from bumping the counter
+            <span class="fix">~15 lines, but it makes the key handler and the undo hook aware of each other, which is the kind of coupling that rots.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q1" value="Leave as is" checked>
+          <span class="label">Leave as is <span class="rec">recommended</span></span>
+          <label class="leavebox"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</label>
+        </label>
+        <label class="choice otherrow">
+          <input type="radio" name="q1" value="__other__">
+          <span class="label">Other:</span>
+          <input type="text" data-q="Decision 1 — other" placeholder="your call">
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n1">Notes</label>
+        <textarea id="n1" data-q="Decision 1 — notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <div class="kind">Decision 2</div>
+      <h3>An undo can wipe the reader tools' redo list</h3>
+      <div class="body">
+        <p>The reader tools keep a small undo list of their own, separate from the editor's. Whenever a markup pass notices the text has changed, it adds an entry to that list and throws away anything that could be redone.</p>
+        <p>Because this change makes the top-bar Undo button run a markup pass where it previously ran none, a new sequence becomes possible: you press Undo, the pass tidies up a stray non-breaking space (Bloom converts those in some situations, which counts as the text changing), and the redo entry is discarded on the spot.</p>
+        <p>How much this matters is genuinely unclear, which is why it's here rather than fixed. That list is only reached from the top-bar Undo button — Ctrl+Z is taken by the editor before the reader tool sees it — and there is no Redo button in the top bar at all. It is also the same list this card has already parked a question about removing now that markup no longer rewrites the text; if it goes, this goes with it. Recommendation is therefore to leave it and fold it into that larger decision. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8201#discussion_r3778168535" target="_blank" rel="noopener">Devin's flag</a> (open).</p>
+      </div>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q2" value="Tell the markup pass not to touch the undo list when it was triggered by an undo">
+          <span class="label">Tell the markup pass not to touch the undo list when it was triggered by an undo
+            <span class="fix">~15 lines, localized and low risk — but it adds plumbing to the very code that may be deleted.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q2" value="Decide the bigger question now: remove the reader tools' own undo/redo">
+          <span class="label">Decide the bigger question now: remove the reader tools' own undo/redo
+            <span class="fix">Large — a separate PR, and worth its own testing pass; previously preferred as follow-up work after this lands.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q2" value="Leave as is" checked>
+          <span class="label">Leave as is <span class="rec">recommended</span></span>
+          <label class="leavebox"><input type="checkbox" data-q="Decision 2 — leave comment"> Leave comment</label>
+        </label>
+        <label class="choice otherrow">
+          <input type="radio" name="q2" value="__other__">
+          <span class="label">Other:</span>
+          <input type="text" data-q="Decision 2 — other" placeholder="your call">
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n2">Notes</label>
+        <textarea id="n2" data-q="Decision 2 — notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <div class="kind">FYI</div>
+      <h3>A test in the suite fails only under load</h3>
+      <div class="body">
+        <p><code>scripts/__tests__/watchLess.test.ts</code> — "rebuilds when dependency is newer on startup" — failed once in four full runs and passes on its own. It writes a file, sleeps <span class="numeral">30ms</span>, writes again, and asserts the second timestamp is strictly larger; on a loaded machine both writes can land in the same filesystem tick. Nothing here touches it, so this is unrelated to the branch, but it will keep costing whoever runs the suite a re-run.</p>
+      </div>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q3" value="Log it as a papercut">
+          <span class="label">Log it as a papercut
+            <span class="fix">No code — a note in PAPERCUTS.md so it stops being rediscovered.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q3" value="Fix the test now, in this PR">
+          <span class="label">Fix the test now, in this PR
+            <span class="fix">~5 lines (wait for the clock to tick, or compare with &gt;=), but unrelated to this branch's subject.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q3" value="Leave as is" checked>
+          <span class="label">Leave as is <span class="rec">recommended</span></span>
+          <label class="leavebox"><input type="checkbox" data-q="FYI — leave comment"> Leave comment</label>
+        </label>
+        <label class="choice otherrow">
+          <input type="radio" name="q3" value="__other__">
+          <span class="label">Other:</span>
+          <input type="text" data-q="FYI — other" placeholder="your call">
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n3">Notes</label>
+        <textarea id="n3" data-q="FYI — notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <div class="kind">Next step</div>
+      <h3>What should happen after you answer</h3>
+      <div class="body">
+        <p>The PR is a draft and stays that way until you've reviewed it yourself; promoting it to a colleague is <code>pr-ready-for-human</code>'s job, not this one.</p>
+      </div>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q4" value="Implement the choices above straight away" checked>
+          <span class="label">Implement the choices above straight away <span class="rec">recommended</span>
+            <span class="fix">Any code change re-runs the gate and the reviewers before it settles.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q4" value="Talk it through first">
+          <span class="label">Talk it through first
+            <span class="fix">No code moves until you say so.</span>
+          </span><span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q4" value="Leave as is">
+          <span class="label">Leave as is</span>
+          <label class="leavebox"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label>
+        </label>
+        <label class="choice otherrow">
+          <input type="radio" name="q4" value="__other__">
+          <span class="label">Other:</span>
+          <input type="text" data-q="Next step — other" placeholder="your call">
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n4">Notes</label>
+        <textarea id="n4" data-q="Next step — notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <h3>Send your answers back</h3>
+      <div class="body"><p>Copy this and paste it into the session.</p></div>
+      <p style="margin:14px 0 0;"><button class="copy" id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>Copied</span></p>
+      <textarea id="payload" readonly></textarea>
+    </section>
+
+  </div>
+</div>
+
+<footer>
+  Preflight report for <code>BL-16558-undo-highlights</code> at <code class="sha">3c857036a8423478da38dd724b82610a03a2fe83</code>. Re-running preflight republishes this same page.
+</footer>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    { name: "q1", title: "Decision 1 — Talking Book's undo doesn't get the fast repaint on Ctrl+Z" },
+    { name: "q2", title: "Decision 2 — An undo can wipe the reader tools' redo list" },
+    { name: "q3", title: "FYI — A test in the suite fails only under load" },
+    { name: "q4", title: "Next step" }
+  ];
+
+  function itemOf(name) {
+    var radio = document.querySelector('input[name="' + name + '"]');
+    return radio ? radio.closest(".item") : null;
+  }
+
+  function build() {
+    var out = ["Preflight answers — BL-16558-undo-highlights (PR #8201)", ""];
+    QUESTIONS.forEach(function (q) {
+      var item = itemOf(q.name);
+      if (!item) return;
+      var chosen = item.querySelector('input[name="' + q.name + '"]:checked');
+      var answer = "(no answer)";
+      if (chosen) {
+        if (chosen.value === "__other__") {
+          var otherBox = item.querySelector('input[type="text"][data-q$="other"]');
+          var typed = otherBox && otherBox.value.trim();
+          answer = "Other: " + (typed ? typed : "(nothing typed)");
+        } else {
+          answer = chosen.value;
+        }
+      }
+      out.push(q.title);
+      out.push("  -> " + answer);
+
+      var leave = item.querySelector('input[type="checkbox"][data-q$="leave comment"]');
+      if (leave && leave.checked) {
+        out.push("  -> Leave comment: record this decision as a code comment near the relevant code");
+      }
+      var notes = item.querySelector('textarea[data-q$="notes"]');
+      if (notes && notes.value.trim()) {
+        out.push("  -> Notes: " + notes.value.trim().replace(/\n/g, "\n     "));
+      }
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      var msg = document.getElementById("copiedMsg");
+      msg.hidden = false;
+      setTimeout(function () { msg.hidden = true; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
