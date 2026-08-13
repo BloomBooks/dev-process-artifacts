@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16679 trailing-period collection fix</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #faf8f5;
+    --card: #ffffff;
+    --line: #e5ded2;
+    --ink: #23201c;
+    --muted: #6b6459;
+    --accent: #2f6a63;
+    --accent-soft: #eaf2f0;
+    --warn: #8a5a1a;
+    --warn-soft: #fbf1e2;
+    --ok: #2f6a3f;
+    --bad: #97372b;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 27px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 0 0 12px; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  a { color: var(--accent); }
+  code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 0.88em; background: #f3efe8; padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; font-size: 0.9em; }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 28px 22px 60px; }
+  header.top { margin-bottom: 22px; }
+  header.top .sub { color: var(--muted); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .col { min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .04em; }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; font-size: 12px; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
+  .tag.ok { background: #e8f2ea; color: var(--ok); }
+  .tag.na { background: #f0ece5; color: var(--muted); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  ul { margin: 8px 0 0; padding-left: 20px; }
+  li { margin-bottom: 7px; }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  .item h3 .kind { font-family: system-ui, sans-serif; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+  .opt { display: flex; gap: 9px; align-items: flex-start; padding: 8px 0; border-top: 1px solid #f0ece5; }
+  .opt:first-of-type { border-top: 0; }
+  .opt input[type=radio] { margin-top: 4px; flex: none; }
+  .opt .body { min-width: 0; flex: 1; }
+  .opt .lab { font-weight: 600; }
+  .opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .rec { background: var(--accent-soft); color: var(--accent); font-size: 11.5px; padding: 1px 7px; border-radius: 10px; margin-left: 6px; white-space: nowrap; }
+  .leaverow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .leaverow .spacer { flex: 1; }
+  .leavecomment { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  input[type=text], textarea { width: 100%; font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: #fdfcfa; color: var(--ink); }
+  textarea { min-height: 54px; resize: vertical; }
+  .notes { margin-top: 10px; }
+  .notes label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 9px 16px; cursor: pointer; }
+  button:hover { background: #255751; }
+  #payload { margin-top: 12px; min-height: 150px; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; }
+  .copied { color: var(--ok); font-size: 13px; margin-left: 10px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Preflight — trailing-period collection name (BL-16679)</h1>
+    <div class="sub">
+      Branch <code>BL-16679-BadTeamCollectionZombied</code> ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204" target="_blank" rel="noopener">PR #8204 (draft)</a> ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204/files" target="_blank" rel="noopener">files changed</a> ·
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16679" target="_blank" rel="noopener">BL-16679</a> ·
+      HEAD <code>6eac1460c</code>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          <tr><td>Typecheck / build (C#)</td><td><span class="tag ok">pass</span></td><td><code>agent-dotnet build BloomExe</code>, <span class="numeral">0</span> errors</td></tr>
+          <tr><td>Lint / format (CSharpier)</td><td><span class="tag ok">pass</span></td><td>clean on all 11 files; pre-commit hooks (non-Robust file ops, XmlNode, <code>Application.Exit</code>) also passed</td></tr>
+          <tr><td>Tests — C# (NUnit)</td><td><span class="tag ok">pass</span></td><td><span class="numeral">3112 passed · 0 failed · 13 skipped</span>, a full run after the base merge and after each of the four rounds of review fixes</td></tr>
+          <tr><td>Tests — TypeScript (vitest)</td><td><span class="tag na">not run</span></td><td>no TypeScript in the diff — the branch changes 7 C# files and 4 C# test files, and the front end neither builds nor reads any of them</td></tr>
+          <tr><td>Base integration</td><td><span class="tag ok">clean</span></td><td>merged <code>origin/master</code> (<code>83f2a93f2</code>) with no conflicts; master touched none of these files</td></tr>
+          <tr><td>Mergeable</td><td><span class="tag ok">yes</span></td><td>branch is ahead of master and integrated</td></tr>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <table>
+          <tr><th>Commit</th><th>What</th></tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/f634c6c21" target="_blank" rel="noopener"><code>f634c6c21</code></a></td>
+            <td>The fix itself: normalize the collection path on open and in the recently-used list; stop creating trailing-period paths; dispose a <code>ProjectContext</code> that fails to build; pass the <em>folder</em> to <code>TryGetSettingsFilePath</code> so the settings-file fallback works; use it in the collection chooser and in spreadsheet export. Plus 20 test cases.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/c1a7cde4a" target="_blank" rel="noopener"><code>c1a7cde4a</code></a></td>
+            <td>Merge of <code>origin/master</code>.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/dd5d7e66c" target="_blank" rel="noopener"><code>dd5d7e66c</code></a></td>
+            <td>First round of review fixes (all five of Devin's findings), plus one more test.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/43ac9799a" target="_blank" rel="noopener"><code>43ac9799a</code></a></td>
+            <td>Second round: restore spreadsheet export for a book that isn't inside a collection; stop the chooser listing a healed collection twice after a normal launch; stop one unreadable folder breaking the whole chooser list; make <code>CollectionLock.Unlock</code> idempotent.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/1e2d1cb5e" target="_blank" rel="noopener"><code>1e2d1cb5e</code></a></td>
+            <td>Third round: check the raw collection name for invalid characters again. The first round's change judged the trimmed name, and <code>Trim()</code> removes exactly the control characters (tab, newline) that are invalid in a file name — so a pasted name ending in one passed validation and then failed when Bloom created the folder.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/6eac1460c" target="_blank" rel="noopener"><code>6eac1460c</code></a></td>
+            <td>Fourth round: close the last route into the mismatch. Creating a collection no longer asks Windows for a folder name it will alter, but <code>Bloom --rename</code> still did, so renaming to <code>Foo.</code> rebuilt exactly the state this ticket is about.</td>
+          </tr>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <table>
+          <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+          <tr>
+            <td>Local review<br><span style="color:var(--muted);font-size:13px">light, run inline</span></td>
+            <td><span class="tag ok">complete</span></td>
+            <td>3 raised, 2 fixed, 1 assessed and kept. Fixed: the constructor's cleanup could throw from <code>Dispose()</code> and replace the exception that explains the failure (now caught and logged); a stray BOM removal that showed as an unexplained changed line. Kept: the chooser can now throw on an unreadable folder — decision 3.
+            <br><span style="color:var(--muted);font-size:13px">Run inline rather than as a sub-agent, per the standing instruction in this session not to spawn agents unasked.</span></td>
+          </tr>
+          <tr>
+            <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8204" target="_blank" rel="noopener">Devin</a></td>
+            <td><span class="tag ok">complete</span></td>
+            <td><strong>Round 1</strong> on <code>c1a7cde4a</code>: 1 Bug, 1 Investigate, 4 Informational — all six real, all addressed in <code>dd5d7e66c</code>.
+              <br><strong>Round 2</strong> on <code>dd5d7e66c</code>: 3 genuinely new findings (2 Bugs, 1 Investigate), all real, all fixed in <code>43ac9799a</code>; 1 Investigate assessed as not an issue; the rest were repeats of round 1's, already fixed — each was checked against the committed code before being acted on or dismissed.
+              <br><strong>Round 3</strong> on <code>43ac9799a</code>: 1 genuinely new Bug (a regression from round 1's own fix), fixed in <code>1e2d1cb5e</code>.
+              <br><strong>Round 4</strong> on <code>1e2d1cb5e</code>: 1 genuinely new Investigate — renaming was the last remaining way to manufacture the mismatch — closed in <code>6eac1460c</code>. That was the fourth and final fix cycle this workflow allows.
+              <br><strong>Round 5</strong> on <code>6eac1460c</code>: no new Bugs; 1 genuinely new Investigate (the collection lock is taken before the path repair). With the fix budget spent, that one went to you as the first decision item, and its thread is the one deliberately left open.
+              <br>All eight posted findings are PR threads with a reply recording the outcome, and resolved:
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779706132" target="_blank" rel="noopener">duplicate MRU entry</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779707392" target="_blank" rel="noopener">silently creating a collection</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779773423" target="_blank" rel="noopener">spreadsheet export broken</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779773501" target="_blank" rel="noopener">still listed twice</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779774730" target="_blank" rel="noopener">scan can throw</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779774837" target="_blank" rel="noopener">tests assume Windows</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779820597" target="_blank" rel="noopener">control characters accepted</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779886176" target="_blank" rel="noopener">rename route still open</a>.
+              <br><span id="rereview-slot" style="color:var(--muted);font-size:13px">Round 3 on <code>43ac9799a</code>: RESULT_PENDING</span></td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td><span class="tag na">not run</span></td>
+            <td>Disabled in this repo — <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code> and <code>review_status: false</code>. Confirmed by its absence on the three most recent PRs, so this is configuration, not a reviewer we failed to wait for.</td>
+          </tr>
+          <tr>
+            <td>CI (<code>pr-automation</code>)</td>
+            <td><span class="tag ok">pass</span></td>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/31754208418/job/94626381198" target="_blank" rel="noopener">22s at <code>6eac1460c</code></a>, and green on every earlier commit too. It is the repo's only PR check; its job is to trigger Devin.</td>
+          </tr>
+        </table>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul>
+          <li><strong>One correction worth knowing.</strong> Earlier in the session I said the orphaned <code>ProjectContext</code> kept <code>BloomServer</code> and its port alive, and that this was part of what zombied Bloom. Devin caught that: <code>BloomServer</code> is resolved from the <em>parent</em> container (<a href="https://github.com/BloomBooks/BloomDesktop/blob/dd5d7e66cd8008569c0645460b78b8af53019a5c/src/BloomExe/ProjectContext.cs#L433" target="_blank" rel="noopener">ProjectContext.cs:433</a>), so disposing the project scope never touched it. What the leak really held is the collection-file lock plus the project-scoped objects — the Shell and its WebView2 browsers, the file watchers. The code comment and the PR description have been corrected; the first commit message still carries the overstatement.</li>
+          <li><strong>Devin earned its keep, three rounds running.</strong> Every finding was verified against the code before being acted on or dismissed — the duplicate-MRU one by checking that <code>MostRecentPathsList</code> de-duplicates by exact string; the "silently creates a collection" one by reading the <code>CollectionSettings</code> constructor, which really does <code>Save()</code> a fresh default when the file is missing. Two of the later findings were regressions introduced by fixes for the earlier ones (spreadsheet export, and the invalid-character check), which is exactly the kind of thing a second pass is for.</li>
+          <li><strong>A caveat about reading Devin's later rounds:</strong> each re-review returned the earlier rounds' findings again alongside the new ones, quoting code that had already been changed. Nothing was re-fixed on that basis — each finding was checked against the committed file first, and the repeats were confirmed already fixed at HEAD. Worth knowing before trusting a raw finding count from that API.</li>
+          <li><strong>Not everything has been exercised by hand.</strong> You confirmed that joining the Team Collection now works. Still unverified in a running Bloom: that the file watcher actually fires (a watcher that silently never raises an event looks exactly like a working one at startup), that no <code>Bloom.exe</code> survives a quit, the chooser's new entries, and creating a collection named <code>Test.</code> These are on the card's test-ideas comment.</li>
+          <li><strong>Pre-existing oddity, untouched:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/dd5d7e66cd8008569c0645460b78b8af53019a5c/src/BloomExe/web/controllers/ToolboxApi.cs#L7" target="_blank" rel="noopener">ToolboxApi.cs:7</a> declares production code in <code>namespace BloomTests.web.controllers</code>, which is why <code>ProjectContext.cs</code> has a <code>using BloomTests.web.controllers;</code> that looks alarming and is harmless.</li>
+          <li><strong>Tracker:</strong> the PR link and a refreshed test-ideas comment are on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16679" target="_blank" rel="noopener">BL-16679</a>. The <code>add-test-ideas</code> skill's own instructions could not be read (its symlink in <code>~/.claude/skills</code> does not resolve), so the comment was written directly, with the skill's <code>&lt;!-- test-ideas --&gt;</code> marker as its first line so a later run updates it in place.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <div class="col">
+
+      <div class="item">
+        <h3><span class="kind">Decision</span>The collection-file lock is still taken on the unrepaired path</h3>
+        <p>Bloom locks the <code>.bloomCollection</code> file while a collection is open, purely so the folder can't be renamed or moved out from under it. That lock is taken on the path as handed in, at the very top of building the project — <em>before</em> the new code that works out which settings file is really in the folder. So in the one situation this whole branch is about, a caller that guessed the file name from the folder name, the lock is aimed at a file that doesn't exist: in a release build the failure is swallowed and the rename protection is silently gone; in a debug build it throws and the collection won't open at all. It should be rare now, because the places that open a collection hand over real on-disk paths — but the repair genuinely doesn't cover the lock.</p>
+        <p>This arrived on the last review round, after the run had used its four automatic fix rounds, so it is yours to call rather than something I changed unreviewed. Its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779916527" target="_blank" rel="noopener">PR thread</a> is deliberately left open.</p>
+        <div class="opt">
+          <input type="radio" name="q0" id="q0a" value="Resolve the real settings path before taking the lock" checked>
+          <div class="body"><label class="lab" for="q0a">Resolve the real settings file before locking</label><span class="rec">recommended</span>
+          <span class="fn">Closes the last inconsistency: the lock, <code>SettingsPath</code> and the settings object would all refer to the same real file. I checked the only consumer of <code>ProjectContext.SettingsPath</code> (<code>BulkUploader.cs:370</code>) — it passes in a path it got from the same lookup, so this makes that comparison compare like with like rather than break it. (~10 lines in the constructor, but untested as yet, and it moves work ahead of the lock.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q0" id="q0b" value="Leave as is">
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q0b">Leave as is</label><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="Decision 0 — leave comment" id="q0c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q0" id="q0d" value="Other">
+          <div class="body"><label class="lab" for="q0d">Other:</label><input type="text" data-q="Decision 0 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q0n">Notes</label><textarea id="q0n" data-q="Decision 0 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">Decision</span>A collection named with a trailing period now loses it everywhere</h3>
+        <p>If someone types <code>Grade 1.</code> as a new collection name, Bloom now creates the folder <code>Grade 1</code>, the file <code>Grade 1.bloomCollection</code>, and the collection displays as <strong>Grade 1</strong> — the period is dropped. Previously Bloom asked Windows for a folder called <code>Grade 1.</code>, Windows silently made <code>Grade 1</code> anyway, and the settings file kept the period (<code>Grade 1..bloomCollection</code>) so the name still displayed with it. That mismatch is exactly what caused this bug, and three separate places in the code had to be taught to cope with it. This is a visible change to what a user gets, which is why it is here rather than simply done.</p>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1a" value="Keep the typed name on the settings file; trim only the folder">
+          <div class="body"><label class="lab" for="q1a">Keep the typed name on the file, trim only the folder</label>
+          <span class="fn">The collection would still display as <code>Grade 1.</code>, but the folder and file names would disagree again — the state that broke Team Collections here. (~5 lines, but it re-creates the mismatch three code paths now tolerate.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q1b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="Decision 1 — leave comment" id="q1c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1d" value="Other">
+          <div class="body"><label class="lab" for="q1d">Other:</label>
+            <input type="text" data-q="Decision 1 — other" placeholder="…">
+          </div>
+        </div>
+        <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="Decision 1 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">Decision</span>The Open/Create dialog will list collections it used to hide</h3>
+        <p>The dialog's list of collections found on disk used to look only for a settings file named after its folder, so it silently skipped any collection where the two disagree. On your machine that hid four: Heather's, and three whose folder was renamed after creation (<code>BL-15365-Mixtec</code>, <code>BL-15902 Custom front cover2</code>, <code>From Bloom Library - My 5th Basic Book 2</code>). They will now appear. This is the intended fix, but it does change what that dialog shows, and if a folder somehow holds more than one <code>.bloomCollection</code> the fallback picks the first one it finds.</p>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2a" value="Only fall back when the folder holds exactly one .bloomCollection">
+          <div class="body"><label class="lab" for="q2a">Only fall back when the folder holds exactly one settings file</label>
+          <span class="fn">Avoids an arbitrary pick in the odd case of two. (~5 lines in the chooser; would also re-hide a collection whose folder has a stray second file.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q2b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="Decision 2 — leave comment" id="q2c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2d" value="Other">
+          <div class="body"><label class="lab" for="q2d">Other:</label><input type="text" data-q="Decision 2 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="Decision 2 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">FYI</span>Spreadsheet export can still leave a stray collection file behind</h3>
+        <p>Exporting a book to a spreadsheet from the command line reads the collection settings from the book's parent folder. If that folder isn't a collection at all, the settings object it builds writes a brand-new default <code>.bloomCollection</code> into the folder as a side effect, and the export proceeds with default settings. That is long-standing behaviour, not something this branch introduced — but this branch briefly turned it into a hard failure instead, Devin flagged the regression, and the old behaviour was deliberately restored rather than quietly changed under cover of a bug fix. Leaving it means the oddity survives; changing it belongs in its own piece of work, which is why leaving it is recommended here.</p>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3a" value="Make spreadsheet export refuse a book outside a collection">
+          <div class="body"><label class="lab" for="q3a">Make export refuse a book outside a collection</label>
+          <span class="fn">Stops the stray file, but changes what a working command does today, and the failure would reach users as a CLI error. (~5 lines; a user-visible behaviour change beyond this bug's scope.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q3b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="FYI 3 — leave comment" id="q3c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3d" value="Other">
+          <div class="body"><label class="lab" for="q3d">Other:</label><input type="text" data-q="FYI 3 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" data-q="FYI 3 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">FYI</span>The first commit message overstates what the cleanup does</h3>
+        <p>It says the failed-construction cleanup shuts down <code>BloomServer</code> and its port. It does not — that server belongs to the application, not to the collection being opened. The code comment and the PR description now say the accurate thing (it releases the collection-file lock and disposes the project-scoped objects), but the commit message is already pushed, so correcting it would mean rewriting published history.</p>
+        <div class="opt">
+          <input type="radio" name="q4" id="q4a" value="Reword the first commit message (force-push)">
+          <div class="body"><label class="lab" for="q4a">Reword the commit message</label>
+          <span class="fn">Requires a force-push of an already-pushed branch; the PR is still draft, so the blast radius is small but non-zero. (No code change.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q4" id="q4b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q4b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="FYI 4 — leave comment" id="q4c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q4" id="q4d" value="Other">
+          <div class="body"><label class="lab" for="q4d">Other:</label><input type="text" data-q="FYI 4 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q4n">Notes</label><textarea id="q4n" data-q="FYI 4 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">FYI</span>Four manual checks are still unperformed</h3>
+        <p>You confirmed joining the Team Collection works. Not yet exercised in a running Bloom: that the collection-folder file watcher actually raises events (it starts without throwing now, but a watcher that never fires is indistinguishable from a working one at startup); that no <code>Bloom.exe</code> survives quitting; that the four previously-hidden collections appear in the Open/Create dialog; and that a new collection named <code>Test.</code> behaves. All four are written up on the card for QA.</p>
+        <div class="opt">
+          <input type="radio" name="q5" id="q5a" value="I will run these checks before human review">
+          <div class="body"><label class="lab" for="q5a">I'll run these before handing it to a colleague</label>
+          <span class="fn">Ten minutes in a running Bloom; the watcher one is the only one that needs a second machine or a manual file touch. (No code change.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q5" id="q5b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q5b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="FYI 5 — leave comment" id="q5c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q5" id="q5d" value="Other">
+          <div class="body"><label class="lab" for="q5d">Other:</label><input type="text" data-q="FYI 5 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q5n">Notes</label><textarea id="q5n" data-q="FYI 5 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">FYI</span>Production code sitting in a <code>BloomTests</code> namespace</h3>
+        <p>Unrelated to this branch and untouched by it: <code>ToolboxApi.cs</code> declares <code>namespace BloomTests.web.controllers</code> even though it ships in Bloom, which is why <code>ProjectContext.cs</code> carries a <code>using BloomTests.web.controllers;</code> that reads like a mistake. It compiles and works; it is just confusing to anyone auditing the file.</p>
+        <div class="opt">
+          <input type="radio" name="q6" id="q6a" value="File a papercut for the BloomTests namespace">
+          <div class="body"><label class="lab" for="q6a">File a papercut for it</label>
+          <span class="fn">Renaming the namespace touches every reference to that API. (No change in this PR.)</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q6" id="q6b" value="Leave as is" checked>
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q6b">Leave as is</label><span class="rec">recommended</span><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="FYI 6 — leave comment" id="q6c"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q6" id="q6d" value="Other">
+          <div class="body"><label class="lab" for="q6d">Other:</label><input type="text" data-q="FYI 6 — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q6n">Notes</label><textarea id="q6n" data-q="FYI 6 — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3><span class="kind">Next step</span>How should I proceed?</h3>
+        <div class="opt">
+          <input type="radio" name="q7" id="q7a" value="Implement my choices above" checked>
+          <div class="body"><label class="lab" for="q7a">Implement whatever I chose above</label><span class="rec">recommended</span>
+          <span class="fn">Then re-run the gauntlet, since each change is a new commit.</span></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q7" id="q7b" value="Discuss first">
+          <div class="body"><label class="lab" for="q7b">Discuss before changing anything</label></div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q7" id="q7c" value="Leave as is">
+          <div class="body">
+            <div class="leaverow"><label class="lab" for="q7c">Leave as is</label><span class="spacer"></span>
+              <label class="leavecomment"><input type="checkbox" data-q="Next step — leave comment" id="q7d"> Leave comment</label>
+            </div>
+          </div>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q7" id="q7e" value="Other">
+          <div class="body"><label class="lab" for="q7e">Other:</label><input type="text" data-q="Next step — other" placeholder="…"></div>
+        </div>
+        <div class="notes"><label for="q7n">Notes</label><textarea id="q7n" data-q="Next step — notes"></textarea></div>
+      </div>
+
+      <div class="item">
+        <h3>Send your answers back</h3>
+        <p style="margin-top:0">Copy this and paste it into the session.</p>
+        <button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>copied</span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var QS = [
+    { name: 'q0', label: 'Decision 0 — collection lock taken on the unrepaired path' },
+    { name: 'q1', label: 'Decision 1 — trailing-period collection names lose the period' },
+    { name: 'q2', label: 'Decision 2 — chooser lists previously hidden collections' },
+    { name: 'q3', label: 'FYI 3 — spreadsheet export can leave a stray collection file' },
+    { name: 'q4', label: 'FYI 4 — first commit message overstates the cleanup' },
+    { name: 'q5', label: 'FYI 5 — four manual checks still unperformed' },
+    { name: 'q6', label: 'FYI 6 — production code in a BloomTests namespace' },
+    { name: 'q7', label: 'Next step' }
+  ];
+  function serialize() {
+    var out = ['Preflight answers — BL-16679 (PR #8204, HEAD 6eac1460c)', ''];
+    QS.forEach(function (q) {
+      var picked = document.querySelector('input[name="' + q.name + '"]:checked');
+      var val = picked ? picked.value : '(no answer)';
+      if (val === 'Other') {
+        var box = document.querySelector('input[type=text][data-q^="' + q.label.split(' — ')[0] + '"]');
+        var typed = box && box.value.trim();
+        val = 'Other: ' + (typed || '(nothing typed)');
+      }
+      out.push(q.label + ': ' + val);
+      var lc = document.querySelector('input[type=checkbox][data-q^="' + q.label.split(' — ')[0] + '"]');
+      if (lc && lc.checked) out.push('  Leave comment: yes — record this decision as a code comment near the relevant code');
+      var notes = document.querySelector('textarea[data-q^="' + q.label.split(' — ')[0] + '"]');
+      if (notes && notes.value.trim()) out.push('  Notes: ' + notes.value.trim());
+      out.push('');
+    });
+    return out.join('\n');
+  }
+  function refresh() { document.getElementById('payload').value = serialize(); }
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var ta = document.getElementById('payload');
+    var msg = document.getElementById('copiedMsg');
+    function done() { msg.hidden = false; setTimeout(function () { msg.hidden = true; }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); document.execCommand('copy'); done(); });
+    } else { ta.select(); document.execCommand('copy'); done(); }
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
