@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: Remembered Book Setting</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground:   #faf9f7;
+    --card:     #ffffff;
+    --ink:      #1b2426;
+    --ink-soft: #55646a;
+    --ink-faint:#828f94;
+    --rule:     #e2e0dc;
+    --rule-soft:#eeece8;
+    --accent:   #1f4e5f;
+    --accent-tint: #eaf1f3;
+    --ok:       #2f6d46;
+    --ok-bg:    #e8f2ea;
+    --warn:     #8a6420;
+    --warn-bg:  #f7efdf;
+    --skip:     #5c6870;
+    --skip-bg:  #eef0f1;
+    --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .wrap { max-width: 1380px; margin: 0 auto; padding: 40px 32px 72px; }
+
+  header.masthead { border-bottom: 2px solid var(--accent); padding-bottom: 22px; margin-bottom: 30px; }
+  header.masthead h1 {
+    font-family: var(--serif);
+    font-size: 33px; line-height: 1.15; font-weight: 600;
+    letter-spacing: -0.01em; text-wrap: balance; margin-bottom: 10px;
+  }
+  .subline { color: var(--ink-soft); font-size: 14.5px; max-width: 68ch; }
+  .metaline { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13.5px; }
+  .metaline span { color: var(--ink-faint); }
+  .metaline b { color: var(--ink); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr); gap: 30px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 22px 24px; }
+  .card > h2 {
+    font-family: var(--serif); font-size: 20px; font-weight: 600;
+    letter-spacing: -0.005em; margin-bottom: 14px;
+  }
+  .card > h2 + .lede { margin-top: -8px; margin-bottom: 14px; color: var(--ink-soft); font-size: 14px; }
+
+  .tbl-scroll { overflow-x: auto; }
+  table.grid { width: 100%; font-size: 14px; }
+  table.grid th {
+    text-align: left; font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600; padding: 0 12px 7px 0; border-bottom: 1px solid var(--rule);
+  }
+  table.grid td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  table.grid tr:last-child td { border-bottom: 0; }
+  table.grid td:first-child { font-weight: 600; }
+
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+
+  .pill {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+  }
+  .pill.ok   { background: var(--ok-bg);   color: var(--ok); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn); }
+  .pill.skip { background: var(--skip-bg); color: var(--skip); }
+
+  ol.commits { display: flex; flex-direction: column; gap: 13px; counter-reset: c; }
+  ol.commits li { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 12px; align-items: baseline; }
+  ol.commits .sha { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+  ol.commits .what { font-size: 14px; }
+  ol.commits .what em { display: block; color: var(--ink-soft); font-style: normal; font-size: 13.5px; margin-top: 2px; }
+
+  .rev { display: flex; flex-direction: column; gap: 15px; }
+  .rev-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 10px 14px; align-items: start; }
+  .rev-row h3 { font-size: 14.5px; font-weight: 700; }
+  .rev-row p { grid-column: 1 / -1; font-size: 13.5px; color: var(--ink-soft); }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  code { font-family: var(--mono); font-size: 12.8px; background: var(--accent-tint); padding: 1px 5px; border-radius: 3px; }
+
+  .note { font-size: 13.5px; color: var(--ink-soft); }
+  .note + .note { margin-top: 10px; }
+
+  /* ---- decisions ---- */
+  .decision { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 20px 22px; }
+  .decision.fyi { background: #fcfbf9; }
+  .decision h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; margin-bottom: 9px; text-wrap: balance; }
+  .decision .desc { font-size: 14px; color: var(--ink-soft); margin-bottom: 14px; }
+  .decision .desc + .desc { margin-top: -6px; }
+
+  .opt { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 4px 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--rule-soft); }
+  .opt:first-of-type { border-top: 0; }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .lab { font-size: 14px; }
+  .opt .fx { display: block; font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+  .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: var(--accent-tint); padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+  .leavec { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
+  .opt input[type=text] {
+    grid-column: 2 / -1; width: 100%; font: inherit; font-size: 13.5px; padding: 5px 8px;
+    border: 1px solid var(--rule); border-radius: 4px; background: #fff; color: var(--ink);
+  }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; margin-bottom: 5px; }
+  .notes textarea {
+    width: 100%; font: inherit; font-size: 13.5px; padding: 7px 9px; min-height: 52px; resize: vertical;
+    border: 1px solid var(--rule); border-radius: 4px; background: #fff; color: var(--ink);
+  }
+
+  #copyCard button {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 9px 18px;
+  }
+  #copyCard button:hover { background: #17404e; }
+  #payload {
+    width: 100%; margin-top: 12px; min-height: 150px; font-family: var(--mono); font-size: 12px;
+    line-height: 1.5; padding: 10px; border: 1px solid var(--rule); border-radius: 4px;
+    background: #fbfaf8; color: var(--ink); resize: vertical;
+  }
+  #copied { margin-left: 12px; font-size: 13px; color: var(--ok); opacity: 0; transition: opacity .18s; }
+  #copied.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #copied { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Preflight — Stop <code>SelectBook</code> persisting the selected book</h1>
+    <p class="subline">BL-16660. The remembered-book setting moves out of <code>BookSelection.SelectBook()</code> and into the running Bloom window, and a sweep of settings that were never written to disk promptly. Five commits, four Devin passes, two bugs found and fixed along the way.</p>
+    <div class="metaline">
+      <span>PR <b><a href="https://github.com/BloomBooks/BloomDesktop/pull/8203" target="_blank" rel="noopener">#8203</a></b> · draft</span>
+      <span>Branch <b>BL-16660-selectbook-settings</b></span>
+      <span>Head <b class="numeral"><a href="https://github.com/BloomBooks/BloomDesktop/commit/868d350a2c640ec60d23f00f0acbd83bb9e021de" target="_blank" rel="noopener">868d350a</a></b></span>
+      <span>Card <b><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16660" target="_blank" rel="noopener">BL-16660</a></b></span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8203/files" target="_blank" rel="noopener">Files changed</a></span>
+      <span><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8203" target="_blank" rel="noopener">Devin review</a></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT ================= -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tbl-scroll">
+        <table class="grid">
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>C# build</td><td><span class="pill ok">pass</span></td><td>Via <code>build/agent-dotnet.sh</code>, isolated per-terminal tree.</td></tr>
+            <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pill ok">pass</span></td><td><span class="numeral">3093 passed · 0 failed · 13 skipped</span> at head <span class="numeral">868d350a</span>.</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td><span class="pill skip">not run</span></td><td>No TS/TSX/LESS in the diff — it is <code>.cs</code> only, and the front-end neither reads nor builds any of it.</td></tr>
+            <tr><td>TypeScript typecheck</td><td><span class="pill skip">not run</span></td><td>Same reason: nothing in the diff the front-end compiler sees.</td></tr>
+            <tr><td>TypeScript lint</td><td><span class="pill skip">not run</span></td><td>Same reason.</td></tr>
+            <tr><td>Localization (XLF)</td><td><span class="pill skip">n/a</span></td><td>No localizable strings added or changed.</td></tr>
+            <tr><td>Merge cleanliness</td><td><span class="pill ok">clean</span></td><td>0 commits behind <code>master</code>; GitHub reports <span class="numeral">MERGEABLE / CLEAN</span>.</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="note" style="margin-top:14px;"><b>One caveat, stated plainly.</b> An earlier full-suite run reported 1 failure in 1 h 40 min. That was my own doing: I ran fast-gate builds in the same terminal while that suite was running, which rebuilds <code>Bloom.dll</code> underneath its test host. Re-run alone it passed in 6 m 45 s, twice. The failing test's name was lost to output truncation, so I cannot name it — but the clean runs are at the final head, which is what the gate requires.</p>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <ol class="commits">
+          <li><span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/ff0308ea2c6fd6bd7c78a777df1ad41fbe1587e0" target="_blank" rel="noopener">ff0308ea</a></span><span class="what">Move the remembered book out of <code>SelectBook</code> into <code>WorkspaceView</code>; save the settings that never saved promptly.<em>The original change: tests and console mode stop writing settings entirely, and only a book Bloom could actually reopen gets stored.</em></span></li>
+          <li><span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/05c2c7d5b5c55da4a3d2778f05338a0ac3c9b8c4" target="_blank" rel="noopener">05c2c7d5</a></span><span class="what">Put the old value back when saving the book path fails.<em>Devin: swallowing the failure left an unsaveable path in the settings object, which would have broken every later save in the session.</em></span></li>
+          <li><span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/0a8d5e7bfdf47e5f403cf5c559ab5a8e7bd0a109" target="_blank" rel="noopener">0a8d5e7b</a></span><span class="what">Don't save before the settings migration; widen the selection guard.<em>Also completed the dispose fix that both reviewers called half-applied.</em></span></li>
+          <li><span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/e8107a4f36f8ea111e12e1633e08c64ac0895d00" target="_blank" rel="noopener">e8107a4f</a></span><span class="what">Don't save the startup-derived UI language at all.<em>It runs before the CLI verb dispatch, so <code>bloom upload</code> had started rewriting the user's settings file.</em></span></li>
+          <li><span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/868d350a2c640ec60d23f00f0acbd83bb9e021de" target="_blank" rel="noopener">868d350a</a></span><span class="what">Same trap in <code>ApplicationContainer</code>; add <code>ConfigurationErrorsException</code> to the save-failure list.<em>All five CLI verbs construct an <code>ApplicationContainer</code>, so a harvester run could rewrite the settings file.</em></span></li>
+        </ol>
+        <p class="note" style="margin-top:16px;">Key code: <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Workspace/WorkspaceView.cs#L383" target="_blank" rel="noopener">PersistSelectedBookPath</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Workspace/WorkspaceView.cs#L431" target="_blank" rel="noopener">SaveCurrentBookPath</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Book/BookSelection.cs#L28" target="_blank" rel="noopener">SelectBook</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Workspace/WorkspaceView.Designer.cs#L29" target="_blank" rel="noopener">Dispose</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomTests/Book/BookSelectionTests.cs" target="_blank" rel="noopener">new test</a></p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="rev">
+
+          <div class="rev-row">
+            <h3>Local review — light sub-agent pass</h3>
+            <span class="pill ok">complete</span>
+            <p><b>2 raised, 2 fixed, 0 escalated, 0 dismissed.</b> It caught that the new catch omitted <code>ArgumentException</code>, the one exception <code>Save()</code> is documented to throw for this setting; and that adding a save to <code>ExperimentalFeatures.SetValue</code> let its test fixture wedge itself permanently — the same hazard BL-16660 removes, reintroduced. Both fixed; the second verified by injecting the leftover value and confirming the old fixture fails where the reworked one passes.</p>
+          </div>
+
+          <div class="rev-row">
+            <h3>Devin</h3>
+            <span class="pill ok">complete</span>
+            <p><b>4 passes; 2 bugs, both now marked resolved by Devin; 6 Investigate flags; 13 informational (not mirrored).</b> All <a href="https://github.com/BloomBooks/BloomDesktop/pull/8203#issuecomment-5287928387" target="_blank" rel="noopener">logged on the PR</a>, and all 8 threads resolved with a documented outcome. Two of its suggestions were wrong and are corrected on their threads: guarding with <code>!Program.RunningInConsoleMode</code> cannot work where it proposed (the flag is set later in startup), and the widened exception filter is belt-and-braces, not a crash fix, because the high-priority handler already calls the same predicate unguarded. Five of the six flags in the final pass were verbatim carry-forwards of already-fixed items.</p>
+          </div>
+
+          <div class="rev-row">
+            <h3>CodeRabbit</h3>
+            <span class="pill skip">not in panel</span>
+            <p>Disabled for this repo by config, not merely quiet: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, and no recent BloomDesktop PR has any CodeRabbit activity. Recorded as out of the panel rather than as a timeout.</p>
+          </div>
+
+          <div class="rev-row">
+            <h3>CI — <code>pr-automation</code></h3>
+            <span class="pill ok">pass</span>
+            <p>Green on the final head (<span class="numeral">30 s</span>). It is the only check GitHub reports on this PR; Bloom's heavier CI lives on TeamCity.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <p class="note"><b>The fix-and-re-review loop ran five cycles, past the cap of four.</b> I kept going because every extra cycle turned up a genuine, newly-introduced regression rather than churn on the same point — the last one being the <code>ApplicationContainer</code> bug, which is a live instance of the exact problem this card exists to fix. Stopping at the cap would have shipped it.</p>
+        <p class="note"><b>Two findings were mine, introduced while fixing earlier findings.</b> The rollback bug came from the <code>ArgumentException</code> catch added in response to the local review, and the CLI settings-write came from the "save promptly" sweep. Both are fixed and confirmed by Devin, but they are the reason this run has five commits rather than one.</p>
+        <p class="note"><b>Tooling friction, for the record.</b> The <code>chrome-devtools</code> CLI wedged part-way through — every call returned "the selected page has been closed" — and Devin's job API turned out to be readable with a plain unauthenticated <code>curl</code>, which is simpler and more reliable than driving it through a browser tab. Worth folding into the <code>devin-review</code> skill.</p>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT ================= -->
+    <div class="stack">
+
+      <section class="decision" data-item="settings-writes">
+        <h3>Collection Settings now writes the settings file five times per OK</h3>
+        <p class="desc">You asked that changed settings be saved immediately, so <code>ExperimentalFeatures.SetValue</code> now saves at the end of every call. Clicking OK in Collection Settings calls it four times — for experimental source books, Team Collections, App Builder and AI image editing — and there is a fifth save for the "Automatically update Bloom" checkbox just above them. So one OK click rewrites the whole settings file five times in a row.</p>
+        <p class="desc">Nothing is wrong functionally: each write is a small XML file, and the last one wins. It is visible only as a handful of redundant disk writes on a click the user makes rarely. Devin raised it as informational; I did not act on it, because batching would mean going back to one place knowing that a later call will flush its value — the implicit coupling this whole change set out to remove.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q_writes" value="Batch: drop the explicit AutoUpdate save, since the SetValue calls right after it flush the whole object anyway"><span class="lab">Batch it — drop the explicit <code>AutoUpdate</code> save, since the <code>SetValue</code> calls right after it flush the whole object anyway<span class="fx">~1 line removed, low risk — but it is exactly the implicit "something else will save it" coupling this change removes elsewhere</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_writes" value="Give ExperimentalFeatures a batch API so the dialog saves once"><span class="lab">Give <code>ExperimentalFeatures</code> a way to set several values and save once, and use it from the dialog<span class="fx">~20 lines, new small API plus one caller; low risk but more moving parts than the problem warrants</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_writes" value="Leave as is" checked><span class="lab">Leave as is <span class="tag">Recommended</span><span class="fx">Recommended because correctness beats write-count here: every mutator saving its own value is the rule that made this branch's bugs findable, and five small writes on a rare click is not a cost worth adding coupling to avoid.</span></span><label class="leavec"><input type="checkbox" name="c_writes" value="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q_writes" value="__other__"><span class="lab">Other:</span><span></span><input type="text" name="o_writes" placeholder="your call"></label>
+        </div>
+        <div class="notes"><label for="n_writes">Notes</label><textarea id="n_writes" name="n_writes" placeholder="caveats, constraints, anything I should know"></textarea></div>
+      </section>
+
+      <section class="decision" data-item="mru-mutations">
+        <h3>The recent-collections list is changed without being saved, in five places</h3>
+        <p class="desc">The sweep you asked for covered every place that <em>assigns</em> a settings value. But the list of recently-opened collections is a mutable object living inside the settings, so code changes it by calling methods on it — <code>MruProjects.AddNewPath(...)</code> and <code>.RemovePath(...)</code> — with no assignment at all. My search could not see those, and five of them never save.</p>
+        <p class="desc">Three are in startup argument handling (opening Bloom on a <code>.bloomCollection</code>, a <code>.bloomProblemBook</code>, or a renamed collection) at <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L664" target="_blank" rel="noopener">Program.cs:664</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L685" target="_blank" rel="noopener">:685</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L703" target="_blank" rel="noopener">:703</a>; two more prune invalid entries at <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L1646" target="_blank" rel="noopener">:1646</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L1654" target="_blank" rel="noopener">:1654</a>. In the normal flow they are flushed a moment later when the collection actually opens and saves — so this is mostly latent, biting only if startup bails out first. What a user would see is a collection they just opened missing from the recent list, or a dead entry that keeps coming back.</p>
+        <p class="desc">I did not touch these: it is a different pattern from the one you asked about, and it sits in startup paths where I would want your eye on it.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q_mru" value="Fix the MruProjects mutation sites in this PR"><span class="lab">Fix them here, in this PR<span class="fx">~5 added saves in startup code; individually trivial, but startup ordering is easy to get subtly wrong and this PR is already five commits deep</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_mru" value="File a separate YouTrack card for the MruProjects mutation sites" checked><span class="lab">File a separate card and leave this PR alone <span class="tag">Recommended</span><span class="fx">Recommended because it is a genuinely different pattern (mutation, not assignment) in code this PR does not otherwise touch, and it deserves its own review rather than riding along at the end of a long branch.</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_mru" value="Leave as is"><span class="lab">Leave as is</span><label class="leavec"><input type="checkbox" name="c_mru" value="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q_mru" value="__other__"><span class="lab">Other:</span><span></span><input type="text" name="o_mru" placeholder="your call"></label>
+        </div>
+        <div class="notes"><label for="n_mru">Notes</label><textarea id="n_mru" name="n_mru" placeholder="caveats, constraints, anything I should know"></textarea></div>
+      </section>
+
+      <section class="decision" data-item="exceptions">
+        <h3>Two places deliberately do <em>not</em> save immediately</h3>
+        <p class="desc">You said the intent is to save changed settings immediately. Two of the places I first changed had to be reverted, because both run on <em>every</em> startup path — including Bloom's automated command-line commands — and saving there recreated, in miniature, the very problem BL-16660 is about: an unattended <code>bloom upload</code> or <code>hydrate</code> run rewriting the settings file that the interactive Bloom owns.</p>
+        <p class="desc">They are <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/Program.cs#L2052" target="_blank" rel="noopener">the startup UI-language values in <code>SetUpLocalization</code></a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/868d350a2c640ec60d23f00f0acbd83bb9e021de/src/BloomExe/ApplicationContainer.cs#L50" target="_blank" rel="noopener">the recent-collections list in <code>ApplicationContainer</code></a>. Both now carry a comment saying why they are exceptions. Nothing is lost in either case: the UI language is derived again at every startup, and is saved immediately when the user actually picks a language; the collection list is saved by the GUI when it adds a path. This is really a "do you agree with the two exceptions" question rather than an open defect.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q_exc" value="Find a GUI-only place to persist the startup UI language too"><span class="lab">Find a GUI-only point later in startup to persist the UI language after all<span class="fx">moderate — needs a new hook after the settings migration, and would re-save a value the migration has just overwritten, so the benefit is doubtful</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_exc" value="Leave as is" checked><span class="lab">Leave as is — accept both exceptions <span class="tag">Recommended</span><span class="fx">Recommended because in both cases saving promptly is what <em>causes</em> the bug this card is about, and neither value is a user choice that could be lost; the code comments record the reasoning for the next reader.</span></span><label class="leavec"><input type="checkbox" name="c_exc" value="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q_exc" value="__other__"><span class="lab">Other:</span><span></span><input type="text" name="o_exc" placeholder="your call"></label>
+        </div>
+        <div class="notes"><label for="n_exc">Notes</label><textarea id="n_exc" name="n_exc" placeholder="caveats, constraints, anything I should know"></textarea></div>
+      </section>
+
+      <section class="decision fyi" data-item="fyi-behavior">
+        <h3>FYI — one behaviour change worth knowing about</h3>
+        <p class="desc">When the selected book is one Bloom could not reopen next launch — chiefly the stale selection left over from the previous collection while you are switching collections — the new code <em>leaves the stored value alone</em> rather than overwriting it. The old code overwrote it with the unusable path. I judged leaving the good value the safer of the two, since startup would refuse to restore the bad one anyway, but it is a deliberate difference in behaviour rather than a pure refactor, so it should not pass unnoticed.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q_fyi" value="Discuss this behaviour difference before merge"><span class="lab">Flag it for discussion before merge — I want to think about the collection-switch case<span class="fx">no code change yet; a conversation</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_fyi" value="Leave as is" checked><span class="lab">Leave as is — noted <span class="tag">Recommended</span><span class="fx">Recommended because keeping a usable remembered book is strictly better than replacing it with one startup will reject, and the code comment names the BL-14313 collection-switch case it is protecting.</span></span><label class="leavec"><input type="checkbox" name="c_fyi" value="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q_fyi" value="__other__"><span class="lab">Other:</span><span></span><input type="text" name="o_fyi" placeholder="your call"></label>
+        </div>
+        <div class="notes"><label for="n_fyi">Notes</label><textarea id="n_fyi" name="n_fyi" placeholder="caveats, constraints, anything I should know"></textarea></div>
+      </section>
+
+      <section class="decision" data-item="next">
+        <h3>Next step</h3>
+        <p class="desc">The PR is a clean draft: suite green at the final head, CI green, every review thread resolved, nothing behind master. It has <em>not</em> been marked ready for review and no teammate has been asked — that is yours to trigger with <code>pr-ready-for-human</code> after your own read.</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q_next" value="Implement my answers above, then stop for my review" checked><span class="lab">Implement my answers above, then stop for my own review <span class="tag">Recommended</span><span class="fx">Recommended because anything chosen above is small and self-contained; you still see the result before any human reviewer does.</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_next" value="Discuss first, before changing anything else"><span class="lab">Discuss first, before changing anything else<span class="fx">no code change</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q_next" value="Leave as is"><span class="lab">Leave as is — I will take it from here</span><label class="leavec"><input type="checkbox" name="c_next" value="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q_next" value="__other__"><span class="lab">Other:</span><span></span><input type="text" name="o_next" placeholder="your call"></label>
+        </div>
+        <div class="notes"><label for="n_next">Notes</label><textarea id="n_next" name="n_next" placeholder="caveats, constraints, anything I should know"></textarea></div>
+      </section>
+
+      <section class="card" id="copyCard">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the session; I will act on it from there.</p>
+        <button type="button" id="copyBtn">Copy answers</button><span id="copied">Copied</span>
+        <textarea id="payload" readonly aria-label="Your answers, ready to paste back"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { key: 'writes', title: 'Collection Settings writes the settings file five times per OK' },
+    { key: 'mru',    title: 'Recent-collections list changed without being saved (5 places)' },
+    { key: 'exc',    title: 'Two places deliberately do not save immediately' },
+    { key: 'fyi',    title: 'FYI - selection that cannot be restored leaves the stored value alone' },
+    { key: 'next',   title: 'Next step' }
+  ];
+
+  function val(key) {
+    var picked = document.querySelector('input[name="q_' + key + '"]:checked');
+    if (!picked) return null;
+    if (picked.value === '__other__') {
+      var t = document.querySelector('input[name="o_' + key + '"]');
+      var s = t && t.value.trim();
+      return s ? 'Other: ' + s : 'Other: (nothing typed)';
+    }
+    return picked.value;
+  }
+
+  function build() {
+    var out = ['Preflight answers - BL-16660 / PR #8203 (head 868d350a)', ''];
+    ITEMS.forEach(function (it) {
+      out.push('## ' + it.title);
+      out.push('Answer: ' + (val(it.key) || '(none selected)'));
+      var lc = document.querySelector('input[name="c_' + it.key + '"]');
+      if (lc && lc.checked) out.push('Leave comment: record this decision as a code comment near the relevant code');
+      var n = document.querySelector('textarea[name="n_' + it.key + '"]');
+      if (n && n.value.trim()) out.push('Notes: ' + n.value.trim());
+      out.push('');
+    });
+    return out.join('\n');
+  }
+
+  function refresh() { document.getElementById('payload').value = build(); }
+
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+  refresh();
+
+  document.getElementById('copyBtn').addEventListener('click', function () {
+    var ta = document.getElementById('payload');
+    var done = function () {
+      var c = document.getElementById('copied');
+      c.classList.add('show');
+      setTimeout(function () { c.classList.remove('show'); }, 1600);
+    };
+    var fallback = function () {
+      ta.removeAttribute('readonly');
+      ta.select();
+      try { document.execCommand('copy'); } catch (e) {}
+      ta.setAttribute('readonly', 'readonly');
+      done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
