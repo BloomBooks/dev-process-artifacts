@@ -208,7 +208,7 @@ td:last-child, th:last-child { padding-right: 0; }
     <ul class="reviewers">
       <li><span class="who">Local review</span><span class="what">Complete — light pass, run inline before this session at your request.
         <em>9 findings: 6 fixed, 3 escalated (they are items 5, 6 and the live-testing FYI below).</em></span></li>
-      <li><span class="who">Devin</span><span class="what">Complete on every commit, including the last — <span class="numeral">6</span> reviews.
+      <li><span class="who">Devin</span><span class="what">Complete on every commit — <span class="numeral">10</span> reviews.
         <em>14 findings mirrored as threads: <span class="numeral">9</span> fixed, replied to and resolved; <span class="numeral">5</span> left open for you (items 4, 5, 10, 12 and the Shell-owner edge). Devin now marks all four fixed bugs resolved; the one live bug is the startup gap in item 4. Around ten informational items assessed and not mirrored. Three of its catches were real bugs neither I nor the local review had found, and two more were bugs in fixes made earlier in this same run — see the
         <a href="https://github.com/BloomBooks/BloomDesktop/pull/8206#issuecomment-5297993285" target="_blank" rel="noopener">consultation log</a>.</em></span></li>
       <li><span class="who">CodeRabbit</span><span class="what">Not active on this repo.
@@ -220,6 +220,10 @@ td:last-child, th:last-child { padding-right: 0; }
 
   <section class="card">
     <h2>What changed this run</h2>
+    <p class="lede">The branch has since been squashed to a single commit on top of <code>BL-16691</code>
+      (<a href="https://github.com/BloomBooks/BloomDesktop/commit/288a2615ec" target="_blank" rel="noopener">288a261</a>),
+      so these individual commits no longer exist. They are listed because they are the story of the run,
+      and the squash changed no content — the tree hash before and after is the same.</p>
     <div class="commits">
       <div class="commit">
         <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/a52d7c7b6c22bc3ae96fd92ef96a30ffb215e452" target="_blank" rel="noopener">a52d7c7</a></span>
@@ -255,6 +259,16 @@ td:last-child, th:last-child { padding-right: 0; }
         <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/fbdec6e274" target="_blank" rel="noopener">fbdec6e</a></span>
         <span class="what">Don't trap the user in a dialog they cannot escape
           <em>The lock-out loop I added earlier today could leave someone unable to quit Bloom at all. See item 11. Also stops the same upgrade being applied twice, and makes the new test fail rather than hang on an unstamped build.</em></span>
+      </div>
+      <div class="commit">
+        <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/5a8ba12bb1" target="_blank" rel="noopener">5a8ba12</a></span>
+        <span class="what">Close the same gap on the administrator's own machine
+          <em>After merging BL-16691's newest commit. They had just fixed this for <code>AllowCheckouts</code>, and the hand-edit workflow gave our setting the identical hole: the machine that makes the change is the one machine that never hears about it, and its next save would erase what it had just published.</em></span>
+      </div>
+      <div class="commit">
+        <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/dd3c5e08eb" target="_blank" rel="noopener">dd3c5e0</a></span>
+        <span class="what">Don't let someone walk back into the collection we just shut them out of
+          <em>Devin found the hole that made the whole mid-session lock-out theatre: picking the same collection again let you straight back in. See the session notes.</em></span>
       </div>
     </div>
   </section>
@@ -296,8 +310,12 @@ td:last-child, th:last-child { padding-right: 0; }
       <p>The second: choosing to upgrade could cancel an update the workspace's own timer had already downloaded, leaving Bloom to throw on the way out and never install it. The third: one new string was added just after a neighbour that happens to sit inside a 170-line XML comment block, so the entry was inert — and because the code carries an English fallback, nothing would ever have looked wrong.</p>
       <p><strong>The PR description was briefly wrong,</strong> and Devin reviewed the first commit against it. <code>$TMPDIR</code> in my shell is <code>/tmp</code>, not the session scratchpad, so <code>--body-file</code> picked up a stale leftover describing BL-16691's <code>AllowCheckouts</code>. Corrected, and the thread is resolved.</p>
       <p><strong>Two of Devin's later catches were bugs in fixes I had just made.</strong> That is worth knowing about the shape of this run: the lock-out loop added early today to stop a cancel dropping someone back into a forbidden collection turned out to leave them unable to quit Bloom at all (item 11), and the install-once flag added mid-run needed a second guard to stop the same upgrade being applied twice. Both are fixed. It is a reminder that a fix under review deserves the same suspicion as the original code.</p>
-      <p><strong>This run hit its cap on fix-and-re-review cycles</strong> (six pushes, each restarting every reviewer). Devin's verdict on the final commit is recorded below, but from that point anything new was routed to this report rather than fixed — which is where item 12 comes from. Re-running preflight folds in any late findings.</p>
-      <p><strong>Not verified against a live update feed or a real Team Collection.</strong> This is the single biggest gap; see the FYI below.</p>
+      <p><strong>The run was extended past its normal cycle cap</strong>, at Andrew's request, for four more Devin rounds. That paid for itself immediately: the very next round found that the mid-session lock-out could be walked straight back through. Being shut out, choosing "Open a Different Collection" and then picking the <em>same</em> collection let you back in, because the gate reads the copy of the settings on your own machine and Bloom deliberately does not rewrite that mid-session — and opening it cleared the lock-out record behind you. Nothing would have stopped you again until a later repository notification or a restart. Fixed in <code>dd3c5e0</code>.</p>
+      <p><strong>BL-16691 moved while we were working,</strong> with a commit fixing precisely the bug we had just fixed a variant of — an administrator's own machine never hearing about the change it made, and its next save erasing it. That is the intended way to set a minimum version too, so our setting had the identical hole; merged and closed in <code>5a8ba12</code>.</p>
+      <p><strong>One finding lands on BL-16691 rather than here,</strong> and is passed on: <code>CollectionSettings.ReadBoolean</code> discards the result of <code>bool.TryParse</code>, so a hand-edited <code>&lt;AllowCheckouts&gt;no&lt;/AllowCheckouts&gt;</code> — any typo, in fact — silently pauses checkouts for the whole team. That is the opposite of the choice made here for <code>MinimumBloomVersion</code>, where an unparseable value is logged and ignored precisely so nobody is shut out over a typo. Worth reconciling, since both settings are hand-edited by the same person on the same afternoon.</p>
+      <p><strong>It has since been run in a live Bloom</strong>, including the Team Collection lock-out — see item 10, which is now a record of what was observed rather than a warning that nothing had been. The high point: from a lock-out, picking the same Team Collection again was refused even though its file on this computer carried no requirement at all. Only the remembered repository value could have done that, so Devin's re-entry bug is demonstrably closed rather than merely believed to be.</p>
+      <p>An accident worth passing on: your own <code>Fake TC Books</code> collection already contains <code>&lt;MinimumBloomVersion&gt;6.6&lt;/MinimumBloomVersion&gt;</code>. On this branch it will refuse to open until that line is removed.</p>
+      <p><strong>The upgrade itself is still unproven.</strong> A developer build declines to update itself, so the live run exercised the refusal path, not Velopack. Downloading and installing has still never happened.</p>
       <p><strong>The card had lost some earlier comments.</strong> The PR link for #8200, the previous test-ideas notes, and the previous preflight report link are all no longer on BL-16690, so the QA notes were posted fresh rather than updated in place. Worth a glance in case that was not deliberate.</p>
     </div>
   </section>
@@ -446,15 +464,14 @@ td:last-child, th:last-child { padding-right: 0; }
   </section>
 
   <section class="item">
-    <h3>9. I merged BL-16691 rather than rebasing onto it</h3>
+    <h3>9. Building on BL-16691 — merged, then squashed and rebased</h3>
     <div class="desc">
       <p>You asked me to rebase onto BL-16691 if the overlap mattered. It did — we had both written a reader for the same file inside the same zip, and we both modify <code>HandleCollectionSettingsChange</code>, so a conflict was certain. That is now settled: the handler does the version check first (it can end the session, and blocks in a modal dialog until the user decides) and only then picks up <code>AllowCheckouts</code>. I also switched my reader to their way of finding the file — by extension rather than by rebuilding the name from the local path — because mine broke if a collection had been renamed locally. The PR now targets <code>BL-16691</code>.</p>
-      <p>What I did differently from your words: I <strong>merged</strong> rather than rebased. The branch was already pushed and Devin had reviewed it, and a true rebase means replaying 18 commits including an existing merge commit, then force-pushing over reviewed history. The merge reaches the same place — the branch sits on BL-16691, the conflicts are resolved, and the PR diff shows only my work — without rewriting anything.</p>
-      <p>If you want the linear history, say so and I will rebase properly; it is straightforward, just destructive to the current commits.</p>
+      <p><strong>Since then you asked for the squash and rebase, and it is done.</strong> The branch is now a single commit, <code>288a261</code>, sitting directly on <code>BL-16691</code>. The tree hash is identical before and after, so nothing about the code changed — only the history. BL-16691 had itself been squashed and had <code>Version6.4</code> merged into it by then, which is why the branch had to be brought onto its new tip first; two conflicts, both the same shape (my additions against their nothing), and the full suite is green on the result.</p>
+      <p>Nothing is left for you here — the item stays only so the decision is on the record.</p>
     </div>
     <div class="opts" data-item="9">
-      <label class="opt"><input type="radio" name="q9" value="Keep the merge" checked><span class="lbl">Keep the merge <span class="tag rec">recommended</span><span class="fx">No further work. Recommended because the result is what you asked for and the reviewed commits stay intact; the only thing gained by rebasing is a straight line in the log.</span></span></label>
-      <label class="opt"><input type="radio" name="q9" value="Do a real rebase onto BL-16691 and force-push"><span class="lbl">Do a real rebase onto BL-16691 and force-push<span class="fx">Rewrites 18 commits and force-pushes over reviewed history; the resolved conflict has to be replayed. Gives a linear history.</span></span></label>
+      <label class="opt"><input type="radio" name="q9" value="Nothing further - the squash and rebase are done" checked><span class="lbl">Nothing further — it is done <span class="tag rec">recommended</span></span></label>
       <label class="opt"><input type="radio" name="q9" value="Leave as is"><span class="lbl">Leave as is</span><span class="leavecomment"><input type="checkbox" data-lc="9"> Leave comment</span></label>
       <div class="otherrow"><input type="radio" name="q9" value="__other__"><span class="lbl">Other:</span><input type="text" data-other="9" placeholder="…"></div>
     </div>
@@ -462,14 +479,18 @@ td:last-child, th:last-child { padding-right: 0; }
   </section>
 
   <section class="item fyi">
-    <h3>10. Nothing here has met a real update feed or a real Team Collection</h3>
+    <h3>10. It has now been run in Bloom — what is proven, and what still isn't</h3>
     <div class="desc">
-      <p>This is the honest limit of what preflight can tell you. Every test that exists passes, and the version comparison is well covered by <span class="numeral">29</span> unit tests. But nobody has watched Bloom actually download and install a newer version from this dialog, and nobody has watched an administrator set a minimum version and seen a teammate get shut out. Both paths are only reachable with a live Velopack feed and a real shared folder.</p>
-      <p>Two specific things a first real run should watch for. Devin notes that the follow-up messages ("Bloom 6.6 has been downloaded…") go through <code>BloomMessageBox.ShowInfo</code>, which picks an owner window via <code>Shell.GetShellOrOtherOpenForm()</code>; at startup there is no Shell, and we only <em>hide</em> the splash rather than closing it, so the still-open hidden splash can end up owning them. Whether they appear at all, and where, needs eyes. And the freeze in item 5 is only measurable against a real download.</p>
+      <p>This item used to say nothing here had ever run. That is no longer true: the feature has been driven in a live Bloom, including the Team Collection lock-out. What follows was observed, not reasoned.</p>
+      <p><strong>The startup gate.</strong> A collection declaring 6.6 was refused by a Bloom 6.4, with the right collection name and both versions shown as major.minor. <strong>Upgrade Bloom</strong> is the filled, right-hand, focused default — confirmed from the live DOM, not by eye. Choosing it on this developer build produced the expected refusal message and Bloom stayed alive; closing that led to the collection chooser; picking the same collection again was refused a second time; closing the chooser exited Bloom within two seconds with no orphaned process. A collection declaring 6.4 opened normally.</p>
+      <p><strong>The Team Collection lock-out.</strong> On a cloned Team Collection, with Bloom open and working in it, the minimum version was added to the <em>repository</em> copy only. The lock-out dialog appeared <strong>within three seconds</strong>. Choosing a different collection produced the chooser; closing it quit Bloom.</p>
+      <p><strong>The best result of the whole run:</strong> from that lock-out, picking the <em>same</em> Team Collection again was refused — even though its file on this computer had no <code>MinimumBloomVersion</code> at all. Only the remembered repository value could have refused it, which is exactly the hole Devin found and <code>dd3c5e0</code> closed. Before that fix this would have opened.</p>
+      <p><strong>Still unproven, and the reason this is still an FYI:</strong> no upgrade has ever actually downloaded and installed. A developer build refuses to update itself, so what was exercised was the refusal path, not the Velopack one. Everything about downloading, installing, the frozen window in item 5, and the ownership of the follow-up messages in the paragraph below remains untested.</p>
+      <p>Devin's related note, still open: the follow-up messages ("Bloom 6.6 has been downloaded…") go through <code>BloomMessageBox.ShowInfo</code>, which picks an owner via <code>Shell.GetShellOrOtherOpenForm()</code>; at startup there is no Shell, and we only <em>hide</em> the splash rather than closing it, so the hidden splash can end up owning them.</p>
     </div>
     <div class="opts" data-item="10">
-      <label class="opt"><input type="radio" name="q10" value="Test against a live feed and a real Team Collection before this goes to a human reviewer" checked><span class="lbl">Test against a live feed and a real Team Collection before human review <span class="tag rec">recommended</span><span class="fx">No code — your time. Recommended because the two paths that carry all the risk are precisely the two nothing has exercised, and a reviewer reading the diff cannot substitute for it.</span></span></label>
-      <label class="opt"><input type="radio" name="q10" value="Hand it to a reviewer now and test during QA"><span class="lbl">Hand it to a reviewer now; test during QA<span class="fx">Faster, but a reviewer would be signing off on paths no one has run.</span></span></label>
+      <label class="opt"><input type="radio" name="q10" value="Test the real upgrade against a live feed before this goes to a human reviewer" checked><span class="lbl">Test the real upgrade against a live feed before human review <span class="tag rec">recommended</span><span class="fx">No code — your time, and much less of it than before. Recommended because the gate and the lock-out are now demonstrated, which leaves the download-and-install path as the one substantial thing nobody has watched.</span></span></label>
+      <label class="opt"><input type="radio" name="q10" value="Hand it to a reviewer now and test the upgrade during QA"><span class="lbl">Hand it to a reviewer now; test the upgrade during QA<span class="fx">More defensible than it was, since the parts a reviewer can't check by reading are now the smaller half.</span></span></label>
       <label class="opt"><input type="radio" name="q10" value="Leave as is"><span class="lbl">Leave as is</span><span class="leavecomment"><input type="checkbox" data-lc="10"> Leave comment</span></label>
       <div class="otherrow"><input type="radio" name="q10" value="__other__"><span class="lbl">Other:</span><input type="text" data-other="10" placeholder="…"></div>
     </div>
@@ -547,8 +568,8 @@ td:last-child, th:last-child { padding-right: 0; }
     6: "The warning triangle never appears — on this dialog or eight others",
     7: "Every Bloom message box is a fixed 500x200",
     8: "PR #8200 is now superseded",
-    9: "I merged BL-16691 rather than rebasing onto it",
-    10: "Nothing here has met a real update feed or a real Team Collection",
+    9: "Building on BL-16691 - merged, then squashed and rebased",
+    10: "Run live in Bloom - what is proven and what is not",
     11: "Cancelling the collection chooser now quits Bloom",
     12: "Other startup jobs keep running while Bloom quits for the upgrade",
     13: "Next step"
