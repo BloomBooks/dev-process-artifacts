@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16702 Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  fieldset { border: 0; }
+
+  :root {
+    --paper: #f4f4f1;
+    --card: #ffffff;
+    --rule: #e0dfd8;
+    --rule-soft: #eceae4;
+    --ink: #1c1e22;
+    --ink-2: #4a5058;
+    --ink-3: #6f767f;
+    --accent: #2a5d7c;
+    --accent-soft: #eaf1f6;
+    --pass: #2c6b46;
+    --pass-soft: #e8f1ea;
+    --fail: #a3352b;
+    --skip: #7c705a;
+    --skip-soft: #f1ede4;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", "SFMono-Regular", monospace;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 32px 28px 64px;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  header.masthead { border-bottom: 1px solid var(--rule); padding-bottom: 20px; margin-bottom: 28px; }
+  header.masthead h1 {
+    font-family: var(--serif); font-size: 30px; font-weight: 600; letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  header.masthead .sub { color: var(--ink-2); margin-top: 6px; max-width: 68ch; }
+  .factline { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; color: var(--ink-2); font-size: 14px; }
+  .factline strong { color: var(--ink); font-weight: 600; }
+
+  .grid { display: grid; grid-template-columns: 1.45fr 1fr; gap: 26px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 1040px) { .grid { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 20px 22px; }
+  .card > h2 {
+    font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 4px;
+  }
+  .card > .lede { color: var(--ink-2); font-size: 14px; margin-bottom: 14px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.what { font-weight: 600; width: 12.5em; }
+
+  .tag {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+  }
+  .tag.pass { background: var(--pass-soft); color: var(--pass); }
+  .tag.skip { background: var(--skip-soft); color: var(--skip); }
+  .tag.note { background: var(--accent-soft); color: var(--accent); }
+
+  ol.commits { display: flex; flex-direction: column; gap: 14px; counter-reset: none; }
+  ol.commits li { display: grid; grid-template-columns: 5.6em 1fr; gap: 14px; font-size: 14px; }
+  ol.commits .sha { font-family: var(--mono); font-size: 12.5px; padding-top: 2px; }
+  ol.commits .msg { font-weight: 600; }
+  ol.commits .why { color: var(--ink-2); }
+
+  dl.reviewers { display: flex; flex-direction: column; gap: 16px; font-size: 14px; }
+  dl.reviewers dt { font-weight: 600; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  dl.reviewers dd { color: var(--ink-2); margin-top: 3px; }
+
+  ul.notes { display: flex; flex-direction: column; gap: 11px; font-size: 14px; color: var(--ink-2); }
+  ul.notes li { padding-left: 15px; position: relative; }
+  ul.notes li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px;
+    background: var(--rule); border-radius: 50%;
+  }
+  ul.notes strong { color: var(--ink); }
+
+  .item { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 20px 22px; }
+  .item h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; }
+  .item .kind {
+    font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 5px;
+  }
+  .item p { color: var(--ink-2); font-size: 14px; margin-top: 9px; }
+  .item p.tight { margin-top: 6px; }
+  .choices { display: flex; flex-direction: column; gap: 9px; margin-top: 15px; }
+  .choice { display: grid; grid-template-columns: auto 1fr; gap: 9px; font-size: 14px; align-items: start; }
+  .choice input[type=radio] { margin-top: 4px; }
+  .choice .label { font-weight: 600; }
+  .choice .foot { color: var(--ink-3); font-weight: 400; font-size: 13px; display: block; margin-top: 2px; }
+  .choice .rec { color: var(--accent); font-weight: 700; font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .leaverow { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+  .leavecomment { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); font-weight: 400; }
+  .otherrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  input[type=text] {
+    font: inherit; font-size: 13.5px; padding: 5px 8px; border: 1px solid var(--rule);
+    border-radius: 3px; background: #fcfcfa; color: var(--ink); min-width: 12em; flex: 1 1 12em;
+  }
+  label.notes-label { display: block; margin-top: 13px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); font-weight: 600; }
+  textarea {
+    font: inherit; font-size: 13.5px; width: 100%; margin-top: 5px; padding: 7px 9px;
+    border: 1px solid var(--rule); border-radius: 3px; background: #fcfcfa; color: var(--ink);
+    resize: vertical;
+  }
+
+  button {
+    font: inherit; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 3px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #24506b; }
+  .copied { color: var(--pass); font-size: 13px; font-weight: 600; margin-left: 10px; opacity: 0; transition: opacity .18s; }
+  .copied.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+  #payload { margin-top: 12px; min-height: 8.5em; font-family: var(--mono); font-size: 12.5px; }
+  code { font-family: var(--mono); font-size: 0.9em; background: #f1efe9; padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <h1>Preflight report — BL-16702</h1>
+  <p class="sub">Using one AI-generated image in two book-image slots failed with <em>&ldquo;Failed to write host file&hellip;503&rdquo;</em> and replaced nothing. Two simultaneous saves of the same file collided on a shared temp path; changes to a given file are now serialized.</p>
+  <div class="factline">
+    <span><strong>Branch</strong> <a href="https://github.com/BloomBooks/BloomDesktop/tree/BL-16702-concurrent-history-write" target="_blank" rel="noopener">BL-16702-concurrent-history-write</a></span>
+    <span><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8207" target="_blank" rel="noopener">#8207</a> &middot; draft &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8207/files" target="_blank" rel="noopener">files changed</a></span>
+    <span><strong>Card</strong> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16702" target="_blank" rel="noopener">BL-16702</a></span>
+    <span><strong>HEAD</strong> <span class="numeral"><a href="https://github.com/BloomBooks/BloomDesktop/commit/29592466023298fea68809403834f9913649e7f1" target="_blank" rel="noopener">2959246602</a></span></span>
+    <span><strong>Waiting on you</strong> <span class="numeral">6 questions</span></span>
+  </div>
+</header>
+
+<div class="grid">
+  <!-- ---------------- left: the run ---------------- -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <p class="lede">Every stack in the repo gets a row. The front-end rows say &ldquo;not run&rdquo; because the diff is C# only — no <code>.ts</code>, <code>.tsx</code> or <code>.less</code> file is touched, and no front-end test reaches this server-side handler.</p>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">C# build</td>
+            <td><span class="tag pass">pass</span></td>
+            <td>Via <code>build/agent-dotnet.sh</code> (isolated per-terminal output tree).</td>
+          </tr>
+          <tr>
+            <td class="what">C# tests</td>
+            <td><span class="tag pass">pass</span></td>
+            <td><span class="numeral" id="csharp-count">3102 passed &middot; 0 failed &middot; 13 skipped</span> — the whole <code>BloomTests</code> suite at final HEAD. The fixture for the changed file is <span class="numeral">51</span> tests, five of them new.</td>
+          </tr>
+          <tr>
+            <td class="what">TypeScript typecheck</td>
+            <td><span class="tag skip">not run</span></td>
+            <td>No front-end code in the diff.</td>
+          </tr>
+          <tr>
+            <td class="what">Front-end lint</td>
+            <td><span class="tag skip">not run</span></td>
+            <td>No front-end code in the diff.</td>
+          </tr>
+          <tr>
+            <td class="what">Front-end tests</td>
+            <td><span class="tag skip">not run</span></td>
+            <td>Vitest runs in jsdom and never calls this endpoint; nothing in the diff can reach it.</td>
+          </tr>
+          <tr>
+            <td class="what">Formatting</td>
+            <td><span class="tag pass">pass</span></td>
+            <td><code>csharpier</code>, run explicitly and again by the pre-commit hook.</td>
+          </tr>
+          <tr>
+            <td class="what">Base integration</td>
+            <td><span class="tag pass">clean</span></td>
+            <td><code>origin/master</code> merged in before publishing — no conflicts, and the full C# suite re-run on the integrated tree.</td>
+          </tr>
+          <tr>
+            <td class="what">Mergeable</td>
+            <td><span class="tag pass">clean</span></td>
+            <td>GitHub reports <span class="numeral">MERGEABLE / CLEAN</span>.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p class="lede">Five commits, oldest first. The last three all came out of Devin&rsquo;s informational notes.</p>
+      <ol class="commits">
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/1b3a2050ae" target="_blank" rel="noopener">1b3a2050ae</a></span>
+          <span>
+            <span class="msg">The fix: serialize changes to one file.</span>
+            <span class="why">The POST body write moves out of <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomExe/web/controllers/AiImageEditorApi.cs#L681" target="_blank" rel="noopener">HandleFile into WriteRequestBodyToFile</a>, which takes a <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomExe/web/controllers/AiImageEditorApi.cs#L642" target="_blank" rel="noopener">per-path lock</a>; the <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomExe/web/controllers/AiImageEditorApi.cs#L602" target="_blank" rel="noopener">DELETE branch</a> takes the same one. Plus the <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomTests/web/controllers/AiImageEditorApiTests.cs#L485" target="_blank" rel="noopener">regression test</a>, confirmed to fail with the lock defeated.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/944fac361b" target="_blank" rel="noopener">944fac361b</a></span>
+          <span>
+            <span class="msg">Merge <code>origin/master</code>.</span>
+            <span class="why">Folded in before the first push, so the PR&rsquo;s first pushed state is already the integrated one.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/d6ff841d27" target="_blank" rel="noopener">d6ff841d27</a></span>
+          <span>
+            <span class="msg">Delete the temp file when a write fails.</span>
+            <span class="why">From Devin&rsquo;s review: an interrupted upload used to leave a multi-MB <code>.tmp</code> in the book folder for good. <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomExe/web/controllers/AiImageEditorApi.cs#L730" target="_blank" rel="noopener">Cleanup</a> plus <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomTests/web/controllers/AiImageEditorApiTests.cs#L412" target="_blank" rel="noopener">a test</a> that the previous good file survives.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/74996a2e04" target="_blank" rel="noopener">74996a2e04</a></span>
+          <span>
+            <span class="msg">Make the concurrency test prove it ran concurrently.</span>
+            <span class="why">Also from Devin: four threads racing is timing-dependent, so a pass could have meant &ldquo;they never overlapped&rdquo;. They are now released together from a barrier, which is what makes them concurrent at all.</span>
+          </span>
+        </li>
+        <li>
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/2959246602" target="_blank" rel="noopener">2959246602</a></span>
+          <span>
+            <span class="msg">Don&rsquo;t tidy up the temp file when it holds the only copy.</span>
+            <span class="why">Devin found a real regression in the cleanup two commits earlier: swapping the new file in deletes the destination and then moves, so a failure in there has already taken the old file — and deleting the temp as well threw away the new bytes too, losing both. Cleanup now happens only when the write never got as far as the swap, with <a href="https://github.com/BloomBooks/BloomDesktop/blob/29592466023298fea68809403834f9913649e7f1/src/BloomTests/web/controllers/AiImageEditorApiTests.cs#L448" target="_blank" rel="noopener">a test for the swap-failure case</a>. Two of its notes about the tests were right too: the failing-body test never actually produced a truncated file (its payload was smaller than the copy buffer), and the overlap assertion added a commit earlier could not fail.</span>
+          </span>
+        </li>
+      </ol>
+    </section>
+
+    <section class="card">
+      <h2>Reviewers</h2>
+      <dl class="reviewers">
+        <dt>Local review <span class="tag note">light pass</span></dt>
+        <dd>One sub-agent over the diff, correctness only: <strong>no bugs found</strong>. It checked the things worth checking here — deadlock (impossible: the table lock is released before the per-file lock is taken), whether the lock key can miss a match for the same file (it can&rsquo;t, given the file-name allow-list), whether disposing the caller&rsquo;s stream changes anything (it doesn&rsquo;t), and whether a stray <code>.tmp</code> could be served, listed or committed (it can&rsquo;t, on three independent counts). It added one factual note — that a GET can still transiently 404 during the swap, which the doc comment didn&rsquo;t say — and the comment was expanded to say it.</dd>
+
+        <dt>Devin <span class="tag pass">complete</span></dt>
+        <dd><strong>0 bugs on every pushed commit.</strong> One Investigate flag arrived on the last one — that the swap-failure test relies on Windows file-locking — which was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8207#discussion_r3786860352" target="_blank" rel="noopener">mirrored to the PR, answered and resolved</a>: this test project targets <code>net8.0-windows</code> with Windows-only runtime identifiers, so there is no non-Windows run for the behavior to differ on. Its informational notes (3, then 5, then 8, then the final pass) turned out to be the most useful reviewer of the run: three of them became commits, including catching that the temp-file cleanup could destroy both copies of a file. Of the notes not acted on, one is the first decision on the right, one is the second FYI, and the rest were assessed and rejected: the lock key cannot alias (Devin agreed), and the serialization being in-process only is fine because one Bloom has a collection open (now said in the comment). <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8207" target="_blank" rel="noopener">Devin review page</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8207#issuecomment-5297715108" target="_blank" rel="noopener">consultation log on the PR</a></dd>
+
+        <dt>CodeRabbit <span class="tag skip">not triggered</span></dt>
+        <dd>Present in the repo but switched off: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review pushes and posted nothing. Nothing was skipped on our side.</dd>
+
+        <dt>CI — <code>pr-automation</code> <span class="tag pass">pass</span></dt>
+        <dd>The only check GitHub runs on this repo, green on every pushed commit (it is also what triggers Devin). <span class="numeral">33s</span>.</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing about this session</h2>
+      <ul class="notes">
+        <li><strong>The bug was reproduced live before it was fixed</strong>, in the Bloom you had running: two simultaneous POSTs of one throwaway file name came back <span class="numeral">200</span> and <span class="numeral">503 Cannot access&hellip;</span>, while a single one came back <span class="numeral">200</span>. The affected book&rsquo;s history PNG carried the winning write&rsquo;s timestamp and the book folder had no <code>ai-image*.png</code> at all — the commit really had never run. That probe also popped one &ldquo;Cannot access&hellip;&rdquo; box in your Bloom, and wrote and deleted a file called <code>concurrencyprobe.png</code>; your real generated image was never touched.</li>
+        <li><strong>Your running Bloom is from the <code>Project3</code> worktree</strong>, not this one, so it does not contain this fix — which is why the live end-to-end check is a question for you on the right rather than something already done.</li>
+        <li><strong>The review sub-agent edited this working tree</strong> — it neutered the <code>lock</code> line to see the test go red — and a full suite run happening at that moment failed because of it. It restored the line when told; the suite is green at HEAD, and the &ldquo;1 failed&rdquo; run was that, not a real failure. Worth a papercut so review agents run read-only on a live tree; that&rsquo;s the last item on the right.</li>
+        <li><strong>Nothing needed the AI image service.</strong> Every check used either an existing generated image or a throwaway file name, so this run cost nothing in credits.</li>
+        <li><strong>The fix-and-re-review loop hit its limit of four rounds</strong>, which is why the remaining notes are questions here rather than more commits. Each round was a real improvement, and Devin&rsquo;s last pass raised nothing that needed one — but the loop is capped deliberately, so this is worth saying rather than leaving you to infer it. Re-running preflight after any answer folds in whatever it says next.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ---------------- right: decisions ---------------- -->
+  <div class="col">
+
+    <div class="item" data-item="lock-scope">
+      <p class="kind">Decision</p>
+      <h3>The lock is held while Bloom reads the upload, not just while it swaps the file in</h3>
+      <p>Bloom saves a posted file by streaming it to a scratch file and then swapping that into place. The new lock is taken for the whole of that — including reading the bytes off the connection — so while one save of <code>history/x.png</code> is in progress, a second save <em>of that same file</em> waits. Both reviewers noticed and neither called it a defect: only requests for the same file wait, this code doesn&rsquo;t run on the UI thread so Bloom can&rsquo;t freeze, and the only client is the editor inside Bloom&rsquo;s own window, posting bytes it already has in memory. The recommendation is therefore to leave it: for a stall to matter, the same page would have to hang mid-upload while a second save of the same file is pending, and in the case this fix exists for both saves come from that one page anyway. If a flow ever appears where something slower or remote uploads here, this is the first thing to revisit.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-lock" value="Give each request its own scratch file name and lock only the swap">
+          <span><span class="label">Give each request its own scratch file name and lock only the swap</span><span class="foot">Devin&rsquo;s suggested alternative: <code>&lt;file&gt;.&lt;guid&gt;.tmp</code>, so nothing waits during the upload and the collision that caused this bug can&rsquo;t happen at all. It would also tidy up a smaller wart — because every request currently shares one scratch name, a write whose swap failed leaves bytes there that the <em>next</em> write of that file overwrites. ~15 lines in one method, low risk, but it trades the simple &ldquo;one writer per file&rdquo; rule for &ldquo;whoever finishes last wins&rdquo;, and an orphaned scratch file from a crash would no longer be reused by the next write.</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-lock" value="Leave as is" checked>
+            <span><span class="label">Leave as is</span> <span class="rec">recommended</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="lock-scope / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-lock" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="lock-scope / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="lock-scope / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="live-check">
+      <p class="kind">Decision</p>
+      <h3>Nobody has yet watched the fix work in a running Bloom</h3>
+      <p>The failure was proved live, and the fix is proved by a test that fails without it — but the actual user journey (make a picture, drag it onto two slots, press Replace, see both pictures change) has not been run against a Bloom that contains the fix. It can be, at no AI cost: the book you were using still holds the picture that was generated earlier, so the whole check is drag, drag, Replace. The obstacle is that a Bloom built from this worktree can&rsquo;t run alongside the one you have open from <code>Project3</code>, which holds the same collection.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-live" value="Close the Project3 Bloom and let me verify live from this worktree" checked>
+          <span><span class="label">Close your <code>Project3</code> Bloom and let me verify live from this worktree</span> <span class="rec">recommended</span><span class="foot">A few minutes, no code change, no AI credits — and it&rsquo;s the one piece of evidence still missing. Reuses the picture already in the book.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q-live" value="I will check it myself when convenient">
+          <span><span class="label">You&rsquo;ll check it yourself when convenient</span><span class="foot">No work for me now; the QA notes on the card lead with exactly this check.</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-live" value="Leave as is">
+            <span><span class="label">Leave as is</span><span class="foot">Go to human review on the test evidence alone, and let the tester be the first to run it.</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="live-check / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-live" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="live-check / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="live-check / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="upstream-duplicate">
+      <p class="kind">FYI</p>
+      <h3>The editor still saves the same picture once per slot</h3>
+      <p>The root cause has two halves, and only Bloom&rsquo;s half is fixed here. The AI image editor (the separate <code>bloom-ai-image-tools</code> app, which we consume as a built package) writes its result to Bloom once for every slot you assigned, simultaneously — so putting one picture in four slots posts the same few megabytes four times. Bloom now handles that correctly, so nothing is broken; it is simply wasted work, and it stays wasted until the editor de-duplicates by result before saving. That is a change in the other repo, hence its own card rather than something to slip into this PR.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-upstream" value="File a card against bloom-ai-image-tools to de-duplicate the saves">
+          <span><span class="label">File a card against <code>bloom-ai-image-tools</code> to de-duplicate the saves</span><span class="foot">No code here — a card describing the one-write-per-slot behavior and the fix (write each distinct result once, then commit).</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-upstream" value="Leave as is" checked>
+            <span><span class="label">Leave as is</span> <span class="rec">recommended</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="upstream-duplicate / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-upstream" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="upstream-duplicate / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="upstream-duplicate / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="get-window">
+      <p class="kind">FYI</p>
+      <h3>Reading a file at the exact moment it is replaced can still come back &ldquo;not found&rdquo;</h3>
+      <p>Reads deliberately don&rsquo;t take the new lock, so a response never waits behind somebody else&rsquo;s multi-megabyte upload. The consequence, which both reviewers raised and the code now spells out in a comment, is that swapping the new file in is a delete followed by a move rather than one atomic step — so a read landing in that split second can 404. This is as old as the endpoint, is not made worse by this change, and can&rsquo;t currently happen: the editor reads its history files when it opens and writes them when it generates or commits, never both at once. Recorded here only so it isn&rsquo;t a surprise later.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-get" value="Serialize reads too, so a read can never see the swap">
+          <span><span class="label">Serialize reads too, so a read can never see the swap</span><span class="foot">One line — take the same lock around the GET — but it makes a response stream wait behind an upload of that file, which is the trade the current comment argues against.</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-get" value="Leave as is" checked>
+            <span><span class="label">Leave as is</span> <span class="rec">recommended</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="get-window / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-get" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="get-window / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="get-window / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="papercut">
+      <p class="kind">FYI</p>
+      <h3>A review sub-agent edited the tree it was reviewing</h3>
+      <p>The light review agent proved a point by editing the code under review — it replaced the new <code>lock</code> with <code>if (true)</code> to watch the test fail — while a full test run was in flight, which is what produced the one bogus failure in this session. It put the line back when told. The general lesson is that a reviewing agent should get read-only tools when it shares a live working tree with the session that spawned it, which is a note for the shared skills rather than for this PR.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-papercut" value="Log a papercut about review sub-agents needing read-only tools on a live tree" checked>
+          <span><span class="label">Log a papercut about review sub-agents needing read-only tools on a live tree</span> <span class="rec">recommended</span><span class="foot">No product code — one entry in the team skills&rsquo; papercut list, so the next preflight doesn&rsquo;t rediscover it the same way.</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-papercut" value="Leave as is">
+            <span><span class="label">Leave as is</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="papercut / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-papercut" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="papercut / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="papercut / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="next-step">
+      <p class="kind">Decision</p>
+      <h3>What happens next</h3>
+      <p>The PR is a clean draft with everything green, so the branch is ready for your own read-through before it goes to a colleague. Say which way you want to go once you&rsquo;ve answered the items above.</p>
+      <div class="choices">
+        <label class="choice">
+          <input type="radio" name="q-next" value="Implement my answers straight away" checked>
+          <span><span class="label">Implement my answers straight away</span> <span class="rec">recommended</span><span class="foot">Any code answer becomes a commit and re-runs the gauntlet; &ldquo;leave as is&rdquo; answers get recorded where they belong.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="q-next" value="Discuss first">
+          <span><span class="label">Discuss first</span><span class="foot">Talk any of these through before anything else is changed.</span></span>
+        </label>
+        <div class="choice leaverow">
+          <label class="choice" style="gap:9px;">
+            <input type="radio" name="q-next" value="Leave as is">
+            <span><span class="label">Leave as is</span><span class="foot">Stop here; the draft PR stands as it is.</span></span>
+          </label>
+          <label class="leavecomment"><input type="checkbox" data-q="next-step / leave comment"> Leave comment</label>
+        </div>
+        <label class="choice otherrow">
+          <input type="radio" name="q-next" value="Other">
+          <span class="label">Other:</span>
+          <input type="text" data-q="next-step / other" placeholder="your call">
+        </label>
+      </div>
+      <label class="notes-label">Notes<textarea rows="2" data-q="next-step / notes" placeholder="caveats, constraints, anything else"></textarea></label>
+    </div>
+
+    <div class="item" data-item="copyback">
+      <h3>Send your answers back</h3>
+      <p class="tight">Copy this and paste it into the session.</p>
+      <p style="margin-top:14px;"><button id="copybtn" type="button">Copy my answers</button><span class="copied" id="copied">Copied</span></p>
+      <textarea id="payload" readonly rows="9"></textarea>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+  var ITEMS = [
+    { key: "lock-scope",         title: "Lock held across the upload",              radio: "q-lock" },
+    { key: "live-check",         title: "Live end-to-end verification",             radio: "q-live" },
+    { key: "upstream-duplicate", title: "Editor saves the same picture per slot",   radio: "q-upstream" },
+    { key: "get-window",         title: "Read during the swap can 404",             radio: "q-get" },
+    { key: "papercut",           title: "Review sub-agent edited the live tree",    radio: "q-papercut" },
+    { key: "next-step",          title: "What happens next",                        radio: "q-next" }
+  ];
+
+  function valueOf(selector) {
+    var el = document.querySelector(selector);
+    return el ? el.value.trim() : "";
+  }
+
+  function serialize() {
+    var lines = ["Preflight answers — BL-16702 (PR 8207)", ""];
+    ITEMS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.radio + '"]:checked');
+      var answer = picked ? picked.value : "(no answer)";
+      if (answer === "Other") {
+        var other = valueOf('input[data-q="' + item.key + ' / other"]');
+        answer = "Other: " + (other || "(nothing typed)");
+      }
+      lines.push(item.title + ": " + answer);
+      var leave = document.querySelector('input[data-q="' + item.key + ' / leave comment"]');
+      if (leave && leave.checked) {
+        lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      }
+      var notes = valueOf('textarea[data-q="' + item.key + ' / notes"]');
+      if (notes) { lines.push("  Notes: " + notes); }
+    });
+    return lines.join("\n") + "\n";
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = serialize();
+    payload.value = text;
+    var done = function () {
+      var flag = document.getElementById("copied");
+      flag.classList.add("on");
+      window.setTimeout(function () { flag.classList.remove("on"); }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+</script>
+</body>
+</html>
