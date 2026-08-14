@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obsolete String Audit</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, table, figure, dl, dd { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; border-spacing: 0; }
+  img { max-width: 100%; display: block; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #F6F4F0;
+    --card: #FFFFFF;
+    --border: #E4DED4;
+    --border-strong: #D2C9BB;
+    --ink: #221F1B;
+    --muted: #6B645B;
+    --accent: #17707C;
+    --accent-soft: #E6F0F1;
+    --pass: #2E7248;
+    --warn: #8C6410;
+    --open: #A0442C;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.62;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 40px 28px 72px; }
+
+  header.masthead { border-bottom: 2px solid var(--border-strong); padding-bottom: 22px; margin-bottom: 30px; }
+  .kicker { font-family: var(--mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-family: var(--serif); font-size: 33px; line-height: 1.16; font-weight: 600; text-wrap: balance; margin: 8px 0 14px; letter-spacing: -.01em; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 10px; }
+  .fact {
+    display: inline-flex; align-items: baseline; gap: 7px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 11px; font-size: 13px;
+  }
+  .fact b { font-weight: 600; color: var(--muted); font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; }
+  .mono, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 22px 24px; }
+  .card > h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin-bottom: 4px; letter-spacing: -.005em; }
+  .card > .sub { color: var(--muted); font-size: 13.5px; margin-bottom: 16px; }
+  .card > h2:only-child, .card > h2 + .tablewrap { margin-bottom: 0; }
+  .card > h2 + .tablewrap, .card > .sub + .tablewrap { margin-top: 14px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+  th { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.res { white-space: nowrap; }
+
+  .pill { display: inline-block; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 3px; border: 1px solid; }
+  .pill.ok { color: var(--pass); border-color: #BFD8C7; background: #F1F7F3; }
+  .pill.na { color: var(--muted); border-color: var(--border-strong); background: #F5F2ED; }
+  .pill.attn { color: var(--warn); border-color: #E2D2AC; background: #FBF6EA; }
+  .pill.open { color: var(--open); border-color: #E3C6BC; background: #FBF1ED; }
+
+  p + p, .prose > * + * { margin-top: 11px; }
+  .prose { font-size: 14.2px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font-family: var(--mono); font-size: .9em; background: #F2EFE9; border: 1px solid var(--border); border-radius: 3px; padding: .5px 4px; }
+
+  ul.bul { display: flex; flex-direction: column; gap: 9px; font-size: 14.2px; }
+  ul.bul > li { padding-left: 15px; position: relative; }
+  ul.bul > li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: var(--border-strong); }
+
+  .commit { display: flex; flex-direction: column; gap: 3px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+  .commit:last-child { border-bottom: 0; padding-bottom: 0; }
+  .commit:first-of-type { padding-top: 0; }
+
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; }
+  .item.fyi { background: #FBFAF7; }
+  .item h3 { font-family: var(--serif); font-size: 17.5px; font-weight: 600; line-height: 1.28; margin-bottom: 3px; text-wrap: balance; }
+  .item .meta { font-size: 12px; color: var(--muted); font-family: var(--mono); margin-bottom: 11px; }
+  .item .prose { margin-bottom: 15px; }
+
+  .opts { display: flex; flex-direction: column; gap: 2px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border-radius: 4px; border: 1px solid transparent; }
+  .opt:hover { background: #FAF8F4; }
+  .opt input[type=radio] { margin-top: 4px; flex: none; accent-color: var(--accent); }
+  .opt .lbl { font-size: 14px; }
+  .opt .lbl .rec { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 3px; padding: 1px 6px; margin-left: 7px; white-space: nowrap; }
+  .opt .fn { display: block; color: var(--muted); font-size: 12.8px; margin-top: 2px; }
+  .opt.leave { border-top: 1px dashed var(--border); border-radius: 0; margin-top: 6px; padding-top: 12px; }
+  .leaverow { display: flex; gap: 12px; align-items: flex-start; }
+  .leaverow > .opt { flex: 1 1 auto; }
+  .lc { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); padding-top: 13px; white-space: nowrap; }
+  .lc input { accent-color: var(--accent); }
+  .otherrow { display: flex; gap: 8px; align-items: center; padding: 4px 10px 0; }
+  .otherrow input[type=text] { flex: 1 1 auto; min-width: 0; border: 1px solid var(--border-strong); border-radius: 4px; padding: 5px 8px; font-size: 13.5px; background: #FDFCFA; }
+  .notes { margin-top: 13px; }
+  .notes label { display: block; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 5px; }
+  .notes textarea { width: 100%; min-height: 52px; resize: vertical; border: 1px solid var(--border-strong); border-radius: 4px; padding: 7px 9px; font-size: 13.5px; background: #FDFCFA; font-family: var(--sans); }
+
+  #copycard button {
+    background: var(--accent); color: #fff; border: 0; border-radius: 5px;
+    padding: 9px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  #copycard button:hover { background: #135F69; }
+  #copyok { margin-left: 11px; font-size: 13px; color: var(--pass); font-weight: 600; opacity: 0; transition: opacity .15s; }
+  #copyok.on { opacity: 1; }
+  #payload { width: 100%; min-height: 190px; margin-top: 13px; font-family: var(--mono); font-size: 12px; line-height: 1.5; border: 1px solid var(--border-strong); border-radius: 4px; padding: 9px; background: #FBFAF7; resize: vertical; }
+
+  footer.foot { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12.5px; }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    h1 { font-size: 27px; }
+    .wrap { padding: 28px 18px 56px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="kicker">Preflight report</div>
+  <h1>Four string-list entries said “obsolete”. None of them meant it the same way.</h1>
+  <div class="facts">
+    <span class="fact"><b>Card</b> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16686" target="_blank" rel="noopener">BL-16686</a></span>
+    <span class="fact"><b>PR</b> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8208" target="_blank" rel="noopener">#8208</a> <span class="pill na">draft</span></span>
+    <span class="fact"><b>Branch</b> <span class="mono">fixObsoleteXlfNotes</span></span>
+    <span class="fact"><b>Head</b> <a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/eb117617f76c9fcc5c916c5b765c23e7653235f5" target="_blank" rel="noopener">eb117617</a></span>
+    <span class="fact"><b>Merge</b> <span class="pill ok">clean</span></span>
+    <span class="fact"><b>Waiting on you</b> <span class="numeral">3 decisions · 3 FYIs</span></span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ============ LEFT: THE REPORT ============ -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="sub">All checks run against the merged tree at <span class="mono">eb117617</span>.</div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Typecheck (front-end)</td><td class="res"><span class="pill ok">pass</span></td><td>No blunder-class type errors.</td></tr>
+          <tr><td>Lint (eslint)</td><td class="res"><span class="pill ok">pass</span></td><td>Both changed <span class="mono">.ts</span>/<span class="mono">.tsx</span> files clean; also re-run by the pre-commit hook.</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="res"><span class="pill ok">pass</span></td><td><span class="numeral">687 passed · 5 skipped · 62 files</span>. In scope: the diff edits two front-end sources.</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="res"><span class="pill ok">pass</span></td><td><span class="numeral">3097 passed · 0 failed · 13 skipped</span>. In scope: the diff edits a shipped sample shell that <span class="mono">BookStarterTests</span> loads, and the XLF files the C# localization manager reads.</td></tr>
+          <tr><td>Base integration</td><td class="res"><span class="pill ok">clean</span></td><td>Merged <span class="mono">origin/master</span> (9 commits) with no conflicts. Base also edited <span class="mono">Bloom.xlf</span>, far from our hunks.</td></tr>
+          <tr><td>Mergeable</td><td class="res"><span class="pill ok">clean</span></td><td>GitHub reports <span class="mono">MERGEABLE / CLEAN</span>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Reviewers</h2>
+      <div class="sub">Every reviewer is in a terminal state for this commit.</div>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Local review<br><span class="mono" style="font-size:11.5px;color:var(--muted)">light sub-agent pass</span></td>
+            <td class="res"><span class="pill ok">clean</span></td>
+            <td>No findings. It verified the negatives by grep rather than assertion: no reference anywhere to the deleted <span class="mono">…Options.Style</span> id, both edited sample-shell pages agree between attribute and visible text, remaining <span class="mono">"Quiz Page"</span> hits are self-contained test fixtures, and both XLF files still parse.</td>
+          </tr>
+          <tr>
+            <td>Devin</td>
+            <td class="res"><span class="pill attn">complete</span></td>
+            <td><strong>1 Bug, 1 Investigate, 2 Informational.</strong> Both actionable findings are mirrored as review threads and left <em>open</em> for you (decisions 1 and 2). The two informational items were assessed and are FYIs below.
+              <br><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8208" target="_blank" rel="noopener">Devin review page</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8208#issuecomment-5297586318" target="_blank" rel="noopener">consultation log</a></td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td class="res"><span class="pill na">no review</span></td>
+            <td>Configured on this repo (<span class="mono">.coderabbit.yml</span>) but posted nothing in the 16 minutes after the push, and registered no check. This matches the known state that its free monthly allowance is exhausted, so its silence is not a broken config and nothing here needs fixing. Short of the 30-minute cap by design; a re-run folds in a late review if the allowance has reset.</td>
+          </tr>
+          <tr>
+            <td>CI — <span class="mono">pr-automation</span></td>
+            <td class="res"><span class="pill ok">pass</span></td>
+            <td>Green in <span class="numeral">28s</span>. It is also what triggered Devin and what added the Devin link to the PR description. <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/31834918478/job/94878962174" target="_blank" rel="noopener">Run</a></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed</h2>
+      <div class="sub">Two commits: the work, then the base merge. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8208/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8208/commits" target="_blank" rel="noopener">Commits</a></div>
+      <div class="commit">
+        <div><a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/48200fca96" target="_blank" rel="noopener">48200fca</a> &nbsp;Fix the four XLF entries wrongly marked obsolete (BL-16686)</div>
+        <div class="prose" style="color:var(--muted);font-size:13.5px">Five files. The full reasoning for each of the four entries is in the commit message and the PR description.</div>
+      </div>
+      <div class="commit">
+        <div><a class="mono" href="https://github.com/BloomBooks/BloomDesktop/commit/eb117617f76c9fcc5c916c5b765c23e7653235f5" target="_blank" rel="noopener">eb117617</a> &nbsp;Merge <span class="mono">origin/master</span> into <span class="mono">fixObsoleteXlfNotes</span></div>
+        <div class="prose" style="color:var(--muted);font-size:13.5px">No conflicts. The gate was re-run after merging.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What the four entries turned out to be</h2>
+      <ul class="bul">
+        <li><strong>Two false alarms.</strong> <code>PublishTab.Feature.Games.None</code> and <code>.Present</code> were <em>added</em> already carrying an “Obsolete as of 6.2” note, copied from the <code>Activities.*</code> entries above them — but they are the <em>replacements</em> for those, and are the live tooltips at <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/publish/commonPublish/PublishFeaturesGroup.tsx#L188" target="_blank" rel="noopener">PublishFeaturesGroup.tsx:188</a>. Notes deleted; no code change.</li>
+        <li><strong>One unfinished migration.</strong> <code>…ComicTool.Options.Style</code> was superseded by <code>…Options.ElementType</code>, but the declarative canvas registry kept the old id. Nothing user-visible was affected, because that registry’s tool-panel surface has no callers yet — <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlResolution.ts#L330" target="_blank" rel="noopener">getToolPanelControls</a> is unused. Both sites now use the new id (<a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlRegistry.ts#L998" target="_blank" rel="noopener">registry:998</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasPanelControls.tsx#L86" target="_blank" rel="noopener">panel:86</a>) and the entry is gone.</li>
+        <li><strong>One genuine retirement.</strong> <code>TemplateBooks.PageLabel.Quiz Page</code> really was superseded, and tracing every consumer showed its translation is never displayed for an ordinary book — the label is hidden by CSS except on template books, and every C# path reaches the localizing helper only for unnumbered or back-matter pages. Entry deleted, and the two pages in the <em>The Moon and the Cap</em> sample shell that still used it were relabelled (<a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/content/templates/Sample%20Shells/The%20Moon%20and%20the%20Cap/The%20Moon%20and%20the%20Cap.htm#L2321" target="_blank" rel="noopener">line 2321</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/content/templates/Sample%20Shells/The%20Moon%20and%20the%20Cap/The%20Moon%20and%20the%20Cap.htm#L2845" target="_blank" rel="noopener">line 2845</a>).</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Session notes</h2>
+      <ul class="bul">
+        <li>The QA test-ideas comment was <strong>posted</strong> to BL-16686 (first one on the card, so created rather than updated). It leans on the spreadsheet export/import round trip, which is the one place the renamed page label is real data another feature reads back.</li>
+        <li>The PR link was posted to the card once, and this report’s link is posted too.</li>
+        <li>No personal board skill is installed, so no board moves were made.</li>
+        <li>I re-checked all 39 ids that <span class="mono">901bf1f333</span> deleted against shipped content using the correct paths and extensions — sample shells are <span class="mono">.htm</span>, and templates now live under <span class="mono">src/content/</span>. All clean; <code>Quiz Page</code> was the only one still in use. My first search missed it for exactly those two reasons.</li>
+        <li><span class="mono">output/browser/</span> still holds the pre-change copy of the sample shell; it takes a <span class="mono">pnpm build</span> to refresh, which is yours to run.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ============ RIGHT: DECISIONS ============ -->
+  <div class="col">
+
+    <!-- ---------- 1 ---------- -->
+    <section class="item">
+      <h3>Our written rule says never delete a string entry. We just deleted two.</h3>
+      <div class="meta">Devin · Bug · non-severe</div>
+      <div class="prose">
+        <p>Bloom keeps its English interface text in “string list” files, one entry per phrase. Translators work from those entries, so throwing one away throws away the translations done for it. Because of that, <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/AGENTS.md#L65" target="_blank" rel="noopener">src/BloomBrowserUI/AGENTS.md line 65</a> instructs: “If a string is no longer used, we do not remove it. Instead, add a note like this: <code>&lt;note&gt;Obsolete as of 6.2&lt;/note&gt;</code>.”</p>
+        <p>This branch deletes two entries outright, which is what you asked for. Devin spotted the contradiction and, to its credit, aimed at the right target — not the code, but the rule: “If the team has deliberately adopted a delete-obsolete-entries policy (as a prior commit suggests), the rule files should be updated to match.”</p>
+        <p>It is right that there is a policy, and right that we are not following it. Commit <span class="mono">901bf1f333</span> on master already deleted 39 entries this same way, so the written rule has been out of step with practice for a while. Nothing is broken either way — the translated files keep their copies, so re-adding an id recovers its translations — but one of the two has to give.</p>
+      </div>
+      <div class="opts" data-item="1">
+        <label class="opt"><input type="radio" name="q1" value="Update the rule files to describe what we actually do" checked data-q="Decision 1 — delete-vs-annotate policy"><span class="lbl">Update the rule files to describe what we actually do<span class="rec">recommended</span><span class="fn">Amend AGENTS.md line 65 (and the matching passage in <span class="mono">.github/skills/xlf-strings/SKILL.md</span>) to say: annotate while a string may still be referenced, delete once nothing references it. Recommended because the practice is deliberate, twice over now, and a rule nobody follows is worse than no rule — it is what made these four entries ambiguous in the first place. (No code — a doc note, ~5 lines across two files, no risk.)</span></span></label>
+        <label class="opt"><input type="radio" name="q1" value="Put the two entries back with obsolete notes" data-q="Decision 1 — delete-vs-annotate policy"><span class="lbl">Put the two entries back with obsolete notes<span class="fn">Honour the rule as written and revert both deletions, keeping the notes instead. (~12 lines of XLF restored, no risk, but it re-creates the exact ambiguity this card exists to remove.)</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q1" value="Leave as is" data-q="Decision 1 — delete-vs-annotate policy"><span class="lbl">Leave as is</span></label>
+          <label class="lc"><input type="checkbox" data-q="Decision 1 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q1" value="Other" data-q="Decision 1 — delete-vs-annotate policy"><span class="lbl">Other:</span></label><input type="text" data-q="Decision 1 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="Decision 1 — notes" placeholder="Caveats, constraints, wording you'd prefer…"></textarea></div>
+    </section>
+
+    <!-- ---------- 2 ---------- -->
+    <section class="item">
+      <h3>The registry entry next to the one we fixed has the same stale-id problem.</h3>
+      <div class="meta">Devin · Investigate · pre-existing on master</div>
+      <div class="prose">
+        <p>While checking our id swap, Devin looked at the neighbouring entry in the same registry and found <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlRegistry.ts#L1033" target="_blank" rel="noopener">canvasControlRegistry.ts:1033</a> asking for <code>EditTab.Toolbox.ComicTool.Options.OutlineColor</code> — an id that does not exist in the English string list. The two that do exist are <code>…OuterOutlineColor</code> and <code>…TextOutlineColor</code>. Confirmed by grep.</p>
+        <p>Checking further narrowed it usefully: the panel component itself already asks for the right one, <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasPanelControls.tsx#L206" target="_blank" rel="noopener">“Outer Outline Color” at panelControls.tsx:206</a>. For panel-type entries the registry’s own label fields are never rendered — so this is stale metadata sitting beside working code, not a broken label. Nobody sees anything wrong today, and wouldn’t even if the panel surface were switched on.</p>
+        <p>That also means it is the same shape as the bug this card just fixed, and the fix is no longer a guess.</p>
+      </div>
+      <div class="opts" data-item="2">
+        <label class="opt"><input type="radio" name="q2" value="Point the registry metadata at OuterOutlineColor" checked data-q="Decision 2 — stale OutlineColor id"><span class="lbl">Point the registry metadata at <span class="mono">…OuterOutlineColor</span><span class="rec">recommended</span><span class="fn">Change the two fields at registry:1033 to the id and English text the panel actually renders (“Outer Outline Color”), exactly as this PR did for the style panel. Recommended because it removes a stale id with no judgement call left in it, in a file this PR already touches. (2 lines, localized, low risk.)</span></span></label>
+        <label class="opt"><input type="radio" name="q2" value="Add a new OutlineColor entry to the English XLF" data-q="Decision 2 — stale OutlineColor id"><span class="lbl">Add a new <span class="mono">OutlineColor</span> entry to the string list instead<span class="fn">Keep the id and give it a real entry. Only worth it if “Outline Color” is deliberately meant to be a distinct, shorter label from “Outer Outline Color”. (~5 lines of XLF plus a new string for translators.)</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q2" value="Leave as is" data-q="Decision 2 — stale OutlineColor id"><span class="lbl">Leave as is</span></label>
+          <label class="lc"><input type="checkbox" data-q="Decision 2 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q2" value="Other" data-q="Decision 2 — stale OutlineColor id"><span class="lbl">Other:</span></label><input type="text" data-q="Decision 2 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="Decision 2 — notes" placeholder="Or say if this belongs on its own card…"></textarea></div>
+    </section>
+
+    <!-- ---------- 3 ---------- -->
+    <section class="item">
+      <h3>Should a test catch the next one of these?</h3>
+      <div class="meta">From the card’s own “suggested follow-up”</div>
+      <div class="prose">
+        <p>BL-16686 ends with a suggestion: a unit test that walks the English string lists and fails when an entry marked obsolete is still referenced in code or content would have caught all four of these when they were introduced. I checked — no such test exists today; nothing in the C# suite cross-checks string ids against usage at all.</p>
+        <p>It would be a genuinely cheap guard for a mistake this repo has now made four times. But writing a new test is scope beyond the card’s fix, and it needs a decision about strictness — the ids composed at runtime (<code>"TemplateBooks.PageLabel." + label</code>) mean a naive grep would produce false alarms on legitimate cases, so the test needs to be deliberately loose or deliberately narrow.</p>
+      </div>
+      <div class="opts" data-item="3">
+        <label class="opt"><input type="radio" name="q3" value="File a separate card for the guard test" checked data-q="Decision 3 — guard test"><span class="lbl">File a separate card for it<span class="rec">recommended</span><span class="fn">Keep this PR to the fix, and track the guard test on its own card where the strictness question can be thought about properly. Recommended because it is real work with a real design question, and bolting it on here would make a five-file fix into something much larger to review. (No code now — one new card.)</span></span></label>
+        <label class="opt"><input type="radio" name="q3" value="Write the guard test on this branch now" data-q="Decision 3 — guard test"><span class="lbl">Write it on this branch now<span class="fn">Add the test alongside the fix so the regression can’t recur. (Moderate — a new test fixture plus a scan of code and content for composed ids; the false-alarm handling is the tricky part.)</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q3" value="Leave as is" data-q="Decision 3 — guard test"><span class="lbl">Leave as is</span></label>
+          <label class="lc"><input type="checkbox" data-q="Decision 3 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q3" value="Other" data-q="Decision 3 — guard test"><span class="lbl">Other:</span></label><input type="text" data-q="Decision 3 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="Decision 3 — notes" placeholder="e.g. what the test should and shouldn't flag…"></textarea></div>
+    </section>
+
+    <!-- ---------- FYI 4 ---------- -->
+    <section class="item fyi">
+      <h3>FYI — the commit hook re-wrapped 45 lines of a shipped book</h3>
+      <div class="meta">Devin · Informational · assessed</div>
+      <div class="prose">
+        <p>Our two label edits to <em>The Moon and the Cap</em> came to 8 lines. The committed change to that file is 53. The extra 45 are Bloom’s own pre-commit tooling re-wrapping lines in the book’s story text — English, French and Tibetan paragraphs joined or re-broken.</p>
+        <p>Checked independently: only inter-word line breaks and indentation change, which HTML collapses identically, so nothing a reader sees changes. The full C# suite — which loads this exact book through <span class="mono">BookStarterTests</span> — passes. Raised only because it makes the two meaningful lines easy to lose in review, and because bulk-editing a shipped book’s text is the kind of thing worth knowing you did.</p>
+      </div>
+      <div class="opts" data-item="4">
+        <label class="opt"><input type="radio" name="q4" value="Revert the incidental re-wrapping" data-q="FYI 4 — sample shell re-wrap"><span class="lbl">Revert the incidental re-wrapping<span class="fn">Restore the untouched lines so the diff shows only the two labels. (~45 lines reverted, no risk to behavior — but the hook will likely re-apply it the next time anyone commits that file, so it may not stick.)</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q4" value="Leave as is" checked data-q="FYI 4 — sample shell re-wrap"><span class="lbl">Leave as is<span class="rec">recommended</span></span></label>
+          <label class="lc"><input type="checkbox" data-q="FYI 4 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q4" value="Other" data-q="FYI 4 — sample shell re-wrap"><span class="lbl">Other:</span></label><input type="text" data-q="FYI 4 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="FYI 4 — notes"></textarea></div>
+    </section>
+
+    <!-- ---------- FYI 5 ---------- -->
+    <section class="item fyi">
+      <h3>FYI — I used a different replacement label than the card suggested</h3>
+      <div class="meta">Deliberate divergence from BL-16686</div>
+      <div class="prose">
+        <p>The card proposes updating the sample shell to <code>TemplateBooks.PageLabel.Quiz</code>. I used <code>TemplateBooks.PageLabel.Comprehension Quiz</code> instead.</p>
+        <p>The reason: both quiz pages in that book carry <span class="mono">data-pagelineage="F125A8B6-…"</span>, which is the id of the template page that <span class="mono">simpleComprehensionQuiz.pug</span> now labels “Comprehension Quiz” — so they are literally derived from it. <code>…PageLabel.Quiz</code> is a different, deliberately shorter label, noted in the string list as “Used in page preview for Comprehension Question pages. Should be short.” Flagging it because it is a departure from the card, and yours to overrule.</p>
+      </div>
+      <div class="opts" data-item="5">
+        <label class="opt"><input type="radio" name="q5" value="Switch the labels to TemplateBooks.PageLabel.Quiz as the card said" data-q="FYI 5 — which replacement label"><span class="lbl">Switch to <span class="mono">…PageLabel.Quiz</span> as the card said<span class="fn">Use the shorter label instead on both pages. (4 lines, low risk — but it disagrees with the template page these two pages are derived from, so the sample shell would no longer match the template.)</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q5" value="Leave as is" checked data-q="FYI 5 — which replacement label"><span class="lbl">Leave as is<span class="rec">recommended</span></span></label>
+          <label class="lc"><input type="checkbox" data-q="FYI 5 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q5" value="Other" data-q="FYI 5 — which replacement label"><span class="lbl">Other:</span></label><input type="text" data-q="FYI 5 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="FYI 5 — notes"></textarea></div>
+    </section>
+
+    <!-- ---------- FYI 6 ---------- -->
+    <section class="item fyi">
+      <h3>FYI — a correction to something I told you earlier</h3>
+      <div class="meta">Self-correction · no action needed</div>
+      <div class="prose">
+        <p>Earlier in the session I reported that <span class="mono">Games.html</span> uses a page label, <code>TemplateBooks.PageLabel.Drag Letters to Targets</code>, whose English entry had been deleted — and called it a live problem of the same class as this card’s.</p>
+        <p>That was overstated. Checking during this run, <a href="https://github.com/BloomBooks/BloomDesktop/blob/eb117617f76c9fcc5c916c5b765c23e7653235f5/src/content/templates/template%20books/Games/Games.html#L4907" target="_blank" rel="noopener">the whole page is commented out</a> — “Hiding the Drag Letters to Targets game for now. It isn’t ready for the FAL channel. BL-14696.” Nothing asks for that id, so there is no missing-translation problem and nothing to fix. Recorded here so the earlier claim doesn’t survive into anyone’s notes.</p>
+      </div>
+      <div class="opts" data-item="6">
+        <div class="leaverow">
+          <label class="opt leave" style="border-top:0;margin-top:0;padding-top:9px"><input type="radio" name="q6" value="Leave as is" checked data-q="FYI 6 — Drag Letters label"><span class="lbl">Leave as is<span class="rec">recommended</span></span></label>
+          <label class="lc" style="padding-top:10px"><input type="checkbox" data-q="FYI 6 — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q6" value="Other" data-q="FYI 6 — Drag Letters label"><span class="lbl">Other:</span></label><input type="text" data-q="FYI 6 — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="FYI 6 — notes"></textarea></div>
+    </section>
+
+    <!-- ---------- NEXT STEP ---------- -->
+    <section class="item">
+      <h3>What should I do with your answers?</h3>
+      <div class="prose"><p>Anything you choose above becomes a new commit, which restarts Devin and CI — so preflight will need to run again afterwards.</p></div>
+      <div class="opts" data-item="7">
+        <label class="opt"><input type="radio" name="q7" value="Implement the chosen options, then re-run preflight" checked data-q="Next step"><span class="lbl">Implement the chosen options, then re-run preflight<span class="rec">recommended</span><span class="fn">Recommended because the recommended set is small — a doc amendment, a two-line id fix, and one new card — and none of it needs discussion first.</span></span></label>
+        <label class="opt"><input type="radio" name="q7" value="Discuss first before changing anything" data-q="Next step"><span class="lbl">Discuss one or more of these first<span class="fn">Nothing gets committed; we talk it through. Say which item in the notes.</span></span></label>
+        <div class="leaverow">
+          <label class="opt leave"><input type="radio" name="q7" value="Leave as is" data-q="Next step"><span class="lbl">Leave as is<span class="fn" style="margin-top:2px">Nothing further; the PR stands as it is for your own review.</span></span></label>
+          <label class="lc"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label>
+        </div>
+        <div class="otherrow"><label class="opt" style="padding-right:0"><input type="radio" name="q7" value="Other" data-q="Next step"><span class="lbl">Other:</span></label><input type="text" data-q="Next step — other text" placeholder="your answer"></div>
+      </div>
+      <div class="notes"><label>Notes</label><textarea data-q="Next step — notes"></textarea></div>
+    </section>
+
+    <!-- ---------- COPY BACK ---------- -->
+    <section class="item" id="copycard">
+      <h3>Send your answers back</h3>
+      <div class="prose"><p>Copy this and paste it into the Claude Code session.</p></div>
+      <button type="button" id="copybtn">Copy answers</button><span id="copyok">Copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to copy"></textarea>
+    </section>
+
+  </div>
+</div>
+
+<footer class="foot">
+  Preflight for <span class="mono">fixObsoleteXlfNotes</span> at <span class="mono">eb117617</span> · BL-16686 · generated by Claude Opus 5 (1M context).
+  Re-running preflight republishes this page to the same URL:
+  <a href="https://raw.githack.com/BloomBooks/dev-process-artifacts/main/deciders/bloomdesktop-fixObsoleteXlfNotes.html" target="_blank" rel="noopener">raw.githack.com/…/bloomdesktop-fixObsoleteXlfNotes.html</a>
+</footer>
+</div>
+
+<script>
+(function () {
+  var ITEM_ORDER = ["1","2","3","4","5","6","7"];
+
+  function serialize() {
+    var lines = ["Preflight answers — BL-16686 / PR 8208 (branch fixObsoleteXlfNotes)", ""];
+    ITEM_ORDER.forEach(function (n) {
+      var box = document.querySelector('.opts[data-item="' + n + '"]');
+      if (!box) return;
+      var checked = box.querySelector('input[type=radio]:checked');
+      if (!checked) return;
+      var label = checked.getAttribute("data-q") || ("Item " + n);
+      var value = checked.value;
+      if (value === "Other") {
+        var otherInput = box.querySelector('input[type=text]');
+        var typed = otherInput && otherInput.value.trim();
+        value = "Other: " + (typed ? typed : "(nothing typed)");
+      }
+      lines.push(label + ": " + value);
+
+      var lc = box.querySelector('input[type=checkbox]');
+      if (lc && lc.checked) {
+        lines.push("  Leave comment: yes — record this decision as a code comment in the repo");
+      }
+
+      var notesEl = document.querySelector('textarea[data-q="' + notesKey(n) + '"]');
+      if (notesEl && notesEl.value.trim()) {
+        lines.push("  Notes: " + notesEl.value.trim().replace(/\s*\n\s*/g, " / "));
+      }
+      lines.push("");
+    });
+    return lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  function notesKey(n) {
+    var el = document.querySelector('.item .opts[data-item="' + n + '"]');
+    if (!el) return "";
+    var section = el.closest(".item");
+    var ta = section && section.querySelector('.notes textarea');
+    return ta ? ta.getAttribute("data-q") : "";
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var ok = document.getElementById("copyok");
+    function confirmed() { ok.classList.add("on"); setTimeout(function () { ok.classList.remove("on"); }, 2200); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(confirmed, fallback);
+    } else { fallback(); }
+    function fallback() {
+      payload.focus(); payload.select();
+      try { document.execCommand("copy"); confirmed(); } catch (e) { ok.textContent = "Press Ctrl+C"; confirmed(); }
+    }
+  });
+})();
+</script>
+</body>
+</html>
