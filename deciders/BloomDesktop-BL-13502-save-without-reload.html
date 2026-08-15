@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — Saving Without Reloading</title>
+<style>
+:root{
+  --ground:#F6F8F9; --card:#FFFFFF; --ink:#15202B; --muted:#5C6B78;
+  --line:#DFE6EA; --line-soft:#EDF1F3; --accent:#0E6F68; --accent-soft:#E4F0EF;
+  --ok:#1D7A4C; --ok-soft:#E6F2EB; --warn:#8F6608; --warn-soft:#FBF1DC;
+  --crit:#A32F2A; --crit-soft:#F8E9E8; --code:#F2F5F6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#11181D; --card:#171F25; --ink:#E6EDF1; --muted:#9AAAB6;
+    --line:#2A353D; --line-soft:#212B32; --accent:#5FC6BC; --accent-soft:#16302E;
+    --ok:#6DCB99; --ok-soft:#15291F; --warn:#E0B255; --warn-soft:#2B2415;
+    --crit:#EC8B85; --crit-soft:#2E1B1A; --code:#1D262C;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#11181D; --card:#171F25; --ink:#E6EDF1; --muted:#9AAAB6;
+  --line:#2A353D; --line-soft:#212B32; --accent:#5FC6BC; --accent-soft:#16302E;
+  --ok:#6DCB99; --ok-soft:#15291F; --warn:#E0B255; --warn-soft:#2B2415;
+  --crit:#EC8B85; --crit-soft:#2E1B1A; --code:#1D262C;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:15px; line-height:1.6;
+}
+h1,h2,h3{font-family:"Iowan Old Style",Palatino,"Palatino Linotype",Georgia,serif;text-wrap:balance;margin:0}
+h1{font-size:1.9rem;line-height:1.2;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin-bottom:.6rem}
+h3{font-size:1rem;margin-bottom:.35rem}
+a{color:var(--accent);text-underline-offset:2px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}
+code{background:var(--code);padding:.1em .35em;border-radius:3px}
+.wrap{max-width:1400px;margin:0 auto;padding:2rem 1.5rem 4rem}
+header.top{border-bottom:1px solid var(--line);padding-bottom:1.25rem;margin-bottom:1.75rem}
+.eyebrow{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:.5rem}
+.facts{display:flex;flex-wrap:wrap;gap:.4rem .9rem;margin-top:.85rem;font-size:.87rem;color:var(--muted)}
+.facts span{display:inline-flex;align-items:center;gap:.35rem}
+.cols{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.5rem;align-items:start}
+@media (max-width:1000px){.cols{grid-template-columns:1fr}}
+.col{display:flex;flex-direction:column;gap:1.25rem;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:1.15rem 1.25rem}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:none}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll{overflow-x:auto}
+.chip{display:inline-block;font-size:.72rem;font-weight:600;padding:.14rem .5rem;border-radius:999px;white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.crit{background:var(--crit-soft);color:var(--crit)}
+.chip.neutral{background:var(--line-soft);color:var(--muted)}
+ul.commits{list-style:none;margin:0;padding:0;font-size:.88rem}
+ul.commits li{padding:.32rem 0;border-bottom:1px solid var(--line-soft);display:flex;gap:.6rem}
+ul.commits li:last-child{border-bottom:none}
+ul.commits .sha{color:var(--muted);flex:0 0 4.5rem}
+p{margin:.55rem 0}
+p.lede{color:var(--muted);margin-top:.35rem}
+.note{font-size:.87rem;color:var(--muted)}
+.item{border-left:3px solid var(--accent);padding-left:.9rem;margin-bottom:1rem}
+.item:last-child{margin-bottom:0}
+fieldset{border:none;margin:.7rem 0 0;padding:0}
+.opt{display:flex;gap:.55rem;align-items:flex-start;padding:.4rem .5rem;border-radius:5px}
+.opt:hover{background:var(--line-soft)}
+.opt input[type=radio]{margin-top:.35rem;flex:0 0 auto}
+.opt label{flex:1;font-size:.9rem}
+.opt .fx{display:block;color:var(--muted);font-size:.8rem;margin-top:.1rem}
+.tag{font-size:.68rem;font-weight:700;color:var(--accent);letter-spacing:.05em;text-transform:uppercase;margin-left:.3rem}
+.leaverow{display:flex;align-items:center;gap:.6rem}
+.leaverow .lc{margin-left:auto;display:flex;align-items:center;gap:.35rem;font-size:.8rem;color:var(--muted);white-space:nowrap}
+input[type=text]{width:100%;font:inherit;font-size:.88rem;padding:.35rem .5rem;border:1px solid var(--line);border-radius:5px;background:var(--ground);color:var(--ink)}
+textarea{width:100%;font:inherit;font-size:.88rem;padding:.45rem .55rem;border:1px solid var(--line);border-radius:5px;background:var(--ground);color:var(--ink);resize:vertical}
+.notes{margin-top:.6rem}
+.notes span{display:block;font-size:.76rem;color:var(--muted);margin-bottom:.25rem}
+button{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:.55rem 1.1rem;cursor:pointer}
+button:hover{filter:brightness(1.08)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#out{margin-top:.7rem;min-height:7rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.78rem}
+.copied{color:var(--ok);font-size:.82rem;margin-left:.6rem}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="eyebrow">Preflight report</div>
+  <h1>Saving a page without reloading it</h1>
+  <p class="lede">BloomDesktop PR #8209 — draft, mergeable. Six review cycles; one bug left open for you, plus two design questions.</p>
+  <div class="facts">
+    <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">PR #8209</a></span>
+    <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209/files" target="_blank" rel="noopener">Files changed</a></span>
+    <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209/commits" target="_blank" rel="noopener">Commits</a></span>
+    <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">BL-13502</a></span>
+    <span><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">Devin review</a></span>
+    <span class="mono">HEAD 093d85dca4</span>
+    <span>58 files, +3106 −380</span>
+  </div>
+</header>
+
+<div class="cols">
+
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+      <tr><td>TypeScript typecheck</td><td><span class="chip ok">pass</span></td><td class="note">no blunder-class type errors</td></tr>
+      <tr><td>ESLint</td><td><span class="chip ok">pass</span></td><td class="note">0 errors (766 warnings — repo baseline, unchanged)</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td><span class="chip ok">718 passed</span></td><td class="num note">66 files, 5 skipped, 0 failed</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td><span class="chip ok">3126 passed</span></td><td class="num note">13 skipped, 0 failed</td></tr>
+      <tr><td>Production bundle build</td><td><span class="chip ok">pass</span></td><td class="note">isolated <code>agent-vite</code> build, exit 0</td></tr>
+      <tr><td>Base integration</td><td><span class="chip ok">clean</span></td><td class="note"><code>origin/master</code> merged, no conflicts, 0 behind</td></tr>
+      <tr><td>Mergeable</td><td><span class="chip ok">yes</span></td><td class="note">draft, as preflight leaves it</td></tr>
+    </table>
+    </div>
+    <p class="note" style="margin-top:.8rem">New tests this run: 24 for the editing state machine, 9 for the delay gate, 9 for niceScroll cleanup, 5 for reader-markup removal, 1 for a refused save.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+    <div class="scroll">
+    <table>
+      <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+      <tr>
+        <td>Local review<br><span class="note">in-session pass over the diff</span></td>
+        <td><span class="chip ok">complete</span></td>
+        <td>4 findings, all fixed: a committed benchmark script calling an API that no longer exists, and three stale references in comments and docs. Run in-session rather than by sub-agent — this session is configured not to spawn agents.</td>
+      </tr>
+      <tr>
+        <td>Devin<br><span class="note">4 review rounds</span></td>
+        <td><span class="chip ok">complete</span></td>
+        <td><strong>6 bugs found, 5 fixed</strong> and each documented and resolved on its own PR thread. 1 left open (see decisions). Plus 12 “investigate” flags: 4 acted on, 2 answered in place, the rest deliberate design choices.</td>
+      </tr>
+      <tr>
+        <td>CodeRabbit</td>
+        <td><span class="chip neutral">not a reviewer here</span></td>
+        <td><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>. Confirmed against behaviour: no bot has reviewed any of the last four merged PRs in this repo.</td>
+      </tr>
+      <tr>
+        <td>CI (<code>pr-automation</code>)</td>
+        <td><span class="chip ok">complete</span></td>
+        <td>Passing at HEAD.</td>
+      </tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What Devin caught, and what it means</h2>
+    <p>Every one of these was a real defect introduced by this branch, and none of them would have been caught by the tests or by driving the UI — which is the honest lesson of this run.</p>
+    <table>
+      <tr><th>Bug</th><th>Status</th></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787684323" target="_blank" rel="noopener">Reader-tool editing highlight was being saved into the book</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787684385" target="_blank" rel="noopener">A save that never happened was reported as successful</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787728529" target="_blank" rel="noopener">Toolbox tools no longer shut down on a page change</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787792859" target="_blank" rel="noopener">A page-list command could vanish if the page frame navigated</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787842542" target="_blank" rel="noopener">“Leave the editor blank” was ignored, opening a page that doesn’t exist</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787793129" target="_blank" rel="noopener">Balloon data rewritten on pages where it used to be left alone</a></td><td><span class="chip ok">fixed</span></td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787867574" target="_blank" rel="noopener">Toolbox tool not shut down when leaving the Edit <em>tab</em></a></td><td><span class="chip warn">your call →</span></td></tr>
+    </table>
+    <p class="note" style="margin-top:.8rem">Full record in the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#issuecomment-5299201934" target="_blank" rel="noopener">consultation log</a> on the PR.</p>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <h3>Made to survive a long wait</h3>
+    <p>You asked for the branch to be cheap to merge later. Two things came of that. New behaviour went into new files — <a href="https://github.com/BloomBooks/BloomDesktop/blob/093d85dca414b46ca47fab5781c71ba306b10d60/src/BloomBrowserUI/bookEdit/js/pageContentDelays.ts#L76" target="_blank" rel="noopener">the delay gate</a>, the niceScroll cleanup, <a href="https://github.com/BloomBooks/BloomDesktop/blob/093d85dca414b46ca47fab5781c71ba306b10d60/src/BloomBrowserUI/bookEdit/pageThumbnailList/currentPageContent.ts#L35" target="_blank" rel="noopener">the content collector</a> — and existing code was not reshaped just to add to it: <a href="https://github.com/BloomBooks/BloomDesktop/blob/093d85dca414b46ca47fab5781c71ba306b10d60/src/BloomExe/Edit/EditingModel.cs#L1732" target="_blank" rel="noopener"><code>SaveThen</code></a> takes one more argument instead of five call sites hoisting their lambdas. That took <code>EditingModel.cs</code> from 130 changed lines to 37, with no reindentation left.</p>
+    <p>The launcher work (<code>--no-watch</code>, launch timing) was <strong>removed</strong> from this branch — it is up for review as PR #8205 off master, and having it on both sides would guarantee a conflict the day that lands.</p>
+    <h3>Preflight exceeded its own cycle cap</h3>
+    <p>Preflight caps the fix → push → re-review loop at four. This run went to six, because each round surfaced a genuinely new defect rather than noise. It stopped there by decision, not because the well ran dry — the seventh finding is the first decision item below.</p>
+    <h3>Verified against a running Bloom</h3>
+    <p>Every converted command was driven through the real UI on a real book: the page’s unsaved typing is saved, the page lands fully set up, the content reaches disk, and the old round trip never fires. Holding a delay stops a command from starting at all; a delay that never clears lets it through after the 4-second cap with a warning. The test book was restored afterwards.</p>
+  </section>
+
+  <section class="card">
+    <h2>Commits this run</h2>
+    <ul class="commits">
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/9941e1380f" target="_blank" rel="noopener">9941e13</a> Change pages without asking the browser for the content first</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/d88a26722e" target="_blank" rel="noopener">d88a267</a> Let the page list’s commands save the page they are leaving</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/4d8b18ccf0" target="_blank" rel="noopener">4d8b18c</a> Make an in-place save honest about what it did</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/1b9791582e" target="_blank" rel="noopener">1b97915</a> Make the delay register the one gate every save waits on</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/c86ebf1a7e" target="_blank" rel="noopener">c86ebf1</a> Send the page content with “save and rethink this page” too</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/f34d03810c" target="_blank" rel="noopener">f34d038</a> Let SaveThen itself take the page content</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/a28a57f3b2" target="_blank" rel="noopener">a28a57f</a> Leave the launcher changes to their own PR</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/827ace3d98" target="_blank" rel="noopener">827ace3</a> Bring the inventory doc up to date</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/4e1debe1ec" target="_blank" rel="noopener">4e1debe</a> Fix references to save APIs that no longer exist</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/8fac1abf9f" target="_blank" rel="noopener">8fac1ab</a> Fix two real bugs Devin found</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/38e8647222" target="_blank" rel="noopener">38e8647</a> Shut the toolbox tool down when the page goes away again</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/e10b109d87" target="_blank" rel="noopener">e10b109</a> Don’t let a page-list command vanish if the page frame navigates</li>
+      <li><a class="sha mono" href="https://github.com/BloomBooks/BloomDesktop/commit/093d85dca4" target="_blank" rel="noopener">093d85d</a> Honour “no page” and stop rewriting balloon data</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="col">
+
+  <section class="card">
+    <h2>Decisions</h2>
+
+    <div class="item">
+      <h3>1. The toolbox tool is still not shut down when you leave the Edit tab</h3>
+      <p>When you have a toolbox tool open — Talking Book, a reader tool, Motion — and you move to a different page, Bloom now correctly tells that tool the page is going away, so it can let go of it and close anything it had popped up. That was broken earlier in this branch and is fixed.</p>
+      <p>But <em>leaving the Edit tab altogether</em> is a different path, and it is still not covered. The page frame isn’t unloaded when you switch tabs, so nothing tells the tool to let go. In practice: a small window the tool had opened can stay on screen after you’ve switched away, and the tool keeps its hooks on a page you are no longer looking at. Do that repeatedly in a session and it accumulates.</p>
+      <p>This used to be handled for free, because leaving the tab performs a save, and every save used to detach the tool. That is exactly the coupling this branch removed.</p>
+      <fieldset data-q="1. Toolbox not shut down when leaving the Edit tab">
+        <div class="opt"><input type="radio" name="q1" value="Detach the tool when leaving the Edit tab too" checked><label>Detach the tool when leaving the Edit tab too<span class="tag">recommended</span><span class="fx">Small and localized — hook the same call into whatever already runs when the edit tab is hidden. Recommended because it is the last member of a family we have already fixed twice, and the symptom (a stray window, a gradual slowdown) is the kind users report as “Bloom feels sluggish” rather than as a bug.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" value="Fix it in a follow-up card instead"><label>Fix it in a follow-up card instead<span class="fx">No code here; the gap ships with the branch and is tracked separately.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="q1" value="Leave as is" id="q1la"><label for="q1la">Leave as is</label><span class="lc"><input type="checkbox" data-q="1. Leave comment"> Leave comment</span></div>
+        <div class="opt"><input type="radio" name="q1" value="Other"><label>Other: <input type="text" data-q="1. Other"></label></div>
+      </fieldset>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="1. Notes"></textarea></div>
+    </div>
+
+    <div class="item">
+      <h3>2. Typing while audio plays, then saving, can lose the typing</h3>
+      <p>To work out what to save, Bloom now copies the page and tidies the copy. Two of those tidying steps disagree about which should go first, and no single order is right for both.</p>
+      <p>CKEditor’s version of the text has to be written into the copy first, because that is the only place the reader tools’ word-marking can then be unwrapped out of it. But the Talking Book tool’s cleanup restores each element from a snapshot it took when audio playback started — and running that <em>after</em> the CKEditor copy means the snapshot wins. So if someone types in a text box while its audio is playing, and a save happens before playback finishes, the typing is not in the saved book.</p>
+      <p>The window is narrow: the snapshots are cleared when playback ends. But it is silent loss of a user’s typing, which is the worst kind of bug to ship.</p>
+      <fieldset data-q="2. Clone-cleanup ordering (Talking Book typing during playback)">
+        <div class="opt"><input type="radio" name="q2" value="Make the Talking Book restore not overwrite newer text" checked><label>Make the Talking Book restore not overwrite newer text<span class="tag">recommended</span><span class="fx">Moderate — the restore needs to put back only the highlighting wrapper, not the whole element’s contents. Recommended because it fixes the actual defect rather than trading it for the reader tools’ version of the same problem, and it leaves the pipeline with one order that is right for everyone.</span></label></div>
+        <div class="opt"><input type="radio" name="q2" value="Reverse the order and make the reader tools tolerate it"><label>Reverse the order and make the reader tools tolerate it<span class="fx">Moderate — restores the old ordering, but the reader tools then need their own change so their word-marking doesn’t get written back in.</span></label></div>
+        <div class="opt"><input type="radio" name="q2" value="Give each tool a say in when its cleanup runs"><label>Give each tool a say in when its cleanup runs<span class="fx">Large / architectural — a general answer, but it widens the tool interface for a problem only two tools have.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="q2" value="Leave as is" id="q2la"><label for="q2la">Leave as is</label><span class="lc"><input type="checkbox" data-q="2. Leave comment"> Leave comment</span></div>
+        <div class="opt"><input type="radio" name="q2" value="Other"><label>Other: <input type="text" data-q="2. Other"></label></div>
+      </fieldset>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="2. Notes"></textarea></div>
+      <p class="note"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787730883" target="_blank" rel="noopener">Thread on the PR</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787793183" target="_blank" rel="noopener">related: alternates ordering</a></p>
+    </div>
+
+    <div class="item">
+      <h3>3. The page is snapshotted when you click, not when Bloom saves</h3>
+      <p>The old design asked the browser for the page’s content at the moment C# was ready to save it. The new one takes the snapshot when you click, and sends it along with the request. For the thumbnail context-menu commands, C# then waits a further tenth of a second before acting — a delay that exists purely so the menu can close.</p>
+      <p>Anything typed inside that gap is not in the snapshot. It is a small window, and the cross-page case is safe (a snapshot that arrives late is written back to the page it came from, not to the new one), but it is a real difference from what it replaced, and “a keystroke went missing” is very hard to diagnose later.</p>
+      <fieldset data-q="3. Click-time snapshot / the 100ms context-menu delay">
+        <div class="opt"><input type="radio" name="q3" value="Drop the 100ms delay now that the command no longer waits on a round trip" checked><label>Drop the 100ms delay now that the command no longer waits on a round trip<span class="tag">recommended</span><span class="fx">Small — remove a deferral whose original reason has gone. Recommended because it shrinks the gap to nearly nothing at almost no cost, and the delay was only ever there to let the menu close.</span></label></div>
+        <div class="opt"><input type="radio" name="q3" value="Take the snapshot after the delay rather than before it"><label>Take the snapshot after the delay rather than before it<span class="fx">Small–moderate — keeps the menu behaviour and closes the gap, but moves the collection into the deferred callback, which is more moving parts.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="q3" value="Leave as is" id="q3la"><label for="q3la">Leave as is</label><span class="lc"><input type="checkbox" data-q="3. Leave comment"> Leave comment</span></div>
+        <div class="opt"><input type="radio" name="q3" value="Other"><label>Other: <input type="text" data-q="3. Other"></label></div>
+      </fieldset>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="3. Notes"></textarea></div>
+      <p class="note"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209#discussion_r3787732020" target="_blank" rel="noopener">Thread on the PR</a></p>
+    </div>
+
+    <div class="item">
+      <h3>4. For information — how much is left to convert</h3>
+      <p>This branch converts everything the page list initiates, plus the three “save and rebuild this page” callers. Still on the old round trip, with reasons: <strong>Add Page</strong> and <strong>Duplicate Many Times</strong> (driven from separate dialog windows that cannot reach the page), the <strong>copyright dialog</strong> (same reason), and the saves C# starts for itself when a tab changes or a collection closes. Those last ones are why the <code>SavePending</code> state and the request-the-content machinery cannot be deleted yet.</p>
+      <fieldset data-q="4. FYI — remaining conversions">
+        <div class="opt"><input type="radio" name="q4" value="Noted; carry on with the inventory as planned" checked><label>Noted; carry on with the inventory as planned<span class="tag">recommended</span><span class="fx">No code — just confirms the plan in <code>SavingWithoutReloading.md</code> is still the right one.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="q4" value="Leave as is" id="q4la"><label for="q4la">Leave as is</label><span class="lc"><input type="checkbox" data-q="4. Leave comment"> Leave comment</span></div>
+        <div class="opt"><input type="radio" name="q4" value="Other"><label>Other: <input type="text" data-q="4. Other"></label></div>
+      </fieldset>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="4. Notes"></textarea></div>
+    </div>
+
+    <div class="item">
+      <h3>5. What next</h3>
+      <p>The PR is draft and mergeable, and deliberately aimed at after the current release.</p>
+      <fieldset data-q="5. Next step">
+        <div class="opt"><input type="radio" name="q5" value="Implement the choices above, then re-run preflight" checked><label>Implement the choices above, then re-run preflight<span class="tag">recommended</span><span class="fx">Recommended because items 1–3 are small and it is much cheaper to settle them now than after the branch has sat for weeks.</span></label></div>
+        <div class="opt"><input type="radio" name="q5" value="Talk them through first"><label>Talk them through first<span class="fx">No code yet — useful if item 2’s ordering question needs more context than the write-up gives.</span></label></div>
+        <div class="opt"><input type="radio" name="q5" value="Park the branch as it stands"><label>Park the branch as it stands<span class="fx">No code — the branch is green, integrated, and its open questions are written down on the PR.</span></label></div>
+        <div class="opt leaverow"><input type="radio" name="q5" value="Leave as is" id="q5la"><label for="q5la">Leave as is</label><span class="lc"><input type="checkbox" data-q="5. Leave comment"> Leave comment</span></div>
+        <div class="opt"><input type="radio" name="q5" value="Other"><label>Other: <input type="text" data-q="5. Other"></label></div>
+      </fieldset>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="5. Notes"></textarea></div>
+    </div>
+
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p class="note">Copy this and paste it into the session.</p>
+    <button id="copy">Copy answers</button><span class="copied" id="msg" hidden>Copied</span>
+    <textarea id="out" readonly rows="9"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+function collect(){
+  const lines = ["Preflight answers — BloomDesktop PR #8209 (BL-13502)",""];
+  document.querySelectorAll("fieldset[data-q]").forEach(fs=>{
+    const q = fs.getAttribute("data-q");
+    const picked = fs.querySelector("input[type=radio]:checked");
+    let val = picked ? picked.value : "(no answer)";
+    if(val === "Other"){
+      const t = fs.querySelector('input[type=text][data-q]');
+      val = "Other: " + ((t && t.value.trim()) || "(blank)");
+    }
+    lines.push(q + " -> " + val);
+    const lc = fs.querySelector('input[type=checkbox][data-q]');
+    if(lc && lc.checked) lines.push("    Leave comment: record this decision as a code comment near the relevant code");
+    const item = fs.closest(".item");
+    const notes = item ? item.querySelector('textarea[data-q]') : null;
+    if(notes && notes.value.trim()) lines.push("    Notes: " + notes.value.trim());
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+const out = document.getElementById("out");
+function refresh(){ out.value = collect(); }
+document.addEventListener("input", refresh);
+document.addEventListener("change", refresh);
+refresh();
+document.getElementById("copy").addEventListener("click", ()=>{
+  const text = collect();
+  out.value = text;
+  const done = ()=>{ const m=document.getElementById("msg"); m.hidden=false; setTimeout(()=>m.hidden=true, 2500); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, ()=>{ out.select(); document.execCommand("copy"); done(); });
+  } else { out.select(); document.execCommand("copy"); done(); }
+});
+</script>
+</body>
+</html>
