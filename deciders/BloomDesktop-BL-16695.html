@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16695 Preflight</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ground: #FAF8F3;
+    --card: #FFFFFF;
+    --border: #E4E0D5;
+    --ink: #26231D;
+    --muted: #6E695E;
+    --accent: #17798A;
+    --accent-soft: #E3F0F2;
+    --good: #2E7031;
+    --warn: #A05E00;
+  }
+  html { font-size: 16px; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.55;
+    padding: 2.5rem 1.25rem 4rem;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  header.page { margin-bottom: 2rem; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; }
+  h1 { font-size: 1.9rem; margin-bottom: .35rem; }
+  h2 { font-size: 1.25rem; margin-bottom: .75rem; }
+  h3 { font-size: 1.02rem; margin-bottom: .4rem; }
+  .sub { color: var(--muted); font-size: .95rem; }
+  .sub a { color: var(--accent); }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 1.5rem;
+    align-items: start;
+  }
+  .grid > * { min-width: 0; }
+  @media (max-width: 980px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1.5rem;
+  }
+  .numeral { font-family: Consolas, ui-monospace, monospace; font-variant-numeric: tabular-nums; font-size: .92em; }
+  .pill {
+    display: inline-block; padding: .05rem .55rem; border-radius: 99px;
+    font-size: .78rem; font-weight: 600; letter-spacing: .02em; vertical-align: baseline;
+  }
+  .pill.pass { background: #E5F1E4; color: var(--good); }
+  .pill.info { background: var(--accent-soft); color: var(--accent); }
+  .pill.na { background: #F0EDE5; color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  th, td { text-align: left; padding: .5rem .75rem .5rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: .5rem; }
+  .commit { font-family: Consolas, ui-monospace, monospace; font-size: .88em; }
+  .decision { border-left: 3px solid var(--accent); }
+  .decision p.desc { margin-bottom: .8rem; font-size: .95rem; }
+  .opt { display: flex; align-items: flex-start; gap: .55rem; padding: .45rem .5rem; border-radius: 6px; }
+  .opt:hover { background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: .3rem; flex-shrink: 0; }
+  .opt label { cursor: pointer; }
+  .opt .fx { color: var(--muted); font-size: .88em; }
+  .rec { color: var(--accent); font-weight: 600; font-size: .78rem; letter-spacing: .03em; text-transform: uppercase; }
+  .leaverow { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+  .leaverow .cbox { display: flex; align-items: center; gap: .35rem; font-size: .85rem; color: var(--muted); white-space: nowrap; margin-top: .4rem; }
+  .otherinput { width: 100%; margin-top: .2rem; padding: .35rem .5rem; border: 1px solid var(--border); border-radius: 5px; font: inherit; font-size: .92rem; background: var(--card); color: var(--ink); }
+  .notes { width: 100%; margin-top: .7rem; padding: .45rem .6rem; border: 1px solid var(--border); border-radius: 5px; font: inherit; font-size: .92rem; min-height: 2.4rem; resize: vertical; background: var(--card); color: var(--ink); }
+  .noteslabel { font-size: .8rem; color: var(--muted); margin-top: .7rem; }
+  button.copy {
+    background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: .6rem 1.2rem; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.copy:hover { background: #10606E; }
+  button.copy:focus-visible, .opt input:focus-visible, .otherinput:focus-visible, .notes:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #payload {
+    width: 100%; margin-top: .8rem; font-family: Consolas, ui-monospace, monospace; font-size: .82rem;
+    padding: .6rem; border: 1px solid var(--border); border-radius: 6px; min-height: 9rem; background: #FCFBF8; color: var(--ink);
+  }
+  .copied { color: var(--good); font-size: .85rem; margin-left: .7rem; visibility: hidden; }
+  .fineprint { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="page">
+    <h1>BL-16695 Preflight</h1>
+    <p class="sub">
+      Page numbers forced Left/Right sat flush against the edge in Zero Margin portrait ebooks — fixed and verified in the running app.
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8214" target="_blank" rel="noopener">PR #8214</a> (draft, base <span class="commit">Version6.4</span>) ·
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8214/files" target="_blank" rel="noopener">Files changed</a> ·
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16695" target="_blank" rel="noopener">BL-16695</a> ·
+      HEAD <a class="commit" href="https://github.com/BloomBooks/BloomDesktop/commit/a36cbc3140e5f1843caa4c415d0758bdf2bba829" target="_blank" rel="noopener">a36cbc31</a> ·
+      2026-08-17
+    </p>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          <tr>
+            <td>C# tests (full suite)</td>
+            <td><span class="pill info">waived</span></td>
+            <td>Ran once at HEAD: <span class="numeral">2780 passed · 41 failed · 13 skipped</span> — but every failure carries the known shared-temp signatures of a concurrent BloomTests run in another worktree (plus the opt-in RAB build test, a known local-environment failure), and none touches appearance or page-number code. Andrew waived the clean re-run; CI covers the branch.</td>
+          </tr>
+          <tr>
+            <td>TypeScript tests (vitest, full suite)</td>
+            <td><span class="pill pass">pass</span></td>
+            <td><span class="numeral">532 passed · 5 skipped</span> (48 files), run at HEAD with <span class="commit">--no-file-parallelism</span> (the known local worker-pool workaround)</td>
+          </tr>
+          <tr>
+            <td>Affected C# fixture (fast gate)</td>
+            <td><span class="pill pass">pass</span></td>
+            <td><span class="numeral">14 / 14</span> in the <span class="commit">ToCss</span> fixture, re-run before every push</td>
+          </tr>
+          <tr>
+            <td>TypeScript typecheck</td>
+            <td><span class="pill na">not run</span></td>
+            <td>The branch's own diff contains no TypeScript (CSS + C# only); the only TS arrived via the base merge and was already green on Version6.4</td>
+          </tr>
+          <tr>
+            <td>Formatting / lint</td>
+            <td><span class="pill pass">pass</span></td>
+            <td>Prettier clean on the changed CSS; CSharpier clean on the changed C# (pre-commit hooks ran on every commit)</td>
+          </tr>
+          <tr>
+            <td>Base integration</td>
+            <td><span class="pill pass">clean</span></td>
+            <td>Merged <span class="commit">origin/Version6.4</span> (one unrelated commit, BL-16276) with no conflicts before publishing</td>
+          </tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <ul>
+          <li><a class="commit" href="https://github.com/BloomBooks/BloomDesktop/commit/99b26c3f9f" target="_blank" rel="noopener">99b26c3f</a> — the fix: the forced Left/Right page-number placement now includes a theme-overridable <span class="commit">--pageNumber-forced-side-extra-margin</span> term (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a36cbc3140e5f1843caa4c415d0758bdf2bba829/src/BloomExe/Book/AppearanceSettings.cs#L1074" target="_blank" rel="noopener">AppearanceSettings.cs:1074</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/a36cbc3140e5f1843caa4c415d0758bdf2bba829/src/BloomExe/Book/AppearanceSettings.cs#L1098" target="_blank" rel="noopener">:1098</a>), and the Zero Margin theme sets it to the text box's thin padding on portrait pages (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a36cbc3140e5f1843caa4c415d0758bdf2bba829/src/content/appearanceThemes/appearance-theme-zero-margin-ebook.css#L37-L44" target="_blank" rel="noopener">theme css:37–44</a>). Two test cases updated.</li>
+          <li><a class="commit" href="https://github.com/BloomBooks/BloomDesktop/commit/ad00de701a" target="_blank" rel="noopener">ad00de70</a> — merge of <span class="commit">origin/Version6.4</span> (BL-16276, unrelated talking-book files).</li>
+          <li><a class="commit" href="https://github.com/BloomBooks/BloomDesktop/commit/a36cbc3140" target="_blank" rel="noopener">a36cbc31</a> — Devin's catch: the new inset no longer applies to interactive (game) pages, which keep a nonzero margin in this theme.</li>
+        </ul>
+        <p class="fineprint">Verified in the running app before preflight: forced Left/Right insets the number <span class="numeral">0.5em ≈ 7.3px</span> from the edge on <span class="commit">Ebook2x3Portrait</span>; Automatic still centers exactly. A theme-only variant (redefining <span class="commit">--page-margin-left</span> on the <span class="commit">::after</span>) was tried first and disproven in-app — custom-property <span class="commit">var()</span> substitution happens on the page element, so the pseudo-element override never takes effect. That branch was deleted.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+          <tr>
+            <td>Local review (light sub-agent pass)</td>
+            <td><span class="pill pass">complete</span></td>
+            <td>Clean — no correctness findings. Independently noted the interactive-page scope point that Devin later flagged.</td>
+          </tr>
+          <tr>
+            <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8214" target="_blank" rel="noopener">Devin</a></td>
+            <td><span class="pill pass">complete</span></td>
+            <td>Two rounds, both for their HEAD. Round 1: 0 bugs, 1 Investigate flag — fixed in <span class="commit">a36cbc31</span>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8214#discussion_r3799524811" target="_blank" rel="noopener">thread</a> documented and resolved. Round 2 (at final HEAD): 0 bugs; the same flag reappeared with analysis text describing the pre-fix selector — assessed stale, outcome already on the thread. 3 informational notes (see FYIs). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8214#issuecomment-5321468872" target="_blank" rel="noopener">Consultation log</a>.</td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td><span class="pill na">not active</span></td>
+            <td><span class="commit">.coderabbit.yml</span> sets <span class="commit">auto_review: enabled: false</span> on this repo — it only reviews on demand, so there is nothing to wait for.</td>
+          </tr>
+          <tr>
+            <td>CI</td>
+            <td><span class="pill pass">complete</span></td>
+            <td><span class="commit">pr-automation</span> and <span class="commit">track / set-waiting</span> green at HEAD. The <span class="commit">code-review/reviewable</span> status stays “pending” by design on this repo (it was still pending on the previous PR when it merged) — informational, not CI.</td>
+          </tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul>
+          <li>The card's other placements are unaffected and were checked live: Automatic and Center still center, landscape keeps its corner-circle design, and the QA comment on the card walks a tester through Default and Rounded Border themes as leak checks.</li>
+          <li>This fresh worktree was missing every git-ignored dependency (lib binaries, built browser output, node_modules, <span class="commit">Bloom.chm</span>); <span class="commit">./init.sh</span> is the sanctioned fix and is now recorded in agent memory.</li>
+          <li>The full C# suite waited for another worktree's BloomTests run to finish before starting (the two clash in a shared temp folder and produce bogus Publish/ePUB failures).</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card decision">
+        <h3>FYI 1 — The inset is approximate, not exact alignment</h3>
+        <p class="desc">The page number is nudged in from the edge by <span class="commit">0.5em</span>, but that <span class="commit">em</span> resolves against the page number's own 11pt font, while the text box's thin margin resolves against the text's font (often larger). At typical ebook sizes the two land within a millimetre of each other, and exact alignment is impossible anyway because book text sizes vary. Leaving it as is keeps the inset tied to the theme's padding token, so it follows any future change to that padding. Devin noted the same thing as informational.</p>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1a" data-q="FYI 1 (approximate alignment)" value="Switch to a fixed 2mm inset">
+          <label for="q1a">Switch to a fixed <span class="numeral">2mm</span> inset instead of <span class="commit">0.5em</span> <span class="fx">(~1 line in the theme css, low risk; predictable but stops tracking the padding token)</span></label>
+        </div>
+        <div class="leaverow">
+          <div class="opt">
+            <input type="radio" name="q1" id="q1b" data-q="FYI 1 (approximate alignment)" value="Leave as is" checked>
+            <label for="q1b">Leave as is <span class="rec">recommended</span></label>
+          </div>
+          <span class="cbox"><input type="checkbox" id="q1c" data-q="FYI 1 (approximate alignment)" data-role="leave-comment"><label for="q1c">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1o" data-q="FYI 1 (approximate alignment)" value="__other__">
+          <label for="q1o">Other:</label>
+        </div>
+        <input type="text" class="otherinput" id="q1other" data-q="FYI 1 (approximate alignment)" data-role="other-text" placeholder="Your alternative…">
+        <div class="noteslabel">Notes</div>
+        <textarea class="notes" id="q1notes" data-q="FYI 1 (approximate alignment)" data-role="notes"></textarea>
+      </section>
+
+      <section class="card decision">
+        <h3>FYI 2 — Padding set to 0 makes the number flush again</h3>
+        <p class="desc">If a user sets the book's text padding to <span class="numeral">0</span> in Book Settings, the forced page number returns to the page edge — because the text box it aligns with is then flush against the edge too. That is the alignment the card asked for, just at zero; it is arguably correct rather than a bug. Devin noted it as informational. Leaving it as is means "the number lines up with the text" holds at every padding value, with no special cases.</p>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2a" data-q="FYI 2 (padding 0 goes flush)" value="Add a minimum floor, e.g. max(2mm, padding)">
+          <label for="q2a">Add a minimum floor so the number never quite touches the edge, e.g. <span class="commit">max(2mm, padding)</span> <span class="fx">(~1 line, low risk; breaks the strict "aligns with the text" rule at low paddings)</span></label>
+        </div>
+        <div class="leaverow">
+          <div class="opt">
+            <input type="radio" name="q2" id="q2b" data-q="FYI 2 (padding 0 goes flush)" value="Leave as is" checked>
+            <label for="q2b">Leave as is <span class="rec">recommended</span></label>
+          </div>
+          <span class="cbox"><input type="checkbox" id="q2c" data-q="FYI 2 (padding 0 goes flush)" data-role="leave-comment"><label for="q2c">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2o" data-q="FYI 2 (padding 0 goes flush)" value="__other__">
+          <label for="q2o">Other:</label>
+        </div>
+        <input type="text" class="otherinput" id="q2other" data-q="FYI 2 (padding 0 goes flush)" data-role="other-text" placeholder="Your alternative…">
+        <div class="noteslabel">Notes</div>
+        <textarea class="notes" id="q2notes" data-q="FYI 2 (padding 0 goes flush)" data-role="notes"></textarea>
+      </section>
+
+      <section class="card decision">
+        <h3>Next step</h3>
+        <p class="desc">No reviewer finding is waiting on you — both items above are FYIs whose recommended answer is to change nothing. The PR is a draft with everything green.</p>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3a" data-q="Next step" value="Nothing further - I'll review the PR myself and promote it when satisfied" checked>
+          <label for="q3a">Nothing further — I'll review <a href="https://github.com/BloomBooks/BloomDesktop/pull/8214/files" target="_blank" rel="noopener">the PR</a> myself and run <span class="commit">pr-ready-for-human</span> when satisfied <span class="rec">recommended</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3b" data-q="Next step" value="Discuss first">
+          <label for="q3b">Discuss the FYIs in chat before I decide</label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3o" data-q="Next step" value="__other__">
+          <label for="q3o">Other:</label>
+        </div>
+        <input type="text" class="otherinput" id="q3other" data-q="Next step" data-role="other-text" placeholder="Something else…">
+        <div class="noteslabel">Notes</div>
+        <textarea class="notes" id="q3notes" data-q="Next step" data-role="notes"></textarea>
+      </section>
+
+      <section class="card">
+        <h3>Send your answers back</h3>
+        <p class="fineprint">Copies your selections and notes as text — paste it into the Claude Code session to act on them.</p>
+        <p style="margin-top:.7rem"><button class="copy" id="copybtn">Copy answers</button><span class="copied" id="copiedmsg">Copied ✓</span></p>
+        <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+  const serialize = () => {
+    const lines = ["Preflight decisions — BL-16695 / PR #8214 (HEAD a36cbc31)", ""];
+    const groups = ["q1", "q2", "q3"];
+    for (const g of groups) {
+      const sel = document.querySelector(`input[name=${g}]:checked`);
+      if (!sel) continue;
+      const q = sel.dataset.q;
+      let val = sel.value;
+      if (val === "__other__") {
+        const t = document.getElementById(g + "other").value.trim();
+        val = "Other: " + (t || "(no text entered)");
+      }
+      lines.push(q + ": " + val);
+      const cb = document.querySelector(`input[data-q="${q}"][data-role="leave-comment"]`);
+      if (cb && cb.checked) lines.push("  Leave comment (record this decision as a code comment near the relevant code)");
+      const notes = document.querySelector(`textarea[data-q="${q}"][data-role="notes"]`).value.trim();
+      if (notes) lines.push("  Notes: " + notes);
+    }
+    return lines.join("\n");
+  };
+  const payload = document.getElementById("payload");
+  const refresh = () => { payload.value = serialize(); };
+  document.querySelectorAll("input, textarea").forEach(el => {
+    if (el.id !== "payload") { el.addEventListener("input", refresh); el.addEventListener("change", refresh); }
+  });
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async () => {
+    refresh();
+    const show = () => { const m = document.getElementById("copiedmsg"); m.style.visibility = "visible"; setTimeout(() => m.style.visibility = "hidden", 2500); };
+    try { await navigator.clipboard.writeText(payload.value); show(); }
+    catch (e) { payload.select(); document.execCommand("copy"); show(); }
+  });
+</script>
+</body>
+</html>
