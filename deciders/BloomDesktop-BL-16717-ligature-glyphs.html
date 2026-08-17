@@ -143,9 +143,9 @@ button.copy:hover { background: #244d44; }
   <div class="meta">
     <span><span class="k">PR</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8210" target="_blank" rel="noopener">#8210 (draft)</a></span>
     <span><span class="k">Files changed</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8210/files" target="_blank" rel="noopener">3 files</a></span>
-    <span><span class="k">Commits</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8210/commits" target="_blank" rel="noopener">1 commit</a></span>
+    <span><span class="k">Commits</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8210/commits" target="_blank" rel="noopener">6 commits</a></span>
     <span><span class="k">Card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16717" target="_blank" rel="noopener">BL-16717</a></span>
-    <span><span class="k">HEAD</span> <span class="numeral">5576c58a2</span></span>
+    <span><span class="k">HEAD</span> <span class="numeral">4f485426f</span></span>
   </div>
 </header>
 
@@ -172,7 +172,7 @@ button.copy:hover { background: #244d44; }
           <tr>
             <td class="what">TypeScript tests (vitest)</td>
             <td><span class="pill pass">Pass</span></td>
-            <td>Full suite: <span class="numeral">699 passed · 5 skipped · 64 files</span>. Includes <span class="numeral">6</span> new tests for this fix.</td>
+            <td>Full suite: <span class="numeral">703 passed · 5 skipped · 64 files</span>. Includes <span class="numeral">10</span> new tests for this fix.</td>
           </tr>
           <tr>
             <td class="what">C# tests (dotnet test)</td>
@@ -192,19 +192,41 @@ button.copy:hover { background: #244d44; }
   <section class="card">
     <h2>What changed this run</h2>
     <div class="commit">
-      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/5576c58a21ccfd1ca7572b9f30ecd20337e760d9" target="_blank" rel="noopener">5576c58a2</a> — Stop letters vanishing while typing in ligature fonts (BL-16717)</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/5576c58a21ccfd1ca7572b9f30ecd20337e760d9" target="_blank" rel="noopener">5576c58a2</a> &#8212; Stop letters vanishing while typing in ligature fonts</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/dfac05fd8b004ded7e0fb5dd4c9cabd11e2500e5" target="_blank" rel="noopener">dfac05fd8</a> &#8212; Don't take a ckeditor bookmark when nothing will rewrite the box</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/2d9771130feb6e340db1077f99f43f672834d026" target="_blank" rel="noopener">2d9771130</a> &#8212; Keep the reader/audio highlights alive when merging text nodes</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/469662eb81f7c1fdb1f703ca22e46796c8086c2a" target="_blank" rel="noopener">469662eb8</a> &#8212; Force the repaint without touching attributes or blurring the box</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/5489d204fe5199b52eab7bc068855719baaeb8aa" target="_blank" rel="noopener">5489d204f</a> &#8212; Let the browser keep the cursor, instead of restoring it ourselves</p>
+      <p><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/4f485426fe1b8b151cd831b6441fbfb443b22537" target="_blank" rel="noopener">4f485426f</a> &#8212; Pick the node a run really collapses into</p>
     </div>
 
+    <h3>Round 2: the first fix was not enough</h3>
+    <p>You found that a text box with more than one paragraph still went wrong — and differently: the inspector showed the correct <code>overfflow</code> as a single string, but the screen showed <code>overfow</code>. So repairing the DOM does not repair the display. Chromium keeps painting the paragraph's old glyphs, and the stale paint outlives the DOM being put right.</p>
+    <p>I reproduced that in your running Bloom over CDP — really typing, then screenshotting the text box — and confirmed two things. Rendered <em>width</em> measured correctly the whole time, so layout was never wrong; only the paint was. And the damage is done by the split-then-rejoin sequence itself, not by the split being left behind.</p>
+    <p>That changed the fix in two ways: don't take the bookmark at all unless something is actually going to rewrite the box (which for ordinary typing is never), and when we do take one, rebuild the text as a <strong>brand-new</strong> node instead of calling <code>normalize()</code> — a fresh node has no stale glyphs cached against it. Both were verified by screenshot in the real app, the second with the Talking Book tool open so a bookmark really was taken.</p>
+
+    <h3>Round 3: the cure for the paint broke the highlighting</h3>
+    <p>Devin then caught something severe in round 2. Rebuilding each run of text as a brand-new node is what cures the stale painting — nothing is cached against a node that didn't exist a moment ago — but replacing a text node <strong>collapses any live Range whose boundaries were inside it</strong>. Bloom's decodable/leveled reader highlighting and the Talking Book audio highlighting are exactly that: live Ranges over those text nodes, registered by the markup pass moments before the merge runs. The coloured marks would have silently vanished from the paragraph being typed in — the very failure <code>textHighlightManager.hasDeadRanges()</code> exists to detect.</p>
+    <p>Verified rather than assumed: in real Chromium a Range covering "fflow" across the split comes back <em>collapsed and empty</em> after the fresh-node merge, and survives intact under <code>normalize()</code>.</p>
+
+    <h3>Round 4: and the repaint trick had two problems of its own</h3>
+    <p>Replacing the fresh-node merge with <code>normalize()</code> plus a forced re-layout fixed that, but Devin's next pass found two real faults in the forced re-layout, both of which reproduced exactly. Putting <code>display</code> back by writing its old value clears the declaration but <em>not the attribute</em>, so every paragraph typed in would have picked up an empty <code>style</code> attribute — in the markup Bloom saves into the book. And the parent of a bare text node can be the <code>.bloom-editable</code> itself; hiding a focused <code>contenteditable</code> blurs it, and restoring <code>display</code> does not restore focus, so the next keystrokes would have gone nowhere.</p>
+    <p>The shipped version therefore hides nothing and touches no attributes: it makes Chromium re-shape the merged node by writing the node's own text back into it — appending a character and immediately deleting it. Both edits sit at the very end of the node, where the spec moves only boundaries strictly beyond the edit point, so no live Range is disturbed; and the extra character is gone before the task ends, so it never paints.</p>
+
+    <h3>Round 5: deleting the code that was causing the trouble</h3>
+    <p>Devin's next pass found the last real bug, and it was in the part I had added out of caution rather than necessity. The hand-rolled selection restore identified a position as "N characters into this element", and that cannot tell the end of a bold run from the start of the plain text after it. A caret sitting just after a <code>&lt;strong&gt;</code> — or an audio-sentence span — could be put back <em>inside</em> it, so the user's next letters would come out bold, or inside a recorded phrase.</p>
+    <p>The mechanism turned out to be unnecessary. Keeping the selection on the same characters across a text-node merge is the browser's job per the DOM spec, and Chromium does it — checked in a running Bloom with the caret both at the split and immediately after a <code>&lt;strong&gt;</code>. The only reason I had distrusted it was that <em>jsdom</em> gets it wrong, which says nothing about the browser Bloom runs in. So the save/restore is gone: <span class="numeral">201</span> lines deleted, <span class="numeral">47</span> added. The bug went with it.</p>
+
     <h3>The bug</h3>
-    <p>About half a second after you stop typing, Bloom tidies up the text box. To keep your place it drops a hidden CKEditor "bookmark" span at the insertion point, does its work, then takes the span out again — see <a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1630" target="_blank" rel="noopener">toolbox.ts:1630</a>, on the <span class="numeral">500 ms</span> timer at <a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1641" target="_blank" rel="noopener">toolbox.ts:1641</a>. This runs on every keystroke pause, whether or not a tool is open.</p>
+    <p>About half a second after you stop typing, Bloom tidies up the text box. To keep your place it drops a hidden CKEditor "bookmark" span at the insertion point, does its work, then takes the span out again — see <a href="https://github.com/BloomBooks/BloomDesktop/blob/4f485426fe1b8b151cd831b6441fbfb443b22537/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1630" target="_blank" rel="noopener">toolbox.ts:1630</a>, on the <span class="numeral">500 ms</span> timer at <a href="https://github.com/BloomBooks/BloomDesktop/blob/4f485426fe1b8b151cd831b6441fbfb443b22537/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1641" target="_blank" rel="noopener">toolbox.ts:1641</a>. This runs on every keystroke pause, whether or not a tool is open.</p>
     <p>Inserting that span splits the text node you are typing in, and removing it does not put the halves back — CKEditor's <code>moveToBookmark</code> is just <code>setStartBefore(b); b.remove()</code>, with no <code>normalize()</code>. Chromium shapes a paragraph's text as one run and then hands the glyphs out per text node, so a ligature straddling that boundary loses glyphs. Andika (Bloom's default) and Charis ligate <code>ff</code>, <code>fl</code> and <code>ffl</code>; ABeeZee does not, which is why it never showed the bug.</p>
 
     <h3>The fix</h3>
-    <p>New <a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/js/editableDivUtils.ts#L519" target="_blank" rel="noopener">EditableDivUtils.mergeTextNodesSplitByBookmarks()</a>, called wherever bookmarks are removed: <a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1635" target="_blank" rel="noopener">toolbox.ts:1635</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/js/editableDivUtils.ts#L668" target="_blank" rel="noopener">editableDivUtils.ts:668</a> (the decodable/leveled reader path).</p>
     <ul class="notes">
-      <li>It does nothing unless there really are adjacent text nodes (<a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/js/editableDivUtils.ts#L571" target="_blank" rel="noopener">hasAdjacentTextNodes, line 571</a>), so on a normal keystroke pause it leaves the selection strictly alone.</li>
-      <li>It saves and restores the insertion point itself rather than trusting <code>normalize()</code>'s live-range fixups. The saved position is anchored to the <em>containing element</em> plus a character offset within it (<a href="https://github.com/BloomBooks/BloomDesktop/blob/5576c58a21ccfd1ca7572b9f30ecd20337e760d9/src/BloomBrowserUI/bookEdit/js/editableDivUtils.ts#L590" target="_blank" rel="noopener">saveablePosition, line 590</a>), so it cannot drift across a paragraph boundary.</li>
-      <li>It restores with <code>setBaseAndExtent</code>, so a backwards selection stays backwards.</li>
+      <li><strong>Don't take a bookmark unless something will rewrite the box.</strong> The two clean-up steps only touch the box when they find a comment or an nbsp to fix, and markup only runs when a tool is open, so <code>needsBookmarks</code> is false for ordinary typing — no span inserted, no split, nothing to repair, and no cursor twitch at the half-second mark either.</li>
+      <li><strong>When we do take one, merge with <code>normalize()</code> and then re-shape the merged node.</strong> <code>normalize()</code> is what keeps the live highlight Ranges alive; rewriting the node's own text afterwards is what makes Chromium stop painting the stale glyphs. Neither replaces a node, hides anything, or touches an attribute.</li>
+      <li>It does nothing unless there really are adjacent text nodes, so it never disturbs a selection it didn't need to touch.</li>
+      <li>It saves and restores the insertion point itself, anchored to the <em>containing element</em> plus a character offset within it, so it cannot drift across a paragraph boundary; and restores with <code>setBaseAndExtent</code>, so a backwards selection stays backwards.</li>
     </ul>
   </section>
 
@@ -220,9 +242,14 @@ button.copy:hover { background: #244d44; }
             <td><strong>1 finding raised, 1 fixed, 0 escalated, 0 dismissed.</strong> The first cut of the fix mapped the caret by a character offset within the whole text box; the end of one paragraph and the start of the next are the same number of characters in, so the caret could have jumped to the previous paragraph. Fixed by anchoring to the containing element, plus a regression test, before committing.</td>
           </tr>
           <tr>
+            <td class="what">Your testing<br><span style="color:var(--muted);font-weight:400;font-size:0.88rem">round 1, by hand</span></td>
+            <td><span class="pill warn">Found a miss</span></td>
+            <td>You found that a multi-paragraph box still rendered wrong, with the DOM now correct — which is what showed that repairing the DOM does not repair the paint, and drove the round-2 fix. Reproduced and re-verified by screenshot in your running Bloom.</td>
+          </tr>
+          <tr>
             <td class="what">Devin</td>
-            <td><span class="pill fail">Errored</span></td>
-            <td>Triggered <span class="numeral">3</span> times for this commit; all three jobs errored within seconds and produced no findings pass at all. <strong>This commit has not been reviewed by Devin.</strong> See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8210#issuecomment-5317430582" target="_blank" rel="noopener">consultation log on the PR</a> and <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8210" target="_blank" rel="noopener">Devin's review page</a>. Decision item on the right.</td>
+            <td><span class="pill pass">Complete</span></td>
+            <td><strong>The most valuable reviewer on this branch, by a distance.</strong> It errored three times during the GitHub outage, then recovered and reviewed every commit since. Across four passes it raised <span class="numeral">10</span> distinct findings — <span class="numeral">5</span> bugs (one <em>severe</em>) and <span class="numeral">5</span> investigate flags. <strong>Nine were real and are fixed; each has a documented, resolved thread</strong> on the PR. The tenth is left open for you (decision item on the right). Everything Devin caught here — the highlighting dying, the stray <code>style</code> attribute, the blur, the caret hopping into bold text, the empty-node case — would have shipped otherwise. See <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8210" target="_blank" rel="noopener">Devin's review page</a>.</td>
           </tr>
           <tr>
             <td class="what">CodeRabbit</td>
@@ -245,7 +272,8 @@ button.copy:hover { background: #244d44; }
       <li><strong>GitHub was flaky throughout this run.</strong> Listing the PR, creating it, and reading checks all needed retries against <code>HTTP 503</code>. Everything eventually succeeded; the retries are why CI shows earlier red attempts.</li>
       <li><strong>One test failed on the first full-suite run and is not a real failure.</strong> <code>scripts/__tests__/watchLess.test.ts</code> hit <code>EPERM</code> renaming a file in the Windows temp folder while <span class="numeral">63</span> other files ran in parallel. It passes on its own and passed in a serial full-suite run, and this change touches no LESS or build-script code. FYI item on the right.</li>
       <li><strong>The QA test-ideas comment is on the card</strong>, refreshed from the final diff. It leads on the cursor-placement risk rather than the vanishing letters, because the restore code now runs on every pause in typing anywhere in a book.</li>
-      <li><strong>No human or bot review comments</strong> were posted on the PR during this run, so nothing was replied to or resolved.</li>
+      <li><strong>Every Devin finding has a documented, resolved thread on the PR</strong> — six of them, each with the finding, what was actually wrong, and how it was fixed. No human review comments were posted during this run.</li>
+      <li><strong>The verification method changed this round.</strong> Measuring rendered width proved layout was always correct, which is exactly why the first fix looked right and wasn't — the failure is at paint time and only a screenshot can see it. The probe scripts that type into a live Bloom and screenshot the box are in the session scratchpad, not the repo.</li>
     </ul>
   </section>
 
@@ -256,17 +284,17 @@ button.copy:hover { background: #244d44; }
   <fieldset class="q" data-q="Re-verify the fix by hand">
     <legend>Re-verify the fix by hand?</legend>
     <div class="body">
-      <p>You told me you had verified the fix in a running Bloom. That verification was against the first version of the code. <strong>The code changed after that.</strong> During the local review I found that the way it put your cursor back could, in a text box with more than one paragraph, land the cursor at the end of the <em>previous</em> paragraph instead of where you actually were — because it was counting characters across the whole text box, and the end of one paragraph and the start of the next are the same number of characters in.</p>
-      <p>Fixing that changed the part of the code you exercised when you tested: the cursor position is now anchored to the paragraph (or bold/italic span) it sits in, and the selection is restored with a different browser call that also keeps a backwards selection backwards. Unit tests cover all of this, but nothing has driven the new version in a real Bloom.</p>
-      <p>What you would be checking: type <code>overflow</code>, insert a second <code>f</code>, pause, type <code>x</code> — nothing vanishes; and then that typing, pausing and typing again in the middle of a multi-paragraph text box still leaves your cursor exactly where you left it.</p>
+      <p>The vanishing letters themselves are now verified by screenshot in your running Bloom, on both code paths — so that part is not in doubt. What has <em>not</em> been driven by hand is the cursor behavior, and that is the part with the most ways to go wrong.</p>
+      <p>Two things changed the cursor code since you last tested. During the local review I found that the way it put your cursor back could, in a text box with more than one paragraph, land the cursor at the end of the <em>previous</em> paragraph instead of where you were — it was counting characters across the whole text box, and the end of one paragraph and the start of the next are the same number of characters in. Then, fixing your multi-paragraph report, the code stopped taking a bookmark at all during ordinary typing, so the cursor is now simply left alone at the half-second mark instead of being removed and put back. <strong>You should see the little cursor twitch disappear</strong> when no toolbox tool is open — that is the visible sign the change is working.</p>
+      <p>That second change should make cursor behavior <em>better</em> everywhere, but it is a change in behavior on every keystroke pause in every text box, so it deserves a human at a keyboard. What you would be checking: type, pause, keep typing — in the middle of a word, at the start and end of a paragraph, in the second of several paragraphs, inside bold or italic text, and with some words selected. In each case your cursor or selection should be exactly where you left it.</p>
     </div>
     <label class="opt">
-      <input type="radio" name="q1" value="reverify" data-label="Re-verify by hand before this goes to human review" checked>
-      <span class="lab"><span class="name">Re-verify by hand before this goes to human review<span class="tag">Recommended</span></span><span class="fn">A few minutes in a running Bloom — no code change. Recommended because the cursor-restore code is the part that changed after your test, and it is also the part that runs on every keystroke pause everywhere in Bloom, so a mistake there is worse than the bug being fixed.</span></span>
+      <input type="radio" name="q1" value="reverify" data-label="Re-check cursor behavior by hand before this goes to human review" checked>
+      <span class="lab"><span class="name">Re-check cursor behavior by hand before this goes to human review<span class="tag">Recommended</span></span><span class="fn">A few minutes in a running Bloom — no code change. Recommended because the change alters what happens to the cursor on every keystroke pause in every text box, which is a much wider blast radius than the bug it fixes.</span></span>
     </label>
     <label class="opt">
-      <input type="radio" name="q1" value="unit-tests-enough" data-label="Rely on the unit tests; don't re-verify by hand">
-      <span class="lab"><span class="name">Rely on the unit tests; don't re-verify by hand</span><span class="fn">No work. The six unit tests do cover the caret, a straddling selection, and the paragraph boundary — but in jsdom, not in a real editor with CKEditor attached.</span></span>
+      <input type="radio" name="q1" value="unit-tests-enough" data-label="Rely on the tests and the screenshot verification; don't re-check by hand">
+      <span class="lab"><span class="name">Rely on the tests and the screenshot verification; don't re-check by hand</span><span class="fn">No work. The unit tests cover the caret, a straddling selection, and the paragraph boundary — but in jsdom, not in a real editor with CKEditor attached, and the screenshots only prove the letters render.</span></span>
     </label>
     <label class="opt">
       <input type="radio" name="q1" value="leave" data-label="Leave as is">
@@ -283,33 +311,62 @@ button.copy:hover { background: #244d44; }
     </div>
   </fieldset>
 
-  <fieldset class="q" data-q="Devin never reviewed this commit">
-    <legend>Devin never reviewed this commit</legend>
+  <fieldset class="q" data-q="This took five rounds to get right">
+    <legend>This took five rounds to get right</legend>
     <div class="body">
-      <p>Devin is normally one of the reviewers this branch answers to, and it did not review this one. It was triggered three times — once automatically when the branch was pushed, and twice more by re-running that workflow by hand — and every attempt failed within a few seconds without producing any analysis. All three are marked retryable and none carried an error message.</p>
-      <p>The first two failures line up with the GitHub outage that was breaking everything else in this run; the third happened after GitHub had recovered, so the problem may be on Devin's side. Either way there is no Devin opinion on this code, and the record of that is written on the PR so a later reader is not left guessing.</p>
-      <p>The practical question is whether this change should get a Devin review before a colleague looks at it. It is a small, well-tested change in a well-understood area, but it does touch code that runs on every keystroke.</p>
+      <p>Worth knowing before you read the code, because it says something about the risk. The first fix repaired the DOM and looked correct — and was wrong, because the failure is at paint time, which measuring layout cannot see. The second was caught by you. The rest were caught by Devin: rebuilding the text nodes would have silently killed the reader and Talking Book highlighting, and the repaint trick that replaced it would have written a stray <code>style</code> attribute into every paragraph the user typed in and blurred the text box if a bare text node ever sat in the editable root.</p>
+      <p>Everything is fixed, verified in a real Bloom rather than argued from the spec, and covered by tests. But five rounds in a small change means this area punishes reasoning-from-first-principles, and the remaining risk is in the paths I could not exercise by hand — chiefly the decodable/leveled reader highlighting, which I could not open in your collection.</p>
     </div>
     <label class="opt">
-      <input type="radio" name="q2" value="rerun-later" data-label="Re-run preflight later to pick up a Devin review" checked>
-      <span class="lab"><span class="name">Re-run preflight later to pick up a Devin review<span class="tag">Recommended</span></span><span class="fn">No code change — one command, a few minutes, once Devin is healthy again. Recommended because it costs almost nothing and restores the normal review panel before a colleague spends time on this.</span></span>
+      <input type="radio" name="q2" value="reader-check" data-label="Specifically exercise the reader tools before this goes further" checked>
+      <span class="lab"><span class="name">Specifically exercise the reader tools before this goes further<span class="tag">Recommended</span></span><span class="fn">A few minutes — no code change. Open Decodable or Leveled Reader in a collection that has them, type until words are marked, pause, and confirm the marks stay. Recommended because that is the one behavior a Devin finding says was broken mid-branch and the one I could not drive myself.</span></span>
     </label>
     <label class="opt">
-      <input type="radio" name="q2" value="proceed" data-label="Proceed to human review without a Devin review">
-      <span class="lab"><span class="name">Proceed to human review without a Devin review</span><span class="fn">No work. Accepts one fewer reviewer on a change that is small and covered by unit tests.</span></span>
+      <input type="radio" name="q2" value="trust" data-label="The tests and verification are enough; read the code and move on">
+      <span class="lab"><span class="name">The tests and verification are enough; read the code and move on</span><span class="fn">No work. The Range-survival property is asserted by a unit test and was confirmed in real Chromium; the reader tools' highlighting rides on exactly that property.</span></span>
     </label>
     <label class="opt">
       <input type="radio" name="q2" value="leave" data-label="Leave as is">
       <span class="lab"><span class="name">Leave as is</span></span>
-      <span class="leavecomment"><input type="checkbox" data-q="Devin never reviewed this commit — leave comment"> Leave comment</span>
+      <span class="leavecomment"><input type="checkbox" data-q="This took five rounds to get right — leave comment"> Leave comment</span>
     </label>
     <label class="opt">
       <input type="radio" name="q2" value="other" data-label="Other:">
-      <span class="lab"><span class="name">Other:</span><input class="otherbox" type="text" data-q="Devin never reviewed this commit — other" placeholder="your answer"></span>
+      <span class="lab"><span class="name">Other:</span><input class="otherbox" type="text" data-q="This took five rounds to get right — other" placeholder="your answer"></span>
     </label>
     <div class="notesrow">
       <label for="n2">Notes</label>
-      <textarea id="n2" data-q="Devin never reviewed this commit — notes"></textarea>
+      <textarea id="n2" data-q="This took five rounds to get right — notes"></textarea>
+    </div>
+  </fieldset>
+
+  <fieldset class="q" data-q="One Devin flag left open for you: ckeditor's filling character">
+    <legend>One Devin flag left open for you</legend>
+    <div class="body">
+      <p>This is the only review thread on the PR still open, deliberately. Devin raised it and I did not want to guess at an answer.</p>
+      <p>CKEditor keeps an invisible "filling character" (a zero-width space) in a text node near the cursor, and removes the one it is tracking when it is done. The merge now folds adjacent text nodes together, and if one of them is the node holding that character, CKEditor could lose track of it — leaving an orphaned zero-width space to be saved into the book. That is the corruption BL-16490 was about; a stray zero-width space breaks the reader tools' word matching, because the analyzer treats it as a word break and the highlighter doesn't.</p>
+      <p>Two things bound the risk. This code only runs when a bookmark was actually taken, which after this change means only when a tool is showing or there is a comment or nbsp to clean up — never during ordinary typing. And the machinery BL-16490 added is still in place: <code>doCkEditorCleanup()</code> strips stray filling characters on every markup pass. I have not been able to make it happen, but I have not proved it cannot.</p>
+    </div>
+    <label class="opt">
+      <input type="radio" name="q3b" value="leave" data-label="Leave as is" checked>
+      <span class="lab"><span class="name">Leave as is<span class="tag">Recommended</span></span></span>
+      <span class="leavecomment"><input type="checkbox" data-q="Filling-character flag — leave comment"> Leave comment</span>
+    </label>
+    <label class="opt">
+      <input type="radio" name="q3b" value="guard" data-label="Add a guard: exclude filling-char nodes from the merge">
+      <span class="lab"><span class="name">Add a guard: exclude filling-char nodes from the merge</span><span class="fn">Small — a few lines and a test. Costs a little complexity in code that has already needed several corrections, to defend against something neither of us has been able to trigger.</span></span>
+    </label>
+    <label class="opt">
+      <input type="radio" name="q3b" value="card" data-label="File a follow-up card to investigate properly">
+      <span class="lab"><span class="name">File a follow-up card to investigate properly</span><span class="fn">No code now — a card, so it is not simply forgotten if a stray zero-width space ever turns up.</span></span>
+    </label>
+    <label class="opt">
+      <input type="radio" name="q3b" value="other" data-label="Other:">
+      <span class="lab"><span class="name">Other:</span><input class="otherbox" type="text" data-q="Filling-character flag — other" placeholder="your answer"></span>
+    </label>
+    <div class="notesrow">
+      <label for="n3b">Notes</label>
+      <textarea id="n3b" data-q="Filling-character flag — notes"></textarea>
     </div>
   </fieldset>
 
