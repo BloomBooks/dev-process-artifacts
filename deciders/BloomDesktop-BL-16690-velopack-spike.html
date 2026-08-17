@@ -200,7 +200,7 @@ td:last-child, th:last-child { padding-right: 0; }
       <li><span class="who">1, 2, 3</span><span class="what">Strings stay <code>translate="no"</code>; the six hard-coded failure messages and the <code>Collection.</code> prefix follow suit. <span class="tag done">no code</span></span></li>
       <li><span class="who">4</span><span class="what">Startup gap closed. <span class="tag done">built</span>
         <em>Rather than re-checking after the sync, the gate now reads the Team Collection's repository copy directly — the sync runs long after the gate, so checking there would have meant tearing down a half-built ProjectContext. This one decision then produced three further bugs, all found by Devin and all fixed; see the notes below.</em></span></li>
-      <li><span class="who">5</span><span class="what">Investigated, not coded — now item 1 on the right. <span class="tag done">reported</span></span></li>
+      <li><span class="who">5</span><span class="what">Answered by running it: no wait cursor, no progress indication at all. Now item 1 on the right. <span class="tag done">answered</span></span></li>
       <li><span class="who">6</span><span class="what">Warning triangle left as is. Confirmed live that no icon renders at all. <span class="tag done">no code</span></span></li>
       <li><span class="who">7</span><span class="what">Longest message shortened, <span class="numeral">232</span> → <span class="numeral">161</span> characters. <span class="tag done">built</span>
         <em>I also aligned the closing sentence of its sibling, which shared that wording — slightly beyond the ask, but leaving two near-identical messages phrased differently would read as an oversight.</em></span></li>
@@ -218,7 +218,7 @@ td:last-child, th:last-child { padding-right: 0; }
       <p>The feature was driven in a running Bloom, read from the live DOM rather than by eye. The startup gate refuses a too-new collection with the right name and both versions as major.minor; <strong>Upgrade Bloom</strong> is the filled, right-hand, focused default; choosing it on a developer build gives the expected refusal and Bloom stays alive; closing that leads to the chooser; re-picking the same collection is refused again; closing the chooser exits within two seconds with no orphan process. A collection declaring a version we meet opens normally.</p>
       <p><strong>The Team Collection lock-out works.</strong> With Bloom open and working in a cloned Team Collection, adding the minimum to the <em>repository</em> copy alone brought up the dialog within three seconds.</p>
       <p><strong>The best single result:</strong> from that lock-out, picking the same Team Collection again was refused — even though its file on that computer carried no requirement at all. Only the remembered repository value could have refused it. Devin's re-entry bug is demonstrably closed, not merely believed closed.</p>
-      <p><strong>What it did not prove:</strong> a developer build declines to update itself, so the refusal path ran and the Velopack path did not. Downloading and installing an upgrade has still never happened.</p>
+      <p><strong>And the upgrade itself has now run.</strong> With this branch's binaries laid over a copy of an installed Beta — which makes <code>IsDev</code> false, since it is decided by the path of <code>Bloom.dll</code> — Bloom found 6.4.105 &rarr; 6.4.108 on the live feed and downloaded 90 MB for real, then showed the partial-upgrade message with the true version numbers substituted. Andrew then let it install, which applied cleanly into the throwaway copy. The one remaining gap is that nobody has watched an upgrade that actually <em>reaches</em> the required version, because that needs a collection whose requirement the channel can satisfy.</p>
     </div>
   </section>
 
@@ -266,14 +266,14 @@ td:last-child, th:last-child { padding-right: 0; }
 <div class="col">
 
   <section class="item">
-    <h3>1. The download freezes Bloom, and the wait cursor cannot help</h3>
-    <p class="src">Your item 5, investigated as asked. Devin has since promoted it from a flag to a bug —
+    <h3>1. Confirmed: no wait cursor, and nothing else either</h3>
+    <p class="src">Your item 5, now answered by running it. Devin has separately promoted this from a flag to a bug —
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8206" target="_blank" rel="noopener">thread open</a>.</p>
     <div class="desc">
-      <p>You asked whether we get a wait cursor, and whether that would be good enough. <strong>We do not, and it would not.</strong> There are two independent reasons, and the second settles it.</p>
-      <p>The first is the one Devin raised: <code>Application.UseWaitCursor</code> marks the open forms, but the cursor only changes when a window processes <code>WM_SETCURSOR</code>. We set the flag and immediately stop pumping messages, so nothing is processed until the download is over and we have set it back.</p>
-      <p>The second is worse: <code>Application.UseWaitCursor</code> acts on <code>Application.OpenForms</code>, and at the startup gate <strong>there are none</strong>. No Shell yet, and the splash is only hidden, not closed. So even with a pumping loop there would be nothing to show a wait cursor on.</p>
-      <p>I could not prove this by observation — a developer build refuses to update, so the call returns instantly and there is no window to look at. That part is analysis, and it is the part a real download would confirm.</p>
+      <p>You asked whether we get a wait cursor, and whether that would be good enough. <strong>You have now run it yourself, on a real 90&nbsp;MB download, and the answer is no wait cursor and no indication of progress of any kind.</strong> This item is settled by observation rather than argument.</p>
+      <p>Getting there needed a trick worth writing down, because a developer build normally refuses to update: <code>IsDev</code> is decided by the <em>path</em> of <code>Bloom.dll</code> — <code>/output/Debug/</code> means developer, <code>/Bloom&lt;channel&gt;/current/</code> means an installed channel. Laying this branch's binaries over a copy of an installed Beta made it report channel <code>Beta</code>, find 6.4.105&nbsp;&rarr;&nbsp;6.4.108 on the live feed, and download for real. That is the first time this code path has ever run end to end.</p>
+      <p>Why there is nothing to see: at the startup gate no main window exists — the collection never opened — and the only form in <code>Application.OpenForms</code> is the hidden splash, so <code>Application.UseWaitCursor</code> has nothing visible to mark, quite apart from the fact that we stop pumping messages for the duration. The user watches the dialog vanish and the machine sit there.</p>
+      <p><em>(An earlier version of this item said there were</em> no <em>open forms at that point. That was too strong — a hidden form is still in <code>OpenForms</code> — though the conclusion is the same.)</em></p>
       <p><strong>What we already have:</strong> <code>BrowserProgressDialog.DoWorkWithProgressDialog</code> is built for exactly this shape — work on a background worker, dialog owning the UI thread so the window keeps painting. <code>TeamCollection.cs:2919</code> is a working example, and the server is already listening by the time we need it. Velopack's <code>DownloadUpdatesAsync</code> takes a progress callback, so real percentages are available rather than a spinner.</p>
     </div>
     <div class="opts" data-item="1">
@@ -367,7 +367,7 @@ td:last-child, th:last-child { padding-right: 0; }
 <script>
 (function () {
   var TITLES = {
-    1: "The download freezes Bloom, and the wait cursor cannot help",
+    1: "Confirmed by running it: no wait cursor, and nothing else either",
     2: "Is 'whoever can write the shared folder controls the flag' the intended trust model?",
     3: "Startup jobs keep running while Bloom quits for the upgrade",
     4: "Two smaller things Devin left open",
