@@ -101,7 +101,7 @@ button:hover{filter:brightness(1.08)}
     <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209/commits" target="_blank" rel="noopener">Commits</a></span>
     <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">BL-13502</a></span>
     <span><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">Devin review</a></span>
-    <span class="mono">HEAD 093d85dca4</span>
+    <span class="mono">HEAD 3516fab8a0</span>
     <span>58 files, +3106 −380</span>
   </div>
 </header>
@@ -117,7 +117,7 @@ button:hover{filter:brightness(1.08)}
       <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
       <tr><td>TypeScript typecheck</td><td><span class="chip ok">pass</span></td><td class="note">no blunder-class type errors</td></tr>
       <tr><td>ESLint</td><td><span class="chip ok">pass</span></td><td class="note">0 errors (766 warnings — repo baseline, unchanged)</td></tr>
-      <tr><td>TypeScript tests (vitest)</td><td><span class="chip ok">718 passed</span></td><td class="num note">66 files, 5 skipped, 0 failed</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td><span class="chip ok">717 passed</span></td><td class="num note">66 files, 5 skipped, 0 failed</td></tr>
       <tr><td>C# tests (dotnet test)</td><td><span class="chip ok">3126 passed</span></td><td class="num note">13 skipped, 0 failed</td></tr>
       <tr><td>Production bundle build</td><td><span class="chip ok">pass</span></td><td class="note">isolated <code>agent-vite</code> build, exit 0</td></tr>
       <tr><td>Base integration</td><td><span class="chip ok">clean</span></td><td class="note"><code>origin/master</code> merged, no conflicts, 0 behind</td></tr>
@@ -225,13 +225,13 @@ button:hover{filter:brightness(1.08)}
 
     <div class="item">
       <h3>2. Typing while audio plays, then saving, can lose the typing</h3>
-      <p>To work out what to save, Bloom now copies the page and tidies the copy. Two of those tidying steps disagree about which should go first, and no single order is right for both.</p>
-      <p>CKEditor’s version of the text has to be written into the copy first, because that is the only place the reader tools’ word-marking can then be unwrapped out of it. But the Talking Book tool’s cleanup restores each element from a snapshot it took when audio playback started — and running that <em>after</em> the CKEditor copy means the snapshot wins. So if someone types in a text box while its audio is playing, and a save happens before playback finishes, the typing is not in the saved book.</p>
-      <p>The window is narrow: the snapshots are cleared when playback ends. But it is silent loss of a user’s typing, which is the worst kind of bug to ship.</p>
-      <fieldset data-q="2. Clone-cleanup ordering (Talking Book typing during playback)">
-        <div class="opt"><input type="radio" name="q2" value="Make the Talking Book restore not overwrite newer text" checked><label>Make the Talking Book restore not overwrite newer text<span class="tag">recommended</span><span class="fx">Moderate — the restore needs to put back only the highlighting wrapper, not the whole element’s contents. Recommended because it fixes the actual defect rather than trading it for the reader tools’ version of the same problem, and it leaves the pipeline with one order that is right for everyone.</span></label></div>
-        <div class="opt"><input type="radio" name="q2" value="Reverse the order and make the reader tools tolerate it"><label>Reverse the order and make the reader tools tolerate it<span class="fx">Moderate — restores the old ordering, but the reader tools then need their own change so their word-marking doesn’t get written back in.</span></label></div>
-        <div class="opt"><input type="radio" name="q2" value="Give each tool a say in when its cleanup runs"><label>Give each tool a say in when its cleanup runs<span class="fx">Large / architectural — a general answer, but it widens the tool interface for a problem only two tools have.</span></label></div>
+      <p class="note" style="background:var(--accent-soft);padding:.5rem .7rem;border-radius:5px;color:var(--ink)"><strong>Updated.</strong> This was originally written as a tug-of-war between two tools. It isn’t one — see below. The recommendation is now firmer, and one option has been withdrawn.</p>
+      <p>To work out what to save, Bloom copies the page and tidies the copy. CKEditor’s version of the text is written into the copy first, and the tools clean up afterwards. That matters to any tool whose cleanup reaches <em>inside</em> a text box, because anything it does there would be overwritten if the CKEditor copy came later.</p>
+      <p>Today only the Talking Book tool does that. Its cleanup restores each element from a snapshot taken when audio playback started — so if someone types in a text box <em>while its audio is playing</em>, and a save happens before playback finishes, the snapshot wins and the typing is not in the saved book. The window is narrow (snapshots are cleared when playback ends), but silent loss of typing is the worst kind of bug to ship.</p>
+      <p>You pointed out that master has since moved the reader tools’ highlighting onto the Custom Highlight API. Confirmed — they now paint ranges without touching the text at all, and the only thing of theirs that can reach a saved page is a class on the page div. So the original claim that “the reader tools require this order” is obsolete; the dead code and the comment giving that reason are removed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/3516fab8a0" target="_blank" rel="noopener">3516fab</a>. The ordering is still correct, but for one reason only, and reversing it would just move the breakage onto the phrase delimiters.</p>
+      <fieldset data-q="2. Talking Book restore can lose typing done during playback">
+        <div class="opt"><input type="radio" name="q2" value="Make the Talking Book restore not overwrite newer text" checked><label>Make the Talking Book restore not overwrite newer text<span class="tag">recommended</span><span class="fx">Moderate — the restore needs to put back only the highlighting wrapper, not the whole element’s contents. Recommended because it fixes the actual defect, and now that the reader-tools constraint has gone there is no competing consideration left: the ordering is settled and only this restore is wrong.</span></label></div>
+        <div class="opt"><input type="radio" name="q2" value="Give each tool a say in when its cleanup runs"><label>Give each tool a say in when its cleanup runs<span class="fx">Large / architectural — a general answer, but it widens the tool interface for a problem exactly one tool now has.</span></label></div>
         <div class="opt leaverow"><input type="radio" name="q2" value="Leave as is" id="q2la"><label for="q2la">Leave as is</label><span class="lc"><input type="checkbox" data-q="2. Leave comment"> Leave comment</span></div>
         <div class="opt"><input type="radio" name="q2" value="Other"><label>Other: <input type="text" data-q="2. Other"></label></div>
       </fieldset>
