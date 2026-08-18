@@ -82,7 +82,7 @@
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204" target="_blank" rel="noopener">PR #8204 (draft)</a> ·
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204/files" target="_blank" rel="noopener">files changed</a> ·
       <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16679" target="_blank" rel="noopener">BL-16679</a> ·
-      HEAD <code>86eb72f6f</code>
+      HEAD <code>5668b56a3</code>
     </div>
   </header>
 
@@ -95,9 +95,9 @@
           <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
           <tr><td>Typecheck / build (C#)</td><td><span class="tag ok">pass</span></td><td><code>agent-dotnet build BloomExe</code>, <span class="numeral">0</span> errors</td></tr>
           <tr><td>Lint / format (CSharpier)</td><td><span class="tag ok">pass</span></td><td>clean on all 11 files; pre-commit hooks (non-Robust file ops, XmlNode, <code>Application.Exit</code>) also passed</td></tr>
-          <tr><td>Tests — C# (NUnit)</td><td><span class="tag ok">pass</span></td><td><span class="numeral">3133 passed · 0 failed · 13 skipped</span>, a full run after each base merge and after each round of review fixes</td></tr>
+          <tr><td>Tests — C# (NUnit)</td><td><span class="tag ok">pass</span></td><td><span class="numeral">3148 passed · 0 failed · 13 skipped</span>, a full run after each base merge and after each round of review fixes</td></tr>
           <tr><td>Tests — TypeScript (vitest)</td><td><span class="tag na">not run</span></td><td>no TypeScript in the diff — the branch changes 7 C# files and 4 C# test files, and the front end neither builds nor reads any of them</td></tr>
-          <tr><td>Base integration</td><td><span class="tag ok">clean</span></td><td>merged <code>origin/master</code> three times with no conflicts — <code>83f2a93f2</code>, <code>5134cb93e</code>, and <code>9bba74aa5</code>; master touched none of these files, and the branch's own diff is still C#-only</td></tr>
+          <tr><td>Base integration</td><td><span class="tag ok">clean</span></td><td>merged <code>origin/master</code> four times — the last one (<code>4f1f981bd</code>-era master) had no git conflict but broke eight tests semantically, see the notes; master touched none of these files, and the branch's own diff is still C#-only</td></tr>
           <tr><td>Mergeable</td><td><span class="tag ok">yes</span></td><td>branch is ahead of master and integrated</td></tr>
         </table>
       </section>
@@ -146,6 +146,18 @@
             <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/86eb72f6f" target="_blank" rel="noopener"><code>86eb72f6f</code></a></td>
             <td>Third merge of <code>origin/master</code> (<code>9bba74aa5</code>) — the other reason promotion was blocked.</td>
           </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/110565ef5" target="_blank" rel="noopener"><code>110565ef5</code></a></td>
+            <td><strong>Your refactor of the naming, from the working tree — the answer to John's review.</strong> The old <code>GetSettingsFilePath</code> was doing double duty: deriving the <em>expected</em> file name, which is not always the file that is there. So it became <code>GetDefaultSettingsFilePath</code>; the name <code>GetSettingsFilePath</code> now answers what is really in the folder; <code>FindSettingsFileInFolder</code> became <code>GetSettingsFilePathOrThrow</code>; and <code>MiscUtils.GetPathAsOnDisk</code> became <code>GetFullPath</code>. The "one unreadable folder must not cost the user the whole dialog" guard moved out of the chooser and into <code>TryGetSettingsFilePath</code>, so every caller gets it. Every call site moved to whichever meaning it wanted. I read each hunk, fixed a stray "the/" in the moved comment, and renamed three test methods that still carried the old prefix.</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/4b1eb62aa" target="_blank" rel="noopener"><code>4b1eb62aa</code></a></td>
+            <td>Fourth merge of <code>origin/master</code> (~1,700 lines).</td>
+          </tr>
+          <tr>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/5668b56a3" target="_blank" rel="noopener"><code>5668b56a3</code></a></td>
+            <td>Repair of that merge. Master had added three call sites asking <code>GetSettingsFilePath</code> for the path to <em>write</em> a settings file to; on this branch that now answers with what is really there, which for an empty test folder is nothing — so eight Team Collection tests died on <code>ArgumentNullException</code>. Git reported no conflict: the two changes touch different lines and merely disagree about what the name means. Each of the three creates the file it asked about, so they wanted the derived name.</td>
+          </tr>
         </table>
       </section>
 
@@ -154,9 +166,15 @@
         <table>
           <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
           <tr>
+            <td><a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8204" target="_blank" rel="noopener">John Thomson</a><br><span style="color:var(--muted);font-size:13px">human, via Reviewable</span></td>
+            <td><span class="tag warn">changes requested</span></td>
+            <td>Three comments, all on naming, all now implemented — he asked for the <code>Get</code>/<code>TryGet</code> convention to be honoured (<code>GetDefaultSettingsFilePath</code> for the derived name, and a plain <code>Get…</code> that isn't the one you must remember not to use), for <code>GetPathAsOnDisk</code> to just be called <code>GetFullPath</code> since that is what it wraps, and for the error-handling to be folded into <code>TryGetSettingsFilePath</code> rather than living in a near-duplicate method. You replied to each and did the work; it is in <code>110565ef5</code>.
+              <br><span style="color:var(--muted);font-size:13px">His three threads stay open, and his <em>changes requested</em> stands, until he flips them — that is his call, not something this run should touch. I did clear the other ten: my mirrored Devin threads were resolved on GitHub but still counted against his queue, so his "13 discussions left" is now 3, and all 3 are genuinely his.</span></td>
+          </tr>
+          <tr>
             <td>Local review<br><span style="color:var(--muted);font-size:13px">light, run inline</span></td>
             <td><span class="tag ok">complete</span></td>
-            <td>3 raised, 2 fixed, 1 assessed and kept. Fixed: the constructor's cleanup could throw from <code>Dispose()</code> and replace the exception that explains the failure (now caught and logged); a stray BOM removal that showed as an unexplained changed line. Kept: the chooser can now throw on an unreadable folder — decision 3.
+            <td>This run: read your uncommitted refactor hunk by hunk before committing it, because a hunk I pick up becomes mine once it carries my commit. It is a clean rename with one deliberate consolidation, and the two things worth fixing were a typo in a moved comment and three test methods left on the old name. Earlier rounds: 3 raised, 2 fixed (the constructor's cleanup could throw from <code>Dispose()</code> and replace the exception that explains the failure; a stray BOM removal), 1 kept and later fixed anyway when Devin raised it too.
             <br><span style="color:var(--muted);font-size:13px">Run inline rather than as a sub-agent, per the standing instruction in this session not to spawn agents unasked.</span></td>
           </tr>
           <tr>
@@ -170,6 +188,7 @@
               <br><strong>Round 6</strong> on <code>62aa76cac</code>: first <span class="tag warn">errored</span> — the job failed immediately on three triggers (the push, a re-run of <code>pr-automation</code>, and loading the review page), with no message and no findings pass. A second preflight run re-triggered it and it went through, so this was a transient failure on their side. Findings: 2 genuinely new — the command-line entry points were never covered by the normalization (a Bug, and the sharper form of an informational item I had wrongly dismissed), and renaming a collection to add only a period now failed with a confusing error. Both fixed in <code>5a11b5e05</code>, both mirrored and resolved.
               <br><strong>Round 7</strong> on <code>5a11b5e05</code>: <strong>clean</strong>. It listed eleven findings, and not one of them is against this commit: each carries its own <code>head_sha</code>, and they read <code>62aa76cac</code>, <code>43ac9799a</code>, <code>dd5d7e66c</code>, <code>c1a7cde4a</code> or nothing at all — every one already fixed.
               <br><strong>Round 8</strong> on <code>86eb72f6f</code>: <strong>clean</strong> as well, by the same measure — eleven findings listed, zero carrying this commit's sha.
+              <br><strong>Round 9</strong> on <code>5668b56a3</code>: <strong>clean</strong> — same again, zero of eleven carrying the current sha.
               <br>All eight posted findings are PR threads with a reply recording the outcome, and resolved:
               <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779706132" target="_blank" rel="noopener">duplicate MRU entry</a>,
               <a href="https://github.com/BloomBooks/BloomDesktop/pull/8204#discussion_r3779707392" target="_blank" rel="noopener">silently creating a collection</a>,
@@ -202,6 +221,8 @@
           <li><strong>One of my own assessments was wrong, and a later round caught it.</strong> In the first round Devin raised, as a low-signal informational item, that the path normalization was applied at only two entry points. I judged that cosmetic on the grounds that opening always funnels through <code>Program.OpenProjectWindow</code>, which normalizes. It doesn't: the command-line entry points (creating artifacts, bulk upload, font analytics) build a <code>ProjectContext</code> directly, so for them the original bug was still live. A later round said so as a Bug, with the sharper reasoning that file APIs accept the bad spelling so nothing notices until a watcher gets it. It is fixed in <code>5a11b5e05</code>, and the normalization now lives at the single choke point every caller passes through rather than at each entry point.</li>
           <li><strong>A caveat about reading Devin's later rounds, and the field that resolves it.</strong> Each re-review returned the earlier rounds' findings again alongside the new ones, quoting code that had already been changed — so a raw finding count from that API means very little. The reliable discriminator is that <em>each finding carries its own <code>head_sha</code></em>, separate from the job's: a finding whose sha is an older commit is a carry-forward, and one whose sha matches the commit under review is live. That is what makes the final round's "clean" a measurement rather than an impression — none of its eleven findings carried the current sha. Nothing was ever re-fixed on the strength of a repeat; each was checked against the committed file first.</li>
           <li><strong>Not everything has been exercised by hand.</strong> You confirmed that joining the Team Collection now works. Still unverified in a running Bloom: that the file watcher actually fires (a watcher that silently never raises an event looks exactly like a working one at startup), that no <code>Bloom.exe</code> survives a quit, the chooser's new entries, and creating a collection named <code>Test.</code> These are on the card's test-ideas comment.</li>
+          <li><strong>One consequence of the consolidation worth knowing.</strong> Folding the "don't let one bad folder break the dialog" guard into <code>TryGetSettingsFilePath</code> means <em>every</em> caller now treats an unreadable or vanished folder as "there is no collection here", not just the chooser. That is what John asked for and it is the right trade for a lookup used while walking lists of folders — but it does mean a permissions problem on a collection you are trying to open presents as absence rather than as an access error.</li>
+          <li><strong>The PR went back to draft.</strong> It had been promoted to ready-for-review, John reviewed it, and this run added commits — so preflight returned it to draft, which is what it does whenever the work becomes pre-review again. Promoting it is <code>pr-ready-for-human</code>'s job, after your own look.</li>
           <li><strong>Pre-existing oddity, untouched:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/dd5d7e66cd8008569c0645460b78b8af53019a5c/src/BloomExe/web/controllers/ToolboxApi.cs#L7" target="_blank" rel="noopener">ToolboxApi.cs:7</a> declares production code in <code>namespace BloomTests.web.controllers</code>, which is why <code>ProjectContext.cs</code> has a <code>using BloomTests.web.controllers;</code> that looks alarming and is harmless.</li>
           <li><strong>Tracker:</strong> the PR link and a refreshed test-ideas comment are on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16679" target="_blank" rel="noopener">BL-16679</a>. The <code>add-test-ideas</code> skill's own instructions could not be read (its symlink in <code>~/.claude/skills</code> does not resolve), so the comment was written directly, with the skill's <code>&lt;!-- test-ideas --&gt;</code> marker as its first line so a later run updates it in place.</li>
         </ul>
@@ -400,7 +421,7 @@
     { name: 'q7', label: 'Next step' }
   ];
   function serialize() {
-    var out = ['Preflight answers — BL-16679 (PR #8204, HEAD 86eb72f6f)', ''];
+    var out = ['Preflight answers — BL-16679 (PR #8204, HEAD 5668b56a3)', ''];
     QS.forEach(function (q) {
       var picked = document.querySelector('input[name="' + q.name + '"]:checked');
       var val = picked ? picked.value : '(no answer)';
