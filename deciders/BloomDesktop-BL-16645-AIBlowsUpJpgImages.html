@@ -130,7 +130,7 @@
       branch <code>BL-16645-AIBlowsUpJpgImages</code> ·
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188" target="_blank" rel="noopener">PR&nbsp;#8188</a>
       <span class="chip draft">draft</span>
-      <span class="chip open">3 open decisions</span>
+      <span class="chip open">2 open decisions</span>
       <br>
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/files" target="_blank" rel="noopener">Files changed</a> ·
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/commits" target="_blank" rel="noopener">Commits</a> ·
@@ -162,16 +162,20 @@
               <td class="what">C# tests</td>
               <td class="verdict v-note">Unstable</td>
               <td>
-                It goes green &mdash; <span class="numeral">3147 passed · 13 skipped · 0 failed</span> on
-                exactly the committed code &mdash; but only in <strong>one of five runs</strong> at this
-                commit. See decision&nbsp;4: this is the one row I am not willing to report as a clean
-                pass, because quoting the good run would be quoting the run I liked. Earlier commits on
-                this branch went green first time, repeatedly, at 3145.<br>
-                Read from the wrapper&rsquo;s own verdict line, not the raw summary &mdash; master brought
-                in guidance that a killed test host still prints a passing summary. The new tests on this
-                branch cover the re-encode helper, transparency detection (sampled, exhaustive, palette
-                and <code>tRNS</code>), the resize-plus-convert path, and the publish path&rsquo;s
-                tolerance of a stray transparent pixel.
+                It goes green &mdash; <span class="numeral">3147 passed · 13 skipped · 0 failed</span>
+                on the code as committed &mdash; but only in <strong>2 of 7 runs</strong> today. The
+                latest run at the final commit was red (<span class="numeral">3146 / 2 failed</span>,
+                total 3161) in two BloomPUB/xmatter tests this branch never touches. Decision&nbsp;1
+                names the mechanism; it is a shared test temp-folder collision, not this change.<br>
+                This is the one row I will not report as a clean pass, because quoting the green run
+                would be quoting the run I liked. Earlier commits on this branch did go green first
+                time, repeatedly.<br>
+                Read from the wrapper&rsquo;s own verdict line, not the raw summary &mdash; master
+                brought in guidance that a killed test host still prints a passing summary. The new
+                tests on this branch cover the re-encode helper, transparency detection (sampled,
+                exhaustive, palette and <code>tRNS</code>), the resize-plus-convert path, the publish
+                path&rsquo;s tolerance of a stray transparent pixel, and an imported upload keeping its
+                licence.
               </td>
             </tr>
             <tr>
@@ -353,6 +357,12 @@
             <p>Two tests and two fixes: the pin for your decision (proved failing before it passed),
               the <code>tRNS</code> case Devin kept listing, the orphaned reserved JPEG, and the
               LockBits memory framing. See the decisions column.</p>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/688cb7d0a" target="_blank" rel="noopener">688cb7d0a</a>
+            <span class="title">Re-attach an imported image&rsquo;s metadata, so an upload keeps its licence</span>
+            <p>The one real defect found after the decisions came back &mdash; and only found because
+              the test I wrote to prove my own diagnosis passed. See Settled opposite.</p>
           </div>
         </div>
       </section>
@@ -577,49 +587,11 @@
 
       <section class="card">
         <h2>Your decisions</h2>
-        <p class="lede">Three items. The stray-alpha-pixel question you answered in the working tree
-          this round; these were all new this round, and two of them I confirmed by measurement
-          rather than argument. One is about the test suite itself; a fourth is already settled below.</p>
+        <p class="lede">Two items. The stray-alpha-pixel question you answered in the working tree
+          this round; the two below are what is left after two more were settled — one by
+          filing BL-16721, one by fixing it once a test proved my diagnosis wrong.</p>
 
-        <div class="item">
-          <h3>An oversized uploaded photo loses its credits before we can carry them across</h3>
-          <p class="src">From Devin, and confirmed by measurement &middot;
-            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188#discussion_r3807656642" target="_blank" rel="noopener">open thread</a>
-          </p>
-          <p>
-            Devin asked whether the credits <code>CopyCoreMetadata</code> carries onto the JPEG are
-            still there to be copied, since an uploaded result large enough to need resizing has already
-            been through <code>ProcessAndSaveImageIntoFolder</code>&rsquo;s GraphicsMagick rewrite on
-            import. It flagged this as &ldquo;worth confirming&rdquo;, so I measured it rather than
-            reasoning about it.
-          </p>
-          <p>
-            <strong>It is real.</strong> I built a PNG carrying its copyright the way libpalaso stores
-            it &mdash; an <code>iTXt</code> chunk keyed <code>XML:com.adobe.xmp</code> &mdash; plus a
-            plain <code>tEXt</code> <code>Copyright</code> for comparison, and ran our own
-            <code>lib/gm/gm.exe</code> over it with a resize, which is the shape of the import path
-            (PNG in, PNG out, <code>ProfilesToStrip = null</code>). The XMP chunk &mdash; where the IP
-            metadata lives &mdash; <strong>does not survive</strong>; the <code>tEXt</code> one does.
-            Adding <code>+profile "*"</code> changed nothing, so leaving <code>ProfilesToStrip</code>
-            null is not what saves it. On that path the credits are gone at import, before our copy
-            runs, and there is nothing left for it to find.
-          </p>
-          <p>
-            Two things that does <em>not</em> undo. <code>CopyCoreMetadata</code> still earns its place:
-            it carries the credits for every result that was not resized at import, which is the common
-            case and was a real loss John caught. And <strong>this PR did not cause it</strong> &mdash;
-            the loss is in the shared import resize that every credited oversized image goes through,
-            AI editor or not.
-          </p>
-          <p>
-            <strong>Which is why I have not fixed it.</strong> The fix lives in code all image import
-            runs through, and choosing between re-writing the metadata after the resize, not resizing
-            credited images, or handing GraphicsMagick the metadata explicitly is a behavior judgement
-            well outside this ticket. My recommendation is <strong>a ticket of its own</strong>, if this
-            is news rather than known. The alternative &mdash; fixing it here &mdash; would widen this
-            PR into shared import code at the point where it is otherwise ready.
-          </p>
-        </div>
+        
 
         <div class="item">
           <h3>Reused book images: the reason for excluding them is gone</h3>
@@ -638,50 +610,78 @@
         
 
         <div class="item">
-          <h3>The full C# suite is only intermittently green on this machine</h3>
-          <p class="src">Found by this run &middot; not attributable to the branch, and not proven
-            unattributable either</p>
+          <h3>The full C# suite is only intermittently green &mdash; and I found why</h3>
+          <p class="src">Found by this run &middot; a named mechanism, not a shrug</p>
           <p>
-            <code>AGENTS.md</code> says the suite is expected green through the wrapper, so this is worth
-            your attention. Five runs at the final commit:
-          </p>
-          <ul class="notes" style="margin-bottom:.6rem">
-            <li><strong>1 green</strong> &mdash; <span class="numeral">3147 / 0 failed</span>.</li>
-            <li><strong>4 red</strong>, 1&ndash;2 failures each, across <strong>four different and
-                unrelated tests</strong>: <code>ConvertPngToJpeg_UndecodableFile&hellip;</code>,
-                <code>AddAudioOverlay_NoSubElementPlaybackModes&hellip;</code>,
-                <code>InCreditsPage_LicenseUrlAndISBN_AreRemoved</code>, and
-                <code>GetStatus_BuildNeededTracksSettingsAndBookOrderChanges</code>.</li>
-          </ul>
-          <p>
-            The failures look environmental rather than logical: a <code>DirectoryNotFoundException</code>
-            inside <code>RobustFile.Copy</code> for a temp path that should exist, and a file vanishing
-            from a per-test temp folder mid-test after ~12&nbsp;s of retries. Three of the four live in
-            code this branch never touches, which is the main reason I doubt it is ours &mdash; my two new
-            tests only read a 198-byte image and write into uniquely-named temp folders.
+            <code>AGENTS.md</code> says the suite is expected green through the wrapper. Across seven
+            full runs today it was green <strong>twice</strong>, with 1&ndash;2 failures each time
+            otherwise, spread over <strong>six different and unrelated tests</strong> &mdash; AI editor,
+            epub audio, credits page, TeamCollection status, BloomPUB compression, device xmatter.
           </p>
           <p>
-            <strong>Two things I should be straight about.</strong> First, I briefly concluded my own
-            orphan-cleanup fix had caused it, on the strength of one green run with it reverted; the next
-            run failed in a completely unrelated test with the fix back in, so that conclusion was wrong
-            and I dropped it. Second, two of the red runs overlapped a <code>git worktree add</code> and
-            <code>remove</code> I started myself &mdash; 4,248 files of disk churn against the same
-            repo &mdash; so some of that noise is mine and the true rate is probably better than 1-in-5.
+            Every failure I captured has the same signature: a
+            <code>DirectoryNotFoundException</code> on a path <em>inside the run&rsquo;s own isolated
+            temp root</em>, usually while <code>RobustFile</code> was reading or copying &mdash;
+            <code>&hellip;&#92;BookTests&#92;book&#92;book.htm</code>,
+            <code>&hellip;&#92;BookTests&#92;book&#92;epub-thumbnail.png</code>,
+            <code>&hellip;&#92;ePUB_export&#92;0&#92;&hellip;&#92;lang-qr-code.png</code>. A directory that should
+            exist, vanishing mid-test.
           </p>
           <p>
-            <strong>What I did not do:</strong> establish a baseline on <code>origin/master</code>. At this
-            flake rate a single green master run would have proved nothing, and a statistically useful
-            number of runs meant a cold build plus half an hour of machine time on a question outside this
-            ticket. My recommendation: <strong>accept the PR on the strength of the green run and the
-            targeted fixture runs</strong> (the affected fixtures passed 148/148 every time, deterministically),
-            and treat the instability as <strong>its own investigation</strong> &mdash; it predates nothing
-            I can prove, but it will waste someone else&rsquo;s afternoon eventually.
+            <strong>The mechanism.</strong> <code>BookTestsBase.Setup()</code> is a <code>[SetUp]</code>
+            &mdash; so it runs before <em>every test</em> &mdash; and does
+            <code>new TemporaryFolder(GetTestFolderName())</code>, which returns the literal
+            <code>"BookTests"</code>, then nests <code>"book"</code> inside it.
+            <code>TemporaryFolder</code> <strong>deletes an existing folder of that name before creating
+            it</strong>. <strong>Eight fixtures derive from <code>BookTestsBase</code></strong> and only
+            <code>BookThumbnailerTests</code> overrides the name, so they all share one path. Any work
+            still touching <code>BookTests&#92;book</code> when the next test&rsquo;s setup wipes it gets
+            exactly the exception above. That fits the symptoms precisely: intermittent, timing
+            dependent, and clustered in the publishing fixtures &mdash; the ones most likely to have
+            something outstanding, which is the same hazard behind this repo&rsquo;s
+            &ldquo;tests <em>retire</em> their BloomServers rather than disposing them&rdquo; rule.
+            <code>ePUB_export</code> is worse: it is a <em>production</em> constant
+            (<code>EpubMaker.kEPUBExportFolder</code>), so every epub test shares one staging root.
+          </p>
+          <p>
+            <strong>The fix has a precedent in the codebase:</strong> override
+            <code>GetTestFolderName()</code> per fixture, which <code>BookThumbnailerTests</code> and
+            <code>BookCompressorTests</code> already do. That is a small change across seven fixtures,
+            but it is test-infrastructure work with its own risk of churn, so I have not made it inside
+            this PR. <strong>My recommendation: its own ticket</strong>, and worth doing &mdash; a suite
+            that fails 5 runs in 7 for reasons unrelated to your change trains everyone to re-run until
+            green, which is how a real regression gets waved through.
+          </p>
+          <p>
+            <strong>Two things I got wrong on the way here,</strong> both worth knowing. I first blamed
+            my own orphan-cleanup fix, on the strength of a single green run with it reverted; the next
+            run failed elsewhere with the fix restored, so that was wrong. And two of the red runs
+            overlapped a <code>git worktree add</code>/<code>remove</code> I started myself, so I was
+            polluting my own measurements for part of it. The root cause above does not depend on either
+            of those.
           </p>
         </div>
 
         <div class="item">
           <h3>Settled</h3>
           <ul class="notes">
+            <li><strong>The imported upload&rsquo;s licence &mdash; fixed in
+                <span class="numeral">688cb7d0a</span>, and my diagnosis of it was wrong twice.</strong>
+                I reported that a GraphicsMagick import resize loses the credits, and that this was
+                pre-existing breakage in shared import code. Neither held. Every other caller
+                re-attaches the metadata afterwards (<code>PageEditingModel.ChangePicture</code> does
+                it in the next statement), so only the path this PR added lost anything &mdash; and
+                what it lost was not the credits, because libpalaso writes those twice, as PNG
+                <code>tEXt</code> keys <em>and</em> as XMP. GraphicsMagick keeps the
+                <code>tEXt</code> and drops the XMP, where the <strong>licence alone</strong> lives.
+                So the test I wrote to prove the bug <em>passed</em>; adding one licence assertion
+                turned it red. The real symptom is nastier than the one I described: an uploaded
+                photo arrived with its copyright and creator intact and its Creative Commons licence
+                silently reduced to <code>NullLicense</code> &mdash; healthy-looking, and wrong.
+                Fixed with the call the other caller already makes.
+                <strong>Bearing on the item below:</strong> the reuse exclusion&rsquo;s credits
+                justification is now definitively gone, since metadata is re-attached whichever path
+                processing took.</li>
             <li><strong>The wasted GraphicsMagick pass on every published JPEG &mdash; you chose a
                 ticket of its own</strong>, filed as
                 <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16721" target="_blank" rel="noopener">BL-16721</a>
@@ -741,7 +741,7 @@
 
   <footer>
     Preflight report for BL-16645 · final commit
-    <span class="numeral">6ca5bb9de</span> · PR #8188 is back in draft for this run; promotion is <code>pr-ready-for-human</code>’s job, not preflight’s.
+    <span class="numeral">688cb7d0a</span> · PR #8188 is back in draft for this run; promotion is <code>pr-ready-for-human</code>’s job, not preflight’s.
   </footer>
 </div>
 
