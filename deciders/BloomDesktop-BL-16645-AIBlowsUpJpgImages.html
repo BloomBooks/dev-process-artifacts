@@ -130,7 +130,7 @@
       branch <code>BL-16645-AIBlowsUpJpgImages</code> ·
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188" target="_blank" rel="noopener">PR&nbsp;#8188</a>
       <span class="chip draft">draft</span>
-      <span class="chip open">2 open decisions</span>
+      <span class="chip open">1 open decision</span>
       <br>
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/files" target="_blank" rel="noopener">Files changed</a> ·
       <a href="https://github.com/BloomBooks/BloomDesktop/pull/8188/commits" target="_blank" rel="noopener">Commits</a> ·
@@ -165,8 +165,10 @@
                 It goes green &mdash; <span class="numeral">3147 passed · 13 skipped · 0 failed</span>
                 on the code as committed &mdash; but only in <strong>2 of 7 runs</strong> today. The
                 latest run at the final commit was red (<span class="numeral">3146 / 2 failed</span>,
-                total 3161) in two BloomPUB/xmatter tests this branch never touches. Decision&nbsp;1
-                names the mechanism; it is a shared test temp-folder collision, not this change.<br>
+                total 3161) in two BloomPUB/xmatter tests this branch never touches.
+                <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16722" target="_blank" rel="noopener">BL-16722</a>
+                names the mechanism for three of the six observed failures: a shared test temp-folder
+                collision, not this change.<br>
                 This is the one row I will not report as a clean pass, because quoting the green run
                 would be quoting the run I liked. Earlier commits on this branch did go green first
                 time, repeatedly.<br>
@@ -587,7 +589,7 @@
 
       <section class="card">
         <h2>Your decisions</h2>
-        <p class="lede">Two items. The stray-alpha-pixel question you answered in the working tree
+        <p class="lede">One item left. The stray-alpha-pixel question you answered in the working tree
           this round; the two below are what is left after two more were settled — one by
           filing BL-16721, one by fixing it once a test proved my diagnosis wrong.</p>
 
@@ -610,8 +612,9 @@
         
 
         <div class="item">
-          <h3>The full C# suite is only intermittently green &mdash; and I found why</h3>
-          <p class="src">Found by this run &middot; a named mechanism, not a shrug</p>
+          <h3>The full C# suite is only intermittently green &mdash; filed as BL-16722, nothing to decide</h3>
+          <p class="src">Found by this run &middot; kept here because it colours how you read the test
+            row, not because it needs an answer</p>
           <p>
             <code>AGENTS.md</code> says the suite is expected green through the wrapper. Across seven
             full runs today it was green <strong>twice</strong>, with 1&ndash;2 failures each time
@@ -619,9 +622,17 @@
             epub audio, credits page, TeamCollection status, BloomPUB compression, device xmatter.
           </p>
           <p>
-            Every failure I captured has the same signature: a
-            <code>DirectoryNotFoundException</code> on a path <em>inside the run&rsquo;s own isolated
-            temp root</em>, usually while <code>RobustFile</code> was reading or copying &mdash;
+            <strong>Correction to the first version of this item:</strong> I wrote that <em>every</em>
+            failure shared one signature. It does not &mdash; I had read the exception messages from two
+            runs and the test names from the others. <strong>Three</strong> of the six share it; the rest
+            have separate causes, listed below. The mechanism still holds for those three, and they are
+            filed as
+            <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16722" target="_blank" rel="noopener">BL-16722</a>.
+          </p>
+          <p>
+            Those three are each a <code>DirectoryNotFoundException</code> on a path <em>inside the
+            run&rsquo;s own isolated temp root</em>, raised from inside <code>RobustFile</code> after its
+            retries &mdash;
             <code>&hellip;&#92;BookTests&#92;book&#92;book.htm</code>,
             <code>&hellip;&#92;BookTests&#92;book&#92;epub-thumbnail.png</code>,
             <code>&hellip;&#92;ePUB_export&#92;0&#92;&hellip;&#92;lang-qr-code.png</code>. A directory that should
@@ -644,13 +655,32 @@
             (<code>EpubMaker.kEPUBExportFolder</code>), so every epub test shares one staging root.
           </p>
           <p>
-            <strong>The fix has a precedent in the codebase:</strong> override
-            <code>GetTestFolderName()</code> per fixture, which <code>BookThumbnailerTests</code> and
-            <code>BookCompressorTests</code> already do. That is a small change across seven fixtures,
-            but it is test-infrastructure work with its own risk of churn, so I have not made it inside
-            this PR. <strong>My recommendation: its own ticket</strong>, and worth doing &mdash; a suite
-            that fails 5 runs in 7 for reasons unrelated to your change trains everyone to re-run until
-            green, which is how a real regression gets waved through.
+            The correlation is what makes this more than a guess: all three of those failures are in
+            fixtures that inherit the shared name (<code>ExportEpubTests</code> twice,
+            <code>BloomPubMakerTests</code> once).
+          </p>
+          <p>
+            <strong>The other three failures are not this bug</strong>, and I am not claiming them:
+            <code>InCreditsPage_LicenseUrlAndISBN_AreRemoved</code> could not find
+            <code>customBookStyles.css</code> under the shared <code>output&#92;browser</code> &mdash; a
+            build artefact, not a temp folder; <code>GetStatus_BuildNeeded&hellip;</code> in
+            <code>RabAppProjectTests</code> (which does <em>not</em> inherit the name) reported RAB
+            importing 1 book where 2 were expected; and my own
+            <code>ConvertPngToJpeg_UndecodableFile&hellip;</code> lost a file from its fixture&rsquo;s
+            own per-test folder, which remains unexplained.
+          </p>
+          <p>
+            <strong>Filed as
+            <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16722" target="_blank" rel="noopener">BL-16722</a></strong>
+            (Bug, Bloom&nbsp;6.6, Incoming) rather than fixed here &mdash; it is test-infrastructure work
+            across nine fixtures, unrelated to this ticket. The fix has a precedent in the tree:
+            <code>BookThumbnailerTests</code> and <code>BookCompressorTests</code> already override
+            <code>GetTestFolderName()</code>, and deriving it from <code>GetType().Name</code> in the base
+            class would make the problem structurally impossible. Worth doing: a suite that goes red two
+            runs in three for reasons unrelated to your change trains everyone to re-run until green,
+            which is how a real regression gets waved through &mdash; and <code>AGENTS.md</code> tells
+            people the suite is expected green, so they bisect their own work instead. Which is what I
+            did, for about half an hour.
           </p>
           <p>
             <strong>Two things I got wrong on the way here,</strong> both worth knowing. I first blamed
