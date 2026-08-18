@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16716 Analytics Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --rule: #e2dbcd;
+    --rule-soft: #efe9dd;
+    --ink: #211e18;
+    --muted: #6b6459;
+    --accent: #10707e;
+    --accent-soft: #e6f1f2;
+    --pass: #2c6544;
+    --warn: #8a5712;
+    --risk: #99332a;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.62;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 34px 24px 80px; }
+
+  header.top { border-bottom: 2px solid var(--ink); padding-bottom: 16px; margin-bottom: 26px; }
+  header.top h1 {
+    font-family: var(--serif);
+    font-size: 1.95rem;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  header.top .sub { color: var(--muted); font-size: 0.95rem; margin-top: 6px; }
+  header.top .prs { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-size: 0.9rem; }
+  header.top .prs span.repo { color: var(--muted); }
+
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
+  }
+  .cols > * { min-width: 0; }
+  @media (max-width: 960px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .col { display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 1.18rem;
+    letter-spacing: -0.005em;
+    margin-bottom: 12px;
+  }
+  .card > h2.tight { margin-bottom: 8px; }
+  .card h3 {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 16px 0 5px;
+  }
+  .card h3:first-of-type { margin-top: 4px; }
+  .card p { margin-bottom: 9px; }
+  .card p:last-child { margin-bottom: 0; }
+
+  ul.bul { display: flex; flex-direction: column; gap: 7px; }
+  ul.bul > li { position: relative; padding-left: 15px; }
+  ul.bul > li::before {
+    content: "";
+    position: absolute; left: 0; top: 0.62em;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+  }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  code, .mono { font-family: var(--mono); font-size: 0.87em; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.9em; }
+
+  .tw { overflow-x: auto; }
+  table.gate { width: 100%; font-size: 0.9rem; }
+  table.gate th, table.gate td {
+    text-align: left;
+    padding: 7px 10px 7px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: top;
+  }
+  table.gate th {
+    font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--muted); font-weight: 700; border-bottom-color: var(--rule);
+  }
+  table.gate tr:last-child td { border-bottom: none; }
+  table.gate td.what { width: 30%; }
+
+  .tag {
+    display: inline-block;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 1px 6px; border: 1px solid currentColor; border-radius: 2px;
+    white-space: nowrap;
+  }
+  .tag.pass { color: var(--pass); }
+  .tag.warn { color: var(--warn); }
+  .tag.skip { color: var(--muted); }
+  .tag.risk { color: var(--risk); }
+
+  .rev { border-bottom: 1px solid var(--rule-soft); padding: 11px 0; }
+  .rev:first-of-type { padding-top: 2px; }
+  .rev:last-of-type { border-bottom: none; padding-bottom: 0; }
+  .rev .who { font-weight: 700; }
+  .rev .st { margin-left: 7px; }
+  .rev p { margin-top: 3px; margin-bottom: 0; color: var(--ink); font-size: 0.94rem; }
+
+  /* ---- decisions ---- */
+  .q { background: var(--card); border: 1px solid var(--rule); border-radius: 4px; padding: 18px 20px; }
+  .q.blocking { border-left: 3px solid var(--risk); }
+  .q h2 {
+    font-family: var(--serif);
+    font-size: 1.04rem;
+    margin-bottom: 8px;
+    text-wrap: balance;
+  }
+  .q .desc { font-size: 0.94rem; margin-bottom: 12px; }
+  .q .desc p { margin-bottom: 8px; }
+  .q .desc p:last-child { margin-bottom: 0; }
+
+  .opt { display: flex; gap: 9px; padding: 7px 0; border-top: 1px solid var(--rule-soft); align-items: flex-start; }
+  .opt:first-of-type { border-top: 1px solid var(--rule); }
+  .opt input[type="radio"] { margin-top: 0.34em; flex: 0 0 auto; }
+  .opt .body { flex: 1 1 auto; min-width: 0; }
+  .opt .lab { font-size: 0.95rem; }
+  .opt .rec {
+    display: inline-block; margin-left: 6px;
+    font-size: 0.65rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent); border-radius: 2px; padding: 0 5px;
+    vertical-align: 1.5px;
+  }
+  .opt .cost { display: block; color: var(--muted); font-size: 0.86rem; margin-top: 2px; }
+  .opt .leavec { flex: 0 0 auto; font-size: 0.82rem; color: var(--muted); display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+  .opt input[type="text"] {
+    width: 100%; margin-top: 5px; padding: 5px 7px;
+    border: 1px solid var(--rule); border-radius: 3px; background: #fdfcfa;
+    font-size: 0.92rem;
+  }
+  .notes { margin-top: 11px; }
+  .notes label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 3px; }
+  .notes textarea {
+    width: 100%; min-height: 46px; padding: 6px 8px;
+    border: 1px solid var(--rule); border-radius: 3px; background: #fdfcfa;
+    font-size: 0.92rem; resize: vertical;
+  }
+
+  #copyCard button {
+    background: var(--accent); color: #fff; border: none; border-radius: 3px;
+    padding: 8px 16px; font-weight: 600; cursor: pointer;
+  }
+  #copyCard button:hover { background: #0c5d69; }
+  #payload {
+    width: 100%; min-height: 150px; margin-top: 11px;
+    border: 1px solid var(--rule); border-radius: 3px; background: #fdfcfa;
+    padding: 8px; font-family: var(--mono); font-size: 0.8rem; resize: vertical;
+  }
+  #copied { margin-left: 10px; color: var(--pass); font-size: 0.88rem; }
+
+  footer.foot { margin-top: 30px; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.86rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Analytics for the 6.5 features — preflight</h1>
+  <div class="sub">BL-16716 &middot; three pull requests, all draft &middot; one preflight run</div>
+  <div class="prs">
+    <span><span class="repo">BloomDesktop</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">#8215</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/files" target="_blank" rel="noopener">files</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/commits" target="_blank" rel="noopener">commits</a> · <span class="numeral">4f1f981</span></span>
+    <span><span class="repo">bloom-image-gallery</span> <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a> · <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20/files" target="_blank" rel="noopener">files</a> · <span class="numeral">7b4efeb</span></span>
+    <span><span class="repo">bloom-ai-image-tools</span> <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a> · <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2/files" target="_blank" rel="noopener">files</a> · <span class="numeral">b85b365</span></span>
+    <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16716" target="_blank" rel="noopener">BL-16716</a></span>
+  </div>
+</header>
+
+<div class="cols">
+<div class="col">
+
+  <section class="card">
+    <h2 class="tight">What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p>Bloom's 6.5 features shipped essentially blind. All 41 existing analytics events came from C#,
+    so anything built in React could only be measured by inventing a bespoke endpoint for it — which
+    in practice meant it wasn't measured. Nothing under the Reading App Builder publish path reported
+    anything at all, the AI Image Editor and the new image chooser reported nothing, and
+    <code>Change Picture</code> — the one event covering how a picture gets into a book — was bypassed
+    by <em>both</em> new 6.5 image routes, so it had been quietly under-counting.</p>
+
+    <h3>Cause</h3>
+    <p>A second problem made this risky to fix: DesktopAnalytics is constructed with
+    <code>allowTracking: false</code> in DEBUG and acts on that <em>inside</em> its own
+    <code>Track</code> method. So a new event was easy to write, easy to believe in, and impossible to
+    observe without shipping it to alpha and waiting.</p>
+
+    <h3>What the PR does</h3>
+    <p>The test applied to every candidate was <strong>whether the answer would change a decision</strong>.
+    Counting use of a capability we already know is essential does not; nor does measuring a step whose
+    direction is settled. What does is data that splits a known behaviour into actionable parts.</p>
+    <ul class="bul">
+      <li><strong>Plumbing.</strong> A <code>POST analytics/track</code> endpoint and a
+      <code>trackEvent()</code> helper, so front-end code can report an event at all; C# fills in the
+      book id and the collection's branding, which React in the edit view doesn't know.
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/4f1f981bdb2d373af41be1480e0d27bdb36ec21e/src/BloomExe/BloomAnalytics.cs#L36" target="_blank" rel="noopener">BloomAnalytics</a>
+      wraps DesktopAnalytics and <strong>logs every event before handing it on</strong> — to the Bloom log
+      always, and to stderr when tracking is off — so a developer running <code>./go.sh</code> now watches
+      events scroll past. All 53 call sites go through it, and
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/4f1f981bdb2d373af41be1480e0d27bdb36ec21e/build/check-csharp-analytics.sh" target="_blank" rel="noopener">a pre-commit check</a>
+      keeps it that way, because a partial log would be worse than none.</li>
+      <li><strong>Where pictures come from, and whether searches succeed.</strong> Search terms, the source
+      they went to, and what the user did next; the Pixabay API-key obstacle; and
+      <a href="https://github.com/BloomBooks/BloomDesktop/blob/4f1f981bdb2d373af41be1480e0d27bdb36ec21e/src/BloomExe/web/controllers/AnalyticsApi.cs#L90" target="_blank" rel="noopener"><code>Change Picture</code> with a source and provider</a>
+      from all four routes, repairing the under-count on the way past. Result counts can't answer the real
+      question: the online sources nearly always return <em>some</em> pictures, so the failure is a full
+      page of wrong ones, and only what the user did next reveals it.</li>
+      <li><strong>Whether the AI editor's funnel converts, and what it costs</strong> — open, generate,
+      commit, cancel, key-saved. A session that generates and then throws everything away is the clearest
+      quality signal available.</li>
+      <li><strong>Two things we cannot otherwise evaluate</strong> — every explicit image-transparency
+      override, each of which is a user telling us which way our line-art detection failed; and custom
+      cover layout, a Pro-gated feature that has shipped two releases with no usage data, including the
+      demand we refuse and why.</li>
+      <li><strong>Whether the RAB publish path works on real machines</strong>, which nothing else watches,
+      since CI never runs a real app build. Plus metadata-apply duration on large books, and whether users
+      correct the reading direction ethnolib chose from their script.</li>
+          <li><strong>Analytics cannot affect what it observes.</strong> Reporting is isolated from the code it
+      measures at every boundary — the C# wrapper, the front-end helper, the App Builder reporter, and both
+      package callbacks. This is stated as a property of the PR because reviewers found four places where it
+      was not true, one of which would have lost a generation the user had already paid for.</li>
+    </ul>
+    <p>Deliberately excluded: program errors (Sentry's job, not Segment's) and AI prompt text, which can
+    carry arbitrary content lifted from the book. Image-search <em>terms</em> are included on purpose.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tw">
+    <table class="gate">
+      <thead><tr><th class="what">Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td class="what">BloomDesktop — typecheck</td><td><span class="tag pass">pass</span></td></tr>
+        <tr><td class="what">BloomDesktop — lint</td><td><span class="tag pass">pass</span> <span class="numeral">0 errors, 764 warnings</span> — warning count identical to <code>master</code></td></tr>
+        <tr><td class="what">BloomDesktop — C# tests<br><span class="mono">dotnet test</span></td>
+            <td><span class="tag pass">pass</span> <span class="numeral">3130 passed · 0 failed · 13 skipped</span><br>
+            One run in this batch reported <span class="numeral">3</span> failures; two subsequent runs on the same tree were clean. See "worth knowing".</td></tr>
+        <tr><td class="what">BloomDesktop — TypeScript tests<br><span class="mono">vitest</span></td>
+            <td><span class="tag pass">pass</span> <span class="numeral">718 passed · 5 skipped</span></td></tr>
+        <tr><td class="what">BloomDesktop — production bundle</td><td><span class="tag pass">pass</span> — <span class="mono">build/agent-vite.sh</span> compiles every entry point</td></tr>
+        <tr><td class="what">BloomDesktop — base merged</td><td><span class="tag pass">pass</span> — <code>origin/master</code> folded in (<span class="numeral">34</span> commits) with no conflict; gate re-run after</td></tr>
+        <tr><td class="what">bloom-image-gallery — typecheck</td><td><span class="tag warn">pre-existing</span> <span class="numeral">8 errors</span>, byte-identical to <code>master</code>; none in the changed files</td></tr>
+        <tr><td class="what">bloom-image-gallery — lint</td><td><span class="tag warn">pre-existing</span> <span class="numeral">3 errors, 25 warnings</span>, identical to <code>master</code>. The errors are an eslint config fault (<code>react-hooks/rules-of-hooks</code> not registered), not code.</td></tr>
+        <tr><td class="what">bloom-image-gallery — tests</td><td><span class="tag pass">pass</span> <span class="numeral">13 passed</span></td></tr>
+        <tr><td class="what">bloom-image-gallery — C# tests</td><td><span class="tag skip">n/a</span> — no C# in this repo</td></tr>
+        <tr><td class="what">bloom-ai-image-tools — check<br><span class="mono">vp check</span> (format, lint, types)</td><td><span class="tag pass">pass</span> <span class="numeral">0 errors, 8 warnings</span> (baseline)</td></tr>
+        <tr><td class="what">bloom-ai-image-tools — tests</td><td><span class="tag pass">pass</span> <span class="numeral">162 passed</span></td></tr>
+        <tr><td class="what">bloom-ai-image-tools — Playwright e2e</td>
+            <td><span class="tag skip">not run</span> — needs a real browser run against a built app. The change is confined to a reporting wrapper that is now isolated from generation control flow by construction, and the unit suite covers the workspace. A judgment call; say so if you'd rather it ran.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <ul class="bul">
+      <li>Committed the analytics work that was sitting uncommitted in the Bloom worktree, pushed all three
+      branches, and opened the three draft PRs.</li>
+      <li>Fixed <strong>nine defects the reviewers found</strong>, every one of them in code this work added.
+      Six were mine to begin with; three were bugs in my own earlier fixes.</li>
+      <li>Pointed Bloom's <code>package.json</code> at the gallery <em>branch</em> so this PR's CI can resolve
+      the new interface — which is the first decision on the right, because it must be undone before merge.</li>
+      <li>Removed a <code>.trx</code> test-output file I had committed by accident.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+
+    <div class="rev">
+      <span class="who">Local review</span><span class="st"><span class="tag pass">complete</span></span>
+      <p>Light pass, done inline rather than by a sub-agent (this session disallows them). Found two
+      inaccurate doc comments on the gallery's new public callbacks and fixed them; also turned up a
+      pre-existing oddity in the cover-layout menu, which is decision 6.</p>
+    </div>
+
+    <div class="rev">
+      <span class="who">Devin</span><span class="st"><span class="tag pass">complete</span></span>
+      <p>Eleven review jobs across the three PRs, five of them on Bloom. It found <strong>six real defects</strong> and prompted three
+      hardening changes; all are fixed and each has a resolved thread recording the outcome. Best catches:
+      an App Builder report that could describe a finished build as failed, a measurement that made the
+      command it measures slower, and an allow-list of mine that <code>"toString"</code> walked straight
+      through. Three threads are deliberately open — decisions 1, 2 and 5.
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">Bloom review</a> ·
+      <a href="https://devinreview.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">gallery</a> ·
+      <a href="https://devinreview.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">ai-tools</a>.
+      Its final round, on the last commit, produced <strong>no new findings</strong> — but read its output with
+      care: it re-lists every bug it has ever raised on this branch, including the seven already fixed. I
+      checked each one against the commit it reviewed and confirmed the fix is present, so the list is a
+      history rather than a backlog.</p>
+    </div>
+
+    <div class="rev">
+      <span class="who">Greptile</span><span class="st"><span class="tag pass">complete</span></span>
+      <p>Active on the two package repos only. It found <strong>the single most valuable thing in the run</strong>:
+      analytics callbacks sitting inside the control flow they observe, which in the AI editor would have
+      lost a generation the user had already paid for. That prompted a look at Bloom, which had the same
+      fault twice over. Its latest pass on both PRs is clean.
+      <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2#discussion_r3808076939" target="_blank" rel="noopener">the finding</a>.</p>
+    </div>
+
+    <div class="rev">
+      <span class="who">CodeRabbit</span><span class="st"><span class="tag skip">not applicable</span></span>
+      <p>Configured off in BloomDesktop — <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>.
+      Not enabled on either package repo.</p>
+    </div>
+
+    <div class="rev">
+      <span class="who">CI</span><span class="st"><span class="tag warn">limited</span></span>
+      <p>The package PRs' checks pass. On BloomDesktop the only GitHub check is <code>pr-automation</code>
+      (which passed) and its job is to trigger Devin — <strong>Bloom's build and test CI runs in TeamCity and
+      does not report to GitHub checks at all</strong>, which I confirmed against a recently merged PR. So the
+      only build and test evidence for #8215 is the local suites in the table above.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul class="bul">
+      <li><strong>Not one event has been seen reaching Segment.</strong> DEBUG builds run with tracking off,
+      so the new log line is the only confirmation available here; whether Segment accepts each event and
+      whether the properties land where an analyst can group on them still needs one pass on alpha.</li>
+      <li><strong>Nothing has been exercised by hand.</strong> Every claim above rests on automated suites
+      plus review. The test-ideas comment on the card names the paths most likely to be broken — pasting a
+      picture, switching a cover layout, and changing a collection language are the three where this work
+      touched code a user drives.</li>
+      <li><strong>One C# run reported 3 failures and I lost the names.</strong> I piped that run's output
+      through <code>tail</code>, which discarded the detail — the exact mistake the skill warns about. Two
+      later runs on the same tree were clean, and the failing run was the one overlapping the front-end
+      suite, so resource contention is the likely cause. Decision 7.</li>
+      <li>The gallery's <span class="numeral">8</span> typecheck and <span class="numeral">3</span> lint
+      errors look alarming in the table and are entirely pre-existing — the lint ones are a config fault in
+      that repo worth someone's attention, independent of this work.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="col">
+
+  <section class="q blocking">
+    <h2>1. The gallery dependency pin must be undone before Bloom merges</h2>
+    <div class="desc">
+      <p>Bloom's <code>src/BloomBrowserUI/package.json</code> currently points at
+      <code>github:BloomBooks/bloom-image-gallery#BL-16716-analytics-hooks</code> — a <em>branch</em>, on your
+      instruction, so that this PR's CI can resolve the new <code>ISearchReport</code> interface, which does
+      not exist on <code>master</code> yet.</p>
+      <p>If Bloom merges in that state, its dependency points at a branch that will be deleted, and the
+      build breaks for everyone. So gallery <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a>
+      has to land first, and the pin has to go back to tracking <code>master</code> with a
+      <code>pnpm install</code> to refresh the lockfile. Devin flagged this independently of my own note,
+      and its thread is open.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1a" data-q="Dependency pin" value="Merge #20, then I revert the pin and re-run preflight" checked>
+      <div class="body"><label class="lab" for="q1a">Merge #20 first, then I revert the pin and re-run preflight<span class="rec">recommended</span></label>
+      <span class="cost">Two lines plus a lockfile refresh, but it has to happen after #20 merges — so it needs a second short preflight rather than being doable now. Recommended because it leaves nothing for anyone to remember at merge time.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1b" data-q="Dependency pin" value="Leave the pin; the developer reverts it at merge time">
+      <div class="body"><label class="lab" for="q1b">Leave the pin; you revert it at merge time</label>
+      <span class="cost">No work now. Relies on the PR description, the card and an open review thread all being read at the right moment.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1c" data-q="Dependency pin" value="Leave as is">
+      <div class="body"><label class="lab" for="q1c">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="Dependency pin — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1d" data-q="Dependency pin" value="Other">
+      <div class="body"><label class="lab" for="q1d">Other:</label>
+      <input type="text" data-q="Dependency pin — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-q="Dependency pin — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>2. No AI-editor generate events until a new editor build is published</h2>
+    <div class="desc">
+      <p>Bloom pins <code>bloom-ai-image-tools</code> at <code>#dist-v0.1.3</code>, which predates the
+      generate reporting added in <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a>.
+      Everything else about the AI editor's analytics works with the old pin — opening, committing,
+      cancelling and the key are all reported by Bloom's own C# — but the per-generation event, the one that
+      carries the model, the cost and the attempt number, will simply never fire.</p>
+      <p>This is not something the PR can fix. That package cannot be consumed from a branch (the branch
+      holds no built app, and Bloom cannot build it on install), so delivery is an immutable
+      <code>dist-v*</code> tag produced by a manually-dispatched workflow in that repo, which is refused if
+      the version hasn't been bumped first.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2a" data-q="AI-tools tag" value="Merge #2, publish dist-v0.1.4, then bump Bloom's pin" checked>
+      <div class="body"><label class="lab" for="q2a">Merge #2, publish <code>dist-v0.1.4</code>, then bump Bloom's pin<span class="rec">recommended</span></label>
+      <span class="cost">A changeset version bump and one <code>workflow_dispatch</code> in that repo, then a one-line pin change here. Recommended because the generate event is the one that carries the cost figures, which is most of why the AI editor was worth instrumenting.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2b" data-q="AI-tools tag" value="Ship Bloom's side now; publish the editor build later">
+      <div class="body"><label class="lab" for="q2b">Ship Bloom's side now and publish the editor build later</label>
+      <span class="cost">No work. The funnel reports open/commit/cancel from day one and gains generation data whenever the tag lands.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2c" data-q="AI-tools tag" value="Leave as is">
+      <div class="body"><label class="lab" for="q2c">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="AI-tools tag — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2d" data-q="AI-tools tag" value="Other">
+      <div class="body"><label class="lab" for="q2d">Other:</label>
+      <input type="text" data-q="AI-tools tag — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n2">Notes</label><textarea id="n2" data-q="AI-tools tag — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>3. The image chooser's picture count disappears when you scroll</h2>
+    <div class="desc">
+      <p>In the image chooser, the "N images" figure beside the search box vanishes as soon as the user
+      scrolls far enough to load a second page of results. Devin found it; it is
+      <strong>pre-existing</strong>, not something this work introduced — the code that appends a page has
+      always rebuilt the result without carrying the total forward.</p>
+      <p>It surfaced now because this PR changes that very line, and the fix is one word: spread the previous
+      result, exactly as the neighbouring error branch already does. I held off because it changes what a
+      user sees and has nothing to do with analytics, which is your call rather than mine.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3a" data-q="Image count on scroll" value="Fix it in the gallery PR" checked>
+      <div class="body"><label class="lab" for="q3a">Fix it in gallery #20<span class="rec">recommended</span></label>
+      <span class="cost">One word, in a line this PR already touches; no new risk beyond the count reappearing. Recommended because otherwise every future reviewer of that file finds it again, as this one did.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3b" data-q="Image count on scroll" value="File a separate card for it">
+      <div class="body"><label class="lab" for="q3b">File a separate card for it</label>
+      <span class="cost">Keeps #20 strictly about the analytics interface. Costs a card and a second round trip through review for a one-word change.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3c" data-q="Image count on scroll" value="Leave as is">
+      <div class="body"><label class="lab" for="q3c">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="Image count on scroll — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3d" data-q="Image count on scroll" value="Other">
+      <div class="body"><label class="lab" for="q3d">Other:</label>
+      <input type="text" data-q="Image count on scroll — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n3">Notes</label><textarea id="n3" data-q="Image count on scroll — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>4. Should changing the search language count as a new search?</h2>
+    <div class="desc">
+      <p>In the image chooser, changing the language dropdown re-runs the search with the same term. Bloom
+      records that as another <code>Image Search</code> event, so a person who types "dog" and then tries
+      three languages produces four searches for one idea.</p>
+      <p>I have left it counting, because it genuinely is another search — the source is queried again and
+      returns different pictures — and because the event carries the language and its position in the visit,
+      so anyone analysing it can separate the cases. But if you expect "searches per visit" to mean
+      "distinct things someone looked for", the number will read high, and that is a decision about what
+      BL-16716 is measuring rather than something I should settle.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4a" data-q="Language switch counts as a search" value="Suppress the event when only the language changed">
+      <div class="body"><label class="lab" for="q4a">Report it only when the term itself changed</label>
+      <span class="cost">Small and local in the gallery, but it loses the ability to see that someone tried several languages for one term — which is itself a signal about the art we can reach.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4b" data-q="Language switch counts as a search" value="Leave as is" checked>
+      <div class="body"><label class="lab" for="q4b">Leave as is<span class="rec">recommended</span></label></div>
+      <label class="leavec"><input type="checkbox" data-q="Language switch counts as a search — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4c" data-q="Language switch counts as a search" value="Other">
+      <div class="body"><label class="lab" for="q4c">Other:</label>
+      <input type="text" data-q="Language switch counts as a search — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n4">Notes</label><textarea id="n4" data-q="Language switch counts as a search — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>5. The AI editor's commit count can be optimistic, and reports twice</h2>
+    <div class="desc">
+      <p>Two related things about <code>AI Editor Commit</code>, both raised by Devin.</p>
+      <p>First, its <code>appliedCount</code> counts pictures on the page currently being edited as applied
+      once C# has staged them — but the browser does the real swap afterwards, and that can fail. So the
+      count can overstate, in precisely the "the commit silently did nothing" case the event exists to
+      catch. Reporting it honestly means emitting the event from the browser once the outcome is known,
+      which moves it across the C#/JavaScript boundary.</p>
+      <p>Second, a commit of twenty pictures produces twenty-one events: the summary plus one
+      <code>Change Picture</code> each. That is deliberate — it is what makes the picture-source breakdown
+      cover every route — but anything joining the two would double-count unless it knows to pick one.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q5" id="q5a" data-q="AI commit counting" value="Move the commit event to the browser, after the outcome is known" checked>
+      <div class="body"><label class="lab" for="q5a">Move the commit event to the browser, after the real outcome is known<span class="rec">recommended</span></label>
+      <span class="cost">Moderate — the event moves from C# to the overlay and <code>appliedCount</code> changes meaning. Recommended because a number that overstates success in exactly the failure case it was added to detect is worse than no number.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q5" id="q5b" data-q="AI commit counting" value="Rename the count to say it is provisional">
+      <div class="body"><label class="lab" for="q5b">Keep it in C# but rename the property so it reads as provisional</label>
+      <span class="cost">A few lines. Honest about what the number is, without giving you the answer you actually wanted.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q5" id="q5c" data-q="AI commit counting" value="Leave as is">
+      <div class="body"><label class="lab" for="q5c">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="AI commit counting — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q5" id="q5d" data-q="AI commit counting" value="Other">
+      <div class="body"><label class="lab" for="q5d">Other:</label>
+      <input type="text" data-q="AI commit counting — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n5">Notes</label><textarea id="n5" data-q="AI commit counting — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>6. Clicking the cover layout you are already on switches you off it</h2>
+    <div class="desc">
+      <p>I found this while reviewing, and it is not caused by this work. On a cover page, the
+      Standard/Custom menu shows a tick beside the current choice — but clicking that ticked option toggles
+      you to the <em>other</em> one, because the underlying request is a plain toggle and nothing checks
+      whether the user picked what they already had.</p>
+      <p>It matters here only because the new event reports what actually happened, so a "standard" event can
+      come from someone who clicked Custom. There is a comment in the code saying so, and the number is
+      correct about the change; it is the menu that is surprising.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q6" id="q6a" data-q="Cover layout toggle" value="File a separate card" checked>
+      <div class="body"><label class="lab" for="q6a">File a separate card for it<span class="rec">recommended</span></label>
+      <span class="cost">No code here. Recommended because it is a real user-facing bug that predates this work, and folding a behaviour change into an analytics PR is how a reviewer loses track of what they are approving.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q6" id="q6b" data-q="Cover layout toggle" value="Fix it in this PR">
+      <div class="body"><label class="lab" for="q6b">Fix it in this PR</label>
+      <span class="cost">Small — ignore a selection that matches the current layout. But it changes user-facing behaviour in a PR that otherwise changes none.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q6" id="q6c" data-q="Cover layout toggle" value="Leave as is">
+      <div class="body"><label class="lab" for="q6c">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="Cover layout toggle — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q6" id="q6d" data-q="Cover layout toggle" value="Other">
+      <div class="body"><label class="lab" for="q6d">Other:</label>
+      <input type="text" data-q="Cover layout toggle — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n6">Notes</label><textarea id="n6" data-q="Cover layout toggle — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>7. The one C# run that failed, whose names I lost</h2>
+    <div class="desc">
+      <p>Of four full C# runs in this session, one reported three failures. I had piped its output through
+      <code>tail</code>, so the test names and the kept temp folder went with it — my mistake, and exactly
+      the trap the preflight skill warns about. Two runs afterwards on the same tree passed cleanly, and the
+      failing one was the only one sharing the machine with the front-end suite.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q7" id="q7a" data-q="Flaky C# run" value="Investigate now by running the suite repeatedly under load">
+      <div class="body"><label class="lab" for="q7a">Chase it — run the suite repeatedly, under load, until it fails again</label>
+      <span class="cost">No product code; costs real time, perhaps 30–40 minutes of runs, with no guarantee of reproducing it.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q7" id="q7b" data-q="Flaky C# run" value="Leave as is" checked>
+      <div class="body"><label class="lab" for="q7b">Leave as is<span class="rec">recommended</span></label></div>
+      <label class="leavec"><input type="checkbox" data-q="Flaky C# run — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q7" id="q7c" data-q="Flaky C# run" value="Other">
+      <div class="body"><label class="lab" for="q7c">Other:</label>
+      <input type="text" data-q="Flaky C# run — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n7">Notes</label><textarea id="n7" data-q="Flaky C# run — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>Next step</h2>
+    <div class="desc">
+      <p>All three PRs are draft, every gate is green or explained, and every reviewer has finished. Nothing
+      is waiting on me except your answers above.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="qn" id="qna" data-q="Next step" value="Implement the chosen options, then re-run preflight" checked>
+      <div class="body"><label class="lab" for="qna">Implement what you choose above, then re-run preflight<span class="rec">recommended</span></label>
+      <span class="cost">Recommended: most of the answers are small, and decision 1 needs a second preflight anyway once #20 merges.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="qn" id="qnb" data-q="Next step" value="Discuss first — talk through the measurement decisions before any code">
+      <div class="body"><label class="lab" for="qnb">Discuss first — decisions 4 and 5 are about what we measure, not how</label>
+      <span class="cost">No code until we have talked. Sensible if the shape of the AI-editor metrics is worth thinking about properly.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="qn" id="qnc" data-q="Next step" value="Leave as is">
+      <div class="body"><label class="lab" for="qnc">Leave as is</label></div>
+      <label class="leavec"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="qn" id="qnd" data-q="Next step" value="Other">
+      <div class="body"><label class="lab" for="qnd">Other:</label>
+      <input type="text" data-q="Next step — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="nn">Notes</label><textarea id="nn" data-q="Next step — notes"></textarea></div>
+  </section>
+
+  <section class="q" id="copyCard">
+    <h2>Send your answers back</h2>
+    <div class="desc"><p>Copy this and paste it into the session.</p></div>
+    <button type="button" id="copyBtn">Copy answers</button><span id="copied" hidden>copied</span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+
+<footer class="foot">
+  Preflight report for BL-16716 · BloomDesktop <span class="numeral">4f1f981</span> ·
+  bloom-image-gallery <span class="numeral">7b4efeb</span> ·
+  bloom-ai-image-tools <span class="numeral">b85b365</span>
+</footer>
+</div>
+
+<script>
+(function () {
+    const serialize = function () {
+        const lines = ["Preflight answers — BL-16716 (three PRs)", ""];
+        document.querySelectorAll("section.q").forEach(function (q) {
+            const heading = q.querySelector("h2");
+            if (!heading || q.id === "copyCard") return;
+            const chosen = q.querySelector('input[type="radio"]:checked');
+            if (!chosen) return;
+            lines.push("## " + heading.textContent.trim());
+            let value = chosen.value;
+            if (value === "Other") {
+                const box = chosen.closest(".opt").querySelector('input[type="text"]');
+                value = "Other: " + ((box && box.value.trim()) || "(nothing written)");
+            }
+            lines.push("Decision: " + value);
+            // Only emitted when actually ticked, so an untouched box can never read as a request.
+            const leave = q.querySelector('.leavec input[type="checkbox"]');
+            if (leave && leave.checked) {
+                lines.push("Leave comment: yes — record this decision in a code comment near the code");
+            }
+            const notes = q.querySelector("textarea");
+            if (notes && notes.value.trim()) {
+                lines.push("Notes: " + notes.value.trim());
+            }
+            lines.push("");
+        });
+        return lines.join("\n");
+    };
+
+    const payload = document.getElementById("payload");
+    const refresh = function () { payload.value = serialize(); };
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    document.getElementById("copyBtn").addEventListener("click", function () {
+        refresh();
+        const done = function () {
+            const flag = document.getElementById("copied");
+            flag.hidden = false;
+            window.setTimeout(function () { flag.hidden = true; }, 2200);
+        };
+        // The visible textarea is the fallback: if the async clipboard is blocked, select the
+        // text so Ctrl+C works without anyone having to hunt for it.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload.value).then(done, function () {
+                payload.focus(); payload.select();
+                try { document.execCommand("copy"); done(); } catch (e) { /* manual Ctrl+C */ }
+            });
+        } else {
+            payload.focus(); payload.select();
+            try { document.execCommand("copy"); done(); } catch (e) { /* manual Ctrl+C */ }
+        }
+    });
+})();
+</script>
+</body>
+</html>
