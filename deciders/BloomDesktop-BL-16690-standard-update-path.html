@@ -3,519 +3,201 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Minimum Version Upgrade Path</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Charis+SIL:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<title>BL-16690 Preflight</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
-  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
-  ul, ol { list-style: none; }
-  button, input, textarea, select { font: inherit; color: inherit; }
-  img { max-width: 100%; display: block; }
-
+  * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
-    --ground: #f5f8f8;
-    --surface: #ffffff;
-    --surface-sunk: #eef4f4;
-    --ink: #15222a;
-    --ink-soft: #435760;
-    --muted: #6f858c;
-    --rule: #d9e3e4;
-    --rule-firm: #bfced0;
-    --accent: #10707f;
-    --accent-soft: #e4f1f2;
-    --pass: #266b46;
-    --fail: #a3382a;
-    --hold: #855f11;
-    --serif: "Charis SIL", Cambria, Georgia, "Times New Roman", serif;
-    --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --ground: #faf8f5; --card: #ffffff; --ink: #2b2a27; --muted: #6d6a63;
+    --line: #e4e0d8; --accent: #1d94a4; --accent-ink: #0e6570;
+    --good: #2e7d32; --bad: #c62828; --warn: #9a6a00;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --ground: #111a1d;
-      --surface: #192327;
-      --surface-sunk: #131c20;
-      --ink: #e9eff0;
-      --ink-soft: #b6c5c9;
-      --muted: #8ba0a5;
-      --rule: #2a3a3f;
-      --rule-firm: #3c5158;
-      --accent: #52c3d1;
-      --accent-soft: #15323a;
-      --pass: #74c391;
-      --fail: #ea8b7b;
-      --hold: #d8b45e;
-    }
-  }
-  :root[data-theme="dark"] {
-    --ground: #111a1d;
-    --surface: #192327;
-    --surface-sunk: #131c20;
-    --ink: #e9eff0;
-    --ink-soft: #b6c5c9;
-    --muted: #8ba0a5;
-    --rule: #2a3a3f;
-    --rule-firm: #3c5158;
-    --accent: #52c3d1;
-    --accent-soft: #15323a;
-    --pass: #74c391;
-    --fail: #ea8b7b;
-    --hold: #d8b45e;
-  }
-
-  body {
-    background: var(--ground);
-    color: var(--ink);
-    font-family: var(--serif);
-    font-size: 17px;
-    line-height: 1.6;
-  }
-  .wrap { max-width: 1440px; margin: 0 auto; padding: 40px 28px 80px; }
-
-  .masthead { border-bottom: 2px solid var(--rule-firm); padding-bottom: 22px; margin-bottom: 30px; }
-  h1 { font-size: clamp(1.9rem, 3.4vw, 2.7rem); line-height: 1.15; text-wrap: balance; letter-spacing: -0.01em; }
-  .sub { color: var(--ink-soft); margin-top: 8px; max-width: 68ch; }
-  .facts { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 18px; font-family: var(--mono); font-size: 0.79rem; }
-  .facts div { display: flex; gap: 7px; align-items: baseline; }
-  .facts span.k { color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.72rem; }
-
-  .cols { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr); gap: 30px; align-items: start; }
-  .cols > * { min-width: 0; }
-  @media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-
-  .stack { display: flex; flex-direction: column; gap: 22px; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    padding: 22px 24px;
-  }
-  .card > * + * { margin-top: 14px; }
-  h2 { font-size: 1.24rem; letter-spacing: -0.005em; }
-  h3 { font-size: 1.03rem; }
-  p, li { color: var(--ink-soft); }
-  .card p strong, .card li strong { color: var(--ink); }
-
-  .tbl-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
-  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  th { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 500; }
-  tbody tr:last-child td { border-bottom: none; }
-  td.what { color: var(--ink); }
-  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.87em; }
-
-  .pill {
-    display: inline-block; font-family: var(--mono); font-size: 0.7rem; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 2px;
-    white-space: nowrap;
-  }
-  .pill.ok { color: var(--pass); background: color-mix(in srgb, var(--pass) 12%, transparent); }
-  .pill.no { color: var(--fail); background: color-mix(in srgb, var(--fail) 14%, transparent); }
-  .pill.na { color: var(--muted); background: var(--surface-sunk); }
-  .pill.hold { color: var(--hold); background: color-mix(in srgb, var(--hold) 16%, transparent); }
-
-  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
-  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
-    outline: 2px solid var(--accent); outline-offset: 2px;
-  }
-
-  ul.bul { display: flex; flex-direction: column; gap: 9px; }
-  ul.bul > li { padding-left: 17px; position: relative; }
-  ul.bul > li::before { content: ""; position: absolute; left: 2px; top: 0.66em; width: 5px; height: 5px; background: var(--rule-firm); border-radius: 50%; }
-
-  ol.commits { display: flex; flex-direction: column; gap: 7px; font-size: 0.93rem; }
-  ol.commits li { display: flex; gap: 11px; align-items: baseline; }
-  ol.commits a.sha { font-family: var(--mono); font-size: 0.78rem; flex: none; }
-
-  figure { margin-top: 16px; }
-  figure img { border: 1px solid var(--rule-firm); border-radius: 3px; }
-  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 8px; font-style: italic; }
-
-  .item { border-left: 3px solid var(--accent); }
-  .item h3 { color: var(--ink); }
-  .opts { display: flex; flex-direction: column; gap: 2px; margin-top: 12px; }
-  .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 9px 10px; border-radius: 3px; }
-  .opt:hover { background: var(--surface-sunk); }
-  .opt input[type=radio] { margin-top: 5px; accent-color: var(--accent); }
-  .opt label { cursor: pointer; }
-  .opt .lab { color: var(--ink); }
-  .rec { font-family: var(--mono); font-size: 0.66rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); background: var(--accent-soft); padding: 2px 6px; border-radius: 2px; margin-left: 7px; white-space: nowrap; }
-  .fx { display: block; color: var(--muted); font-size: 0.86rem; font-style: italic; margin-top: 3px; }
-  .lc { display: flex; gap: 6px; align-items: center; font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); white-space: nowrap; }
-  .lc input { accent-color: var(--accent); }
-  .other-in { width: 100%; margin-top: 5px; background: var(--surface-sunk); border: 1px solid var(--rule); border-radius: 3px; padding: 5px 8px; font-size: 0.92rem; }
-  .notes { width: 100%; margin-top: 12px; min-height: 54px; background: var(--surface-sunk); border: 1px solid var(--rule); border-radius: 3px; padding: 8px 10px; font-size: 0.92rem; resize: vertical; }
-  .notes-lab { display: block; font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 12px; }
-
-  .btn {
-    background: var(--accent); color: var(--surface); border: none; border-radius: 3px;
-    padding: 10px 20px; font-family: var(--mono); font-size: 0.8rem; font-weight: 600;
-    letter-spacing: 0.04em; text-transform: uppercase; cursor: pointer;
-  }
-  .btn:hover { filter: brightness(1.1); }
-  #payload { width: 100%; min-height: 150px; margin-top: 14px; font-family: var(--mono); font-size: 0.78rem; background: var(--surface-sunk); border: 1px solid var(--rule); border-radius: 3px; padding: 10px; resize: vertical; }
-  .copied { color: var(--pass); font-family: var(--mono); font-size: 0.76rem; margin-left: 12px; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  body { background: var(--ground); color: var(--ink); font: 15px/1.55 "Segoe UI", system-ui, sans-serif; padding: 2rem 1.2rem 4rem; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; line-height: 1.25; text-wrap: balance; }
+  h1 { font-size: 1.7rem; margin-bottom: .2rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 .8rem; }
+  h3 { font-size: 1rem; margin: .9rem 0 .35rem; }
+  .sub { color: var(--muted); margin-bottom: 1.6rem; }
+  .sub a { color: var(--accent-ink); }
+  .wrap { max-width: 1280px; margin: 0 auto; }
+  .grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 1.2rem; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.1rem 1.25rem; margin-bottom: 1.2rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  .tablewrap { overflow-x: auto; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  .ok { color: var(--good); font-weight: 600; }
+  .fail { color: var(--bad); font-weight: 600; }
+  .na { color: var(--muted); }
+  .numeral { font-family: Consolas, monospace; font-variant-numeric: tabular-nums; }
+  a { color: var(--accent-ink); }
+  ul { padding-left: 1.2rem; margin: .4rem 0 .8rem; }
+  li { margin-bottom: .45rem; }
+  p { margin-bottom: .7rem; }
+  .decision { border-left: 3px solid var(--accent); }
+  .optrow { display: flex; align-items: baseline; gap: .5rem; padding: .3rem 0; }
+  .optrow label { flex: 1; }
+  .optrow .lc { margin-left: auto; white-space: nowrap; color: var(--muted); font-size: .85rem; }
+  .foot { color: var(--muted); font-size: .86rem; }
+  .rec { background: #e8f4f2; border-radius: 4px; padding: 0 .35rem; color: var(--accent-ink); font-size: .8rem; font-weight: 600; }
+  input[type=text], textarea { width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: .4rem .5rem; font: inherit; background: #fffdf9; }
+  textarea { min-height: 3.2rem; }
+  .notes { margin-top: .5rem; }
+  .notes label { font-size: .85rem; color: var(--muted); display: block; margin-bottom: .2rem; }
+  button { background: var(--accent); color: white; border: 0; border-radius: 6px; padding: .55rem 1.1rem; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { background: var(--accent-ink); }
+  #payload { margin-top: .7rem; font-family: Consolas, monospace; font-size: .82rem; min-height: 8rem; }
+  #copied { color: var(--good); font-weight: 600; margin-left: .8rem; visibility: hidden; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <h1>BL-16690 Preflight</h1>
+  <p class="sub">Minimum Bloom version for a collection, upgrading in place — branch
+    <a href="https://github.com/BloomBooks/BloomDesktop/tree/BL-16690-standard-update-path" target="_blank" rel="noopener">BL-16690-standard-update-path</a> ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213" target="_blank" rel="noopener">PR #8213</a> ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213/files" target="_blank" rel="noopener">files changed</a> ·
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16690" target="_blank" rel="noopener">BL-16690</a> ·
+    run of 19&nbsp;Aug&nbsp;2026, head <span class="numeral">4ee539da57</span></p>
 
-  <header class="masthead">
-    <h1>Minimum Version Upgrade Path</h1>
-    <p class="sub">Preflight for the half of BL-16690 that gets an older Bloom onto a newer one. The upgrade now runs through Bloom&rsquo;s ordinary update machinery and shows its progress in a dialog, instead of a private download path that showed nothing.</p>
-    <div class="facts">
-      <div><span class="k">branch</span> <a href="https://github.com/BloomBooks/BloomDesktop/tree/BL-16690-standard-update-path" target="_blank" rel="noopener">BL-16690-standard-update-path</a></div>
-      <div><span class="k">pr</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213" target="_blank" rel="noopener">#8213</a> <span class="pill hold">draft</span></div>
-      <div><span class="k">base</span> BL-16690-velopack-spike</div>
-      <div><span class="k">head</span> <a href="https://github.com/BloomBooks/BloomDesktop/commit/410ae8291785dcd0bbd240113fe45953c647a10b" target="_blank" rel="noopener">410ae829</a></div>
-      <div><span class="k">card</span> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16690" target="_blank" rel="noopener">BL-16690</a></div>
-      <div><span class="k">diff</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213/files" target="_blank" rel="noopener">7 files, C# only</a></div>
-    </div>
-  </header>
-
-  <div class="cols">
-
-    <!-- ================= LEFT: the record ================= -->
-    <div class="stack">
-
-      <section class="card">
-        <h2>Quality gates</h2>
-        <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Gate</th><th>Result</th><th>Detail</th></tr></thead>
-          <tbody>
-            <tr><td class="what">C# build</td><td><span class="pill ok">pass</span></td><td><span class="numeral">0</span> errors, no new warnings</td></tr>
-            <tr><td class="what">C# tests &mdash; full suite</td><td><span class="pill ok">pass</span></td><td><span class="numeral">2871 passed &middot; 1 failed &middot; 13 skipped</span> &mdash; the one failure is <code>SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code>, the opt-in Reading&nbsp;App&nbsp;Builder real-build test, which needs a toolchain this machine does not have. Same result on four consecutive runs.</td></tr>
-            <tr><td class="what">C# tests &mdash; fast gate</td><td><span class="pill ok">pass</span></td><td><span class="numeral">556 passed &middot; 3 skipped</span> across the Collection, TeamCollection and update fixtures; run after every commit</td></tr>
-            <tr><td class="what">TypeScript tests (vitest)</td><td><span class="pill na">not run</span></td><td>No front-end files in the final diff. The branch changed <code>BloomMessageBox.tsx</code> mid-way and then reverted it, so it nets to zero against the base.</td></tr>
-            <tr><td class="what">TypeScript typecheck &amp; eslint</td><td><span class="pill na">not run</span></td><td>Same reason. Both were run and were clean while the front-end change existed.</td></tr>
-            <tr><td class="what">Formatting (csharpier)</td><td><span class="pill ok">pass</span></td><td>Applied to every touched file; the pre-commit hook agrees</td></tr>
-            <tr><td class="what">Merge with base</td><td><span class="pill ok">clean</span></td><td><code>origin/BL-16690-velopack-spike</code> already up to date, and it is still level with <code>origin/BL-16691</code> beneath it</td></tr>
-          </tbody>
-        </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Reviewers</h2>
-        <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
-          <tbody>
-            <tr>
-              <td class="what">Local review<br><span class="numeral" style="color:var(--muted)">light, inline</span></td>
-              <td><span class="pill ok">complete</span></td>
-              <td><strong>1 raised, 1 fixed.</strong> Reading the diff turned up that with <code>Quiet</code> verbosity &mdash; which is what this route asks for &mdash; a failure to reach the update server was worked out but never shown, so an <strong>offline user got an empty dialog</strong>. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/a2ba3295d640d72fb7bcebbe6cf0d8f97a4276b8" target="_blank" rel="noopener">a2ba3295</a>. Done inline rather than by sub-agent, because this session is instructed not to spawn agents.</td>
-            </tr>
-            <tr>
-              <td class="what">Devin<br><span class="numeral" style="color:var(--muted)">5 rounds</span></td>
-              <td><span class="pill ok">complete</span></td>
-              <td><strong>21 bugs raised across thirteen rounds, 0 open at this commit</strong>, plus investigate flags and informational items. Two were severe enough to have shipped &mdash; see below. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8213" target="_blank" rel="noopener">Review page</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213#issuecomment-5324548087" target="_blank" rel="noopener">consultation log</a>. Three flags are left open as threads and are the first three decisions opposite.</td>
-            </tr>
-            <tr>
-              <td class="what">CodeRabbit</td>
-              <td><span class="pill na">n/a</span></td>
-              <td>Installed but switched off for this repo: <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review unless asked by hand.</td>
-            </tr>
-            <tr>
-              <td class="what">CI</td>
-              <td><span class="pill ok">complete</span></td>
-              <td>Both checks green &mdash; <code>pr-automation</code> (which is also what triggers Devin) and <code>track / set-waiting</code>. This repo runs no test job on PRs, which is why the suites above were run locally.</td>
-            </tr>
-          </tbody>
-        </table>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>The two that would have shipped</h2>
-        <p><strong>Every collection would have failed to open.</strong> Moving <code>ProgressDialogApi</code> up to the application container was right, but <code>ProjectContext</code> went on registering it too. I told you that was harmless because a second registration would overwrite the first. It does not: <a href="https://github.com/BloomBooks/BloomDesktop/blob/410ae8291785dcd0bbd240113fe45953c647a10b/src/BloomExe/web/BloomApiHandler.cs#L140" target="_blank" rel="noopener"><code>RegisterEndpointHandler</code></a> does a <code>Dictionary.Add</code>, which throws on a duplicate key, and application-level registrations are deliberately never cleared between collections, so the duplicate never went away. I had generalised from a different method. Devin caught it; I put the duplicate back to be sure, and got this:</p>
-        <figure>
-          <img src="data:image/png;base64,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AKAi3n8FKgIYNgAAAICKeP8VqAhg2AAAAAAq4v1XoCKAYQMAAACoiPdfgYpAVcNmvwWpnxDZW3j00UebH/a130nzP8c0SOxt9d/rO4y6/eRJDfJj532E79JbGr3afCmobfSTUPp/fi53+/khEf3UzmKJfn5rrdLWris1buU/w6bvYvzYxz6Wdu7c6XdbEjqG+kDUt2DvxvuvQEWgqmHTD53rd8GuuOIKv6lvVnIyztHv5+l39DSYDIJha6sX/Xiwfs9PP6A8yOjLaX/72992fntQ0t/68ej8d2TbBnnRVhfLTX7svI9g2JZGrzZfChi2PUevc89vb2vXlRq39EXZ+v3KW265pWlf/Y7mnv7ibAzb2sX7r0BFoKph25P4E34QGHTDthrQj20fdthhzY/aP/jgg80AKW3ZsiUdc8wxzY8kax/RNsiLlayLbsfGsC2NXm2+FDBse45u/d/w25ezXZ8tPo/LAYZt7eL9V6AiUNWw+YFPJ4NOVMMbHv2Oo1bktMKi/1922WXNbzwqDVt50d/RYPn444+nj3/8480+L3rRizo/K2QT5oknnphe9apXNdvf//73p02bNqXPf/7znf1/9atfNbewhIyD9tG2F77whc2PgGuZXuSDrs9/jh+QfF3cddddi/oZJB335z//ebOP9tVn9FlLr61e/DFlfI488shmyV9S+bdv395zW6+y6LPHHnts57Pf/e53OytjbemqvF/96lfTT37yk7Dsiqnu1TZC+Tj88MO7tls+4Cqm/qQrZu2r/1911VWdtHttVzpf+cpXOv1Afefyyy9vjqfjKqZ8mJnMj533kW79T/3V9lWZpDe84Q3N/r36X77/mWee2fTBhx9+uNmuOvv0pz+dvva1r3XqRfQqr09X+VAeLR8HHHBAOv744zvb2vA/8eXb6Nvf/nb63Oc+16lX5ctQ39axtO3d7353OImOj483Jj8fS4477rim3NaPzj333PSOd7wj7dixo7V/Gv0YtgMPPLApk7Vn3g9UznXr1i1o60ceeaTZ5scOpfODH/yg05+OPvrowswpvS984QtNfVnZdDGj/OnOhWK//vWvO8d75zvfme65557O53uNuTm92jsaYx977LHWcajbOKU8qb3UFmqT/Fz29d9vn/niF7/YqWedNzp/dB5p+4c+9KFOexhmoiyP++yzT1M/1vfUtqoX3S5V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" alt="A Bloom dialog headed &ldquo;Bloom had a problem&rdquo;, reading: Bloom had a problem loading the BL-16690 Normal collection. Click the Report button or just email us at issues@bloomlibrary.org, and we&rsquo;ll help you get things fixed up.">
-          <figcaption>Reproduced deliberately: with the duplicate registration, any ordinary collection ends here. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/8870d7af3ad8e1c5e279ad220d6c564d8e15960d" target="_blank" rel="noopener">8870d7af</a>.</figcaption>
-        </figure>
-        <p style="margin-top:18px">My live testing could never have found it, and that is the part worth remembering: the collection I was testing with is one Bloom deliberately <em>refuses</em> to open, so no <code>ProjectContext</code> was ever built. The feature under test was hiding the damage the feature was doing.</p>
-        <p><strong>The Team Collection lock-out made Bloom quit.</strong> This dialog is also reached mid-session, when a repository starts demanding a newer Bloom while a member has the collection open &mdash; and there the websocket server already exists and holds its port. Starting a second one throws, and <code>Init</code> answers a <code>SocketException</code> by announcing that Bloom &ldquo;cannot start properly&rdquo; and quitting. The <code>WorkspaceView</code> precedent I was copying guards exactly this; I quoted the guard and then left it out. Fixed, and then fixed properly in <a href="https://github.com/BloomBooks/BloomDesktop/commit/41ac07aec4aa25f8f5eab2f7c90f40a8c0fc5dcd" target="_blank" rel="noopener">41ac07ae</a> once Devin pointed out that <code>Instance</code> was never cleared on <a href="https://github.com/BloomBooks/BloomDesktop/blob/410ae8291785dcd0bbd240113fe45953c647a10b/src/BloomExe/web/BloomWebSocketServer.cs#L355" target="_blank" rel="noopener">Dispose</a>, so the check could be satisfied by a dead server.</p>
-      </section>
-
-      <section class="card">
-        <h2>Verified in a real Bloom</h2>
-        <p>Driven over the browser&rsquo;s debug protocol, with no synthesised mouse or keyboard: a copy of the installed Beta with this branch&rsquo;s binaries laid over it, so it reports channel <strong>Beta</strong> and really updates.</p>
-        <ul class="bul">
-          <li><strong>A real upgrade, 6.4.105 &rarr; 6.4.108.</strong> Gate refuses the collection &rarr; <em>Upgrade Bloom</em> &rarr; progress dialog within a second &rarr; bar moves 0&ndash;100 over about 13&nbsp;s &rarr; closing message &rarr; <em>Close</em> &rarr; Bloom quits, <code>Update.exe</code> installs, Bloom returns on its own after about 25&nbsp;s.</li>
-          <li><strong>An ordinary collection opens normally</strong> on the same build &mdash; the regression test for the bug above, run before and after the fix.</li>
-          <li><strong>One window, always in front.</strong> Enumerating top-level windows in z-order showed exactly one visible Bloom window at every moment, and it was the foreground window each time.</li>
-          <li><strong>Not verified live:</strong> the offline path, and the mid-session Team Collection lock-out. Both are reasoned and reviewed; neither is exercised.</li>
-        </ul>
-        <figure>
-          <img src="data:image/png;base64,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" alt="A dialog titled Upgrade Bloom, showing two lines of progress text — Downloading update to 6.4.108 (88415K), and Bloom 6.4.108 has been downloaded. Bloom will now close, install it, and start up again — with a full progress bar reading 100% and a Close button.">
-          <figcaption>The dialog at the end of a real upgrade. Both sentences are the ones the update toasts already say; nothing here is a new string.</figcaption>
-        </figure>
-      </section>
-
-      <section class="card">
-        <h2>What changed this run</h2>
-        <ol class="commits">
-          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/9f829fcf4d1a92adaee0e140689c03a39ed464a0" target="_blank" rel="noopener">9f829fcf</a> <span>upgrade Bloom through the normal update path, in a progress dialog</span></li>
-          <li><a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/410ae8291785dcd0bbd240113fe45953c647a10b" target="_blank" rel="noopener">410ae829</a> <span>join an update already in flight instead of refusing to help</span></li>
-        </ol>
-        <p style="margin-top:14px;font-size:0.92rem">Squashed from thirteen, at Andrew&rsquo;s instruction, once the decisions below were folded in. The second commit is deliberately separate, so the shared-attempt work can be read on its own. The thirteen told an honest story of a design that moved twice &mdash; including a change and its own revert, twice over &mdash; but the branch is one coherent change and now reads as one. The full sequence is preserved in the PR&rsquo;s conversation and in Devin&rsquo;s five review rounds.</p>
-        <p style="margin-top:16px">The shape of it: every sentence the update code says now has one definition, and where it goes is an <a href="https://github.com/BloomBooks/BloomDesktop/blob/410ae8291785dcd0bbd240113fe45953c647a10b/src/BloomExe/UpdateReporter.cs" target="_blank" rel="noopener"><code>UpdateReporter</code></a>. <code>ToastUpdateReporter</code> is the default and behaves exactly as before; <code>ProgressUpdateReporter</code> writes the same sentences into a dialog and carries the outcome back, which is what the old callback did. That deletion is most of the diff.</p>
-      </section>
-
-      <section class="card">
-        <h2>Notes from the run</h2>
-        <ul class="bul">
-          <li><strong>Bot fix cycles ran past preflight&rsquo;s cap of four.</strong> Devin kept finding real defects in each round of fixes, twice in a guard written the commit before. Six rounds in all; the last was a reversion rather than another attempt.</li>
-          <li><strong>I posted the PR link to the card even though a link was already there.</strong> The existing one was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8206" target="_blank" rel="noopener">#8206</a>, which is BL-16691&rsquo;s PR and this branch&rsquo;s base &mdash; not this work. Preflight&rsquo;s rule says post only if no PR link exists; I read that as guarding against duplicates of the <em>same</em> PR, and said so in the comment.</li>
-          <li><strong>I had introduced an encoding fault of my own:</strong> an em dash mojibaked to <code>&acirc;&#8364;&rdquo;</code> and a UTF-8 BOM added to <code>ApplicationUpdateSupport.cs</code>. Devin flagged it; both are restored, and no other file was touched.</li>
-          <li>The three earlier full-suite runs that reported 4 and then 124 failures were parallel-worktree collisions over shared temp folders, not this branch. Run alone, the suite gives the same single opt-in failure every time.</li>
-        </ul>
-      </section>
-
+  <div class="grid">
+  <div>
+    <div class="card">
+      <h2>Quality gates</h2>
+      <div class="tablewrap"><table>
+        <tr><th>Gate</th><th>Result</th><th>Detail</th></tr>
+        <tr><td>C# build</td><td class="ok">pass</td><td><span class="numeral">0</span> errors (warnings pre-existing)</td></tr>
+        <tr><td>C# tests (full)</td><td class="ok">pass*</td><td><span class="numeral">2871 passed · 13 skipped · 1 failed</span> — the failure is <code>RabRealBuildTests</code>, an opt-in verification against an installed Reading App Builder; environmental, in a fixture this diff never touches</td></tr>
+        <tr><td>TypeScript tests</td><td class="na">not run</td><td>no front-end files in the diff (0 of 19 files under BloomBrowserUI); C#-and-XLF only</td></tr>
+        <tr><td>Typecheck / lint</td><td class="na">n/a</td><td>C#-only diff; the compiler is the typechecker, csharpier ran via hooks</td></tr>
+        <tr><td>Base integration</td><td class="ok">clean</td><td>based directly on current <code>Version6.4</code> (<span class="numeral">840ae3638d</span>); nothing to merge</td></tr>
+      </table></div>
     </div>
 
-    <!-- ================= RIGHT: decisions ================= -->
-    <div class="stack">
+    <div class="card">
+      <h2>What changed this run</h2>
+      <p>The branch is now <strong>two commits</strong> on Version6.4, and <strong>one PR</strong>:</p>
+      <ul>
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/cbc0cb5876" target="_blank" rel="noopener"><span class="numeral">cbc0cb5876</span></a> — the gate: reading and honoring <code>MinimumBloomVersion</code>, Team Collection integration, the startup funnel. (Formerly PR #8206.)</li>
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/4ee539da57a001b06014f081c694ab5c2ac586d1" target="_blank" rel="noopener"><span class="numeral">4ee539da57</span></a> — the upgrade path, squashed from this session's work: the UpdateReporter split, the progress dialog, real cancel, waiting out an in-flight check with its live percentage, auto-close-and-restart on success, dead-code notes on the all-users branches, and the string audit (two new entries replaced by existing translated strings, one deleted with the Close pause; five new entries remain).</li>
+      </ul>
+      <p>Housekeeping: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8206" target="_blank" rel="noopener">#8206</a> closed as superseded; #8213 re-based onto <code>Version6.4</code> with a rewritten body; the <code>BL-16690-velopack-spike</code> branch is now referenced by nothing (decision 3).</p>
+      <h3>Verified live this session (real Velopack feed, 6.4.105 → 6.4.108)</h3>
+      <ul>
+        <li>Upgrade end-to-end with self-restart and no clicks after <em>Upgrade Bloom</em>; cancel mid-download leaving nothing installed; nothing-newer; offline (dead per-process proxy).</li>
+        <li>The startup gate reading a Team Collection repository's settings; the mid-session lock-out; upgrading when the background download had already finished.</li>
+        <li>Waiting out an in-flight background download with its live percentage (24→100%), and cancelling during that wait — the background download completed unharmed.</li>
+      </ul>
+      <p class="foot">Not exercisable here: a network share vanishing between lock-out and reopening (the session-memory fallback), and the two-hour cap on a wedged download.</p>
+    </div>
 
-      <section class="card" style="border-left:3px solid var(--pass)">
-        <h2>Answered &mdash; and acted on</h2>
-        <p>Andrew answered all eleven on 19 August. Everything below is kept as the record of what was asked; this is where it landed.</p>
-        <div class="tbl-scroll">
-        <table>
-          <thead><tr><th>Item</th><th>Outcome</th></tr></thead>
-          <tbody>
-            <tr><td class="what">1 &middot; Cancel</td><td><strong>Made real.</strong> &ldquo;Definitely can&rsquo;t have a button which doesn&rsquo;t cancel.&rdquo; Velopack now gets a cancellation token and abandons the transfer; nothing downloads, nothing installs. Verified against a real download, including a graceful exit afterwards to prove no install was arranged.</td></tr>
-            <tr><td class="what">2 &middot; No notification after a cancel</td><td><strong>Moot.</strong> There is no longer a download left running to announce itself.</td></tr>
-            <tr><td class="what">3 &middot; Already-checking case</td><td><strong>Implemented</strong>, in a second commit. A caller now joins the attempt already running instead of being turned away: same messages, same percentage, and Cancel stops it. What decided it was bandwidth, not frequency &mdash; twelve seconds of exposure here, but over twenty minutes at 500&nbsp;kbit/s, and those are the users a lock-out hurts most. Devin found <strong>seven</strong> defects in that work, two of which would have broken Bloom; all fixed.</td></tr>
-            <tr><td class="what">4 &middot; The warning icon</td><td><strong>Stopped asking for one.</strong> Nothing in BL-16690 calls for it, and there is no way to request a warning icon that currently works &mdash; so the request is gone and the gap is documented where the conversion happens. No visual change: none was ever drawn.</td></tr>
-            <tr><td class="what">5 &middot; NothingNewerAvailable</td><td><strong>Shortened, entry kept.</strong></td></tr>
-            <tr><td class="what">6 &middot; Dead code</td><td><strong>Deleted.</strong></td></tr>
-            <tr><td class="what">7 &middot; Two-hour backstop</td><td><strong>Kept</strong>, with the decision recorded as a code comment.</td></tr>
-            <tr><td class="what">8 &middot; Offline path unverified</td><td><span class="pill hold">still open</span> To be verified before this PR is called ready for review.</td></tr>
-            <tr><td class="what">9 &middot; Dialog ceremony</td><td><strong>Kept as is.</strong></td></tr>
-            <tr><td class="what">10 &middot; History</td><td><strong>Squashed to one commit.</strong></td></tr>
-            <tr><td class="what">Follow-on from 1</td><td>Devin found two more once Cancel was made real, both fixed. A cancel landing in the same instant the transfer completed still left an install arranged for the next exit, because the await returned normally instead of throwing. And clearing the shared websocket reference on shutdown could turn a book upload finishing as a collection closed into a crash &mdash; two call sites were relying on it pointing at a disposed-but-non-null server.</td></tr>
-            <tr><td class="what">11 &middot; Wait handle</td><td><strong>Left undisposed</strong>, with the decision recorded as a code comment. Not revisited, since Cancel was implemented.</td></tr>
-          </tbody>
-        </table>
-        </div>
-      </section>
-
-      <section class="card item">
-        <h3>1. Cancel keeps downloading, and installs on exit</h3>
-        <p>Press <strong>Cancel</strong> during the download and the dialog closes, but Velopack carries on, and the exit handler still applies the update the next time Bloom quits &mdash; possibly hours later, after the user has worked in a different collection. The comments call this deliberate, on the grounds that it is what an ordinary background update does. That is true; it is also true that here the user made an explicit choice and watched it be ignored.</p>
-        <div class="opts" data-q="1. Cancel keeps downloading and installs on exit">
-          <label class="opt"><input type="radio" name="q1" value="Pass Velopack a CancellationToken so Cancel really abandons the download" checked><span class="lab">Pass Velopack a CancellationToken so Cancel really abandons the download<span class="rec">recommended</span><span class="fx">Moderate &mdash; threads a token through two signatures in shared update code. Recommended because a button labelled Cancel that does not cancel is the kind of thing users learn to distrust, and Velopack already takes the token.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q1" value="Keep downloading, but do not install on exit unless asked"><span class="lab">Keep downloading, but do not install on exit unless asked<span class="fx">Riskier than it sounds &mdash; gating that exit handler is the same machinery every ordinary background update relies on.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q1" value="Leave as is"><span class="lab">Leave as is</span><span class="lc"><input type="checkbox" data-lc="1. Cancel keeps downloading and installs on exit"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q1" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="1. Cancel keeps downloading and installs on exit" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="1. Cancel keeps downloading and installs on exit"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>2. After a cancel, the finished download says nothing</h3>
-        <p>Cancel, and the download keeps the progress reporter attached. When it lands, the update code offers a restart &mdash; but this reporter&rsquo;s offer is deliberately silent (so the dialog would not say the same thing twice) and there is no restart action on this path. So the user never sees the usual <em>&ldquo;Update for 6.4.108 is ready / Restart Bloom to Update&rdquo;</em> notification, even though by then the workspace is up and could show it. Note this becomes moot if you take option 1 above, since there would be no download left to finish.</p>
-        <div class="opts" data-q="2. After a cancel, the finished download says nothing">
-          <label class="opt"><input type="radio" name="q2" value="Hand the update code a toast reporter once our dialog closes" checked><span class="lab">Hand the update code a toast reporter once our dialog closes<span class="rec">recommended</span><span class="fx">Small &mdash; swap the reporter when a cancel is seen. Recommended because it restores exactly what the ordinary route would have given, in a workspace that can now show it.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q2" value="Leave as is"><span class="lab">Leave as is</span><span class="lc"><input type="checkbox" data-lc="2. After a cancel, the finished download says nothing"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q2" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="2. After a cancel, the finished download says nothing" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="2. After a cancel, the finished download says nothing"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>3. &ldquo;Bloom is already working on checking for updates&rdquo;</h3>
-        <p>On the mid-session lock-out, Bloom&rsquo;s own background check may already be running &mdash; likely, since automatic updating is on by default. Then the status guard reports a failure, so clicking <em>Upgrade Bloom</em> puts that sentence in the dialog and drops the user at the collection chooser, even though the upgrade they asked for is in fact under way. Not a regression &mdash; the private download path this PR deletes did the same &mdash; but it is the one common case where the button cannot do what it promises.</p>
-        <div class="opts" data-q="3. Already-checking case drops the user at the chooser">
-          <label class="opt"><input type="radio" name="q3" value="Wait for the in-flight attempt and adopt its outcome"><span class="lab">Wait for the in-flight attempt and adopt its outcome<span class="fx">Moderate &mdash; the update code would have to let two listeners share one attempt. The reporter split makes it feasible, but it is new behaviour in shared code.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q3" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="3. Already-checking case drops the user at the chooser"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q3" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="3. Already-checking case drops the user at the chooser" placeholder="your answer"></span><span></span></label>
-        </div>
-        <p style="font-size:0.9rem;margin-top:10px">Leaving it alone is recommended because the in-flight check will finish and offer the update by toast anyway, so the user does get there &mdash; just not through this button.</p>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="3. Already-checking case drops the user at the chooser"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>4. The warning icon never appears</h3>
-        <p>The gate dialog asks for <code>MessageBoxIcon.Warning</code>, and no icon is drawn. <code>Warning</code> and <code>Exclamation</code> are the same value in .NET, so the name that reaches the front end is <code>&quot;exclamation&quot;</code>, and the dialog only knows <code>&quot;warning&quot;</code> and <code>&quot;asterisk&quot;</code>. Measured live: zero icons rendered. This predates the branch and affects every <code>BloomMessageBox</code> that asks for a warning, not just ours.</p>
-        <div class="opts" data-q="4. The warning icon never appears">
-          <label class="opt"><input type="radio" name="q4" value="Map Exclamation to warning in BloomMessageBox.Show" checked><span class="lab">Map Exclamation to &ldquo;warning&rdquo; in <code>BloomMessageBox.Show</code><span class="rec">recommended</span><span class="fx">One line of C#, no front-end change. Recommended because it fixes it for every caller, and keeps this branch free of TypeScript.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q4" value="Handle exclamation in BloomMessageBox.tsx"><span class="lab">Handle <code>&quot;exclamation&quot;</code> in <code>BloomMessageBox.tsx</code><span class="fx">One line of TypeScript &mdash; but re-introduces a front-end change to a branch that currently has none, and so a vitest run.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q4" value="Stop passing an icon at all"><span class="lab">Stop passing an icon at all<span class="fx">One line; makes the code honest about what the user actually sees today.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q4" value="Leave as is"><span class="lab">Leave as is</span><span class="lc"><input type="checkbox" data-lc="4. The warning icon never appears"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q4" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="4. The warning icon never appears" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="4. The warning icon never appears"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>5. <code>Collection.NothingNewerAvailable</code></h3>
-        <p>You asked whether this needs localizing, on the grounds that it should be rare. I do not think it is rare &mdash; I think it is the most likely of the endings. <code>AutoUpdate</code> defaults to true, so most users already sit at the head of their channel, which is exactly when the update code finds nothing newer; the <em>Downloaded</em> path is the one needing a coincidence. And in the scenario the flag exists for &mdash; a lead on 6.6 setting the minimum while the team is on Release 6.5 &mdash; every member sees this message, on every launch, until 6.6 ships. Worth knowing either way: all six of these strings are <code>translate=&quot;no&quot;</code> today, so nothing is being translated yet regardless.</p>
-        <div class="opts" data-q="5. Collection.NothingNewerAvailable">
-          <label class="opt"><input type="radio" name="q5" value="Shorten it and keep the XLF entry" checked><span class="lab">Shorten it and keep the XLF entry<span class="rec">recommended</span><span class="fx">One string edit. Suggested wording: &ldquo;This collection needs Bloom {0}, but you already have the newest Bloom available to you.&rdquo; Recommended because it is the longest of the six and now appears as a line in a progress log.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q5" value="Remove the XLF entry, keep the English in code"><span class="lab">Remove the XLF entry, keep the English in code<span class="fx">One deletion, nothing visible changes. AGENTS.md allows this for a feature still this experimental.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q5" value="Leave as is"><span class="lab">Leave as is</span><span class="lc"><input type="checkbox" data-lc="5. Collection.NothingNewerAvailable"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q5" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="5. Collection.NothingNewerAvailable" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="5. Collection.NothingNewerAvailable"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>6. Dead code next to my new enum</h3>
-        <p><code>ApplicationUpdateSupport</code> still declares an <code>UpdateOutcome</code> enum and an <code>UpdateResult</code> class that nothing anywhere references. They predate this branch, but they now sit a few lines from the <code>UpdateAttemptOutcome</code> I added, which is a genuine invitation to reach for the wrong one.</p>
-        <div class="opts" data-q="6. Dead UpdateOutcome / UpdateResult">
-          <label class="opt"><input type="radio" name="q6" value="Delete them" checked><span class="lab">Delete them<span class="rec">recommended</span><span class="fx">About twelve lines removed, no references to update. Recommended purely to remove the near-miss with the new name.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q6" value="Leave as is"><span class="lab">Leave as is</span><span class="lc"><input type="checkbox" data-lc="6. Dead UpdateOutcome / UpdateResult"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q6" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="6. Dead UpdateOutcome / UpdateResult" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="6. Dead UpdateOutcome / UpdateResult"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>7. The two-hour backstop</h3>
-        <p>If the update never reports back, the dialog gives up after two hours. The number is not a judgement about how long an upgrade takes &mdash; it is 86&nbsp;MB, and some users are on links where that really does take hours, which is what Cancel is for. It is only there so a download that has genuinely wedged cannot leave someone with a progress dialog, no collection, and no way out of Bloom.</p>
-        <div class="opts" data-q="7. The two-hour backstop">
-          <label class="opt"><input type="radio" name="q7" value="Shorten it to 30 minutes"><span class="lab">Shorten it to 30 minutes<span class="fx">One constant. Risks abandoning a slow but healthy download.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q7" value="Remove it and rely on Cancel"><span class="lab">Remove it and rely on Cancel<span class="fx">One constant and the loop condition. Defensible, since Cancel is always available &mdash; it is only the wedged case that has no other exit.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q7" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="7. The two-hour backstop"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q7" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="7. The two-hour backstop" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="7. The two-hour backstop"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>8. The offline path is not exercised</h3>
-        <p>The fix that makes an offline user see an explanation rather than an empty dialog is reasoned and reviewed, but never run. Testing it honestly means denying the rig network access, which on this machine means a firewall rule scoped to that executable for the duration.</p>
-        <div class="opts" data-q="8. The offline path is not exercised">
-          <label class="opt"><input type="radio" name="q8" value="Verify it with a temporary firewall rule for the rig"><span class="lab">Verify it with a temporary firewall rule for the rig<span class="fx">About ten minutes, and it changes your machine&rsquo;s firewall for the duration &mdash; which is why I did not simply do it.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q8" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="8. The offline path is not exercised"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q8" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="8. The offline path is not exercised" placeholder="your answer"></span><span></span></label>
-        </div>
-        <p style="font-size:0.9rem;margin-top:10px">Recommended, because the change is three lines and the failure if it is wrong is a blank dialog, not damage.</p>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="8. The offline path is not exercised"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>9. Is the progress dialog too much ceremony?</h3>
-        <p>Your open question from before, now that there is a picture of it above. Having seen it, I would keep it: a title bar, a short message log and a bar for three sentences over about thirteen seconds is more furniture than the moment strictly needs, but it is the only window that reliably stays in front to report the ending, and it is a component the app already ships.</p>
-        <div class="opts" data-q="9. Progress dialog ceremony">
-          <label class="opt"><input type="radio" name="q9" value="Replace it with toasts in the message box"><span class="lab">Replace it with toasts in the message box<span class="fx">Smaller &mdash; mount ToastHost and the existing toasts appear. Gives up the progress bar, Cancel, and any window that stays in front to say how it ended.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q9" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="9. Progress dialog ceremony"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q9" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="9. Progress dialog ceremony" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="9. Progress dialog ceremony"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>10. The branch history contains a change and its own revert</h3>
-        <p>Commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/4e32274fda" target="_blank" rel="noopener">4e32274f</a> adds the keep-the-dialog-open machinery and <a href="https://github.com/BloomBooks/BloomDesktop/commit/d308299747" target="_blank" rel="noopener">d3082997</a> deletes it; the same happens again with the wait-handle disposal near the end. The final diff is unaffected &mdash; both net to nothing &mdash; but a reviewer reading commit by commit meets both.</p>
-        <div class="opts" data-q="10. Squash the branch history">
-          <label class="opt"><input type="radio" name="q10" value="Squash into a few coherent commits and force-push"><span class="lab">Squash into a few coherent commits and force-push<span class="fx">No code change, and needs your explicit go-ahead for the force-push.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q10" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="10. Squash the branch history"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q10" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="10. Squash the branch history" placeholder="your answer"></span><span></span></label>
-        </div>
-        <p style="font-size:0.9rem;margin-top:10px">Recommended because the diff a reviewer actually reads is clean, and the messages are an honest record of a design that moved twice for good reasons.</p>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="10. Squash the branch history"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>11. For information: an undisposed wait handle</h3>
-        <p>The reporter waits on a <code>ManualResetEventSlim</code>, which allocates a kernel handle, and it is deliberately never released. Three attempts at disposing it safely each had their own race, because there is no moment anyone can call the attempt over while a cancelled download may still signal it. So one handle leaks per upgrade the user asks for, in a process usually about to exit and reinstall itself, and the code says why.</p>
-        <div class="opts" data-q="11. Undisposed wait handle">
-          <label class="opt"><input type="radio" name="q11" value="Try again to dispose it safely"><span class="lab">Try again to dispose it safely<span class="fx">Would need the download to be cancellable first &mdash; which is decision 1, and if you take that option there this becomes easy.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="q11" value="Leave as is" checked><span class="lab">Leave as is<span class="rec">recommended</span></span><span class="lc"><input type="checkbox" data-lc="11. Undisposed wait handle"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="q11" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="11. Undisposed wait handle" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="11. Undisposed wait handle"></textarea>
-      </section>
-
-      <section class="card item">
-        <h3>Next step</h3>
-        <p>The PR stays a draft either way; nothing has been promoted for human review.</p>
-        <div class="opts" data-q="Next step">
-          <label class="opt"><input type="radio" name="qnext" value="Implement the choices above now" checked><span class="lab">Implement the choices above now<span class="rec">recommended</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="qnext" value="Discuss decisions 1 to 3 first"><span class="lab">Discuss decisions 1 to 3 first<span class="fx">They are one question really &mdash; what Cancel means &mdash; and it is a product call more than a code one.</span></span><span></span></label>
-          <label class="opt"><input type="radio" name="qnext" value="Leave as is"><span class="lab">Leave as is<span class="fx" style="font-style:normal">Nothing further for now.</span></span><span class="lc"><input type="checkbox" data-lc="Next step"> leave comment</span></label>
-          <label class="opt"><input type="radio" name="qnext" value="Other"><span class="lab">Other:<input class="other-in" type="text" data-other="Next step" placeholder="your answer"></span><span></span></label>
-        </div>
-        <span class="notes-lab">notes</span>
-        <textarea class="notes" data-notes="Next step"></textarea>
-      </section>
-
-      <section class="card">
-        <h2>Send your answers back</h2>
-        <p>Copy this and paste it into the session.</p>
-        <button class="btn" id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>copied</span>
-        <textarea id="payload" readonly></textarea>
-      </section>
-
+    <div class="card">
+      <h2>Reviewers</h2>
+      <div class="tablewrap"><table>
+        <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
+        <tr><td>Local review</td><td class="ok">clean</td><td>light sub-agent pass over the squashed commit; chased Instance-disposal, reporter lifecycle, cancel wiring, registration, threading — no findings; one edge weighed and set aside (the cancel-vs-finish sliver, decision 1)</td></tr>
+        <tr><td>Devin (round 1)</td><td class="ok">complete</td><td>on <span class="numeral">d291122539</span>: 1 non-severe bug — the same cancel-vs-finish sliver — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213#discussion_r3817509706" target="_blank" rel="noopener">mirrored, answered, resolved</a>; 6 informational flags: 3 acted on (two stale comments fixed, dead <code>FailureMessage</code> removed), 1 factually wrong (<code>ParseOrNull</code> is still used by <code>MoreDemandingOf</code>), 2 deliberate (shared XLF id; null-safe sends, decision 4)</td></tr>
+        <tr><td>Devin (round 2)</td><td class="ok">complete</td><td>on the final <span class="numeral">4ee539da57</span>: 0 bugs; 1 Investigate flag — the repo’s empty answer lifting a local requirement — confirmed as the intended lift-a-requirement design, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213#discussion_r3817570229" target="_blank" rel="noopener">answered and resolved</a>; 5 informational flags describing pre-existing behavior or rare cosmetics, none introduced by this PR. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8213#issuecomment-5349366833" target="_blank" rel="noopener">Consultation log</a></td></tr>
+        <tr><td>CI</td><td class="ok">green</td><td><a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/32313651672" target="_blank" rel="noopener">pr-automation</a> and track both pass on <span class="numeral">4ee539da57</span></td></tr>
+      </table></div>
+      <p class="foot">The gate commit's content was Devin-reviewed across many rounds as #8206; the rebase preserved its patch byte-for-byte (range-diff verified), so those reviews stand. Devin review page: <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8213" target="_blank" rel="noopener">devinreview.com/…/pull/8213</a>.</p>
     </div>
   </div>
+
+  <div>
+    <div class="card decision">
+      <h2>1 · Cancel at the very last instant can still install on exit</h2>
+      <p>Both reviewers landed on the same sliver: if the user's <strong>Cancel</strong> click arrives in the same instant the download finishes, Bloom correctly refuses to restart — but the install-on-exit handler may already be registered, so the update quietly installs whenever Bloom is eventually closed. The window is sub-second; the effect is identical to ordinary background auto-update behavior; and it is documented in the code as a reviewed decision. It contradicts the strict reading of "Cancel means cancel," which is why it gets one more airing here.</p>
+      <div class="optrow"><input type="radio" name="q1" id="q1a" value="Harden: let a losing cancel disarm the already-registered install-on-exit"><label for="q1a">Harden it: a flag the exit handler checks, set when a cancel loses the race <span class="foot">(~15 lines, low risk, closes the sliver completely)</span></label></div>
+      <div class="optrow"><input type="radio" name="q1" id="q1b" value="Leave as is" checked><label for="q1b">Leave as is <span class="rec">recommended — sub-second window, effect is standard auto-update install, already documented in code and answered on the PR thread</span></label><span class="lc"><input type="checkbox" id="q1lc"> <label for="q1lc">Leave comment</label></span></div>
+      <div class="optrow"><input type="radio" name="q1" id="q1c" value="Other"><label for="q1c">Other: <input type="text" id="q1other"></label></div>
+      <div class="notes"><label for="q1notes">Notes</label><textarea id="q1notes"></textarea></div>
+    </div>
+
+    <div class="card decision">
+      <h2>2 · One more string could be reused</h2>
+      <p>From the string audit: the gate dialog's <strong>"Open a Different Collection"</strong> button is a new entry, but the existing, already-translated <code>CollectionTab.OpenCreateCollectionMenuItem</code> — <strong>"Open or Create Another Collection"</strong> — names the same action (both open the chooser, which does allow creating). Not changed autonomously because it is the most-seen wording in the feature and appeared in every screenshot you reviewed.</p>
+      <div class="optrow"><input type="radio" name="q2" id="q2a" value="Reuse the existing translated string"><label for="q2a">Reuse "Open or Create Another Collection" <span class="foot">(~2 lines, deletes one XLF entry, string is already translated in many languages)</span></label></div>
+      <div class="optrow"><input type="radio" name="q2" id="q2b" value="Leave as is" checked><label for="q2b">Leave as is <span class="rec">recommended — the shorter label reads better on a button, and in the lock-out context "create" is beside the point</span></label><span class="lc"><input type="checkbox" id="q2lc"> <label for="q2lc">Leave comment</label></span></div>
+      <div class="optrow"><input type="radio" name="q2" id="q2c" value="Other"><label for="q2c">Other: <input type="text" id="q2other"></label></div>
+      <div class="notes"><label for="q2notes">Notes</label><textarea id="q2notes"></textarea></div>
+    </div>
+
+    <div class="card decision">
+      <h2>3 · The spike branch is now unused</h2>
+      <p><code>BL-16690-velopack-spike</code> on origin points at the gate commit and is referenced by nothing — #8206 is closed and #8213 bases on <code>Version6.4</code>. Deleting a remote branch is the one git operation this session doesn't do without your word.</p>
+      <div class="optrow"><input type="radio" name="q3" id="q3a" value="Delete the remote spike branch" checked><label for="q3a">Delete it <span class="rec">recommended — one command, recoverable from the closed PR's ref if ever needed</span> <span class="foot">(no code)</span></label></div>
+      <div class="optrow"><input type="radio" name="q3" id="q3b" value="Leave as is"><label for="q3b">Leave as is</label><span class="lc"><input type="checkbox" id="q3lc"> <label for="q3lc">Leave comment</label></span></div>
+      <div class="optrow"><input type="radio" name="q3" id="q3c" value="Other"><label for="q3c">Other: <input type="text" id="q3other"></label></div>
+      <div class="notes"><label for="q3notes">Notes</label><textarea id="q3notes"></textarea></div>
+    </div>
+
+    <div class="card decision">
+      <h2>4 · FYI: two null-safe sends vs. "fail fast"</h2>
+      <p>Devin (informational) noted that <code>BloomWebSocketServer.Instance?.SendEvent(…)</code> in BookUpload and EditingView turns a would-be crash into a silently dropped notification, which leans against AGENTS.md's fail-fast guidance. The code comments argue the case: <code>Instance</code> is now cleared on Dispose, so these fire only when an upload or download finishes as the collection is closing — losing that notification is the right failure; crashing a handled path is not. Leave as is unless you read it differently.</p>
+      <div class="optrow"><input type="radio" name="q4" id="q4b" value="Leave as is" checked><label for="q4b">Leave as is</label><span class="lc"><input type="checkbox" id="q4lc"> <label for="q4lc">Leave comment</label></span></div>
+      <div class="optrow"><input type="radio" name="q4" id="q4c" value="Other"><label for="q4c">Other: <input type="text" id="q4other"></label></div>
+      <div class="notes"><label for="q4notes">Notes</label><textarea id="q4notes"></textarea></div>
+    </div>
+
+    <div class="card decision">
+      <h2>5 · Next step</h2>
+      <div class="optrow"><input type="radio" name="q5" id="q5a" value="Implement my choices above now" checked><label for="q5a">Implement the choices above now</label></div>
+      <div class="optrow"><input type="radio" name="q5" id="q5b" value="Discuss first"><label for="q5b">Discuss first</label></div>
+      <div class="optrow"><input type="radio" name="q5" id="q5c" value="Other"><label for="q5c">Other: <input type="text" id="q5other"></label></div>
+      <div class="notes"><label for="q5notes">Notes</label><textarea id="q5notes"></textarea></div>
+    </div>
+
+    <div class="card">
+      <h2>Send your answers back</h2>
+      <p class="foot">Copies every selection and note as plain text to paste into the session.</p>
+      <p><button id="copybtn">Copy answers</button><span id="copied">copied ✓</span></p>
+      <textarea id="payload" readonly></textarea>
+    </div>
+  </div>
+  </div>
 </div>
-
 <script>
-(function () {
-  var payload = document.getElementById("payload");
-  var btn = document.getElementById("copyBtn");
-  var msg = document.getElementById("copiedMsg");
-
-  function build() {
-    var lines = ["Preflight answers - BL-16690 upgrade path (410ae829)", ""];
-    document.querySelectorAll(".opts").forEach(function (group) {
-      var q = group.getAttribute("data-q");
-      var picked = group.querySelector("input[type=radio]:checked");
-      if (!picked) return;
-      var answer = picked.value;
-      if (answer === "Other") {
-        var oi = group.querySelector("[data-other]");
-        answer = "Other: " + ((oi && oi.value.trim()) || "(not filled in)");
+  const QUESTIONS = [
+    { name: "q1", title: "1 Cancel-at-last-instant sliver" },
+    { name: "q2", title: "2 Open a Different Collection string" },
+    { name: "q3", title: "3 Spike branch" },
+    { name: "q4", title: "4 Null-safe sends (FYI)" },
+    { name: "q5", title: "5 Next step" },
+  ];
+  function serialize() {
+    const lines = ["BL-16690 preflight decisions (head 4ee539da57):", ""];
+    for (const q of QUESTIONS) {
+      const sel = document.querySelector(`input[name=${q.name}]:checked`);
+      let val = sel ? sel.value : "(no selection)";
+      if (val === "Other") {
+        const other = document.getElementById(q.name + "other");
+        val = "Other: " + (other && other.value ? other.value : "(blank)");
       }
-      lines.push(q + " -> " + answer);
-
-      var lc = group.querySelector("[data-lc]");
-      if (lc && lc.checked) lines.push("    Leave comment: yes - record this decision as a code comment");
-
-      var card = group.closest(".card");
-      var notes = card && card.querySelector("[data-notes]");
-      if (notes && notes.value.trim()) lines.push("    Notes: " + notes.value.trim().replace(/\n/g, "\n           "));
-      lines.push("");
-    });
-    payload.value = lines.join("\n");
-  }
-
-  document.addEventListener("input", build);
-  document.addEventListener("change", build);
-  build();
-
-  btn.addEventListener("click", function () {
-    build();
-    var done = function () { msg.hidden = false; setTimeout(function () { msg.hidden = true; }, 2500); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, fallback);
-    } else { fallback(); }
-    function fallback() {
-      payload.focus(); payload.select();
-      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is right there for Ctrl+C */ }
+      lines.push(q.title + " -> " + val);
+      const lc = document.getElementById(q.name + "lc");
+      if (lc && lc.checked) lines.push("   Leave comment in the code");
+      const notes = document.getElementById(q.name + "notes");
+      if (notes && notes.value.trim()) lines.push("   Notes: " + notes.value.trim());
     }
+    return lines.join("\n");
+  }
+  function refresh() { document.getElementById("payload").value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async () => {
+    const text = serialize();
+    const ta = document.getElementById("payload");
+    ta.value = text;
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) { ta.select(); document.execCommand("copy"); }
+    const c = document.getElementById("copied");
+    c.style.visibility = "visible";
+    setTimeout(() => (c.style.visibility = "hidden"), 2000);
   });
-})();
 </script>
 </body>
 </html>
