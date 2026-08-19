@@ -196,12 +196,13 @@
 <header>
   <div class="kicker">Preflight report &middot; BloomDesktop</div>
   <h1>Keeping typing safe around ligatures, wherever the split came from</h1>
-  <p class="run-line">Second round on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16717" target="_blank" rel="noopener">BL-16717</a>. Steve still sees letters vanishing on 6.5.1322; this run found why, fixed it, and verified it against real keystrokes in a running Bloom. Three things need your call, plus the next step.</p>
+  <p class="run-line">Second round on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16717" target="_blank" rel="noopener">BL-16717</a>. Steve still sees letters vanishing on 6.5.1322; this run found why, fixed it, and verified it against real keystrokes in a running Bloom. The decisions have
+  been answered &mdash; see below &mdash; and the PR is with the developer for their own review.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><strong>Draft PR</strong> #8217</span><!-- pr-state:end -->
     <span class="chip good"><strong>Mergeable</strong> clean</span>
     <span class="chip good"><strong>Bots</strong> quiet</span>
-    <span class="chip attn"><strong>3</strong> decisions &middot; plus next step</span>
+    <span class="chip good"><strong>Answered</strong> &middot; nothing waiting on you</span>
   </div>
 </header>
 
@@ -361,156 +362,39 @@
   <!-- ======================= RIGHT ======================= -->
   <div class="col">
 
-    <section class="card decision">
-      <div class="q">Keep the new guard that skips the repair while ckeditor is holding a &ldquo;filling char&rdquo;?</div>
-      <p>Ckeditor sometimes parks an invisible character (a zero-width space) in the text box so the blinking
-      cursor stays visible &mdash; for instance when you click just next to bold text. It keeps a private
-      handle on the little piece of text holding that character, so it can take the character out again
-      later. If Bloom&rsquo;s repair joins that piece into its neighbour first, ckeditor is left writing to
-      something that is no longer in the document, and the invisible character stays in the user&rsquo;s
-      text &mdash; which is the problem behind BL-16490.</p>
-      <p>Devin raised this hazard on the last round and you decided to leave it alone. The reason to revisit
-      it is that the repair now runs on every keystroke rather than only on a pause, so it meets that
-      situation far more often.</p>
-      <p>Devin then found two things wrong with my first attempt at the guard, both fixed: it treated a
-      reference ckeditor had been left holding to a piece of text no longer in the box as a reason to keep
-      out, which could have left letters unpainted indefinitely; and it gave up on the whole text box rather
-      than just the paragraph the character is in. On its third point &mdash; does the guard fire often enough
-      to matter? &mdash; I measured rather than argued: the state occurred on <strong>0 of 90 keystrokes</strong>
-      across Talking Book sentence spans, a bold boundary and plain text, and could not be produced at all by
-      parking the cursor in the five places ckeditor's own rule describes. So the guard costs nothing
-      observable &mdash; and when it does fire, that paragraph is simply repaired on the next keystroke.</p>
-      <div class="options" data-q="Filling-char guard">
-        <div class="option">
-          <input type="radio" name="q1" id="q1a" value="Keep the guard" checked>
-          <label class="main" for="q1a">Keep the guard<span class="rec">recommended</span>
-          <div class="cost">Already written &mdash; ~10 lines plus two tests. Recommended because it removes a known way for an invisible character to end up saved in someone&rsquo;s book, and the cost is a repair deferred by one keystroke in a case that is close to never.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q1" id="q1b" value="Drop the guard, always merge">
-          <label class="main" for="q1b">Drop the guard and always merge
-          <div class="cost">~10 lines removed. Slightly simpler, and never defers a repair &mdash; at the price of the BL-16490 hazard.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q1" id="q1c" value="Leave as is">
-          <label class="main" for="q1c">Leave as is</label>
-          <span class="aside"><input type="checkbox" id="q1comment" data-q="Filling-char guard / leave comment"> <label for="q1comment">Leave comment</label></span>
-        </div>
-        <div class="option">
-          <input type="radio" name="q1" id="q1d" value="Other">
-          <label class="main" for="q1d">Other:</label>
-          <input type="text" data-q="Filling-char guard / other" placeholder="your answer">
-        </div>
-      </div>
-      <div class="notes"><label for="q1notes">Notes</label><textarea id="q1notes" data-q="Filling-char guard / notes"></textarea></div>
-    </section>
+    <section class="card">
+      <h2>Answered</h2>
+      <p>These were the open questions when this report was written. The developer has answered them
+      and the answers are recorded where the people who need them will be standing &mdash; in the code,
+      on the PR threads, and in the card's test notes. Nothing here is waiting on anyone.</p>
 
-    <section class="card decision">
-      <div class="q">Should Bloom stop drawing ligatures while you are editing?</div>
-      <p>There is a blunt cure for this whole family of bugs: tell the browser not to join letters at all in
-      the editing view (<code>font-variant-ligatures: none</code>). Text editors do this routinely &mdash;
-      CodeMirror was asked to disable ligatures in its default stylesheet precisely because they cause
-      &ldquo;strange behavior when moving the cursor, selecting, etc.&rdquo; Chromium&rsquo;s own text
-      documentation explains why: neither the shaper nor the code drawing the text knows where the
-      individual letters inside a joined glyph sit.</p>
-      <p>It only changes appearance &mdash; the text, the saved book, and the printed PDF would be unaffected.
-      But it means the edit view no longer shows the reader what the page will actually look like, in a
-      product whose default font ligates and whose users care about how their script is rendered. I would
-      not do it as part of this fix, but you may want it in your back pocket if the reports continue.</p>
-      <div class="options" data-q="Turn ligatures off while editing">
-        <div class="option">
-          <input type="radio" name="q2" id="q2a" value="Leave as is" checked>
-          <label class="main" for="q2a">Leave as is<span class="rec">recommended</span></label>
-          <span class="aside"><input type="checkbox" id="q2comment" data-q="Turn ligatures off while editing / leave comment"> <label for="q2comment">Leave comment</label></span>
-        </div>
-        <div class="option">
-          <input type="radio" name="q2" id="q2b" value="Turn ligatures off in the edit view now">
-          <label class="main" for="q2b">Turn ligatures off in the edit view now
-          <div class="cost">Small &mdash; one CSS rule &mdash; but user-facing: what you see while editing stops matching what prints.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q2" id="q2c" value="File it as a fallback card, don't do it yet">
-          <label class="main" for="q2c">File it as a fallback card, don&rsquo;t do it yet
-          <div class="cost">No code &mdash; a YouTrack card recording the option and the trade-off, so it is on the shelf if BL-16717 comes back a third time.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q2" id="q2d" value="Other">
-          <label class="main" for="q2d">Other:</label>
-          <input type="text" data-q="Turn ligatures off while editing / other" placeholder="your answer">
-        </div>
-      </div>
-      <div class="notes"><label for="q2notes">Notes</label><textarea id="q2notes" data-q="Turn ligatures off while editing / notes"></textarea></div>
-    </section>
+      <h3>The filling-char guard</h3>
+      <p><strong>Keep it.</strong> It is in the branch, with its reasoning in the comment beside it.</p>
 
-    <section class="card decision">
-      <div class="q">How do we find out whether this really was Steve&rsquo;s 1%?</div>
-      <p>Steve says a reliable reproduction may not exist, and I could not reproduce his exact case either
-      &mdash; what I could do was prove the mechanism and show that both of his symptoms (letters not drawn,
-      and the caret refusing to move over them) come out of it. If he still sees it after this ships, the
-      useful question will be &ldquo;was the paragraph split at the time?&rdquo;, and today nothing would
-      tell us.</p>
-      <div class="options" data-q="Confirming with Steve">
-        <div class="option">
-          <input type="radio" name="q3" id="q3a" value="Ship it and ask Steve to hammer it" checked>
-          <label class="main" for="q3a">Ship it and ask Steve to hammer it<span class="rec">recommended</span>
-          <div class="cost">No code. Recommended because the fix stands on its own evidence, and the QA notes on the card already tell a tester exactly what to try and how to tell a missing letter from an unpainted one.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q3" id="q3b" value="Add a counter so a recurrence can be diagnosed">
-          <label class="main" for="q3b">Add a quiet counter of repairs, readable when someone reports it again
-          <div class="cost">~15 lines, no user-visible effect &mdash; enough to answer &ldquo;was it split?&rdquo; next time rather than guessing again.</div>
-          </label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q3" id="q3c" value="Leave as is">
-          <label class="main" for="q3c">Leave as is</label>
-          <span class="aside"><input type="checkbox" id="q3comment" data-q="Confirming with Steve / leave comment"> <label for="q3comment">Leave comment</label></span>
-        </div>
-        <div class="option">
-          <input type="radio" name="q3" id="q3d" value="Other">
-          <label class="main" for="q3d">Other:</label>
-          <input type="text" data-q="Confirming with Steve / other" placeholder="your answer">
-        </div>
-      </div>
-      <div class="notes"><label for="q3notes">Notes</label><textarea id="q3notes" data-q="Confirming with Steve / notes"></textarea></div>
-    </section>
+      <h3>Turning ligatures off while editing</h3>
+      <p><strong>No &mdash; leave ligatures on.</strong> In the developer's words: it matters that Bloom
+      renders as nearly as possible the same in edit mode and in production, and that is more
+      significant than a rare weirdness while typing. Ligatures change a word's width, so something
+      that fitted the page while editing could break to a different line &mdash; and overflow &mdash;
+      in a publication mode. This is now recorded as a comment next to the ligature explanation in
+      the code, because that is where the next person reaching for
+      <code>font-variant-ligatures: none</code> will be looking.</p>
 
-    <section class="card decision">
-      <div class="q">Next step</div>
-      <p>The PR is a draft, CI is green, and nothing is waiting on a bot.</p>
-      <div class="options" data-q="Next step">
-        <div class="option">
-          <input type="radio" name="q4" id="q4a" value="Act on my answers, then stop for my own review" checked>
-          <label class="main" for="q4a">Act on my answers, then stop for my own review<span class="rec">recommended</span></label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q4" id="q4b" value="Discuss first">
-          <label class="main" for="q4b">Let&rsquo;s discuss before anything changes</label>
-        </div>
-        <div class="option">
-          <input type="radio" name="q4" id="q4c" value="Leave as is">
-          <label class="main" for="q4c">Leave as is</label>
-          <span class="aside"><input type="checkbox" id="q4comment" data-q="Next step / leave comment"> <label for="q4comment">Leave comment</label></span>
-        </div>
-        <div class="option">
-          <input type="radio" name="q4" id="q4d" value="Other">
-          <label class="main" for="q4d">Other:</label>
-          <input type="text" data-q="Next step / other" placeholder="your answer">
-        </div>
-      </div>
-      <div class="notes"><label for="q4notes">Notes</label><textarea id="q4notes" data-q="Next step / notes"></textarea></div>
+      <h3>Confirming with the reporter</h3>
+      <p><strong>Ship it and ask him to hammer it.</strong> The round-2 test notes on the card tell a
+      tester exactly what to try &mdash; including how to tell a letter that is missing from one that
+      is merely not being drawn.</p>
+
+      <h3>Next step</h3>
+      <p><strong>Acted on the answers, then stopped for the developer's own review.</strong> The PR is
+      still a draft; no teammate has been asked to review it.</p>
     </section>
 
     <section class="card copyback">
-      <h2>Send your answers back</h2>
-      <p>Copy this and paste it into the session.</p>
-      <button type="button" id="copybtn">Copy answers</button><span class="copied" id="copied">Copied</span>
-      <textarea id="payload" readonly></textarea>
+      <h2>Nothing to send back</h2>
+      <p>The questions this report opened with have been answered; see &ldquo;Answered&rdquo; above.
+      If something here needs revisiting, re-run <code>preflight</code> on the branch rather than
+      replying to this page.</p>
     </section>
 
   </div>
@@ -523,55 +407,6 @@
 
 </div>
 
-<script>
-(function () {
-  var payload = document.getElementById("payload");
 
-  function serialize() {
-    var out = ["Preflight answers - BL-16717 / PR 8217 (branch BL-16717-ligature-safety)", ""];
-    document.querySelectorAll(".options").forEach(function (group) {
-      var title = group.getAttribute("data-q");
-      var chosen = group.querySelector('input[type="radio"]:checked');
-      var label = chosen ? chosen.value : "(no answer)";
-      if (chosen && chosen.value === "Other") {
-        var other = group.querySelector('input[type="text"][data-q$="other"]');
-        label = "Other: " + ((other && other.value.trim()) || "(nothing typed)");
-      }
-      out.push("## " + title);
-      out.push("Answer: " + label);
-      var leave = group.querySelector('input[type="checkbox"]');
-      if (leave && leave.checked) out.push("Leave comment: yes - record this decision in a code comment");
-      var card = group.closest(".card");
-      var notes = card ? card.querySelector('textarea[data-q$="notes"]') : null;
-      if (notes && notes.value.trim()) out.push("Notes: " + notes.value.trim());
-      out.push("");
-    });
-    payload.value = out.join("\n");
-  }
-
-  document.addEventListener("input", serialize);
-  document.addEventListener("change", serialize);
-  serialize();
-
-  document.getElementById("copybtn").addEventListener("click", function () {
-    var done = function () {
-      var c = document.getElementById("copied");
-      c.classList.add("show");
-      setTimeout(function () { c.classList.remove("show"); }, 1600);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, function () {
-        payload.select();
-        document.execCommand("copy");
-        done();
-      });
-    } else {
-      payload.select();
-      document.execCommand("copy");
-      done();
-    }
-  });
-})();
-</script>
 </body>
 </html>
