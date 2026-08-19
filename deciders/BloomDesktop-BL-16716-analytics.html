@@ -197,11 +197,11 @@
 
 <header class="top">
   <h1>Analytics for the 6.5 features — preflight</h1>
-  <div class="sub">BL-16716 &middot; three pull requests, all draft &middot; second preflight run</div>
+  <div class="sub">BL-16716 &middot; third preflight run &middot; the AI commit reports from the browser, and the picture library is in</div>
   <div class="prs">
-    <span><span class="repo">BloomDesktop</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">#8215</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/files" target="_blank" rel="noopener">files</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/commits" target="_blank" rel="noopener">commits</a> · <span class="numeral">edb7c71</span></span>
-    <span><span class="repo">bloom-image-gallery</span> <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a> · <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20/files" target="_blank" rel="noopener">files</a> · <span class="numeral">a2635b0</span></span>
-    <span><span class="repo">bloom-ai-image-tools</span> <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a> · <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2/files" target="_blank" rel="noopener">files</a> · <span class="numeral">b85b365</span> (unchanged)</span>
+    <span><span class="repo">BloomDesktop</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">#8215</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/files" target="_blank" rel="noopener">files</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/commits" target="_blank" rel="noopener">commits</a> · <span class="numeral">3d8d09d</span></span>
+    <span><span class="repo">bloom-image-gallery</span> <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a> · <span class="numeral">merged, and in</span></span>
+    <span><span class="repo">bloom-ai-image-tools</span> <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a> · <span class="numeral">still open</span></span>
     <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16716" target="_blank" rel="noopener">BL-16716</a></span>
   </div>
 </header>
@@ -253,17 +253,61 @@
     </ul>
     <p>Deliberately excluded: program errors (Sentry's job, not Segment's) and AI prompt text, which can
     carry arbitrary content lifted from the book. Image-search <em>terms</em> are included on purpose —
-    which Devin has now asked you to sign off on explicitly; that is decision 3.</p>
+    the one judgment call still open, below.</p>
 
-    <p><strong>Two properties the reviewers had to teach this PR, both worth stating because
-    each was violated more than once.</strong></p>
+    <p><strong>Three properties the reviewers had to teach this PR, each violated more than once.</strong></p>
     <ul class="bul">
-      <li><strong>Recording an event cannot affect what it is observing.</strong> Reporting is now isolated
-      at every boundary it crosses. The worst of the four cases found would have turned a successful,
+      <li><strong>Recording an event cannot affect what it is observing.</strong> Reporting is isolated at
+      every boundary it crosses. The worst of the four cases found would have turned a successful,
       already-paid-for AI generation into a reported failure and lost the image.</li>
-      <li><strong>An event describes what happened, not what was about to happen.</strong> Four events were
+      <li><strong>An event describes what happened, not what was about to happen.</strong> Six events were
       sent at the moment a decision was made rather than the moment it took effect, so a user who backed out
-      was counted as though they had not. Three of the four were fixed in this run; the fourth is decision 2.</li>
+      was counted as though they had not. All six are fixed.</li>
+      <li><strong>An event must not be able to describe one thing as two.</strong> Five separate ways a
+      single AI editing session could appear in both the "committed" and the "thrown away" figures — or
+      twice in one of them — were found and closed, mostly in this run.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>You asked for the AI commit's reporting to move to TypeScript, and for the merged dependencies to go
+    in. Both are done. The move then set off the longest review chain of the branch: <strong>eight more
+    commits, every one from a Devin finding</strong>, and every one real.</p>
+    <ul class="bul">
+      <li><strong>The AI commit now reports from the browser</strong>, where the outcome is actually known.
+      C# could only ever report an intention: for a slot on the page the user has open it stages the
+      replacement and hands the swap to the browser, so a staged slot counted as applied — and since the
+      picture you right-clicked is by definition on the page you have open, a single-picture commit was
+      <em>always</em> reported as "1 applied, 0 failed" whatever became of it. The per-picture
+      <code>Change Picture</code> events came off the same number, so a failed swap also added a picture to
+      the picture-source breakdown that never entered the book. Both now count only pictures that reached
+      the book, and a commit whose request fails outright reports nothing applied — a case C# could not
+      report at all.</li>
+      <li><strong>The image-gallery pin is off.</strong> #20 is merged, so the dependency tracks that
+      repository's default branch again and resolves to the merge commit (0.0.4). The lockfile was
+      regenerated by <code>pnpm install</code> rather than hand-edited, and now differs from
+      <code>master</code> only in the gallery's own entries.</li>
+      <li><strong>Then five rounds of concurrency findings in the AI editor</strong>, each visible only once
+      the previous was fixed: a partly-successful commit counted as thrown away as well as committed; a
+      commit reported twice when the reply path threw; an in-flight <em>flag</em> that a second overlapping
+      commit could clear too early; a double decrement of the count that replaced it — <strong>a defect I
+      introduced</strong> — which could leave a session permanently unreportable; and finally the first of
+      two overlapping replies deciding the cancel before the second had landed its picture. The rule now
+      lives in one place: removing it fails four tests instead of one.</li>
+      <li><strong>And two that have nothing to do with analytics.</strong> Devin found, at "severe", that
+      applying image credits to a whole book re-reads the embedded metadata of every picture <em>once per
+      picture</em> — a lazy iterator asked for its <code>Count()</code> inside the loop. On a 400-picture
+      book that is roughly 160,000 metadata reads instead of 400, and it appears frozen for minutes. There
+      is a second fault in the same line that Devin did not mention: the loop writes metadata <em>into</em>
+      those files as it goes and the re-enumeration re-decides which to include, so the number being divided
+      by could shift underneath it. One <code>ToList()</code>. Separately, a property value that parses as a
+      date-time was being recorded in the local culture's format ("1/1/2024 10:00:00 AM") instead of as
+      sent, which matters because some of these values are free user text.</li>
+      <li><strong>Two smaller labelling fixes:</strong> a refused cover layout could be blamed on the wrong
+      cause while the subscription lookup was still in flight (and that split is the event's entire value),
+      and changing a GIF was filed as an image-chooser pick from an "unknown" provider when it is really a
+      pick from disk.</li>
     </ul>
   </section>
 
@@ -273,100 +317,67 @@
     <table class="gate">
       <thead><tr><th class="what">Check</th><th>Result</th></tr></thead>
       <tbody>
-        <tr><td class="what">BloomDesktop — typecheck</td><td><span class="tag pass">pass</span> <span class="numeral">0 errors</span></td></tr>
+        <tr><td class="what">BloomDesktop — typecheck</td><td><span class="tag pass">pass</span> <span class="numeral">0 errors</span> — against the merged gallery</td></tr>
         <tr><td class="what">BloomDesktop — lint</td><td><span class="tag pass">pass</span> <span class="numeral">0 errors, 764 warnings</span> — warning count identical to <code>master</code></td></tr>
         <tr><td class="what">BloomDesktop — C# tests<br><span class="mono">dotnet test</span></td>
-            <td><span class="tag pass">pass</span> <span class="numeral">3141 passed · 0 failed · 13 skipped</span><br>
-            Run four times this session, once per commit, clean every time; <span class="numeral">11</span> of those tests are new here. Full output kept in a file this time, per your note on decision 7 last round.</td></tr>
+            <td><span class="tag pass">pass</span> <span class="numeral">3143 passed · 0 failed · 13 skipped</span><br>
+            Run on every commit that touched C#, clean every time. Full output kept in files, per your note last round.</td></tr>
         <tr><td class="what">BloomDesktop — TypeScript tests<br><span class="mono">vitest</span></td>
-            <td><span class="tag pass">pass</span> <span class="numeral">722 passed · 5 skipped</span> — <span class="numeral">4</span> new, all on the AI editor session paths this run touched</td></tr>
+            <td><span class="tag pass">pass</span> <span class="numeral">731 passed · 5 skipped</span> — <span class="numeral">9</span> new this run, all on the AI commit reporting</td></tr>
         <tr><td class="what">BloomDesktop — production bundle</td><td><span class="tag pass">pass</span> — <span class="mono">build/agent-vite.sh</span> compiles every entry point</td></tr>
-        <tr><td class="what">BloomDesktop — base</td><td><span class="tag pass">pass</span> — already up to date with <code>origin/master</code>; nothing to merge</td></tr>
-        <tr><td class="what">bloom-image-gallery — typecheck</td><td><span class="tag warn">pre-existing</span> <span class="numeral">8 errors</span>, all in files this PR does not touch</td></tr>
-        <tr><td class="what">bloom-image-gallery — lint</td><td><span class="tag warn">pre-existing</span> <span class="numeral">3 errors, 25 warnings</span>. The errors are an eslint config fault (<code>react-hooks/rules-of-hooks</code> not registered), not code.</td></tr>
-        <tr><td class="what">bloom-image-gallery — tests</td><td><span class="tag pass">pass</span> <span class="numeral">13 passed</span></td></tr>
-        <tr><td class="what">bloom-ai-image-tools</td><td><span class="tag skip">unchanged</span> — no commits this run. Last run: <span class="mono">vp check</span> clean, <span class="numeral">162</span> tests passed, Playwright e2e deliberately not run.</td></tr>
+        <tr><td class="what">BloomDesktop — dependency install</td><td><span class="tag pass">pass</span> — <span class="mono">pnpm install --frozen-lockfile</span> accepts the lockfile, and the installed package really is the merged one: its own count fix is present in <code>node_modules</code></td></tr>
+        <tr><td class="what">BloomDesktop — base</td><td><span class="tag pass">pass</span> — up to date with <code>origin/master</code></td></tr>
+        <tr><td class="what">bloom-image-gallery</td><td><span class="tag pass">merged</span> — nothing left to check here</td></tr>
+        <tr><td class="what">bloom-ai-image-tools</td><td><span class="tag skip">unchanged</span> — no commits this run; its PR is still open. Last run: <span class="mono">vp check</span> clean, <span class="numeral">162</span> tests passed, Playwright e2e deliberately not run.</td></tr>
       </tbody>
     </table>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>What changed this run</h2>
-    <p>This run carried out your decisions from the last report, and then fixed two bugs that the first
-    of those fixes exposed.</p>
-    <ul class="bul">
-      <li><strong>The image chooser's picture count no longer disappears when you scroll</strong> (decision 3
-      last round). Loading another page replaced the whole result object and dropped the total, which reads
-      as "this source does not report one". Gallery <span class="numeral">cbdecd8</span>.</li>
-      <li><strong>Filed <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16725" target="_blank" rel="noopener">BL-16725</a></strong> for the
-      cover-layout menu (decision 6 last round), on the 6.5 board, Ready For Work. Reading the code to write
-      it up confirmed your instinct that it could be serious: switching <em>off</em> Custom deletes the saved
-      custom layout, so clicking the already-ticked <em>Custom</em> discards the user's cover with no
-      confirmation and no undo. The card says so.</li>
-      <li><strong>Wrote your "leave as is" on the language-vs-search question into the code</strong> (decision 4
-      last round), next to <code>ISearchReport</code>, where an analyst will actually be standing — and into
-      the tester's "known and deliberate" list.</li>
-      <li><strong>Two new bugs found and fixed, both of the same kind.</strong> Devin noticed that the
-      reading-direction correction was reported the moment the Script Settings window closed, not when the
-      settings were saved — so a correction the user then cancelled was counted, and one they made and undid
-      was counted twice. Fixing that made the <em>paired</em> event inconsistent, which Devin then caught in
-      turn: <code>Collection Language Set</code> was still being reported as the language chooser closed. Both
-      now report from the OK handler, so the ratio those two events exist to form has a numerator and a
-      denominator counted at the same moment. Ten new unit tests.</li>
-      <li><strong>And then a third of the same kind, with a user-facing tail.</strong> Devin found that closing
-      the AI editor while a commit is in flight reported the session as thrown away as well as committed.
-      Writing the test for the fix turned up something worse and pre-existing: answering the editor after the
-      user has closed it <em>throws</em>, because the iframe is detached — and that ack is the first
-      statement of a <code>finally</code> block, so the throw skipped the save of the page the new pictures had
-      just landed on. <strong>A user who closed the window while their picture was being applied could lose a
-      picture they had already paid to generate.</strong> Devin then spotted, in the fix, that a stale commit
-      reply could tear down a freshly relaunched editor. Both fixed, both with tests I confirmed fail without
-      the fix.</li>
-      <li>Refreshed the tester's notes on the card, and both PR descriptions.</li>
-    </ul>
+    <p>One flake to record rather than hide: a full vitest run failed once in
+    <code>watchLess.test.ts</code> with a Windows <code>EPERM</code> on renaming a temp file — a
+    file-locking artefact in a LESS-watcher test this branch does not touch. It passed alone and the whole
+    suite passed on the next run.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
 
     <div class="rev">
-      <span class="who">Local review</span><span class="st"><span class="tag pass">complete</span></span>
-      <p>Inline rather than by a sub-agent (this session disallows them). This run's diff is small and it
-      raised nothing; the substantive work came from Devin.</p>
-    </div>
-
-    <div class="rev">
       <span class="who">Devin</span><span class="st"><span class="tag pass">complete</span></span>
-      <p>Five more jobs this run, and it earned every one: it found <strong>all three</strong> of the
-      "reported too early" bugs described above, each one only visible once the previous had been fixed. Its
-      argument for the second one — that the two events form a ratio and so must be counted at the same moment —
-      is the kind of reasoning that is easy to miss when you are looking at one event at a time. Nothing else
-      new, and the third is what led to the picture-loss bug. Its final pass raised <strong>no new bug and no
-      new question</strong>; the two it still lists as current are both your open decisions below. Read its
-      output with the usual care: it re-lists every bug it has ever raised here, including the eleven already
-      fixed, each of which I checked against the commit it reviewed.
-      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">Bloom review</a> ·
-      <a href="https://devinreview.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">gallery</a>.</p>
+      <p>Ten more jobs, and by a wide margin the most valuable reviewer on this branch. It found every one
+      of the eight bugs fixed this run — including one I had just introduced — plus the severe performance
+      bug that nothing else was going to catch. Worth knowing about its behaviour: <strong>it promotes its
+      own earlier informational notes to bugs as the surrounding code gets fixed</strong>, so each round
+      produced exactly one more finding. That is a feature, not noise, but it does mean the next pass may
+      well produce another; I stopped at a clean state rather than at an empty one. Read its page with the
+      usual care: it re-lists every bug it has ever raised, including the twenty-one already fixed.
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">Bloom review</a>.</p>
     </div>
 
     <div class="rev">
-      <span class="who">Greptile</span><span class="st"><span class="tag pass">complete</span></span>
-      <p>Active on the package repos only. Clean on the gallery's new commits.</p>
+      <span class="who">Local review</span><span class="st"><span class="tag pass">complete</span></span>
+      <p>Inline rather than by a sub-agent (this session disallows them). Its two contributions this run
+      were catching that my first <code>pnpm install</code> had rewritten the whole lockfile in a different
+      style — a 30,000-line diff that would have been unreviewable — and catching that my first attempt at
+      the date-coercion tests passed whether or not the fix was present, because it parsed the JSON the
+      ordinary way instead of through the code being fixed.</p>
+    </div>
+
+    <div class="rev">
+      <span class="who">Greptile</span><span class="st"><span class="tag skip">not applicable</span></span>
+      <p>Active on the package repositories only, and neither changed this run. It was clean on both when
+      they did.</p>
     </div>
 
     <div class="rev">
       <span class="who">CodeRabbit</span><span class="st"><span class="tag skip">not applicable</span></span>
-      <p>Configured off in BloomDesktop — <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>.
-      Not enabled on either package repo.</p>
+      <p>Configured off in BloomDesktop — <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>.</p>
     </div>
 
     <div class="rev">
       <span class="who">CI</span><span class="st"><span class="tag warn">limited</span></span>
-      <p>The gallery PR's checks pass. On BloomDesktop the only GitHub check is <code>pr-automation</code>,
-      whose job is to trigger Devin — <strong>Bloom's build and test CI runs in TeamCity and does not report
-      to GitHub checks at all</strong>. So the only build and test evidence for #8215 is the local suites
-      above.</p>
+      <p>The only GitHub check on BloomDesktop is <code>pr-automation</code>, whose job is to trigger Devin —
+      <strong>Bloom's build and test CI runs in TeamCity and does not report to GitHub checks at all</strong>.
+      So the only build and test evidence for #8215 is the local suites above.</p>
     </div>
   </section>
 
@@ -375,18 +386,20 @@
     <ul class="bul">
       <li><strong>Still not one event has been seen reaching Segment.</strong> DEBUG builds run with tracking
       off, so the new log line remains the only confirmation available here; whether Segment accepts each
-      event and whether the properties land where an analyst can group on them needs one pass on alpha.</li>
-      <li><strong>Nothing has been exercised by hand.</strong> The refreshed test-ideas comment on the card
-      now puts <strong>the OK button of Collection Settings</strong> second on its risk list, because this
-      run added code to that path — it is where languages, fonts, xmatter, subscription and the collection
-      name are all written.</li>
-      <li>The gallery's picture-count fix has <strong>no automated test</strong>: that repository has no
-      component-test setup at all (no jsdom, no testing-library), and adding one did not belong in this PR.
-      It is in the manual notes instead.</li>
-      <li><strong>One deliberate gap in the AI editor's cancel reporting.</strong> Now that the cancel decision
-      waits for the commit's answer, a commit whose reply never arrives at all reports nothing rather than
-      reporting a cancel that may be wrong. Devin noted it; losing a number seemed clearly better than
-      inventing one.</li>
+      event, and whether the properties land where an analyst can group on them, needs one pass on alpha.</li>
+      <li><strong>The AI editor is where by-hand testing should go.</strong> Nine of this run's commits touch
+      the code that puts AI pictures into books, and the tester's notes lead with it: closing the editor
+      mid-save, and committing to several pages at once.</li>
+      <li><strong>One small thing I left, deliberately, so you can judge it.</strong> When applying credits to
+      a whole book aborts on a permissions error, the duration event still fires with
+      <code>imageCount=0</code> — indistinguishable from a book with no eligible pictures. Fixing it means
+      changing what that method returns so the caller can tell the two apart, which is more surgery on a
+      C# contract than the rest of this run's fixes; say the word and it is twenty minutes.</li>
+      <li>Devin's other informational notes I read and did not act on: the generation count includes failed
+      generations (which is what "how much AI work was thrown away" wants), an unset third language slot
+      captures no reading-direction baseline (so it reports nothing, correctly), the transparency-choice map
+      is module-level and never shrinks (bounded by pictures visited in one run), and the stderr echo of
+      events happens in DEBUG but not alpha builds.</li>
     </ul>
   </section>
 
@@ -395,146 +408,125 @@
 <div class="col">
 
   <section class="q blocking">
-    <h2>1. Both pre-merge blockers are unchanged, waiting on your reviews</h2>
+    <h2>1. The AI editor dependency is the last thing between this and merge</h2>
     <div class="desc">
-      <p>Nothing to decide here — this is the status of the two sequences you set last round, restated so
-      you don't have to go looking. Both threads are deliberately still open on #8215.</p>
-      <p><strong>The gallery pin.</strong> Bloom's <code>package.json</code> still points at the gallery
-      <em>branch</em>. Once you have reviewed and merged
-      <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a>,
-      I revert the pin to <code>master</code>, refresh the lockfile, and re-run preflight. Bloom must not
-      merge before that.</p>
-      <p><strong>The AI editor tag.</strong> After
-      <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a>
-      merges, a new <code>dist-v0.1.4</code> tag has to be published from it before Bloom's pin can move.
-      Until then the AI editor's own report of each generation does not reach Bloom at all.</p>
+      <p>You said both dependency PRs had been merged. The picture library
+      (<a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a>)
+      is merged, and is now in — but
+      <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">bloom-ai-image-tools #2</a>
+      is <strong>still open</strong>. It is out of draft, mergeable and clean, but not merged, and there is no
+      <code>dist-v0.1.4</code> tag.</p>
+      <p>So Bloom is still pinned at <code>#dist-v0.1.3</code>, which predates the editor's own reporting of
+      each generation. Everything on Bloom's side works with that pin — Bloom forwards whatever the editor
+      sends — but <strong>no <code>AI Editor Generate</code> events will appear</strong> until #2 merges, a
+      <code>dist-v*</code> tag is published from it, and this pin moves to that tag. Publishing the tag is a
+      <code>workflow_dispatch</code> release step in that repository.</p>
+      <p>Nothing else blocks #8215. Once the tag exists, the bump is two lines plus a lockfile refresh.</p>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1a" data-q="Blockers" value="Understood, no change" checked>
-      <div class="body"><label class="lab" for="q1a">Understood — proceed as planned<span class="rec">recommended</span></label>
-      <span class="cost">Nothing happens until you merge the two package PRs; then say the word and I do the pin work and re-run.</span></div>
+      <input type="radio" name="q1" id="q1a" data-q="AI tools dependency" value="I will merge #2 and publish the tag; you then bump the pin" checked>
+      <div class="body"><label class="lab" for="q1a">You merge #2 and publish the tag; I then bump the pin<span class="rec">recommended</span></label>
+      <span class="cost">Keeps the release step with you. Costs one more short preflight to bump the pin and re-run the gates.</span></div>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1b" data-q="Blockers" value="Other">
-      <div class="body"><label class="lab" for="q1b">Other:</label>
-      <input type="text" data-q="Blockers — other" placeholder="…"></div>
+      <input type="radio" name="q1" id="q1b" data-q="AI tools dependency" value="Publish the dist tag yourself once #2 is merged">
+      <div class="body"><label class="lab" for="q1b">Publish the tag yourself once #2 is merged</label>
+      <span class="cost">I can run the workflow_dispatch; it refuses if the tag already exists, so it is hard to get wrong. But it is a release, so I would rather you chose it deliberately than have me assume it.</span></div>
     </div>
-    <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-q="Blockers — notes"></textarea></div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1c" data-q="AI tools dependency" value="Merge #8215 without the generate events; bump the pin later">
+      <div class="body"><label class="lab" for="q1c">Merge #8215 now and bump the pin later</label>
+      <span class="cost">Everything else in this PR works. The cost is that the AI editor's generation events — the ones that say what people are paying for — stay dark until someone remembers.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1d" data-q="AI tools dependency" value="Other">
+      <div class="body"><label class="lab" for="q1d">Other:</label>
+      <input type="text" data-q="AI tools dependency — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-q="AI tools dependency — notes"></textarea></div>
   </section>
 
   <section class="q">
-    <h2>2. The AI commit's "applied" count, explained properly this time</h2>
+    <h2>2. Search terms leave the machine — still wants your yes</h2>
     <div class="desc">
-      <p>You asked to understand this before deciding. Here it is from the top, and a second pass through the
-      code made it worse than I first described.</p>
-      <p><strong>Who does what.</strong> One commit can replace pictures on several pages. For pictures on
-      <em>other</em> pages, C# does the whole job and knows it worked. For a picture on the page you have
-      <em>open</em>, C# cannot touch it — the live page belongs to the browser — so C# only prepares it and
-      hands it back for the browser to swap in. C# sends the event at the end of its own work and counts a
-      <em>prepared</em> picture as applied. The browser then attempts the swap, and it can fail: that is the
-      code path behind "Only 0 of 1 image(s) on the current page could be updated."</p>
-      <p><strong>Why it is not an edge case.</strong> The picture you right-clicked to open the AI editor is,
-      by definition, on the page you have open. So the ordinary journey — edit one picture, use it — is a
-      commit with exactly one replacement, always a current-page one. For that journey the count is
-      <em>always</em> "1 applied, 0 failed", whatever happened. The event exists because BL-16702 was a commit
-      that silently did nothing; in its commonest case it cannot report that.</p>
-      <p><strong>What I had not spotted before:</strong> the per-picture <code>Change Picture</code> events are
-      emitted from the same number, so a failed swap also adds a picture to the "where do pictures come from"
-      breakdown that never entered the book — one of the main things this PR is for. Devin has since
-      raised that half as a bug in its own right, on
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215#discussion_r3809943946" target="_blank" rel="noopener">its own thread</a>,
-      which stays open because the same code move settles both.</p>
-      <p><strong>What moving it involves.</strong> I checked that every property is already available on the
-      browser side: the replacement list it sent carries what <code>generatedCount</code> and
-      <code>reusedCount</code> are counted from, C#'s per-slot results cover the off-page ones, the page frame
-      reports the current-page ones, and the endpoint fills in book id and branding. So nothing new crosses the
-      boundary — the block simply moves from <code>AiImageEditorApi.HandleCommit</code> to the place in
-      <code>aiEditorOverlay.ts</code> that already knows the outcome. About 30 lines; the tests move from C# to
-      vitest. One genuine cost: if the commit's reply never arrives, C# has already sent its event today,
-      whereas the browser version would need to report from its error path too.</p>
-      <p>The full write-up is on
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215#discussion_r3809784123" target="_blank" rel="noopener">the thread</a>.
-      The companion question — that one commit sends a summary plus one <code>Change Picture</code> per
-      picture — is
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215#discussion_r3809784256" target="_blank" rel="noopener">explained on its own thread</a>
-      and needs no code change: it is deliberate, and the only risk is an analyst adding the two together.</p>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2a" data-q="AI commit counting" value="Move the event to the browser, after the real outcome is known" checked>
-      <div class="body"><label class="lab" for="q2a">Move the event to the browser, after the outcome is known<span class="rec">recommended</span></label>
-      <span class="cost">Moderate — about 30 lines across the C#/JavaScript boundary, plus moving its tests. Recommended more strongly than last time: the common case is exactly the broken one, and the same number is also feeding the picture-source breakdown.</span></div>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2b" data-q="AI commit counting" value="Keep it in C# but rename the property so it reads as provisional">
-      <div class="body"><label class="lab" for="q2b">Keep it in C#, rename the property so it reads as provisional</label>
-      <span class="cost">A few lines. Honest about what the number is, but leaves the question the event was added for unanswered — and does nothing about the phantom Change Picture events.</span></div>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2c" data-q="AI commit counting" value="Leave as is">
-      <div class="body"><label class="lab" for="q2c">Leave as is</label></div>
-      <label class="leavec"><input type="checkbox" data-q="AI commit counting — leave comment"> Leave comment</label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2d" data-q="AI commit counting" value="Other">
-      <div class="body"><label class="lab" for="q2d">Other:</label>
-      <input type="text" data-q="AI commit counting — other" placeholder="…"></div>
-    </div>
-    <div class="notes"><label for="n2">Notes</label><textarea id="n2" data-q="AI commit counting — notes"></textarea></div>
-  </section>
-
-  <section class="q">
-    <h2>3. Search terms leave the machine — Devin wants that signed off by a person</h2>
-    <div class="desc">
-      <p>Devin raised this from a note to something it wants a human to own: <code>Image Search</code> carries
-      the term the user typed, and <code>Image Chooser Closed</code> carries the one they accepted on. It is
-      the only place in this work where free-form user text goes to Segment.</p>
+      <p>Carried over unanswered from last round, and the only judgment call left in the code.
+      <code>Image Search</code> carries the term the user typed, and <code>Image Chooser Closed</code> carries
+      the one they accepted on. It is the only place in this work where free-form user text goes to Segment,
+      and Devin escalated it specifically to get a person to own it.</p>
       <p>It is deliberate, and I still think it is right. The term is what makes the rest of the search data
       mean anything: without it we can see that someone searched five times and accepted nothing, but not
       whether the gap is in our art collection or in their spelling. A term repeatedly searched and never
       accepted is a concrete instruction about what to commission.</p>
-      <p>What makes it different from AI prompt text — which is excluded by name, via the allow-list that
-      lets the editor send only known properties of known events — is that these are one- or two-word queries
-      typed into a search box for a public art library, of the same kind the user is simultaneously sending to
+      <p>What makes it different from AI prompt text — which is excluded by name, via the allow-list that lets
+      the editor send only known properties of known events — is that these are one- or two-word queries typed
+      into a search box for a public art library, of the same kind the user is simultaneously sending to
       Pixabay. Prompts routinely contain sentences lifted out of the book being written.</p>
-      <p>It is already in the tester's "known and deliberate" list so nobody files it as a leak. But you are
-      the right person to say yes to it, so:</p>
     </div>
     <div class="opt">
-      <input type="radio" name="q3" id="q3a" data-q="Search terms" value="Keep sending search terms as they are" checked>
-      <div class="body"><label class="lab" for="q3a">Keep sending them as they are<span class="rec">recommended</span></label>
+      <input type="radio" name="q2" id="q2a" data-q="Search terms" value="Keep sending search terms as they are" checked>
+      <div class="body"><label class="lab" for="q2a">Keep sending them as they are<span class="rec">recommended</span></label>
       <span class="cost">No work. Recommended because the term is the property that makes the search data actionable, and it is the same text the user is already sending to a public image service.</span></div>
     </div>
     <div class="opt">
-      <input type="radio" name="q3" id="q3b" data-q="Search terms" value="Truncate the term (e.g. to 40 characters)">
-      <div class="body"><label class="lab" for="q3b">Truncate them</label>
+      <input type="radio" name="q2" id="q2b" data-q="Search terms" value="Truncate the term (e.g. to 40 characters)">
+      <div class="body"><label class="lab" for="q2b">Truncate them</label>
       <span class="cost">A line in one place. Keeps ordinary queries intact while capping the worst case of someone pasting a sentence into the search box.</span></div>
     </div>
     <div class="opt">
-      <input type="radio" name="q3" id="q3c" data-q="Search terms" value="Drop the term; report only that a search happened">
-      <div class="body"><label class="lab" for="q3c">Drop them entirely</label>
+      <input type="radio" name="q2" id="q2c" data-q="Search terms" value="Drop the term; report only that a search happened">
+      <div class="body"><label class="lab" for="q2c">Drop them entirely</label>
       <span class="cost">A line in one place, and it costs the main thing these events were added to learn.</span></div>
     </div>
     <div class="opt">
-      <input type="radio" name="q3" id="q3d" data-q="Search terms" value="Other">
-      <div class="body"><label class="lab" for="q3d">Other:</label>
+      <input type="radio" name="q2" id="q2d" data-q="Search terms" value="Other">
+      <div class="body"><label class="lab" for="q2d">Other:</label>
       <input type="text" data-q="Search terms — other" placeholder="…"></div>
     </div>
-    <div class="notes"><label for="n3">Notes</label><textarea id="n3" data-q="Search terms — notes"></textarea></div>
+    <div class="notes"><label for="n2">Notes</label><textarea id="n2" data-q="Search terms — notes"></textarea></div>
+  </section>
+
+  <section class="q">
+    <h2>3. How much further should I chase Devin?</h2>
+    <div class="desc">
+      <p>Worth deciding explicitly, because it shaped this run. Every fix in the AI editor's session
+      bookkeeping made the next interaction visible, and Devin promotes its own earlier notes to bugs as the
+      code around them improves. Eight rounds later the findings were still real — the last one was a bug I
+      had introduced two commits earlier — but they were also getting narrower: the most recent needed the
+      editor to send two overlapping commits, which it may never do.</p>
+      <p>I stopped at a clean, green state with every finding either fixed or recorded, rather than running
+      the loop until it returned nothing.</p>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3a" data-q="Devin loop" value="Stopping here was right; a human should read it now" checked>
+      <div class="body"><label class="lab" for="q3a">Stopping here was right — a human should read it now<span class="rec">recommended</span></label>
+      <span class="cost">The remaining findings are narrow concurrency cases in a path a sibling app controls. A reviewer's attention is worth more than another round.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3b" data-q="Devin loop" value="Keep going until Devin returns nothing new">
+      <div class="body"><label class="lab" for="q3b">Keep going until Devin returns nothing new</label>
+      <span class="cost">More rounds of the same. Each has been genuine so far, so this is not unreasonable — it just is not obviously the best use of the time.</span></div>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3c" data-q="Devin loop" value="Other">
+      <div class="body"><label class="lab" for="q3c">Other:</label>
+      <input type="text" data-q="Devin loop — other" placeholder="…"></div>
+    </div>
+    <div class="notes"><label for="n3">Notes</label><textarea id="n3" data-q="Devin loop — notes"></textarea></div>
   </section>
 
   <section class="q">
     <h2>Next step</h2>
     <div class="desc">
-      <p>Everything you decided last round is done. The two package PRs are waiting on your review; nothing
-      else on this branch is blocked.</p>
+      <p>The PR is otherwise ready for a human to read. It is still a draft, and taking it out of draft is
+      yours to do, not mine.</p>
     </div>
     <div class="opt">
-      <input type="radio" name="qn" id="qna" data-q="Next step" value="Review and merge the two package PRs; I do the pin work afterwards" checked>
-      <div class="body"><label class="lab" for="qna">You review and merge the package PRs; I do the pin work afterwards<span class="rec">recommended</span></label></div>
+      <input type="radio" name="qn" id="qna" data-q="Next step" value="Answer the above; I bump the AI-tools pin when the tag exists, then it is ready for review" checked>
+      <div class="body"><label class="lab" for="qna">Answer the above; I bump the pin when the tag exists<span class="rec">recommended</span></label></div>
     </div>
     <div class="opt">
-      <input type="radio" name="qn" id="qnb" data-q="Next step" value="Implement the chosen options above first, then re-run preflight">
-      <div class="body"><label class="lab" for="qnb">Implement the options chosen above first, then re-run preflight</label></div>
+      <input type="radio" name="qn" id="qnb" data-q="Next step" value="Take #8215 out of draft now and review it as it stands">
+      <div class="body"><label class="lab" for="qnb">Take it out of draft now and review it as it stands</label></div>
     </div>
     <div class="opt">
       <input type="radio" name="qn" id="qnc" data-q="Next step" value="Other">
