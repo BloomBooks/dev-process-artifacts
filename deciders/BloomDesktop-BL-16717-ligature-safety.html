@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ligature Safety Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #f6f4ef;
+    --card: #ffffff;
+    --rule: #e3ded4;
+    --rule-soft: #efebe3;
+    --ink: #21201d;
+    --ink-soft: #5f5a52;
+    --ink-faint: #8b857b;
+    --accent: #3a4a6b;
+    --accent-soft: #eef1f7;
+    --pass: #2f6b46;
+    --pass-soft: #e8f1ea;
+    --warn: #856112;
+    --warn-soft: #f7f0dd;
+    --skip: #6b655c;
+    --skip-soft: #efece6;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 40px 28px 72px; }
+
+  /* ---------- header ---------- */
+  header { border-bottom: 1px solid var(--rule); padding-bottom: 24px; margin-bottom: 28px; }
+  .kicker {
+    font-family: var(--sans); font-size: 12px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--ink-faint); margin-bottom: 10px;
+  }
+  h1 {
+    font-family: var(--serif); font-size: 38px; line-height: 1.15;
+    font-weight: 600; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .run-line { margin-top: 12px; color: var(--ink-soft); max-width: 68ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 7px;
+    border: 1px solid var(--rule); background: var(--card);
+    border-radius: 999px; padding: 5px 13px;
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .chip strong { color: var(--ink); font-weight: 600; }
+  .chip::before {
+    content: ""; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .chip.good::before { background: var(--pass); }
+  .chip.attn::before { background: var(--warn); }
+
+  /* ---------- layout ---------- */
+  .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 28px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card); border: 1px solid var(--rule);
+    border-radius: 4px; padding: 24px 26px;
+  }
+  .card > * + * { margin-top: 14px; }
+  h2 {
+    font-family: var(--serif); font-size: 22px; font-weight: 600;
+    line-height: 1.25; letter-spacing: -0.01em;
+  }
+  h3 {
+    font-family: var(--sans); font-size: 12px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent); font-weight: 700;
+  }
+  p { max-width: 70ch; }
+  .card p + h3 { margin-top: 20px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  code, .numeral { font-family: var(--mono); font-size: 0.88em; font-variant-numeric: tabular-nums; }
+  code { background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
+
+  ul.bullets { display: flex; flex-direction: column; gap: 9px; }
+  ul.bullets li { padding-left: 16px; position: relative; max-width: 70ch; }
+  ul.bullets li::before {
+    content: ""; position: absolute; left: 0; top: 0.68em;
+    width: 5px; height: 1px; background: var(--ink-faint);
+  }
+
+  /* ---------- the evidence exhibit ---------- */
+  .exhibit {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 18px;
+    border: 1px solid var(--rule-soft); background: #fbfaf7;
+    border-radius: 4px; padding: 16px 18px; align-items: baseline;
+  }
+  .exhibit dt {
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-faint); white-space: nowrap;
+  }
+  .exhibit dd { font-family: var(--serif); font-size: 26px; line-height: 1.3; }
+  .exhibit .caption {
+    grid-column: 1 / -1; font-size: 13px; color: var(--ink-soft);
+    margin-top: 8px; font-family: var(--sans);
+  }
+
+  /* ---------- tables ---------- */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; }
+  .tag {
+    display: inline-block; border-radius: 3px; padding: 1px 8px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
+  }
+  .tag.pass { background: var(--pass-soft); color: var(--pass); }
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.skip { background: var(--skip-soft); color: var(--skip); }
+
+  .reviewers { display: flex; flex-direction: column; gap: 16px; }
+  .reviewer { display: grid; grid-template-columns: 150px 1fr; gap: 4px 18px; }
+  .reviewer .who { font-weight: 600; }
+  .reviewer .said { color: var(--ink-soft); }
+  @media (max-width: 620px) { .reviewer { grid-template-columns: 1fr; } }
+
+  /* ---------- decisions ---------- */
+  .decision { border-left: 2px solid var(--accent); }
+  .decision .q { font-family: var(--serif); font-size: 20px; font-weight: 600; line-height: 1.3; }
+  .options { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+  .option {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px;
+    border: 1px solid var(--rule); border-radius: 4px; padding: 11px 13px;
+    align-items: start;
+  }
+  .option:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .option label.main { cursor: pointer; }
+  .option .rec {
+    display: inline-block; margin-left: 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+  }
+  .option .cost {
+    grid-column: 2 / 3; font-size: 13px; color: var(--ink-faint); margin-top: 2px;
+  }
+  .option .aside {
+    grid-column: 3 / 4; grid-row: 1 / 2; font-size: 13px; color: var(--ink-soft);
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .option input[type="text"] {
+    grid-column: 2 / -1; width: 100%; margin-top: 6px;
+    border: 1px solid var(--rule); border-radius: 3px; padding: 6px 8px; background: var(--card);
+  }
+  .notes { margin-top: 14px; }
+  .notes label { display: block; font-size: 13px; color: var(--ink-faint); margin-bottom: 5px; }
+  .notes textarea {
+    width: 100%; min-height: 56px; resize: vertical;
+    border: 1px solid var(--rule); border-radius: 3px; padding: 8px 10px; background: var(--card);
+  }
+
+  .copyback button {
+    background: var(--accent); color: #fff; border: none; border-radius: 4px;
+    padding: 10px 18px; font-weight: 600; cursor: pointer;
+  }
+  .copyback button:hover { background: #2f3d59; }
+  .copyback textarea {
+    width: 100%; min-height: 160px; margin-top: 14px; font-family: var(--mono); font-size: 13px;
+    border: 1px solid var(--rule); border-radius: 3px; padding: 10px; background: #fbfaf7;
+  }
+  .copied { margin-left: 12px; font-size: 13px; color: var(--pass); opacity: 0; transition: opacity .2s; }
+  .copied.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+
+  footer { margin-top: 36px; padding-top: 18px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--ink-faint); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Preflight report &middot; BloomDesktop</div>
+  <h1>Keeping typing safe around ligatures, wherever the split came from</h1>
+  <p class="run-line">Second round on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16717" target="_blank" rel="noopener">BL-16717</a>. Steve still sees letters vanishing on 6.5.1322; this run found why, fixed it, and verified it against real keystrokes in a running Bloom. Three things need your call, plus the next step.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><strong>Draft PR</strong> #8217</span><!-- pr-state:end -->
+    <span class="chip good"><strong>Mergeable</strong> clean</span>
+    <span class="chip good"><strong>Bots</strong> quiet</span>
+    <span class="chip attn"><strong>3</strong> decisions &middot; plus next step</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ======================= LEFT ======================= -->
+  <div class="col">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>In fonts that join letters together &mdash; Andika, Bloom&rsquo;s default, and Charis both join
+      <em>ff</em>, <em>fl</em> and <em>ffl</em> &mdash; letters the user has typed sometimes stop being drawn,
+      and the caret sometimes stops moving as they arrow across those letters. The text is all there and
+      saves correctly; only the screen is wrong, and it comes back on a font change or a page reload. The
+      first fix for this shipped in 6.5, and the reporter still sees it on 6.5.1322, about 1% of the time
+      when typing just after a ligature.</p>
+
+      <dl class="exhibit">
+        <dt>In the book</dt><dd>wafxfle</dd>
+        <dt>On the screen</dt><dd>wafxe</dd>
+        <div class="caption">Measured on a running Bloom: 126 of 564 ink pixels missing, layout width unchanged. Only a screenshot catches this &mdash; the DOM and the inspector both look right.</div>
+      </dl>
+
+      <h3>Cause</h3>
+      <p>Chromium drops glyphs from a paragraph whose text sits in <strong>two adjacent text nodes</strong>:
+      it shapes the paragraph as a single run and then hands the glyphs out per text node, so a ligature
+      spanning the boundary loses glyphs &mdash; not when the split happens, but at the <em>next</em> edit,
+      which for the user is simply the next letter they type. The caret misbehaves in the same state,
+      staying drawn in one place for two or three arrow presses.</p>
+      <p>The first fix repaired the splits Bloom itself caused, with ckeditor bookmarks, and stopped taking
+      those bookmarks for ordinary typing. But bookmarks are not the only thing that splits a paragraph:
+      <strong>Chromium&rsquo;s own backspace</strong> in the middle of a word splits it,
+      <strong>long-press</strong> composes its character into a text node of its own, and
+      <strong>ckeditor</strong> takes bookmarks of its own for Enter, paste and the style commands. None of
+      those were ever put back together.</p>
+
+      <h3>What the PR does</h3>
+      <ul class="bullets">
+        <li>The repair no longer depends on Bloom having caused the split:
+        <code>mergeTextNodesSplitByBookmarks</code> becomes
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/68b85a1f5368b532267f4063efb514af4161ac74/src/BloomBrowserUI/bookEdit/js/editableDivUtils.ts#L541" target="_blank" rel="noopener"><code>mergeAdjacentTextNodes</code></a>,
+        and its comment names the other causes.</li>
+        <li>It runs <strong>on keydown, before the keystroke lands</strong>
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/68b85a1f5368b532267f4063efb514af4161ac74/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L287" target="_blank" rel="noopener">toolbox.ts:287</a>),
+        so the character arrives in a paragraph that is one whole text node again. This is the part that
+        keeps the letters on screen &mdash; the existing half-second sweep runs <em>after</em> the damage.</li>
+        <li>That half-second sweep
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/68b85a1f5368b532267f4063efb514af4161ac74/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1775" target="_blank" rel="noopener">toolbox.ts:1775</a>)
+        now runs unconditionally, catching the splits no keystroke follows: a menu paste, an IME, an undo,
+        a long-press the user doesn&rsquo;t type after.</li>
+        <li>The merge stands down where ckeditor is holding a &ldquo;filling char&rdquo; &mdash; a text node
+        ckeditor tracks and will come back to edit. It asks ckeditor rather than searching the text for a
+        zero-width space (some scripts use one in real text), ignores a reference ckeditor has been left
+        holding to a node no longer in the box, and stands down only for the paragraph the char is in.</li>
+        <li>Both entry points do nothing unless the box really is split: <span class="numeral">0.056&nbsp;ms</span>
+        to check on a 2000-text-node box.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td class="what">Typecheck</td><td><span class="tag pass">pass</span></td><td>clean at final HEAD</td></tr>
+            <tr><td class="what">Lint</td><td><span class="tag pass">pass</span></td><td><span class="numeral">0</span> errors on the changed files (warnings are repo-wide and pre-existing)</td></tr>
+            <tr><td class="what">TypeScript tests (vitest)</td><td><span class="tag pass">pass</span></td><td id="gate-vitest"><span class="numeral">719 passed &middot; 5 skipped</span>, including <span class="numeral">5</span> new cases for this change</td></tr>
+            <tr><td class="what">C# tests (dotnet)</td><td><span class="tag skip">not run</span></td><td>no C# in the diff &mdash; the .NET suite neither reads nor builds any of it</td></tr>
+            <tr><td class="what">Production bundle</td><td><span class="tag pass">pass</span></td><td>built through the isolated wrapper, so the real bundler saw it</td></tr>
+            <tr><td class="what">Merge with master</td><td><span class="tag pass">clean</span></td><td>master folded in before the push; it brought only C# changes</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      Four commits on top of a clean master merge: the fix itself, then a correction from the local review
+      (the filling-char guard originally searched the box for a zero-width space, which would have turned the
+      repair off for a whole book in Thai, Khmer or Myanmar), then the two things Devin found in that same
+      guard, then a comment recording why the repair must not skip the arrow keys.
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217/commits" target="_blank" rel="noopener">Commits</a> &middot;
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217/files" target="_blank" rel="noopener">Files changed</a></p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="reviewers">
+        <div class="reviewer">
+          <div class="who">Local review</div>
+          <div class="said">Light pass, done inline (this session is configured not to dispatch sub-agents).
+          Two findings, both fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/4150b70fa4" target="_blank" rel="noopener"><code>4150b70</code></a>:
+          the zero-width-space guard above, and a comment left saying a removed bookmark was the only way a
+          paragraph could end up split.</div>
+        </div>
+        <div class="reviewer" id="reviewer-devin">
+          <div class="who">Devin</div>
+          <div class="said">Complete on the final commit, after three passes. One Bug and one Investigate flag,
+          both about the filling-char guard and both now resolved with a documented outcome:
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217#discussion_r3815649086" target="_blank" rel="noopener">an orphaned
+          filling char could block the repair indefinitely</a> (real, and a regression on the reader-tool path
+          &mdash; fixed), and
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217#discussion_r3815650387" target="_blank" rel="noopener">does the guard
+          fire often enough to matter?</a> (measured: 0 of 90 keydowns). Eleven informational items, none
+          acted on; one of them suggested skipping the arrow keys, which is now answered in a code comment
+          because it would give back the stuck-caret half of the bug.
+          <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8217" target="_blank" rel="noopener">Devin review</a> &middot;
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217#issuecomment-5346518444" target="_blank" rel="noopener">consultation log</a></div>
+        </div>
+        <div class="reviewer">
+          <div class="who">CodeRabbit</div>
+          <div class="said">Configured in <code>.coderabbit.yml</code> but with <code>auto_review: enabled: false</code>,
+          and it has not commented on any recent PR &mdash; so it is not an active reviewer on this repo.</div>
+        </div>
+        <div class="reviewer">
+          <div class="who">CI</div>
+          <div class="said">Complete and green: <code>pr-automation</code> passed in <span class="numeral">1m15s</span>, the only required check.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul class="bullets">
+        <li><strong>Verified by driving real keystrokes, not by reasoning.</strong> The classic sequence, the
+        same in a second paragraph, over a non-breaking space, inside Talking Book sentence spans, across a
+        bold boundary, with the Leveled Reader tool open, and the long-press path: no stale paint anywhere,
+        and the caret lands on the right character every time. A live Range over the merged text &mdash; how
+        the reader tools and Talking Book paint their marks &mdash; comes through on exactly the same
+        characters, and a selection spanning the split survives with typing replacing exactly what was
+        selected.</li>
+        <li><strong>Two paths are guarded but not exercised by hand.</strong> The repair stands down during
+        an IME composition and while the long-press popup is open. The long-press case was checked by
+        picking an accented letter with the mouse; picking it with its keyboard shortcut, and any real IME
+        (Keyman), were not driven &mdash; synthetic key events don&rsquo;t reach those handlers.</li>
+        <li><strong>Not tried in a right-to-left or complex script.</strong> The same Chromium
+        cluster-shaping problem could bite differently in Arabic, Thai or Devanagari, where clusters are the
+        norm rather than the exception. Nothing about the fix is script-specific, but nothing about it was
+        tested there either.</li>
+        <li><strong>The Talking Book tool now re-checks its highlights a little more often.</strong>
+        Rejoining a paragraph is a change Talking Book watches for, so on a keystroke that actually repairs
+        a split it also runs its highlight repair-in-place pass. That pass is designed to run before the
+        screen is painted, and the reader and Talking Book marks were verified intact by hand &mdash; but if
+        highlight flicker is ever reported, this is the new path to look at.</li>
+        <li><strong>The 1% is a mechanism, not a reproduction of Steve&rsquo;s exact case.</strong> What is
+        proved is that unrepaired splits drop glyphs and freeze the caret, that Bloom left them unrepaired,
+        and that both symptoms match his description precisely. Whether every instance he hit came through
+        this door can only be settled by him hammering the next build.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ======================= RIGHT ======================= -->
+  <div class="col">
+
+    <section class="card decision">
+      <div class="q">Keep the new guard that skips the repair while ckeditor is holding a &ldquo;filling char&rdquo;?</div>
+      <p>Ckeditor sometimes parks an invisible character (a zero-width space) in the text box so the blinking
+      cursor stays visible &mdash; for instance when you click just next to bold text. It keeps a private
+      handle on the little piece of text holding that character, so it can take the character out again
+      later. If Bloom&rsquo;s repair joins that piece into its neighbour first, ckeditor is left writing to
+      something that is no longer in the document, and the invisible character stays in the user&rsquo;s
+      text &mdash; which is the problem behind BL-16490.</p>
+      <p>Devin raised this hazard on the last round and you decided to leave it alone. The reason to revisit
+      it is that the repair now runs on every keystroke rather than only on a pause, so it meets that
+      situation far more often.</p>
+      <p>Devin then found two things wrong with my first attempt at the guard, both fixed: it treated a
+      reference ckeditor had been left holding to a piece of text no longer in the box as a reason to keep
+      out, which could have left letters unpainted indefinitely; and it gave up on the whole text box rather
+      than just the paragraph the character is in. On its third point &mdash; does the guard fire often enough
+      to matter? &mdash; I measured rather than argued: the state occurred on <strong>0 of 90 keystrokes</strong>
+      across Talking Book sentence spans, a bold boundary and plain text, and could not be produced at all by
+      parking the cursor in the five places ckeditor's own rule describes. So the guard costs nothing
+      observable &mdash; and when it does fire, that paragraph is simply repaired on the next keystroke.</p>
+      <div class="options" data-q="Filling-char guard">
+        <div class="option">
+          <input type="radio" name="q1" id="q1a" value="Keep the guard" checked>
+          <label class="main" for="q1a">Keep the guard<span class="rec">recommended</span>
+          <div class="cost">Already written &mdash; ~10 lines plus two tests. Recommended because it removes a known way for an invisible character to end up saved in someone&rsquo;s book, and the cost is a repair deferred by one keystroke in a case that is close to never.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q1" id="q1b" value="Drop the guard, always merge">
+          <label class="main" for="q1b">Drop the guard and always merge
+          <div class="cost">~10 lines removed. Slightly simpler, and never defers a repair &mdash; at the price of the BL-16490 hazard.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q1" id="q1c" value="Leave as is">
+          <label class="main" for="q1c">Leave as is</label>
+          <span class="aside"><input type="checkbox" id="q1comment" data-q="Filling-char guard / leave comment"> <label for="q1comment">Leave comment</label></span>
+        </div>
+        <div class="option">
+          <input type="radio" name="q1" id="q1d" value="Other">
+          <label class="main" for="q1d">Other:</label>
+          <input type="text" data-q="Filling-char guard / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes"><label for="q1notes">Notes</label><textarea id="q1notes" data-q="Filling-char guard / notes"></textarea></div>
+    </section>
+
+    <section class="card decision">
+      <div class="q">Should Bloom stop drawing ligatures while you are editing?</div>
+      <p>There is a blunt cure for this whole family of bugs: tell the browser not to join letters at all in
+      the editing view (<code>font-variant-ligatures: none</code>). Text editors do this routinely &mdash;
+      CodeMirror was asked to disable ligatures in its default stylesheet precisely because they cause
+      &ldquo;strange behavior when moving the cursor, selecting, etc.&rdquo; Chromium&rsquo;s own text
+      documentation explains why: neither the shaper nor the code drawing the text knows where the
+      individual letters inside a joined glyph sit.</p>
+      <p>It only changes appearance &mdash; the text, the saved book, and the printed PDF would be unaffected.
+      But it means the edit view no longer shows the reader what the page will actually look like, in a
+      product whose default font ligates and whose users care about how their script is rendered. I would
+      not do it as part of this fix, but you may want it in your back pocket if the reports continue.</p>
+      <div class="options" data-q="Turn ligatures off while editing">
+        <div class="option">
+          <input type="radio" name="q2" id="q2a" value="Leave as is" checked>
+          <label class="main" for="q2a">Leave as is<span class="rec">recommended</span></label>
+          <span class="aside"><input type="checkbox" id="q2comment" data-q="Turn ligatures off while editing / leave comment"> <label for="q2comment">Leave comment</label></span>
+        </div>
+        <div class="option">
+          <input type="radio" name="q2" id="q2b" value="Turn ligatures off in the edit view now">
+          <label class="main" for="q2b">Turn ligatures off in the edit view now
+          <div class="cost">Small &mdash; one CSS rule &mdash; but user-facing: what you see while editing stops matching what prints.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q2" id="q2c" value="File it as a fallback card, don't do it yet">
+          <label class="main" for="q2c">File it as a fallback card, don&rsquo;t do it yet
+          <div class="cost">No code &mdash; a YouTrack card recording the option and the trade-off, so it is on the shelf if BL-16717 comes back a third time.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q2" id="q2d" value="Other">
+          <label class="main" for="q2d">Other:</label>
+          <input type="text" data-q="Turn ligatures off while editing / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes"><label for="q2notes">Notes</label><textarea id="q2notes" data-q="Turn ligatures off while editing / notes"></textarea></div>
+    </section>
+
+    <section class="card decision">
+      <div class="q">How do we find out whether this really was Steve&rsquo;s 1%?</div>
+      <p>Steve says a reliable reproduction may not exist, and I could not reproduce his exact case either
+      &mdash; what I could do was prove the mechanism and show that both of his symptoms (letters not drawn,
+      and the caret refusing to move over them) come out of it. If he still sees it after this ships, the
+      useful question will be &ldquo;was the paragraph split at the time?&rdquo;, and today nothing would
+      tell us.</p>
+      <div class="options" data-q="Confirming with Steve">
+        <div class="option">
+          <input type="radio" name="q3" id="q3a" value="Ship it and ask Steve to hammer it" checked>
+          <label class="main" for="q3a">Ship it and ask Steve to hammer it<span class="rec">recommended</span>
+          <div class="cost">No code. Recommended because the fix stands on its own evidence, and the QA notes on the card already tell a tester exactly what to try and how to tell a missing letter from an unpainted one.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q3" id="q3b" value="Add a counter so a recurrence can be diagnosed">
+          <label class="main" for="q3b">Add a quiet counter of repairs, readable when someone reports it again
+          <div class="cost">~15 lines, no user-visible effect &mdash; enough to answer &ldquo;was it split?&rdquo; next time rather than guessing again.</div>
+          </label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q3" id="q3c" value="Leave as is">
+          <label class="main" for="q3c">Leave as is</label>
+          <span class="aside"><input type="checkbox" id="q3comment" data-q="Confirming with Steve / leave comment"> <label for="q3comment">Leave comment</label></span>
+        </div>
+        <div class="option">
+          <input type="radio" name="q3" id="q3d" value="Other">
+          <label class="main" for="q3d">Other:</label>
+          <input type="text" data-q="Confirming with Steve / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes"><label for="q3notes">Notes</label><textarea id="q3notes" data-q="Confirming with Steve / notes"></textarea></div>
+    </section>
+
+    <section class="card decision">
+      <div class="q">Next step</div>
+      <p>The PR is a draft, CI is green, and nothing is waiting on a bot.</p>
+      <div class="options" data-q="Next step">
+        <div class="option">
+          <input type="radio" name="q4" id="q4a" value="Act on my answers, then stop for my own review" checked>
+          <label class="main" for="q4a">Act on my answers, then stop for my own review<span class="rec">recommended</span></label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q4" id="q4b" value="Discuss first">
+          <label class="main" for="q4b">Let&rsquo;s discuss before anything changes</label>
+        </div>
+        <div class="option">
+          <input type="radio" name="q4" id="q4c" value="Leave as is">
+          <label class="main" for="q4c">Leave as is</label>
+          <span class="aside"><input type="checkbox" id="q4comment" data-q="Next step / leave comment"> <label for="q4comment">Leave comment</label></span>
+        </div>
+        <div class="option">
+          <input type="radio" name="q4" id="q4d" value="Other">
+          <label class="main" for="q4d">Other:</label>
+          <input type="text" data-q="Next step / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes"><label for="q4notes">Notes</label><textarea id="q4notes" data-q="Next step / notes"></textarea></div>
+    </section>
+
+    <section class="card copyback">
+      <h2>Send your answers back</h2>
+      <p>Copy this and paste it into the session.</p>
+      <button type="button" id="copybtn">Copy answers</button><span class="copied" id="copied">Copied</span>
+      <textarea id="payload" readonly></textarea>
+    </section>
+
+  </div>
+</div>
+
+<footer>
+  BloomDesktop &middot; branch <code>BL-16717-ligature-safety</code> &middot; HEAD <code>68b85a1f</code> &middot;
+  <a href="https://github.com/BloomBooks/BloomDesktop/pull/8217" target="_blank" rel="noopener">PR #8217</a>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var out = ["Preflight answers - BL-16717 / PR 8217 (branch BL-16717-ligature-safety)", ""];
+    document.querySelectorAll(".options").forEach(function (group) {
+      var title = group.getAttribute("data-q");
+      var chosen = group.querySelector('input[type="radio"]:checked');
+      var label = chosen ? chosen.value : "(no answer)";
+      if (chosen && chosen.value === "Other") {
+        var other = group.querySelector('input[type="text"][data-q$="other"]');
+        label = "Other: " + ((other && other.value.trim()) || "(nothing typed)");
+      }
+      out.push("## " + title);
+      out.push("Answer: " + label);
+      var leave = group.querySelector('input[type="checkbox"]');
+      if (leave && leave.checked) out.push("Leave comment: yes - record this decision in a code comment");
+      var card = group.closest(".card");
+      var notes = card ? card.querySelector('textarea[data-q$="notes"]') : null;
+      if (notes && notes.value.trim()) out.push("Notes: " + notes.value.trim());
+      out.push("");
+    });
+    payload.value = out.join("\n");
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.classList.add("show");
+      setTimeout(function () { c.classList.remove("show"); }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select();
+        document.execCommand("copy");
+        done();
+      });
+    } else {
+      payload.select();
+      document.execCommand("copy");
+      done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
