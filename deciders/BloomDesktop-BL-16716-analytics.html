@@ -197,11 +197,11 @@
 
 <header class="top">
   <h1>Analytics for the 6.5 features — preflight</h1>
-  <div class="sub">BL-16716 &middot; third preflight run &middot; the AI commit reports from the browser, and the picture library is in</div>
+  <div class="sub">BL-16716 &middot; both dependencies merged and in &middot; nothing left blocking merge</div>
   <div class="prs">
-    <span><span class="repo">BloomDesktop</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">#8215</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/files" target="_blank" rel="noopener">files</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/commits" target="_blank" rel="noopener">commits</a> · <span class="numeral">3d8d09d</span></span>
+    <span><span class="repo">BloomDesktop</span> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215" target="_blank" rel="noopener">#8215</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/files" target="_blank" rel="noopener">files</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8215/commits" target="_blank" rel="noopener">commits</a> · <span class="numeral">1f13940</span></span>
     <span><span class="repo">bloom-image-gallery</span> <a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a> · <span class="numeral">merged, and in</span></span>
-    <span><span class="repo">bloom-ai-image-tools</span> <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a> · <span class="numeral">still open</span></span>
+    <span><span class="repo">bloom-ai-image-tools</span> <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">#2</a> · <span class="numeral">merged, dist-v0.1.4 published and in</span></span>
     <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16716" target="_blank" rel="noopener">BL-16716</a></span>
   </div>
 </header>
@@ -275,6 +275,16 @@
     in. Both are done. The move then set off the longest review chain of the branch: <strong>eight more
     commits, every one from a Devin finding</strong>, and every one real.</p>
     <ul class="bul">
+      <li><strong>Both dependencies are now real, and the AI editor's generation events can finally
+      arrive.</strong> #2 was merged after the run above, so <code>dist-v0.1.4</code> is published and Bloom
+      is pinned to it instead of <code>dist-v0.1.3</code>, which predated the editor's own reporting. That
+      was the last thing blocking merge. The blockage itself was <strong>my omission</strong>: that
+      repository asks for the semver bump to be committed <em>in the PR</em>, mine carried no changeset, so
+      <code>master</code> stayed at 0.1.3 and the publish workflow — which names the tag from
+      <code>package.json</code> and refuses to overwrite — would have declined to produce anything. Adding
+      the changeset and bumping was the whole remaining step; no editor code changed. Verified beyond "the
+      pin resolves": the installed build is 0.1.4, its bundle contains <code>AI Editor Generate</code>, and
+      the tag records the merged commit as its source. <span class="numeral">1f13940</span></li>
       <li><strong>The AI commit now reports from the browser</strong>, where the outcome is actually known.
       C# could only ever report an intention: for a slot on the page the user has open it stages the
       replacement and hands the swap to the browser, so a staged slot counted as applied — and since the
@@ -384,17 +394,23 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul class="bul">
-      <li><strong>Still not one event has been seen reaching Segment.</strong> DEBUG builds run with tracking
-      off, so the new log line remains the only confirmation available here; whether Segment accepts each
-      event, and whether the properties land where an analyst can group on them, needs one pass on alpha.</li>
+      <li><strong>Still not one event has been seen reaching Segment</strong>, and now one more gap worth
+      naming precisely: with the new editor build in place, <code>AI Editor Generate</code> <em>should</em>
+      arrive over the bridge, but you chose automated verification only, so nobody has driven the editor and
+      watched it appear. Everything short of that is checked — the build carries the event, Bloom's
+      allow-list admits it, the suites pass — but the last hop is unobserved. It is first on the tester's
+      list.</li>
       <li><strong>The AI editor is where by-hand testing should go.</strong> Nine of this run's commits touch
       the code that puts AI pictures into books, and the tester's notes lead with it: closing the editor
       mid-save, and committing to several pages at once.</li>
-      <li><strong>One small thing I left, deliberately, so you can judge it.</strong> When applying credits to
-      a whole book aborts on a permissions error, the duration event still fires with
-      <code>imageCount=0</code> — indistinguishable from a book with no eligible pictures. Fixing it means
-      changing what that method returns so the caller can tell the two apart, which is more surgery on a
-      C# contract than the rest of this run's fixes; say the word and it is twenty minutes.</li>
+      <li><strong>Two small things I left deliberately, so you can judge them rather than find them.</strong>
+      When applying credits to a whole book aborts on a permissions error, the duration event still fires
+      with <code>imageCount=0</code> — indistinguishable from a book with no eligible pictures; fixing it
+      means changing what that method returns so the caller can tell the two apart. And
+      <code>commitsInFlight</code> is incremented just outside the <code>try</code>, so a <em>synchronous</em>
+      throw from <code>postJson</code> would leave it stuck above zero and that session could never be
+      reported as abandoned — a one-line move, in code I wrote, that Devin raised as informational on the
+      last pass. Neither is urgent; both are quick if you want them.</li>
       <li>Devin's other informational notes I read and did not act on: the generation count includes failed
       generations (which is what "how much AI work was thrown away" wants), an unset third language slot
       captures no reading-direction baseline (so it reports nothing, correctly), the transparency-choice map
@@ -407,47 +423,17 @@
 
 <div class="col">
 
-  <section class="q blocking">
-    <h2>1. The AI editor dependency is the last thing between this and merge</h2>
-    <div class="desc">
-      <p>You said both dependency PRs had been merged. The picture library
-      (<a href="https://github.com/BloomBooks/bloom-image-gallery/pull/20" target="_blank" rel="noopener">#20</a>)
-      is merged, and is now in — but
-      <a href="https://github.com/BloomBooks/bloom-ai-image-tools/pull/2" target="_blank" rel="noopener">bloom-ai-image-tools #2</a>
-      is <strong>still open</strong>. It is out of draft, mergeable and clean, but not merged, and there is no
-      <code>dist-v0.1.4</code> tag.</p>
-      <p>So Bloom is still pinned at <code>#dist-v0.1.3</code>, which predates the editor's own reporting of
-      each generation. Everything on Bloom's side works with that pin — Bloom forwards whatever the editor
-      sends — but <strong>no <code>AI Editor Generate</code> events will appear</strong> until #2 merges, a
-      <code>dist-v*</code> tag is published from it, and this pin moves to that tag. Publishing the tag is a
-      <code>workflow_dispatch</code> release step in that repository.</p>
-      <p>Nothing else blocks #8215. Once the tag exists, the bump is two lines plus a lockfile refresh.</p>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1a" data-q="AI tools dependency" value="I will merge #2 and publish the tag; you then bump the pin" checked>
-      <div class="body"><label class="lab" for="q1a">You merge #2 and publish the tag; I then bump the pin<span class="rec">recommended</span></label>
-      <span class="cost">Keeps the release step with you. Costs one more short preflight to bump the pin and re-run the gates.</span></div>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1b" data-q="AI tools dependency" value="Publish the dist tag yourself once #2 is merged">
-      <div class="body"><label class="lab" for="q1b">Publish the tag yourself once #2 is merged</label>
-      <span class="cost">I can run the workflow_dispatch; it refuses if the tag already exists, so it is hard to get wrong. But it is a release, so I would rather you chose it deliberately than have me assume it.</span></div>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1c" data-q="AI tools dependency" value="Merge #8215 without the generate events; bump the pin later">
-      <div class="body"><label class="lab" for="q1c">Merge #8215 now and bump the pin later</label>
-      <span class="cost">Everything else in this PR works. The cost is that the AI editor's generation events — the ones that say what people are paying for — stay dark until someone remembers.</span></div>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1d" data-q="AI tools dependency" value="Other">
-      <div class="body"><label class="lab" for="q1d">Other:</label>
-      <input type="text" data-q="AI tools dependency — other" placeholder="…"></div>
-    </div>
-    <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-q="AI tools dependency — notes"></textarea></div>
+  <section class="card">
+    <h2>Nothing is blocking merge any more</h2>
+    <p>Both dependency PRs are merged and Bloom is pointed at the real thing: the picture library at its
+    merge commit, and the AI editor at <code>dist-v0.1.4</code>, published from the merged code. The two
+    pre-merge blockers that stood in earlier rounds are gone, and their threads are closed.</p>
+    <p>What is left below is one judgment call about the data we send, and one about how I should work.
+    Neither stops a human reading the PR.</p>
   </section>
 
   <section class="q">
-    <h2>2. Search terms leave the machine — still wants your yes</h2>
+    <h2>1. Search terms leave the machine — still wants your yes</h2>
     <div class="desc">
       <p>Carried over unanswered from last round, and the only judgment call left in the code.
       <code>Image Search</code> carries the term the user typed, and <code>Image Chooser Closed</code> carries
@@ -486,7 +472,7 @@
   </section>
 
   <section class="q">
-    <h2>3. How much further should I chase Devin?</h2>
+    <h2>2. How much further should I chase Devin?</h2>
     <div class="desc">
       <p>Worth deciding explicitly, because it shaped this run. Every fix in the AI editor's session
       bookkeeping made the next interaction visible, and Devin promotes its own earlier notes to bugs as the
