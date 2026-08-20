@@ -112,10 +112,10 @@
       <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
       <tbody>
         <tr><td>C# build</td><td class="ok">pass</td><td>Clean at final HEAD, and after the base merge.</td></tr>
-        <tr><td>C# tests (<code>dotnet test</code>)</td><td class="ok">pass</td><td><span class="numeral">3149 passed · 13 skipped · 0 failed</span>. Run in full three times: after the base merge and after each fix round.</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td class="ok">pass</td><td><span class="numeral">3153 passed · 13 skipped · 0 failed</span>. Run in full after the base merge and after every fix round — seven times, green each time.</td></tr>
         <tr><td>TypeScript tests (vitest)</td><td class="na">not run</td><td>No front-end code in the diff — it touches C# and one shell hook only, and the C# suite neither builds nor reads any TypeScript.</td></tr>
         <tr><td>TypeScript typecheck / lint</td><td class="na">not run</td><td>Same reason: nothing in the diff can reach them.</td></tr>
-        <tr><td>Freeze Doctor repo tests</td><td class="ok">pass</td><td><span class="numeral">95 passed</span> in the companion repo, whose shared contract files must stay byte-identical to Bloom's copies.</td></tr>
+        <tr><td>Freeze Doctor repo tests</td><td class="ok">pass</td><td><span class="numeral">95 passed</span> in the companion repo, which holds the source of truth for the shared contract files.</td></tr>
         <tr><td>Base merge</td><td class="ok">clean</td><td><span class="numeral">18 commits</span> of <code>master</code> merged before publishing; no conflicts, and the gate re-run afterwards.</td></tr>
         <tr><td>Mergeable</td><td class="ok">clean</td><td>GitHub reports <code>MERGEABLE</code> / <code>CLEAN</code>.</td></tr>
       </tbody>
@@ -125,8 +125,9 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>This was the branch's first preflight, so the run covers the whole feature: it merged <code>master</code>, opened the PR, and then fixed everything the reviewers raised — six findings across three Devin rounds, plus two I found reviewing my own diff, plus five of Devin's informational items.</p>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8218/commits" target="_blank" rel="noopener">All commits on the PR</a> · fix rounds: <a href="https://github.com/BloomBooks/BloomDesktop/commit/c69b7e53ad59c70f394457eb42df7fe0fecf460a" target="_blank" rel="noopener"><code>c69b7e5</code></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/01ccbd84fb518542b3946a741666106c95092d22" target="_blank" rel="noopener"><code>01ccbd8</code></a></p>
+    <p>The run covers the whole feature: it merged <code>master</code>, opened the PR, and then fixed everything the reviewers raised — nine genuine findings across seven Devin rounds, plus two I found reviewing my own diff. Your three answers are applied: the <code>RobustFile</code> exemption stands as committed, and the freeze simulator now works on Alpha as well as developer builds.</p>
+    <p>The last four rounds were all one small piece of logic — the line that says what Bloom was doing when it froze. It has now been got wrong <strong>three times in three different ways</strong>, and separately the shared page's write counter has silently disabled itself twice. Both are described under “worth knowing”, because both are the kind of fault that produces a confident, wrong report rather than an error.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8218/commits" target="_blank" rel="noopener">All commits on the PR</a> · latest fixes: <a href="https://github.com/BloomBooks/BloomDesktop/commit/d7f5f597afaf379cf92673338952fb061dd54bf4" target="_blank" rel="noopener"><code>d7f5f59</code></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/67b488d03b07a9da7a0e40eda7de883d1ef6a278" target="_blank" rel="noopener"><code>67b488d</code></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/20707c113f6f7cf2edbd25364ce92324f24eee16" target="_blank" rel="noopener"><code>20707c1</code></a></p>
   </section>
 
   <section class="card">
@@ -141,7 +142,7 @@
         </tr>
         <tr>
           <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8218" target="_blank" rel="noopener">Devin</a></td><td class="ok">complete</td>
-          <td>Three rounds. Six genuine findings, every one in this branch's new code, every one fixed with a reply and a resolved thread: a broken write-sequence protocol that could have silently disabled the whole channel; a stale activity string; a running Bloom recorded as finished; a lost-update race on that record; hard-failure exits recorded as clean; and one regression I introduced fixing another. Five informational items also acted on. <strong>Rounds 2 and 3 re-emitted earlier findings verbatim rather than re-checking them</strong> — each was verified against the analysed commit and is fixed, so the review page overstates what is outstanding; the resolved threads are the accurate record.</td>
+          <td>Seven rounds; the final one reports <strong>no outstanding bugs</strong>. Nine genuine findings, every one in this branch's new code, every one fixed with a reply and a resolved thread — including a write-sequence protocol that could silently disable the whole channel (twice, by two different mechanisms), a running Bloom recorded as finished, a lost-update race on that record, hard-failure exits recorded as clean, and two regressions I introduced fixing earlier findings. One flag refuted with reasoning on its thread. <strong>Devin re-emits earlier findings verbatim on re-review rather than re-checking them</strong>, and several of its informational flags are demonstrably false against the very commit they were raised on — a pruning rule it describes is the opposite of what the code does, a comment it calls contradictory is correct, a list it calls mismatched is complete. Each was checked individually; the resolved threads, not the flag count, are the accurate record.</td>
         </tr>
         <tr>
           <td>CodeRabbit</td><td class="na">silent</td>
@@ -149,7 +150,7 @@
         </tr>
         <tr>
           <td>CI (<code>pr-automation</code>)</td><td class="ok">complete</td>
-          <td>Passed at final HEAD (<span class="numeral">29 s</span>).</td>
+          <td>Passed at final HEAD (<span class="numeral">45 s</span>), and on every intermediate commit.</td>
         </tr>
       </tbody>
     </table>
@@ -161,7 +162,8 @@
     <ul>
       <li><strong>The Doctor's detection has been exercised end to end against a real Bloom; the crash-dump handshake has not.</strong> Freezes (including the invisible STA-wait kind), the zombie case and the unreported-crash case were all driven with the simulator and produced correct reports. The dump handshake is wired but never fired in practice, because Bloom's own error handling catches these crashes first and reports them itself — which is the better outcome, and the Doctor correctly stayed silent. A direct <code>FailFast</code> runs no managed handlers at all, so it can never request a dump.</li>
       <li><strong>Nothing here is reachable by a user yet.</strong> The Doctor is a separate, unreleased program, so on any real machine this code publishes facts nobody reads. That makes the testing risk a regression risk — startup, shutdown, and the API request path — which is how the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16719" target="_blank" rel="noopener">card's</a> test notes are written.</li>
-      <li><strong>The two contract files are byte-identical copies</strong> of files in the Doctor's repo, and both repos pin the layout by value in a test, so a divergence breaks two builds. If you edit one, copy it across.</li>
+      <li><strong>Two faults of the same shape are worth knowing about before you review the diagnostic code.</strong> The line that records what Bloom was doing has been wrong three times, and its two failure directions are <em>opposites</em> — it either got overwritten a second later, or was never retired and described an idle Bloom hours later — so a fix for one walks into the other. Separately, the shared page's write counter has silently switched the channel off twice. In both cases the invariant was being held up by getting statement order right, which is fragile in proportion to how badly it fails; both are now expressed so that no ordering of failures can break them, and the activity rule is a pure function with both directions pinned by a test. Neither fault would ever have surfaced as an error — they produce a confident, wrong report, which is worse.</li>
+      <li><strong>The two contract files are copies</strong> of files in the Doctor's repo, and both repos pin the layout by value in a test, so a divergence breaks two builds. If you edit one, copy it across. One correction to what I said last time: they are identical in substance but <em>not</em> literally byte-for-byte — Bloom's csharpier hook wraps three lines more narrowly than the other repo does. Worth knowing before anyone tries to enforce byte-equality mechanically; the pinned layout tests are the real guard.</li>
       <li><strong>The 6.4 backport is deliberately not here</strong>, per your call to field-test in 6.5 first. The plan's §9.1 records that and the ranked list is intact.</li>
     </ul>
   </section>
@@ -173,69 +175,40 @@
     <h2>Over to you</h2>
 
     <fieldset>
-      <legend>The <code>RobustFile</code> pre-commit check now exempts two files</legend>
-      <p>Bloom's <code>build/check-csharp-robustfile.sh</code> hook blocks any use of plain <code>File.*</code> in non-test code, because Bloom's file operations hit transient failures (antivirus, sync clients) and <code>RobustFile</code> retries through them. Two of the new files are byte-identical copies of files in the Freeze Doctor's repository, where <code>RobustFile</code> does not exist — so they cannot use it and still stay identical, and identical is what stops the two halves of the contract silently drifting apart. I added those two paths to the hook's existing skip list, alongside <code>RobustFileIO.cs</code> and the test tree, with a comment explaining why.</p>
-      <p>The exemption is narrow but it does widen a shared quality gate, and every call it covers is a best-effort diagnostic write already wrapped in a catch-everything — a transient failure there means “no session file this time”, which the callers are built to tolerate. Nothing a user's work depends on passes through those files.</p>
-
+      <legend>Bloom never tells the Doctor when it is legitimately busy, so the five-minute grace does not exist</legend>
+      <p>We agreed the Doctor should be patient with work that is <em>meant</em> to take a long time: it raises its freeze threshold from one minute to five whenever Bloom says a long operation is under way, and still reports if Bloom is stuck beyond that. The Doctor's half is built and reads the flag. <strong>Nothing in Bloom ever sets it</strong>, so it is permanently false and every freeze is judged at one minute.</p>
+      <p>What that does and does not threaten. Anything behind a modal progress dialog is safe either way, because <code>ShowDialog</code> keeps pumping messages and the heartbeat keeps ticking — no freeze is detected at all. The exposure is work that blocks the UI thread for over a minute <em>without</em> pumping messages: that would be filed as a freeze, which is the false positive the flag was added to prevent.</p>
+      <p>I left it unwired rather than guessing, and wrote the gap up at the method so nobody assumes the grace works. The reason it needs you: which operations to mark is a judgement about how Bloom really behaves, and it cannot be inferred from the code — “a request has been running for a minute” is the <em>same signal</em> as the freeze itself, so no automatic rule can tell legitimately-slow from wedged. It also spans several publish/progress paths rather than one chokepoint.</p>
       <div class="opt">
-        <input type="radio" name="q1" id="q1a" data-q="RobustFile hook exemption" value="Keep the exemption as committed" checked>
-        <label for="q1a">Keep the exemption as committed.<span class="rec">recommended</span>
-          <span class="foot">No further work. Recommended because the alternatives each cost more than they save: the files must stay byte-identical for the contract to be trustworthy, and the operations involved genuinely do not need retry semantics.</span>
+        <input type="radio" name="q1" id="q1a" data-q="Long-operation flag" value="Name the operations and I will wire them" checked>
+        <label for="q1a">Tell me which operations count as legitimately long, and I will wire them up.<span class="rec">recommended</span>
+          <span class="foot">Recommended: it is the only option that makes the five-minute grace real, and your instinct for which Bloom operations block the UI for over a minute is worth more than anything I can derive from reading the code. A list of two or three is enough to start.</span>
         </label>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1b" data-q="RobustFile hook exemption" value="Add a RobustFile shim to the Doctor repo so both copies can use it">
-        <label for="q1b">Add a small <code>RobustFile</code> shim to the Doctor's repo so both copies can call it, and drop the exemption.
-          <span class="foot">Moderate — a new file in the other repo plus edits to both contract copies, and it makes the shared files depend on a shim that exists only to satisfy a check in one of the two repos.</span>
+        <input type="radio" name="q1" id="q1b" data-q="Long-operation flag" value="Leave it unwired and see what the field reports look like">
+        <label for="q1b">Leave it unwired for now and see what 6.5 field reports actually look like.
+          <span class="foot">No work. The risk is false-positive freeze cards during slow publishes — which, if they happen, will at least tell us exactly which operations to mark.</span>
         </label>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1c" data-q="RobustFile hook exemption" value="Stop sharing the files verbatim; hand-maintain Bloom's copies with RobustFile">
-        <label for="q1c">Stop copying verbatim: let Bloom's copies diverge and use <code>RobustFile</code>.
-          <span class="foot">Small change now, but it gives up the property the pinned tests exist to protect — two implementations of one wire format that must agree exactly, maintained by hand in two repos.</span>
+        <input type="radio" name="q1" id="q1c" data-q="Long-operation flag" value="Raise the base threshold instead of marking operations">
+        <label for="q1c">Skip the flag: just raise the base freeze threshold so slow work is covered anyway.
+          <span class="foot">Simplest, but it delays every real freeze report by the same amount, including the ones a user is sitting in front of right now.</span>
         </label>
       </div>
       <div class="opt leaverow">
         <span style="display:flex;gap:9px;flex:1">
-          <input type="radio" name="q1" id="q1d" data-q="RobustFile hook exemption" value="Leave as is">
+          <input type="radio" name="q1" id="q1d" data-q="Long-operation flag" value="Leave as is">
           <label for="q1d">Leave as is</label>
         </span>
-        <span class="lc"><input type="checkbox" id="q1lc" data-q="RobustFile hook exemption — leave comment"> Leave comment</span>
+        <span class="lc"><input type="checkbox" id="q1lc" data-q="Long-operation flag — leave comment"> Leave comment</span>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1e" data-q="RobustFile hook exemption" value="Other">
-        <label for="q1e">Other: <input type="text" id="q1other" data-q="RobustFile hook exemption — other"></label>
+        <input type="radio" name="q1" id="q1e" data-q="Long-operation flag" value="Other">
+        <label for="q1e">Other: <input type="text" id="q1other" data-q="Long-operation flag — other"></label>
       </div>
-      <div class="notes"><span>Notes</span><textarea id="q1notes" data-q="RobustFile hook exemption — notes"></textarea></div>
-    </fieldset>
-
-    <fieldset>
-      <legend>For information — the freeze simulator ships in the build</legend>
-      <p><code>FreezeSimulator</code> can deliberately hang or crash Bloom, and its code is compiled into every build rather than excluded by a <code>#if</code>. It does nothing unless the <code>BLOOM_SIMULATE_FREEZE</code> environment variable is set <em>and</em> the running build is on a developer channel, so a user cannot reach it even with the variable set; a test asserts it stays inert on Release and Beta. Flagging it because “code that can hang the app ships to users” is the sort of thing worth a second opinion, not because I think it is wrong.</p>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2a" data-q="Freeze simulator ships in the build" value="Fine as is — channel check plus env var is enough" checked>
-        <label for="q2a">Fine as is — the channel check plus the environment variable is enough.<span class="rec">recommended</span>
-          <span class="foot">No work. Recommended because a <code>#if</code> would make the one thing we most want to test the one thing the shipped build cannot do, and the two conditions already require deliberate arrangement.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2b" data-q="Freeze simulator ships in the build" value="Exclude it from release builds with a compile-time guard">
-        <label for="q2b">Exclude it from release builds with a compile-time guard.
-          <span class="foot">~10 lines and low risk, but it means the simulator can no longer be used against a real installed Bloom, which is where it has been most useful.</span>
-        </label>
-      </div>
-      <div class="opt leaverow">
-        <span style="display:flex;gap:9px;flex:1">
-          <input type="radio" name="q2" id="q2c" data-q="Freeze simulator ships in the build" value="Leave as is">
-          <label for="q2c">Leave as is</label>
-        </span>
-        <span class="lc"><input type="checkbox" id="q2lc" data-q="Freeze simulator ships in the build — leave comment"> Leave comment</span>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2d" data-q="Freeze simulator ships in the build" value="Other">
-        <label for="q2d">Other: <input type="text" id="q2other" data-q="Freeze simulator ships in the build — other"></label>
-      </div>
-      <div class="notes"><span>Notes</span><textarea id="q2notes" data-q="Freeze simulator ships in the build — notes"></textarea></div>
+      <div class="notes"><span>Notes</span><textarea id="q1notes" data-q="Long-operation flag — notes"></textarea></div>
     </fieldset>
 
     <fieldset>
@@ -243,7 +216,7 @@
       <div class="opt">
         <input type="radio" name="q3" id="q3a" data-q="Next step" value="Review it yourself, then hand to a colleague" checked>
         <label for="q3a">You review it, then run <code>pr-ready-for-human</code>.<span class="rec">recommended</span>
-          <span class="foot">The PR is clean and draft; nothing is blocking. Recommended because the one open question does not affect the code a reviewer reads.</span>
+          <span class="foot">The PR is clean and draft, all reviewers are complete, and nothing is blocking. Recommended because the open question above adds work rather than changing any code a reviewer would read — it can be answered before or after review.</span>
         </label>
       </div>
       <div class="opt">
@@ -284,7 +257,6 @@
 (function () {
   var groups = [
     { name: 'q1', other: 'q1other', notes: 'q1notes', lc: 'q1lc' },
-    { name: 'q2', other: 'q2other', notes: 'q2notes', lc: 'q2lc' },
     { name: 'q3', other: 'q3other', notes: 'q3notes', lc: 'q3lc' }
   ];
 
