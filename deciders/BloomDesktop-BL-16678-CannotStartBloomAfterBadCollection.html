@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16678 · BloomDesktop #8220</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #f6f4ef;
+    --card: #ffffff;
+    --border: #e2dcd1;
+    --border-strong: #cfc7b8;
+    --ink: #1f1d19;
+    --ink-muted: #6a655b;
+    --accent: #1e5f4a;
+    --accent-soft: #eaf1ed;
+    --pass: #2c6a4f;
+    --warn: #8a6410;
+    --fail: #a8392a;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 32px 24px 72px;
+  }
+
+  .wrap { max-width: 1400px; margin: 0 auto; }
+
+  /* ---------- masthead ---------- */
+  .masthead { border-bottom: 2px solid var(--border-strong); padding-bottom: 20px; margin-bottom: 28px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.6rem, 1.1rem + 1.6vw, 2.3rem);
+    font-weight: 600;
+    line-height: 1.2;
+    text-wrap: balance;
+    letter-spacing: -0.01em;
+  }
+  .masthead .sub { color: var(--ink-muted); margin-top: 6px; font-size: 0.95rem; }
+  .metaline { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; font-size: 0.88rem; }
+  .metaline > span { color: var(--ink-muted); }
+  .metaline b { color: var(--ink); font-weight: 600; }
+
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  a { color: var(--accent); text-underline-offset: 2px; }
+  a:hover { text-decoration-thickness: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .pill {
+    display: inline-block; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+    font-weight: 700; padding: 2px 8px; border-radius: 3px; border: 1px solid var(--border-strong);
+    background: var(--card); color: var(--ink-muted); vertical-align: 2px;
+  }
+  .pill.draft { border-color: #c9b98e; background: #fbf5e4; color: #6f5a17; }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 20px 22px; }
+  .card > h2 {
+    font-family: var(--serif); font-size: 1.16rem; font-weight: 600; margin-bottom: 4px;
+  }
+  .card > h2 + .lede { color: var(--ink-muted); font-size: 0.9rem; margin-bottom: 14px; }
+  .card > h2:only-of-type:not(:has(+ .lede)) { margin-bottom: 14px; }
+
+  /* ---------- tables ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-muted); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  td.st { white-space: nowrap; font-weight: 600; }
+  td.st.ok { color: var(--pass); }
+  td.st.no { color: var(--fail); }
+  td.st.na { color: var(--ink-muted); font-weight: 500; }
+
+  .rev { display: flex; flex-direction: column; gap: 14px; }
+  .rev .row { display: grid; grid-template-columns: minmax(0, 168px) minmax(0, 1fr); gap: 4px 16px; }
+  @media (max-width: 620px) { .rev .row { grid-template-columns: minmax(0, 1fr); } }
+  .rev .who { font-weight: 650; }
+  .rev .who small { display: block; font-weight: 400; color: var(--ink-muted); font-size: 0.8rem; }
+  .rev .what { font-size: 0.92rem; }
+  .rev .what .verdict { font-weight: 650; }
+  .rev .what .verdict.ok { color: var(--pass); }
+  .rev .what .verdict.no { color: var(--fail); }
+
+  .commits { display: flex; flex-direction: column; gap: 14px; }
+  .commit { font-size: 0.92rem; }
+  .commit .sha { font-family: var(--mono); font-size: 0.82rem; }
+  .commit p { color: var(--ink-muted); margin-top: 2px; }
+
+  .notes { display: flex; flex-direction: column; gap: 11px; font-size: 0.92rem; }
+  .notes li { padding-left: 15px; position: relative; }
+  .notes li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em; width: 5px; height: 5px;
+    background: var(--accent); border-radius: 50%;
+  }
+
+  /* ---------- decisions ---------- */
+  .item { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 18px 20px; }
+  .item.fyi { background: #fcfbf8; }
+  .item .kind {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+    color: var(--accent); margin-bottom: 5px;
+  }
+  .item.fyi .kind { color: var(--ink-muted); }
+  .item h3 { font-family: var(--serif); font-size: 1.04rem; font-weight: 600; margin-bottom: 8px; text-wrap: balance; }
+  .item .desc { font-size: 0.9rem; color: #3a372f; }
+  .item .desc p + p { margin-top: 8px; }
+  .item .desc code { font-family: var(--mono); font-size: 0.86em; background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
+
+  .opts { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+  .opt { display: flex; align-items: flex-start; gap: 9px; padding: 8px 9px; border-radius: 3px; }
+  .opt:hover { background: #faf8f4; }
+  .opt input[type=radio] { margin: 4px 0 0; flex: none; accent-color: var(--accent); }
+  .opt .txt { font-size: 0.89rem; min-width: 0; }
+  .opt .txt .tag {
+    display: inline-block; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em;
+    font-weight: 700; color: var(--accent); border: 1px solid var(--accent); border-radius: 3px;
+    padding: 0 5px; margin-left: 7px; vertical-align: 1px;
+  }
+  .opt .txt .fn { display: block; color: var(--ink-muted); font-size: 0.83rem; margin-top: 2px; }
+  .opt.leaveas { align-items: center; }
+  .opt.leaveas .spacer { flex: 1 1 auto; min-width: 8px; }
+  .leavecomment { display: flex; align-items: center; gap: 6px; font-size: 0.79rem; color: var(--ink-muted); flex: none; }
+  .leavecomment input { accent-color: var(--accent); margin: 0; }
+  .otherbox { flex: 1 1 auto; min-width: 0; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 0.87rem; color: var(--ink);
+    background: #fdfcfa; border: 1px solid var(--border-strong); border-radius: 3px;
+    padding: 5px 8px; width: 100%;
+  }
+  textarea { resize: vertical; }
+  .noteslot { margin-top: 10px; }
+  .noteslot label { display: block; font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-muted); font-weight: 700; margin-bottom: 4px; }
+
+  /* ---------- copy-back ---------- */
+  .sendback { background: var(--accent-soft); border: 1px solid #bcd3c8; border-radius: 4px; padding: 18px 20px; }
+  .sendback h2 { font-family: var(--serif); font-size: 1.1rem; font-weight: 600; }
+  .sendback p { font-size: 0.88rem; color: #35513f; margin: 4px 0 12px; }
+  .sendback button {
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 650; color: #fff;
+    background: var(--accent); border: 1px solid var(--accent); border-radius: 3px;
+    padding: 8px 16px; cursor: pointer;
+  }
+  .sendback button:hover { background: #17503e; }
+  .sendback .ok { margin-left: 10px; font-size: 0.85rem; color: var(--accent); font-weight: 650; opacity: 0; transition: opacity .15s; }
+  .sendback .ok.show { opacity: 1; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; min-height: 150px; background: #fff; }
+
+  footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--ink-muted); font-size: 0.82rem; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Recover cleanly when a collection fails to open</h1>
+    <p class="sub">Preflight report — BloomDesktop, <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16678" target="_blank" rel="noopener">BL-16678</a></p>
+    <div class="metaline">
+      <span>PR <b><a href="https://github.com/BloomBooks/BloomDesktop/pull/8220" target="_blank" rel="noopener">#8220</a></b> <span class="pill draft">Draft</span></span>
+      <span>Branch <b>BL-16678-CannotStartBloomAfterBadCollection</b></span>
+      <span>Base <b>master</b></span>
+      <span>HEAD <b class="numeral">e5f662dcb</b></span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8220/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220/commits" target="_blank" rel="noopener">Commits</a></span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT: the run ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <p class="lede">All at HEAD <span class="numeral">e5f662dcb</span>. One row per stack, including the ones deliberately not run.</p>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>C# formatting (CSharpier)</td><td class="st ok">Pass</td><td>Clean; also enforced by the pre-commit hook on both commits.</td></tr>
+            <tr><td>C# build</td><td class="st ok">Pass</td><td><span class="numeral">0</span> errors. This is the typecheck equivalent for this diff.</td></tr>
+            <tr><td>C# tests (<code>dotnet test</code>)</td><td class="st ok" id="csharp-st">Pass</td><td id="csharp-detail">Full suite, <span class="numeral">3183 passed · 0 failed · 13 skipped</span>.</td></tr>
+            <tr><td>TypeScript typecheck</td><td class="st na">Not run</td><td>No TypeScript in the diff — it touches four C# files and three C# test files only.</td></tr>
+            <tr><td>TypeScript lint</td><td class="st na">Not run</td><td>Same reason.</td></tr>
+            <tr><td>Front-end tests (Vitest)</td><td class="st na">Not run</td><td>Same reason: nothing in the diff is read, built, or asserted on by the front-end suite.</td></tr>
+            <tr><td>Merge with <code>master</code></td><td class="st ok">Clean</td><td>Integrated before publishing; <code>git merge origin/master</code> reported already up to date.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <div class="commits">
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/09b917cde2a3ba133c4a4429b9277ab1a450df87" target="_blank" rel="noopener">09b917cde</a>
+            — Recover cleanly when a collection fails to open
+            <p>The fix itself: the application-level reset can no longer be skipped, the recovery point in
+            <code>Program</code> guarantees a clean slate, a throwing startup action no longer wedges the queue,
+            <code>ReopenProject</code> gets a fallback, and two traps that replaced real errors with meaningless ones
+            are gone. Plus 11 new tests.</p>
+          </div>
+          <div class="commit">
+            <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/e5f662dcb161917bbc99241b3d3a4434dd85125d" target="_blank" rel="noopener">e5f662dcb</a>
+            — Close the gaps the local review found in the recovery paths
+            <p>Seven findings from the review pass, all in the new code. The three that mattered: the
+            long-path rethrow in
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f662dcb161917bbc99241b3d3a4434dd85125d/src/BloomExe/Program.cs#L1682" target="_blank" rel="noopener"><code>ChooseACollectionOrQuit</code></a>
+            reintroduced the very windowless-Bloom state it exists to prevent; the reset in
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f662dcb161917bbc99241b3d3a4434dd85125d/src/BloomExe/Program.cs#L1814" target="_blank" rel="noopener"><code>HandleErrorOpeningProjectWindow</code></a>
+            sat after unguarded teardown, so a throw there skipped it; and the
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f662dcb161917bbc99241b3d3a4434dd85125d/src/BloomExe/MiscUI/StartupScreenManager.cs#L187" target="_blank" rel="noopener">startup-action guard</a>
+            began after the splash-hiding block, which can throw too.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <p class="lede">Every reviewer at a terminal state for HEAD <span class="numeral">e5f662dcb</span>.</p>
+        <div class="rev">
+
+          <div class="row">
+            <div class="who">Local review <small>light sub-agent pass</small></div>
+            <div class="what">
+              <span class="verdict ok">Complete</span> — 7 findings, all 7 fixed in
+              <a href="https://github.com/BloomBooks/BloomDesktop/commit/e5f662dcb161917bbc99241b3d3a4434dd85125d" target="_blank" rel="noopener">e5f662dcb</a>;
+              none escalated, none dismissed. Three were real defects in the new recovery code, two were
+              smaller correctness/ordering fixes, two were test-quality fixes (one of my own tests was
+              close to vacuous). The sub-agent overran its 15-minute budget, so the pass was also done
+              inline — that inline pass found two of the seven independently before the agent reported.
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="who">Devin <small><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8220" target="_blank" rel="noopener">review page</a></small></div>
+            <div class="what" id="devin-what">
+              <span class="verdict ok">Complete</span> — 1 Bug, 6 Flags, waited <span class="numeral">7</span> min.
+              The Bug was the long-path signal being swallowed on the startup recovery path; the local
+              review had found the same thing independently and it was already fixed in
+              <span class="numeral">e5f662dcb</span>, which Devin confirms —
+              <em>“Resolved: the startup recovery helper now catches PathTooLongException itself…”</em>. It
+              was never posted, so there was no thread to close. One Flag needed investigating and is
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220#discussion_r3825261403" target="_blank" rel="noopener">posted as a thread</a>,
+              left <b>open</b> — it is the two-dialogs question opposite. The other five were
+              informational and not mirrored; all five are choices this PR makes deliberately and
+              documents in code comments.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220#issuecomment-5361535649" target="_blank" rel="noopener">Consultation log</a>.
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="who">Greptile</div>
+            <div class="what">
+              <span class="verdict">Complete — no review</span>. It
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220#pullrequestreview-3654122053" target="_blank" rel="noopener">posted</a>
+              only “Your trial has ended. Reactivate Greptile to resume code reviews.” Nothing to fold in.
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="who">CodeRabbit</div>
+            <div class="what">
+              <span class="verdict">Not applicable</span> — switched off for this repo in
+              <code>.coderabbit.yml</code> (<code>auto_review.enabled: false</code>), and it has reviewed
+              none of the last three PRs. Nothing was waited for.
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="who">CI <small>pr-automation</small></div>
+            <div class="what" id="ci-what">
+              <span class="verdict ok">Pass</span> — green on both pushes
+              (<a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/32414318000" target="_blank" rel="noopener">first</a>,
+              <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/32415501756" target="_blank" rel="noopener">second</a>).
+              This is also the workflow that triggers Devin on each push.
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul class="notes">
+          <li><b>#8204 (BL-16679) already fixed the symptom on the card.</b> Its self-dispose meant
+            <code>Dispose</code> — which already cleared the handlers — actually ran. The card's log confirms the
+            boundary: the empty <code>Bad Collection.bloomCollection</code> failed <em>before</em> any endpoint was
+            registered and poisoned nothing, while the BL-16679 collection failed <em>after</em> and poisoned
+            everything. So this PR is hardening, not the primary fix — worth saying plainly in review.</li>
+          <li><b>Verified by hand in the running app.</b> With a failure staged just after
+            <code>audio/startRecord</code> is registered, the card's repro recovers: error dialog → chooser → the
+            good collection opens. With the self-dispose disabled to simulate the pre-#8204 state, Bloom did
+            not survive at all, matching the card's reports.</li>
+          <li><b>The staged-failure trick is the only way to exercise this now.</b> The collection that used to
+            trigger it was fixed in BL-16679, and a corrupt <code>.bloomCollection</code> fails too early to
+            poison anything. That's why the test-ideas comment tells QA to regression-test the ordinary paths
+            instead of trying to reproduce the original error.</li>
+          <li><b>Devin's job status is not its findings status.</b> Its <code>jobs</code> entry reached
+            <code>completed</code> several minutes before <code>lifeguard_status</code> reached
+            <code>complete</code>; reading only the former would have reported "no findings" while the analysis
+            was still running.</li>
+          <li><b>The <code>add-test-ideas</code> skill isn't symlinked</b> into <code>~/.claude/skills</code>, so it
+            isn't invocable — see the FYI opposite. I followed it by reading it out of the clone.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT: decisions ============ -->
+    <div class="stack">
+
+      <div class="item">
+        <div class="kind">Decision</div>
+        <h3>A broken Bloom installation now shows two dialogs instead of one</h3>
+        <div class="desc">
+          <p>While opening a collection, Bloom can discover that pieces of its own program are missing —
+            a damaged or half-finished install. It shows a specific message for that: “Bloom was not able
+            to find all its bits… please run the installer again and choose ‘Repair’”, and then asks to
+            quit.</p>
+          <p>Before this PR, the code carried straight on after that message into a line that crashed on
+            something it had just failed to build. So the message the user saw was right, but the crash
+            report that went to us named a meaningless internal error instead of the missing file. That is
+            now fixed — the real error is passed along properly. The side effect is that Bloom's normal
+            “had a problem loading the <em>X</em> collection” message also appears, so a user with a broken
+            install sees two dialogs in a row rather than one.</p>
+          <p>Devin raised this independently, so your answer here also closes
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220#discussion_r3825261403" target="_blank" rel="noopener">its review thread</a>,
+            which is deliberately left open until you decide.</p>
+        </div>
+        <div class="opts" data-item="two-dialogs">
+          <label class="opt"><input type="radio" name="two-dialogs" data-q="Two dialogs on a broken install" value="Suppress the second dialog"><span class="txt">Suppress the second dialog by marking the error as already reported<span class="fn">~15 lines: a flag or wrapper the reporting path checks. Adds machinery to a path that is hard to test and rarely hit.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="two-dialogs" data-q="Two dialogs on a broken install" value="Leave as is" checked><span class="txt">Leave as is<span class="tag">Recommended</span></span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Two dialogs on a broken install" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="two-dialogs" data-q="Two dialogs on a broken install" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Two dialogs on a broken install" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Two dialogs on a broken install" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item">
+        <div class="kind">Decision</div>
+        <h3>Bloom now quits if it cannot even show the collection list</h3>
+        <div class="desc">
+          <p>The Open/Create Collections dialog is the only way back in when a collection won't open. If
+            showing <em>that</em> fails, Bloom now reports the problem and closes.</p>
+          <p>Previously the failure went to the general error handler, which during startup shows a message
+            and then lets Bloom keep running — with no window on screen, no way for the user to quit it, and
+            still holding the lock that makes the <em>next</em> launch say “Bloom is already running”. Closing
+            is a poor outcome but a much better one than that, which is why it is recommended; the change
+            worth noticing is that a user who would previously have been left with an invisible Bloom will
+            now see it disappear.</p>
+        </div>
+        <div class="opts" data-item="quit-on-chooser-failure">
+          <label class="opt"><input type="radio" name="quit-on-chooser-failure" data-q="Quit if the chooser cannot be shown" value="Retry once before quitting"><span class="txt">Try showing the list once more before quitting<span class="fn">~10 lines, low risk — but if the dialog is broken, a second attempt rarely behaves differently.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="quit-on-chooser-failure" data-q="Quit if the chooser cannot be shown" value="Leave as is" checked><span class="txt">Leave as is<span class="tag">Recommended</span></span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Quit if the chooser cannot be shown" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="quit-on-chooser-failure" data-q="Quit if the chooser cannot be shown" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Quit if the chooser cannot be shown" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Quit if the chooser cannot be shown" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item">
+        <div class="kind">Decision</div>
+        <h3>A collection that won't open stays at the top of the recent list</h3>
+        <div class="desc">
+          <p>Nothing removes a collection from the recently-used list just because opening it failed. So if
+            the collection you were last in has become unopenable, every launch from then on tries it,
+            shows the error, and offers you the list — until you pick something else, which pushes the good
+            one to the front.</p>
+          <p>It is always recoverable, just irritating. I recommend leaving it: the list already drops
+            entries whose folder isn't reachable, and it refuses to re-add one, so demoting on a single
+            failure would quietly remove a Team Collection from the dialog after one launch while the
+            network share happened to be down. A collection that nags is better than one that vanishes.</p>
+        </div>
+        <div class="opts" data-item="mru-demote">
+          <label class="opt"><input type="radio" name="mru-demote" data-q="Demote a collection that failed to open" value="Move it to the end of the list"><span class="txt">Move it to the end of the list on a failed open<span class="fn">~20 lines — stops it being retried first but keeps it visible. Safer than removing, still risks reordering on a transient network blip.</span></span></label>
+          <label class="opt"><input type="radio" name="mru-demote" data-q="Demote a collection that failed to open" value="Remove it from the list"><span class="txt">Remove it from the list on a failed open<span class="fn">~5 lines, but this is the one that can lose a user's Team Collection after a brief outage.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="mru-demote" data-q="Demote a collection that failed to open" value="Leave as is" checked><span class="txt">Leave as is<span class="tag">Recommended</span></span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Demote a collection that failed to open" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="mru-demote" data-q="Demote a collection that failed to open" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Demote a collection that failed to open" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Demote a collection that failed to open" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item fyi">
+        <div class="kind">FYI — found while working, not fixed here</div>
+        <h3>A read-only collection folder kills Bloom outright, blaming Windows Defender</h3>
+        <div class="desc">
+          <p>While loading a collection's settings, Bloom checks whether it can write to the collection
+            folder. If it can't, it shows a message about Windows Defender's ransomware protection and then
+            terminates the process immediately — from deep inside loading, so none of the normal shutdown
+            runs. Nothing releases the lock that stops the next launch, and the user is never offered a
+            different collection.</p>
+          <p>Any folder Bloom can't write to trips this, not just a Defender-protected one — a collection on
+            read-only media or with restrictive permissions gets the same wrong explanation and the same
+            dead end. It is out of scope here, but it is the worst remaining “bad collection makes Bloom
+            unusable” path.</p>
+        </div>
+        <div class="opts" data-item="defender-exit">
+          <label class="opt"><input type="radio" name="defender-exit" data-q="Read-only collection folder hard-exits Bloom" value="File a separate card" checked><span class="txt">File a separate card for it<span class="tag">Recommended</span><span class="fn">No code change now; the real fix is its own piece of work, and it deserves a proper look at the message as well as the exit.</span></span></label>
+          <label class="opt"><input type="radio" name="defender-exit" data-q="Read-only collection folder hard-exits Bloom" value="Fix it in this PR"><span class="txt">Fix it in this PR<span class="fn">Moderate — turning a hard exit into a reported failure means giving the settings loader a way to fail gracefully, and it widens a PR that is already about recovery.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="defender-exit" data-q="Read-only collection folder hard-exits Bloom" value="Leave as is"><span class="txt">Leave as is</span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Read-only collection folder hard-exits Bloom" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="defender-exit" data-q="Read-only collection folder hard-exits Bloom" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Read-only collection folder hard-exits Bloom" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Read-only collection folder hard-exits Bloom" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item fyi">
+        <div class="kind">FYI — found while working, not fixed here</div>
+        <h3>Double-clicking a collection file adds it to the recent list before trying to open it</h3>
+        <div class="desc">
+          <p>When you open a <code>.bloomCollection</code> from File Explorer, Bloom records it as your most
+            recent collection <em>first</em> and only then attempts to open it. So one double-click on a
+            broken collection makes every later plain launch of Bloom try it again and show the error, even
+            though the user never successfully opened it.</p>
+          <p>This is closely related to the recent-list decision above and would probably be fixed by the
+            same piece of work, so it is only worth doing if you choose to act on that one.</p>
+        </div>
+        <div class="opts" data-item="doubleclick-mru">
+          <label class="opt"><input type="radio" name="doubleclick-mru" data-q="Double-click records the collection before opening it" value="Fix alongside the recent-list decision"><span class="txt">Fix it alongside the recent-list decision above<span class="fn">~5 lines once you are already in that code; pointless on its own.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="doubleclick-mru" data-q="Double-click records the collection before opening it" value="Leave as is" checked><span class="txt">Leave as is<span class="tag">Recommended</span></span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Double-click records the collection before opening it" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="doubleclick-mru" data-q="Double-click records the collection before opening it" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Double-click records the collection before opening it" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Double-click records the collection before opening it" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item fyi">
+        <div class="kind">FYI — found while working, not fixed here</div>
+        <h3>There is no way to start Bloom without opening the last collection</h3>
+        <div class="desc">
+          <p>If the remembered collection somehow makes Bloom fail badly enough that you never reach the
+            Open/Create dialog, there is no escape hatch — no command-line switch, and no “hold Shift while
+            launching” to skip straight to the collection list. The only route is editing Bloom's settings
+            file by hand.</p>
+          <p>This PR makes reaching the dialog much more reliable, which is why it is recommended to leave
+            it; the hatch would be insurance against a case we now believe is handled.</p>
+        </div>
+        <div class="opts" data-item="escape-hatch">
+          <label class="opt"><input type="radio" name="escape-hatch" data-q="No way to start without the last collection" value="Add a switch or Shift-at-startup"><span class="txt">Add a <code>--no-collection</code> switch, or Shift-at-startup<span class="fn">~20 lines and easy to test, but it is a new user-facing (well, support-facing) affordance that needs documenting somewhere a support person will find it.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="escape-hatch" data-q="No way to start without the last collection" value="Leave as is" checked><span class="txt">Leave as is<span class="tag">Recommended</span></span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="No way to start without the last collection" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="escape-hatch" data-q="No way to start without the last collection" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="No way to start without the last collection" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="No way to start without the last collection" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item fyi">
+        <div class="kind">FYI — found while working, not fixed here</div>
+        <h3>If a Team Collection's shared folder drops out, Bloom stops noticing changes and never says so</h3>
+        <div class="desc">
+          <p>Bloom watches the collection folder and the shared folder for changes. Starting those watchers
+            is not guarded, and nothing listens for the error they raise when a folder becomes unavailable
+            mid-session — which is what happens when a network share or Dropbox folder goes away.</p>
+          <p>The practical consequence: Bloom carries on looking normal but silently stops picking up other
+            people's changes until it is restarted. Nobody is told. Failing to start a watcher was the
+            original BL-16679 crash, so this is the same area, but the runtime-drop-out case is a distinct
+            problem and a distinct piece of work.</p>
+        </div>
+        <div class="opts" data-item="watcher-errors">
+          <label class="opt"><input type="radio" name="watcher-errors" data-q="Team Collection watchers fail silently" value="File a separate card" checked><span class="txt">File a separate card for it<span class="tag">Recommended</span><span class="fn">Deciding what Bloom should <em>do</em> when the share vanishes (go disconnected? tell the user?) is a design question, not a patch.</span></span></label>
+          <label class="opt"><input type="radio" name="watcher-errors" data-q="Team Collection watchers fail silently" value="Fix it in this PR"><span class="txt">Fix it in this PR<span class="fn">Moderate — the guard is small, but doing it properly means hooking the watchers' error event into the existing “disconnected Team Collection” behavior.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="watcher-errors" data-q="Team Collection watchers fail silently" value="Leave as is"><span class="txt">Leave as is</span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Team Collection watchers fail silently" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="watcher-errors" data-q="Team Collection watchers fail silently" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Team Collection watchers fail silently" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Team Collection watchers fail silently" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item fyi">
+        <div class="kind">FYI — tooling, not code</div>
+        <h3>The <code>add-test-ideas</code> skill isn't installed, only cloned</h3>
+        <div class="desc">
+          <p>Preflight is supposed to hand the QA write-up to the <code>add-test-ideas</code> skill. That skill
+            exists in your <code>bloom-team-skills</code> clone but has no symlink in
+            <code>~/.claude/skills</code>, so it can't be invoked by name — an agent that doesn't happen to
+            know it's there will either skip the step or improvise its own format.</p>
+          <p>I read it out of the clone and followed it, so the comment on the card is in the right shape.
+            The one-line fix is the same symlink the other team skills already have.</p>
+        </div>
+        <div class="opts" data-item="skill-symlink">
+          <label class="opt"><input type="radio" name="skill-symlink" data-q="add-test-ideas skill is not symlinked" value="Add the symlink" checked><span class="txt">Add the symlink<span class="tag">Recommended</span><span class="fn">One command, no code — and it stops every future preflight from having to work around it.</span></span></label>
+          <label class="opt leaveas"><input type="radio" name="skill-symlink" data-q="add-test-ideas skill is not symlinked" value="Leave as is"><span class="txt">Leave as is</span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="add-test-ideas skill is not symlinked" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="skill-symlink" data-q="add-test-ideas skill is not symlinked" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="add-test-ideas skill is not symlinked" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="add-test-ideas skill is not symlinked" data-note="1"></textarea></div>
+      </div>
+
+      <div class="item">
+        <div class="kind">Next step</div>
+        <h3>What should happen after you've decided?</h3>
+        <div class="desc">
+          <p>The PR is green and still a draft. Nothing above blocks review — they are all judgment calls
+            and notes, so if you agree with the recommendations there is nothing to implement.</p>
+        </div>
+        <div class="opts" data-item="next-step">
+          <label class="opt"><input type="radio" name="next-step" data-q="Next step" value="Implement my answers, then it is ready for my own review" checked><span class="txt">Implement whatever I chose above, then it's ready for my own review<span class="tag">Recommended</span></span></label>
+          <label class="opt"><input type="radio" name="next-step" data-q="Next step" value="Discuss first"><span class="txt">Let's talk some of these through before changing anything</span></label>
+          <label class="opt leaveas"><input type="radio" name="next-step" data-q="Next step" value="Leave as is"><span class="txt">Leave as is</span><span class="spacer"></span><span class="leavecomment"><input type="checkbox" data-q="Next step" data-leavecomment="1">Leave comment</span></label>
+          <label class="opt"><input type="radio" name="next-step" data-q="Next step" value="Other"><span class="txt">Other:</span><span class="otherbox"><input type="text" data-q="Next step" data-other="1" placeholder="…"></span></label>
+        </div>
+        <div class="noteslot"><label>Notes</label><textarea rows="2" data-q="Next step" data-note="1"></textarea></div>
+      </div>
+
+      <div class="sendback">
+        <h2>Send your answers back</h2>
+        <p>Copy this and paste it into the session.</p>
+        <button type="button" id="copybtn">Copy answers</button><span class="ok" id="copyok">Copied</span>
+        <textarea id="payload" readonly rows="9"></textarea>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    Preflight for <a href="https://github.com/BloomBooks/BloomDesktop/pull/8220" target="_blank" rel="noopener">BloomDesktop #8220</a>
+    at HEAD <span class="numeral">e5f662dcb</span> · card <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16678" target="_blank" rel="noopener">BL-16678</a>.
+    The PR is left as a draft and no teammate's review was requested.
+  </footer>
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById('payload');
+
+  function serialize() {
+    var lines = ['Preflight answers — BL-16678 / PR #8220 (HEAD e5f662dcb)', ''];
+    document.querySelectorAll('.opts').forEach(function (group) {
+      var chosen = group.querySelector('input[type=radio]:checked');
+      if (!chosen) return;
+      var q = chosen.getAttribute('data-q');
+      var val = chosen.value;
+      if (val === 'Other') {
+        var otherInput = group.querySelector('input[data-other]');
+        var typed = otherInput && otherInput.value.trim();
+        val = 'Other: ' + (typed || '(nothing typed)');
+      }
+      lines.push('- ' + q + ': ' + val);
+
+      var lc = group.querySelector('input[data-leavecomment]');
+      if (lc && lc.checked) {
+        lines.push('  Leave comment: record this decision as a code comment near the relevant code');
+      }
+
+      var item = group.closest('.item');
+      var note = item && item.querySelector('textarea[data-note]');
+      if (note && note.value.trim()) {
+        lines.push('  Notes: ' + note.value.trim().replace(/\s*\n\s*/g, ' '));
+      }
+    });
+    payload.value = lines.join('\n');
+  }
+
+  document.addEventListener('input', serialize);
+  document.addEventListener('change', serialize);
+  serialize();
+
+  document.getElementById('copybtn').addEventListener('click', function () {
+    var ok = document.getElementById('copyok');
+    function done() { ok.classList.add('show'); setTimeout(function () { ok.classList.remove('show'); }, 1600); }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else { fallback(); }
+    function fallback() {
+      payload.focus(); payload.select();
+      try { document.execCommand('copy'); done(); } catch (e) { ok.textContent = 'Press Ctrl+C'; done(); }
+    }
+  });
+})();
+</script>
+</body>
+</html>
