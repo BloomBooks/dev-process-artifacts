@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Experimental Flags Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, h1, h2, h3, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+
+  :root {
+    --paper:   #F1F5F6;
+    --card:    #FFFFFF;
+    --ink:     #16232A;
+    --muted:   #5C7078;
+    --hair:    #D9E3E6;
+    --accent:  #1D94A4;
+    --deep:    #0E5A66;
+    --pass:    #2E7D5B;
+    --warn:    #B4762A;
+    --chipbg:  #E4EDEF;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 34px 30px 72px; }
+
+  header { border-bottom: 2px solid var(--deep); padding-bottom: 20px; margin-bottom: 26px; }
+  .ticket {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--deep); margin-bottom: 8px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: 33px; line-height: 1.18;
+    text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .runline { color: var(--muted); margin-top: 9px; max-width: 68ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    display: inline-block; background: var(--chipbg); color: var(--deep);
+    border: 1px solid var(--hair); border-radius: 3px;
+    font-size: 12.5px; font-weight: 600; padding: 3px 10px; white-space: nowrap;
+  }
+  .chip.good { background: #E4F0E9; color: var(--pass); border-color: #C6E0D1; }
+  .chip.ask  { background: #F7ECDB; color: var(--warn); border-color: #E8D4B4; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  .stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 20px 22px; min-width: 0; }
+  .card > * + * { margin-top: 12px; }
+  h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 20px; line-height: 1.3;
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-size: 12px; font-weight: 700; letter-spacing: .085em; text-transform: uppercase;
+    color: var(--deep); margin-top: 16px;
+  }
+  h3:first-of-type { margin-top: 4px; }
+  p { max-width: 72ch; }
+  .bullets { display: flex; flex-direction: column; gap: 8px; }
+  .bullets li { padding-left: 16px; position: relative; max-width: 72ch; }
+  .bullets li::before {
+    content: ""; position: absolute; left: 2px; top: .68em;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  code { font-family: var(--mono); font-size: 12.8px; background: #EDF3F4; padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  a { color: var(--deep); text-decoration-thickness: 1px; text-underline-offset: 2px; overflow-wrap: anywhere; }
+  a:hover { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--hair); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  tbody tr:last-child td { border-bottom: none; }
+  .verdict { font-weight: 700; }
+  .verdict.ok { color: var(--pass); }
+  .verdict.na { color: var(--muted); font-weight: 600; }
+  .foot { color: var(--muted); font-size: 13.5px; }
+
+  .rev { display: flex; flex-direction: column; gap: 14px; }
+  .rev li { border-left: 2px solid var(--hair); padding-left: 14px; max-width: 72ch; }
+  .rev .who { font-weight: 700; }
+  .rev .state { font-size: 12.5px; font-weight: 700; color: var(--pass); }
+  .rev .state.off { color: var(--muted); }
+
+  .qcard { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 18px 20px; min-width: 0; }
+  .qcard > * + * { margin-top: 11px; }
+  .qtitle { font-family: var(--serif); font-size: 18px; font-weight: 600; line-height: 1.3; }
+  .opt {
+    display: flex; gap: 10px; align-items: flex-start;
+    border: 1px solid var(--hair); border-radius: 4px; padding: 9px 11px; background: #FBFDFD;
+  }
+  .opt + .opt { margin-top: 7px; }
+  .opt input[type=radio] { margin-top: 4px; flex: 0 0 auto; }
+  .opt .otext { flex: 1 1 auto; min-width: 0; }
+  .rec { display: inline-block; background: var(--deep); color: #fff; font-size: 10.5px;
+         font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+         padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: 2px; }
+  .fx { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .leaverow { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+  .leaverow .lc { margin-left: auto; display: flex; gap: 6px; align-items: center;
+                  font-size: 12.5px; color: var(--muted); }
+  input[type=text], textarea {
+    width: 100%; font-family: var(--sans); font-size: 14px; color: var(--ink);
+    border: 1px solid var(--hair); border-radius: 3px; padding: 6px 8px; background: #fff;
+  }
+  .notes label { display: block; font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase;
+                 color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff;
+    background: var(--deep); border: none; border-radius: 4px; padding: 9px 18px; cursor: pointer;
+  }
+  button:hover { background: var(--accent); }
+  #payload { font-family: var(--mono); font-size: 12.4px; line-height: 1.5; min-height: 150px; }
+  .said { font-size: 13px; color: var(--pass); font-weight: 700; margin-left: 10px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="ticket">BL-16731 &middot; BloomDesktop &middot; preflight</div>
+  <h1>Two experimental checkboxes retire</h1>
+  <p class="runline">First preflight run on this branch. One commit, both test suites green, every reviewer terminal, and one Devin finding answered and resolved on the PR.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &mdash; clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip ask">2 questions for you</span>
+  </div>
+</header>
+
+<div class="cols">
+
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>App Building and the AI image editor each needed the user to opt in <em>twice</em>. A collection had to be on the Pro subscription tier, and then the user separately had to find <strong>Collection Settings &rarr; Advanced &rarr; Experimental Features</strong> and tick a checkbox before the feature appeared anywhere. Until that box was ticked, the Publish tab's <strong>Apps</strong> button and the picture menu's <strong>Edit with AI&hellip;</strong> command were invisible. Both features are now considered ready, so that second opt-in is just an obstacle &mdash; the subscription tier was already doing the real gating.</p>
+
+      <h3>What the PR does</h3>
+      <ul class="bullets">
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/c969dbb162041938f060431b552f9b98ac1883ea/src/BloomExe/ExperimentalFeatures.cs#L12" target="_blank" rel="noopener"><code>ExperimentalFeatures</code></a> no longer defines the two flags, and the startup migration <a href="https://github.com/BloomBooks/BloomDesktop/blob/c969dbb162041938f060431b552f9b98ac1883ea/src/BloomExe/ExperimentalFeatures.cs#L31" target="_blank" rel="noopener">clears them out of users' stored settings</a> &mdash; the same treatment <code>webView2</code> got when it went mainstream.</li>
+        <li>The two features' <a href="https://github.com/BloomBooks/BloomDesktop/blob/c969dbb162041938f060431b552f9b98ac1883ea/src/BloomExe/SubscriptionAndFeatures/FeatureRegistry.cs#L194" target="_blank" rel="noopener">registry entries</a> no longer carry an experimental token, so they are always visible and gated only by the Pro tier. The generic mechanism stays in place for whatever is experimental next.</li>
+        <li>The two checkboxes are gone from the Advanced settings panel, along with the pending-value plumbing that carried them between the WinForms dialog, the settings API, and the React panel.</li>
+        <li>Their two English label strings are deleted from the XLF. Both were always <code>translate="no"</code> and appear in no translated file, so no translations are lost.</li>
+        <li>The tests that exercised the experimental-token mechanism were written against the App Builder flag; they now use a locally-built <code>FeatureInfo</code> with a token no real feature uses, plus <a href="https://github.com/BloomBooks/BloomDesktop/blob/c969dbb162041938f060431b552f9b98ac1883ea/src/BloomTests/Subscription/FeatureStatusTests.cs#L151" target="_blank" rel="noopener">a new test</a> pinning that both features are unconditionally visible.</li>
+      </ul>
+
+      <h3>Net effect for users</h3>
+      <p>The two checkboxes disappear from Collection Settings. The Publish tab's Apps button and the &ldquo;Edit with AI&hellip;&rdquo; image command now show for everyone, with the existing subscription overlay and badge handling the Pro requirement below that tier.</p>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Typecheck</td><td class="verdict ok">Pass</td><td>No blunder-class type errors.</td></tr>
+            <tr><td>Lint</td><td class="verdict ok">Pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings, repo-wide and untouched).</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="verdict ok">Pass</td><td><span class="numeral">723 passed &middot; 5 skipped &middot; 0 failed</span>, full suite.</td></tr>
+            <tr><td>C# tests (dotnet)</td><td class="verdict ok">Pass</td><td><span class="numeral">3174 passed &middot; 12 skipped &middot; 0 failed</span>, full suite.</td></tr>
+            <tr><td>Production bundle</td><td class="verdict ok">Pass</td><td>Isolated Vite build completed, so the real bundle still compiles.</td></tr>
+            <tr><td>Merge with master</td><td class="verdict ok">Clean</td><td>Already up to date; no conflicts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="foot">Both stacks are in scope &mdash; the diff touches C#, TSX and the XLF that the C# localization path reads &mdash; so both full suites ran.</p>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>The branch's work was already written before preflight started; this run gated it, integrated master (a no-op &mdash; already current), pushed it, opened the draft PR, and ran the reviewer gauntlet. No code changed during the run itself.</p>
+      <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8222/commits" target="_blank" rel="noopener">Commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8222/files" target="_blank" rel="noopener">Files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/c969dbb162041938f060431b552f9b98ac1883ea" target="_blank" rel="noopener">c969dbb</a></p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <ul class="rev">
+        <li>
+          <div><span class="who">Local review</span> &mdash; <span class="state">clean, no findings</span></div>
+          <p>Light pass, done inline rather than in a sub-agent (this session is configured not to dispatch agents unless asked). Read the whole branch diff plus the surrounding feature-status code, and checked every remaining reader of the experimental settings &mdash; nothing depends on the two removed tokens.</p>
+        </li>
+        <li>
+          <div><span class="who">Devin</span> &mdash; <span class="state">complete</span></div>
+          <p>One Bug, no Investigate flags, two Informational items. The Bug objected to the XLF strings being deleted rather than marked obsolete; it is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8222#discussion_r3832866279" target="_blank" rel="noopener">mirrored as a review thread</a>, answered with the evidence, and resolved. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8222" target="_blank" rel="noopener">Devin review</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8222#issuecomment-5373997090" target="_blank" rel="noopener">consultation log</a></p>
+        </li>
+        <li>
+          <div><span class="who">Greptile</span> &mdash; <span class="state off">not reviewing</span></div>
+          <p>It <a href="https://github.com/BloomBooks/BloomDesktop/pull/8222#pullrequestreview-4996419291" target="_blank" rel="noopener">posted only to say the trial has ended</a>, so it contributed no review on this PR or any other right now.</p>
+        </li>
+        <li>
+          <div><span class="who">CodeRabbit</span> &mdash; <span class="state off">not active</span></div>
+          <p>A <code>.coderabbit.yml</code> is present in the repo, but CodeRabbit has posted nothing here and nothing on the last several merged PRs, so it is configured rather than running.</p>
+        </li>
+        <li>
+          <div><span class="who">CI</span> &mdash; <span class="state">pass</span></div>
+          <p><code>pr-automation</code> is the only required check on this PR and it is green. Bloom's real builds run on TeamCity, not on GitHub checks.</p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul class="bullets">
+        <li><strong>Nothing here was exercised in a running Bloom.</strong> The Advanced tab lost two blocks from the middle of a Config-r group, and two entry points became visible to tiers that never saw them. Both are plausible places for a purely visual defect that no test would catch. This is what the second question opposite is about.</li>
+        <li>The generic <code>ExperimentalFeatureToken</code> mechanism now has <strong>no production user</strong> &mdash; it is kept deliberately for the next experimental feature, and the tests cover it with a synthetic feature. A reviewer may reasonably flag it as dead code; that is the intended answer.</li>
+        <li>For the same reason, <code>PublishTabPane</code>'s <code>hidden: !visible</code> check and the <code>aiImageEditingAvailable</code> plumbing into the canvas menu now always evaluate to &ldquo;shown&rdquo;. They were left in place on purpose &mdash; unwinding them reaches through several files and their tests.</li>
+        <li>The <code>app/enabledExperimentalFeatures</code> API endpoint has no front-end consumer at all. That is pre-existing and untouched here, so the removed tokens broke no caller &mdash; worth knowing before someone goes looking.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="stack">
+
+    <section class="qcard">
+      <div class="qtitle">Should the two entry points stay visible below the Pro tier?</div>
+      <p>This is the one genuinely user-facing change the card did not spell out. <strong>Before:</strong> without the experimental checkbox, the Publish tab's <strong>Apps</strong> button and the picture menu's <strong>Edit with AI&hellip;</strong> command did not exist for anybody, whatever their subscription. <strong>Now:</strong> both appear for every user; below Pro the Apps screen shows the standard &ldquo;requires a subscription&rdquo; overlay, and the menu entry appears greyed with the subscription badge, sending a click to the subscription settings instead of the editor.</p>
+      <p>So a Basic or Community user who never saw these features will now see two new things they cannot use. That is exactly how every other Pro feature in Bloom already behaves, and it is arguably the point &mdash; it is how people discover what a subscription buys. But it is a real change in what non-subscribers see, so it is your call rather than mine.</p>
+
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" data-q="Visibility below Pro" value="Leave as is - visible to all tiers with the standard subscription treatment" checked>
+        <label class="otext" for="q1a">Leave as is <span class="rec">Recommended</span>
+          <span class="fx">Both entry points stay visible to every tier, gated by the existing subscription overlay and badge. Recommended because it matches how every other Pro feature already behaves, and treating these two as special would be the surprising choice.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" data-q="Visibility below Pro" value="Hide both below Pro - make visibility follow the subscription tier">
+        <label class="otext" for="q1b">Hide them again below Pro
+          <span class="fx">Make these two features' visibility follow the tier instead of being unconditional. (~5 lines in <code>FeatureStatus</code> plus a test; low risk, but it introduces a second kind of &ldquo;visible&rdquo; that no other feature has.)</span>
+        </label>
+      </div>
+      <div class="opt leaverow">
+        <input type="radio" name="q1" id="q1c" data-q="Visibility below Pro" value="Other">
+        <label class="otext" for="q1c">Other:
+          <input type="text" data-q="Visibility below Pro - other" placeholder="your answer">
+        </label>
+        <span class="lc"><input type="checkbox" id="q1lc" data-q="Visibility below Pro - leave comment"><label for="q1lc">Leave comment</label></span>
+      </div>
+      <div class="notes">
+        <label for="q1n">Notes</label>
+        <textarea id="q1n" rows="2" data-q="Visibility below Pro - notes"></textarea>
+      </div>
+    </section>
+
+    <section class="qcard">
+      <div class="qtitle">Next step</div>
+      <p>Everything automated is done and green, and the PR is sitting as a draft waiting for your own review. The one gap is that no part of this has been seen running: the Advanced tab after two blocks were cut out of the middle of it, the Publish tab for a non-Pro collection, and the picture menu. I can launch Bloom from this worktree and check those three screens.</p>
+
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" data-q="Next step" value="Launch Bloom and verify the three screens, then report back" checked>
+        <label class="otext" for="q2a">Launch Bloom and check those three screens <span class="rec">Recommended</span>
+          <span class="fx">Start Bloom from this worktree and look at the Advanced tab, the Publish tab on a non-Pro collection, and a picture's right-click menu. No code change expected &mdash; recommended because a layout artifact in the settings panel is the one defect class the whole test suite above cannot see.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" data-q="Next step" value="Discuss the visibility question first, before anything else">
+        <label class="otext" for="q2b">Talk through the visibility question first
+          <span class="fx">Hold off on everything else until the question above is settled, in case it changes the code.</span>
+        </label>
+      </div>
+      <div class="opt leaverow">
+        <input type="radio" name="q2" id="q2c" data-q="Next step" value="Leave as is">
+        <label class="otext" for="q2c">Leave as is</label>
+        <span class="lc"><input type="checkbox" id="q2lc" data-q="Next step - leave comment"><label for="q2lc">Leave comment</label></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2d" data-q="Next step" value="Other">
+        <label class="otext" for="q2d">Other:
+          <input type="text" data-q="Next step - other" placeholder="your answer">
+        </label>
+      </div>
+      <div class="notes">
+        <label for="q2n">Notes</label>
+        <textarea id="q2n" rows="2" data-q="Next step - notes"></textarea>
+      </div>
+    </section>
+
+    <section class="qcard">
+      <div class="qtitle">Send your answers back</div>
+      <p>Copy this and paste it into the session.</p>
+      <div><button id="copybtn" type="button">Copy answers</button><span class="said" id="said" hidden>Copied</span></div>
+      <textarea id="payload" readonly aria-label="Your answers"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16731.html";
+  var payload = document.getElementById("payload");
+  var said = document.getElementById("said");
+
+  function build() {
+    var out = ["Preflight answers - BL-16731 (PR #8222)", REPORT_URL, ""];
+
+    Array.prototype.forEach.call(document.querySelectorAll(".qcard"), function (card) {
+      var titleEl = card.querySelector(".qtitle");
+      if (!titleEl || card.querySelector("#payload")) return;
+      var picked = card.querySelector("input[type=radio]:checked");
+      if (!picked) return;
+
+      var answer = picked.value;
+      if (answer === "Other") {
+        var box = picked.closest(".opt").querySelector("input[type=text]");
+        answer = "Other: " + ((box && box.value.trim()) || "(nothing typed)");
+      }
+      out.push("## " + titleEl.textContent.trim());
+      out.push(answer);
+
+      var lc = card.querySelector(".lc input[type=checkbox]");
+      if (lc && lc.checked) out.push("Leave comment: record this decision as a code comment near the relevant code.");
+
+      var notes = card.querySelector(".notes textarea");
+      if (notes && notes.value.trim()) out.push("Notes: " + notes.value.trim());
+      out.push("");
+    });
+
+    payload.value = out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  build();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () { said.hidden = false; setTimeout(function () { said.hidden = true; }, 2200); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
