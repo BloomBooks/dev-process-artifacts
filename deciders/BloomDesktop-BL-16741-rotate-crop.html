@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Turning a cropped page picture — BL-16741</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f7f5f0;
+    --card: #ffffff;
+    --line: #e2ddd2;
+    --ink: #22201c;
+    --muted: #6d675d;
+    --accent: #7a5c2e;
+    --pass: #2f6b3a;
+    --show: #1d6b4f;
+    --crop: #b0341d;
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .wrap { max-width: 1440px; margin: 0 auto; padding: 34px 26px 70px; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 30px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em;
+  }
+  h2 { font-family: Georgia, "Times New Roman", serif; font-size: 20px; font-weight: 600; margin: 0 0 12px; }
+  h3 { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 600; margin: 22px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 18px; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 13.5px; background: #f0ece2; border: 1px solid var(--line);
+    border-radius: 3px; padding: 0 4px;
+  }
+  a { color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  @media (max-width: 1100px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+    padding: 20px 22px; margin-bottom: 20px;
+  }
+  .card p { margin: 0 0 11px; }
+  .card p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 11px; padding-left: 22px; }
+  li { margin-bottom: 8px; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  /* Figures */
+  .optrow {
+    display: grid; grid-template-columns: 1fr; gap: 16px;
+    border-top: 1px solid var(--line); padding-top: 16px; margin-top: 16px;
+  }
+  .optrow:first-of-type { border-top: none; padding-top: 4px; margin-top: 4px; }
+  .optinner { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .opttext { flex: 1 1 250px; min-width: 220px; }
+  .optname { font-family: Georgia, "Times New Roman", serif; font-size: 16px; font-weight: 600; margin: 0 0 5px; }
+  .optname .today { font-family: -apple-system, "Segoe UI", sans-serif; font-size: 12px; color: var(--muted); font-weight: 400; }
+  .fig { margin: 0; }
+  .fig figcaption { font-size: 12.5px; color: var(--muted); margin-top: 6px; text-align: center; }
+  .paper { fill: #ffffff; }
+  .frame { fill: none; stroke: #4a453c; stroke-width: 1.4; }
+  .cropmark { fill: none; stroke: var(--crop); stroke-width: 2.2; stroke-dasharray: 6 4; }
+  .showmark { fill: none; stroke: var(--show); stroke-width: 2.2; }
+  .legend { font-size: 13px; color: var(--muted); margin-top: 14px; line-height: 1.7; }
+  .key { display: inline-block; width: 22px; height: 0; border-top-width: 2.5px; vertical-align: 4px; margin-right: 5px; }
+  .keycrop { border-top-style: dashed; border-top-color: var(--crop); }
+  .keyshow { border-top-style: solid; border-top-color: var(--show); }
+
+  /* Decision items */
+  .item { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 4px; }
+  .card > .item:first-of-type { border-top: none; padding-top: 0; }
+  .opt { margin: 9px 0; }
+  .opt > label { display: flex; gap: 9px; align-items: baseline; cursor: pointer; }
+  .opt input[type=radio] { margin-top: 5px; flex: none; }
+  .opt .foot { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .tag {
+    display: inline-block; margin-left: 7px; font-size: 11.5px; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 20px; padding: 0 7px; white-space: nowrap;
+  }
+  .leaverow { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+  .leavecomment { font-size: 13px; color: var(--muted); white-space: nowrap; display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .opt input[type=text] { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 4px; }
+  .notes { margin-top: 10px; }
+  .notes span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 3px; }
+  textarea {
+    width: 100%; font: inherit; font-size: 14px; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fdfcf9; resize: vertical;
+  }
+  button {
+    font: inherit; font-size: 14px; padding: 7px 15px; border-radius: 5px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { background: #63491f; }
+  #payload { margin-top: 11px; min-height: 190px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; }
+  #copystatus { font-size: 13px; color: var(--muted); margin-left: 10px; }
+  #copystatus.ok { color: var(--pass); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 12px 7px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <!-- The scene as it really stands: upright, in a box 120 wide and 180 tall. -->
+  <g id="scene">
+    <rect x="0" y="0" width="120" height="180" fill="#cfe4ef"/>
+    <circle cx="22" cy="26" r="13" fill="#f3c657"/>
+    <rect x="0" y="140" width="120" height="40" fill="#d8c78a"/>
+    <path d="M0 140 q30 -7 60 0 q30 7 60 0 v5 H0 Z" fill="#c8b475"/>
+    <rect x="30" y="100" width="8" height="45" fill="#cf8f45"/>
+    <rect x="44" y="100" width="8" height="45" fill="#d99b4e"/>
+    <rect x="64" y="100" width="8" height="45" fill="#cf8f45"/>
+    <rect x="78" y="100" width="8" height="45" fill="#d99b4e"/>
+    <path d="M27 86 q-9 10 -5 24" stroke="#cf8f45" stroke-width="4" fill="none"/>
+    <ellipse cx="57" cy="92" rx="32" ry="20" fill="#e0a95f"/>
+    <path d="M70 86 L86 24 L100 26 L84 90 Z" fill="#e0a95f"/>
+    <ellipse cx="100" cy="20" rx="16" ry="10" fill="#e0a95f"/>
+    <circle cx="109" cy="17" r="2.2" fill="#3a2c18"/>
+    <rect x="92" y="8" width="3" height="8" fill="#8a6634"/>
+    <rect x="101" y="7" width="3" height="8" fill="#8a6634"/>
+    <circle cx="44" cy="86" r="6" fill="#b5793a"/>
+    <circle cx="60" cy="96" r="7" fill="#b5793a"/>
+    <circle cx="74" cy="84" r="5" fill="#b5793a"/>
+    <circle cx="80" cy="64" r="4.5" fill="#b5793a"/>
+    <circle cx="84" cy="44" r="4" fill="#b5793a"/>
+    <circle cx="48" cy="104" r="4.5" fill="#b5793a"/>
+    <circle cx="70" cy="106" r="4" fill="#b5793a"/>
+  </g>
+  <!-- The photograph as the camera saved it: landscape, 180 by 120, the scene on its side. -->
+  <g id="photo"><g transform="translate(0,120) rotate(-90)"><use href="#scene"/></g></g>
+</defs></svg>
+
+<div class="wrap">
+  <h1>Turning a cropped page picture</h1>
+  <p class="sub">BL-16741 &middot; branch <code>BL-16741-rotate-image</code> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">PR 8227</a> &middot; two decisions about what Rotate right should do to a crop.</p>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>The situation</h2>
+        <p>A page can have a background picture. It fills the whole picture area of the page, and
+        because it fills that area it cannot be turned as a box: turning the box would turn the page
+        area itself. So the Rotate right command turns the picture inside the box instead.</p>
+        <p>The picture can also be cropped. Bloom stores a crop as four numbers on the picture: how
+        big to draw the whole picture, and how far to move it up and to the left. The page area then
+        shows one rectangle of the drawn picture, and the rest hangs outside and is hidden. So a crop
+        says two things: which part of the picture you framed, and how much you magnified it.</p>
+        <p>Today the Rotate right command throws those four numbers away. The reason I gave for that
+        was wrong. A rectangle of a picture turns perfectly well, and if you crop out everything but
+        the giraffe, there is no reason you cannot then turn the giraffe.</p>
+        <h3>What does make a choice unavoidable</h3>
+        <p>The page area keeps its shape. On the page I measured in the Bloom running from this
+        worktree it is <span class="num">469</span> by <span class="num">703</span> pixels, taller
+        than it is wide. A crop fills that area, so your cropped rectangle has that same shape. Turn
+        it a quarter turn and it now measures <span class="num">703</span> by
+        <span class="num">469</span>, which is wider than it is tall. The page area has not changed.
+        The turned rectangle and the page area cannot coincide unless the page area is square.</p>
+        <p>So something must give: either the page shows less of what you framed, or the page is not
+        completely filled, or the crop goes. Those are the three options.</p>
+      </div>
+
+      <div class="card">
+        <h2>The example these pictures use</h2>
+        <p>A photograph of a giraffe that the camera saved on its side. The author cropped in on the giraffe's neck and
+        body, magnifying it about two and a half times, and framed it left of the middle of
+        the photograph. Every page shape below is drawn to the real
+        <span class="num">469</span> by <span class="num">703</span> proportion, and every region is
+        drawn by the same arithmetic the code uses, so the pictures are to scale.</p>
+        <div class="optinner">
+          <figure class="fig">
+            <svg width="270" height="180" viewBox="0 0 180 120" role="img" aria-label="The whole photograph, the giraffe lying on its side, with the author's crop marked">
+              <use href="#photo"/>
+              <rect x="45" y="20" width="50" height="75" class="cropmark"/>
+            </svg>
+            <figcaption>The file, with the crop marked</figcaption>
+          </figure>
+          <figure class="fig">
+            <svg width="120" height="180" viewBox="0 0 120 180" role="img" aria-label="The page before the turn: the giraffe's body fills the page but lies on its side">
+              <clipPath id="cA"><rect width="120" height="180"/></clipPath>
+              <rect width="120" height="180" class="paper"/>
+              <g clip-path="url(#cA)"><g transform="translate(-108,-48) scale(2.4)"><use href="#photo"/></g></g>
+              <rect width="120" height="180" class="frame"/>
+            </svg>
+            <figcaption>The page now</figcaption>
+          </figure>
+          <div class="opttext">
+            <p>The crop fills the page, and the animal is framed the way the author wanted. It is
+            lying on its side, which is what Rotate right is for.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What each option does</h2>
+        <p>All three turn the giraffe upright. They differ in what the page shows afterwards. In each
+        row, the left picture marks on the photograph what the page ends up showing, and the right
+        picture is the page.</p>
+
+        <div class="optrow">
+          <div class="optinner">
+            <figure class="fig">
+              <svg width="240" height="160" viewBox="0 0 180 120" role="img" aria-label="On the photograph, option 1 shows a region with the same centre as the crop, wider and shorter">
+                <use href="#photo"/>
+                <rect x="45" y="20" width="50" height="75" class="cropmark"/>
+                <rect x="32.5" y="37.5" width="75" height="50" class="showmark"/>
+              </svg>
+              <figcaption>Same centre, wider and shorter</figcaption>
+            </figure>
+            <figure class="fig">
+              <svg width="120" height="180" viewBox="0 0 120 180" role="img" aria-label="Option 1: the giraffe is upright, the same size, and fills the page">
+                <clipPath id="c1"><rect width="120" height="180"/></clipPath>
+                <rect width="120" height="180" class="paper"/>
+                <g clip-path="url(#c1)"><g transform="translate(-78,-78) scale(2.4) translate(120,0) rotate(90)"><use href="#photo"/></g></g>
+                <rect width="120" height="180" class="frame"/>
+              </svg>
+              <figcaption>The page</figcaption>
+            </figure>
+            <div class="opttext">
+              <p class="optname">Option 1: keep the middle and the magnification</p>
+              <p>The page stays completely full and the animal stays the size the author chose. The
+              page keeps the same centre, so it is still the same picture of the same thing.</p>
+              <p>The cost is at the edges. Strips at what are now the top and the bottom of your
+              framing drop off the page, and strips that your crop had cut off come back on at the
+              sides.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="optrow">
+          <div class="optinner">
+            <figure class="fig">
+              <svg width="240" height="160" viewBox="0 0 180 120" role="img" aria-label="On the photograph, option 2 shows exactly the cropped region">
+                <use href="#photo"/>
+                <rect x="45" y="20" width="50" height="75" class="cropmark"/>
+                <rect x="47.5" y="22.5" width="45" height="70" class="showmark"/>
+              </svg>
+              <figcaption>Exactly what you cropped</figcaption>
+            </figure>
+            <figure class="fig">
+              <svg width="120" height="180" viewBox="0 0 120 180" role="img" aria-label="Option 2: the whole crop shows, smaller, with blank bands above and below">
+                <clipPath id="c2"><rect x="0" y="50" width="120" height="80"/></clipPath>
+                <rect width="120" height="180" class="paper"/>
+                <g clip-path="url(#c2)"><g transform="translate(-40,-22) scale(1.6) translate(120,0) rotate(90)"><use href="#photo"/></g></g>
+                <rect width="120" height="180" class="frame"/>
+              </svg>
+              <figcaption>The page</figcaption>
+            </figure>
+            <div class="opttext">
+              <p class="optname">Option 2: keep the whole crop, and accept blank bands</p>
+              <p>Nothing you framed is lost. The whole of it is turned and shrunk until it fits, so
+              the page shows it at two thirds the size with a blank band above and another below.</p>
+              <p>On the page I measured, each band is about <span class="num">195</span> pixels, which
+              is more than a quarter of the height of the page.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="optrow">
+          <div class="optinner">
+            <figure class="fig">
+              <svg width="240" height="160" viewBox="0 0 180 120" role="img" aria-label="On the photograph, option 3 shows the middle of the whole photograph, ignoring the crop">
+                <use href="#photo"/>
+                <rect x="45" y="20" width="50" height="75" class="cropmark"/>
+                <rect x="50" y="0" width="80" height="120" class="showmark"/>
+              </svg>
+              <figcaption>The middle of the whole photograph</figcaption>
+            </figure>
+            <figure class="fig">
+              <svg width="120" height="180" viewBox="0 0 120 180" role="img" aria-label="Option 3: the whole photograph shows, small and unframed, with blank bands above and below">
+                <clipPath id="c3o"><rect x="0" y="50" width="120" height="80"/></clipPath>
+                <clipPath id="c3i"><rect width="120" height="180"/></clipPath>
+                <rect width="120" height="180" class="paper"/>
+                <g clip-path="url(#c3o)">
+                  <g transform="translate(60,90) scale(0.6667) rotate(90) translate(-60,-90)">
+                    <g clip-path="url(#c3i)"><g transform="translate(-75,0) scale(1.5)"><use href="#photo"/></g></g>
+                  </g>
+                </g>
+                <rect width="120" height="180" class="frame"/>
+              </svg>
+              <figcaption>The page</figcaption>
+            </figure>
+            <div class="opttext">
+              <p class="optname">Option 3 <span class="today">what it does today</span></p>
+              <p>The crop goes, so the page goes back to the middle of the whole photograph at no
+              magnification at all. The author's framing and their zoom are both lost, and the blank
+              bands are exactly the same as in option 2.</p>
+              <p>The green outline on the left shows why this feels arbitrary: the page ends up
+              showing a region the author never chose, which happens to sit near the centre of the
+              file.</p>
+            </div>
+          </div>
+        </div>
+
+        <p class="legend">
+          <span class="key keycrop"></span>the rectangle the author cropped to<br>
+          <span class="key keyshow"></span>the rectangle the page shows after the turn
+        </p>
+      </div>
+
+      <div class="card">
+        <h2>Three things the pictures show that are easy to miss</h2>
+        <ul>
+          <li><strong>Options 2 and 3 always leave exactly the same blank bands.</strong> That is not
+          a coincidence of these numbers. A crop always fills the page area, so the crop has the page
+          area's shape, and fitting the turned crop and fitting the turned page area are the same
+          sum. The two options differ only in what the page shows inside that rectangle: your
+          framing, or the middle of the file.</li>
+          <li><strong>Today's turn already leaves blank bands, even when nothing is cropped.</strong>
+          The code shrinks by the smaller of the two ratios of the page area's own sides, which fits
+          the picture inside rather than filling. On the page I measured, a turn shrinks the picture
+          to <span class="num">67</span> per cent and leaves a band of about
+          <span class="num">195</span> pixels at the top and another at the bottom. That is question
+          2, and it is separate from the crop.</li>
+          <li><strong>Only a page background is affected.</strong> For an ordinary picture on top of
+          the page, Rotate right turns the box, not the picture inside it, so the crop is never
+          touched and none of this arises.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>What each option costs to build</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Option</th><th>Work</th><th>Risk</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Option 1</td>
+              <td>About <span class="num">25</span> lines in <code>rotateImageContentRight</code>,
+              replacing the call that clears the four numbers with arithmetic that recomputes them,
+              plus four or five unit tests.</td>
+              <td>The fiddly part is that the browser turns the picture about the centre of its own
+              layout box, while those four numbers place that box, so the two have to be composed in
+              the right order. A sign error puts the page on the wrong part of the photograph. There
+              is also a case to handle: a crop taken from the very edge of a picture, where the wider
+              region would run off the edge and has to be pushed back inside. The module now has
+              tests, which is what makes this tractable.</td>
+            </tr>
+            <tr>
+              <td>Option 2</td>
+              <td>About <span class="num">15</span> lines and the same tests. Simpler than option 1,
+              because the whole crop is kept and only one scale factor is needed.</td>
+              <td>Low. The result is easy to check by eye.</td>
+            </tr>
+            <tr>
+              <td>Option 3</td>
+              <td>None. It is what the code does now. The comment that justifies it is wrong and
+              needs rewriting whichever option you choose.</td>
+              <td>None.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h3 style="margin-top:0">What should a turn do to a crop?</h3>
+        <div class="item">
+          <p>The three rows on the left. Whichever you choose, the wrong reason currently written in
+          three places has to be corrected: the comment on <code>removeCropping</code> in
+          <code>src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts</code>, the fix summary in the
+          pull request description, and the "known and deliberate" list in the test notes on the
+          card.</p>
+          <div class="opt"><label><input type="radio" name="q1" value="Option 1" data-q="What a turn does to a crop" data-instruction="In the BloomDesktop repo at D:\BL-16741-rotate-image (branch BL-16741-rotate-image, PR 8227), change rotateImageContentRight in src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts so that a quarter turn of a page background picture KEEPS the crop, using option 1: keep the centre of the cropped region and keep its magnification, and recompute the crop's width, height, left and top so that the page area stays completely full. Push the region back inside the picture when a crop taken from the edge would otherwise run off it. Add unit tests in imageContentTransformSpec.ts for the new arithmetic, including the edge case. Then correct the now-wrong explanation in three places: the comment on removeCropping in imageContentTransform.ts, the fix summary in the PR 8227 description, and the 'known and deliberate' list in the test-ideas comment on YouTrack card BL-16741." checked><span>Option 1: keep the middle and the magnification<span class="tag">recommended</span><br><span class="foot">About 25 lines plus tests, moderate risk in the arithmetic. Recommended because it is what "turn what I am looking at" means: the page stays full, the animal stays the size the author chose, and the only loss is two strips at the edges. It is the only option that leaves a page background looking like a page background.</span></span></label></div>
+          <div class="opt"><label><input type="radio" name="q1" value="Option 2" data-q="What a turn does to a crop" data-instruction="In the BloomDesktop repo at D:\BL-16741-rotate-image (branch BL-16741-rotate-image, PR 8227), change rotateImageContentRight in src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts so that a quarter turn of a page background picture KEEPS the crop, using option 2: keep the whole cropped region and shrink it so that all of it fits inside the page area, accepting blank bands on the page. Add unit tests in imageContentTransformSpec.ts. Then correct the now-wrong explanation in three places: the comment on removeCropping in imageContentTransform.ts, the fix summary in the PR 8227 description, and the 'known and deliberate' list in the test-ideas comment on YouTrack card BL-16741."><span>Option 2: keep the whole crop, and accept blank bands<br><span class="foot">About 15 lines plus tests, low risk. Loses nothing the author framed, but a page background with blank bands across a quarter of it is not what a background is for, and the picture comes out a third smaller.</span></span></label></div>
+          <div class="opt leaverow">
+            <label><input type="radio" name="q1" value="Leave as is" data-q="What a turn does to a crop" data-instruction="Leave as is - take no action on: Rotate right on a page background picture discards the crop (option 3). Do not change the behaviour. Do still correct the wrong explanation of it in the comment on removeCropping in src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts, in the PR 8227 description, and in the test-ideas comment on YouTrack card BL-16741, because it currently claims the crop cannot survive a turn, which is not true."><span>Leave as is</span></label>
+            <label class="leavecomment"><input type="checkbox" data-q="q1-leave-comment"> Leave comment</label>
+          </div>
+          <div class="opt"><label><input type="radio" name="q1" value="Other" data-q="What a turn does to a crop"><span>Other:&nbsp;</span><input type="text" data-q="q1-other" placeholder="your answer"></label></div>
+          <div class="notes"><span>Notes</span><textarea data-q="q1-notes" rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">And when there is no crop at all?</h3>
+        <div class="item">
+          <p>This is the plainest case: an author puts a sideways photograph on a page and presses
+          Rotate right, having cropped nothing. Today the picture is turned upright and shrunk until
+          the whole of it fits, so on the page I measured it ends up two thirds the size, with a blank
+          band of about <span class="num">195</span> pixels above it and another below.</p>
+          <p>The alternative is to fill the page: turn the picture upright and magnify it until it
+          covers the page area, which cuts off the ends of the photograph. That is what Bloom already
+          does when a background picture is first put on a page, so it would make the turn behave like
+          the rest of the feature. If you choose option 1 above, the same arithmetic gives you this
+          for free.</p>
+          <div class="opt"><label><input type="radio" name="q2" value="Fill the page" data-q="A turn when there is no crop" data-instruction="In the BloomDesktop repo at D:\BL-16741-rotate-image (branch BL-16741-rotate-image, PR 8227), change getFitScaleForQuarterTurn in src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts so that turning an UNCROPPED page background picture fills the page area (a cover fit, magnifying until the turned picture covers the area, with its ends clipped) instead of the present contain fit, which leaves blank bands above and below. Add unit tests in imageContentTransformSpec.ts covering both a tall and a wide page area." checked><span>Fill the page, and clip the ends of the photograph<span class="tag">recommended</span><br><span class="foot">About 5 lines: one <code>Math.min</code> becomes a <code>Math.max</code>, plus tests. Recommended because a page background exists to fill the page, and this is already how Bloom places one when the author first chooses it. An author who wants the whole photograph can crop out to it.</span></span></label></div>
+          <div class="opt leaverow">
+            <label><input type="radio" name="q2" value="Leave as is" data-q="A turn when there is no crop" data-instruction="Leave as is - take no action on: turning an uncropped page background picture shrinks it until the whole picture fits, leaving blank bands on the page (about 195 pixels above and below on a 469 by 703 page area). Do not change this behaviour."><span>Leave as is</span></label>
+            <label class="leavecomment"><input type="checkbox" data-q="q2-leave-comment"> Leave comment</label>
+          </div>
+          <div class="opt"><label><input type="radio" name="q2" value="Other" data-q="A turn when there is no crop"><span>Other:&nbsp;</span><input type="text" data-q="q2-other" placeholder="your answer"></label></div>
+          <div class="notes"><span>Notes</span><textarea data-q="q2-notes" rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Next step</h3>
+        <div class="item">
+          <div class="opt"><label><input type="radio" name="q3" value="Implement now, then show me" data-q="Next step" data-instruction="Implement the options chosen above in the BloomDesktop repo at D:\BL-16741-rotate-image (branch BL-16741-rotate-image, PR 8227), with unit tests, run the front-end gate (pnpm typecheck, pnpm lint, pnpm test), then drive the Bloom running from that worktree over the debugging protocol: crop a page background picture, turn it, and report with a screenshot what the page looks like. Do not start a new preflight run." checked><span>Implement it, then show me the result in the running Bloom<span class="tag">recommended</span><br><span class="foot">The arithmetic wants an eye on it, and Bloom is already running from this worktree, so I can turn a real cropped picture and show you the page.</span></span></label></div>
+          <div class="opt"><label><input type="radio" name="q3" value="Implement and re-run preflight" data-q="Next step" data-instruction="Implement the options chosen above in the BloomDesktop repo at D:\BL-16741-rotate-image (branch BL-16741-rotate-image, PR 8227) with unit tests, then run the preflight skill again for the branch, which commits, pushes, and takes every reviewer to a terminal state."><span>Implement it, then run preflight again<br><span class="foot">Right if you want the bots to review the change before you look at it. It is a fresh round of Devin, Greptile and CI on a new commit.</span></span></label></div>
+          <div class="opt leaverow">
+            <label><input type="radio" name="q3" value="Leave as is" data-q="Next step" data-instruction="Leave as is - take no action on: implementing the crop-and-turn changes. Wait for further instructions."><span>Leave as is</span></label>
+          </div>
+          <div class="opt"><label><input type="radio" name="q3" value="Other" data-q="Next step"><span>Other:&nbsp;</span><input type="text" data-q="q3-other" placeholder="your answer"></label></div>
+          <div class="notes"><span>Notes</span><textarea data-q="q3-notes" rows="2"></textarea></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0">Send your answers back</h3>
+        <p style="color:var(--muted);font-size:13px">Copy this and paste it into the session.</p>
+        <button id="copybtn" type="button">Copy my answers</button><span id="copystatus"></span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+    var URL_OF_THIS_PAGE =
+        "https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16741-rotate-crop.html";
+    var payload = document.getElementById("payload");
+    var status = document.getElementById("copystatus");
+
+    function titleOf(item) {
+        var card = item.closest(".card");
+        var h = card && card.querySelector("h3");
+        return h ? h.textContent.trim() : "(question)";
+    }
+
+    function serialize() {
+        var lines = [
+            "Decisions from a decider form",
+            "Form: " + URL_OF_THIS_PAGE,
+            "Project: BloomDesktop, repo D:\\BL-16741-rotate-image, branch BL-16741-rotate-image, PR 8227, card BL-16741",
+            "Subject: what Rotate right should do to a cropped page background picture",
+            "",
+        ];
+        var items = document.querySelectorAll(".card > .item");
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            var radios = item.querySelectorAll("input[type=radio]");
+            if (!radios.length) continue;
+            lines.push(titleOf(item));
+            var answer = "(no answer given)";
+            for (var r = 0; r < radios.length; r++) {
+                var radio = radios[r];
+                if (!radio.checked) continue;
+                if (radio.value === "Other") {
+                    var box = item.querySelector('input[type=text][data-q$="other"]');
+                    var typed = box && box.value.trim();
+                    answer = "Other: " + (typed || "(nothing typed)");
+                } else {
+                    answer = radio.getAttribute("data-instruction") || radio.value;
+                }
+            }
+            lines.push("  " + answer);
+            var leave = item.querySelector('input[type=checkbox][data-q$="leave-comment"]');
+            if (leave && leave.checked) {
+                lines.push(
+                    "  Also record this decision as a code comment beside the code it concerns, in src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts."
+                );
+            }
+            var notes = item.querySelector("textarea[data-q]");
+            if (notes && notes.value.trim()) {
+                lines.push("  Notes: " + notes.value.trim());
+            }
+            lines.push("");
+        }
+        payload.value = lines.join("\n");
+    }
+
+    document.addEventListener("change", serialize);
+    document.addEventListener("input", serialize);
+    serialize();
+
+    document.getElementById("copybtn").addEventListener("click", async function () {
+        status.className = "";
+        try {
+            serialize();
+            payload.focus();
+            payload.select();
+            try {
+                await navigator.clipboard.writeText(payload.value);
+                status.textContent = "Copied \u2713";
+                status.className = "ok";
+                return;
+            } catch (e) {
+                /* the sandbox usually blocks this; fall through */
+            }
+            var ok = false;
+            try {
+                ok = document.execCommand("copy");
+            } catch (e) {
+                ok = false;
+            }
+            if (ok) {
+                status.textContent = "Copied \u2713";
+                status.className = "ok";
+                return;
+            }
+            status.textContent =
+                "Could not copy automatically. The text is selected below; press Ctrl+C.";
+        } catch (e) {
+            status.textContent =
+                "Could not copy automatically. The text is selected below; press Ctrl+C.";
+        }
+    });
+})();
+</script>
+</body>
+</html>
