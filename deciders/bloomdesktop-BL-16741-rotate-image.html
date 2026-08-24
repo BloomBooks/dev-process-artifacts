@@ -84,12 +84,12 @@
 <body>
 <div class="wrap">
   <h1>Preflight — Rotate Image</h1>
-  <p class="sub">BL-16741 · branch <code>BL-16741-rotate-image</code> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">PR 8227</a> · gates green, reviewers terminal, 5 items for you.</p>
+  <p class="sub">BL-16741 · branch <code>BL-16741-rotate-image</code> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">PR 8227</a> · gates green, every reviewer terminal, 2 items for you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip warnc">5 items waiting on you</span>
+    <span class="chip warnc">2 items waiting on you</span>
   </div>
 
   <div class="grid">
@@ -106,11 +106,14 @@
           <li><strong>Rotate right</strong> on the picture menu, shortcut <strong>Ctrl+R</strong>,
           turns a picture a quarter turn clockwise. An ordinary picture item turns as a box. A
           background image, which fills its page area and cannot turn as a box, has the picture
-          inside it turned and shrunk to fit; that drops the crop, because the cropped region
-          described the picture as it was.</li>
+          inside it turned and its own box reshaped to match. The rule a turn follows is this: you
+          get what you would have had if the picture had arrived already turned. So the whole
+          picture ends upright, it fills the page area where the turned picture is that shape, and
+          any crop you had made is kept at the same framing. A picture you had told to fill the
+          page keeps filling it, with its ends cut off rather than blank bands.</li>
           <li><strong>Flip</strong>, with <strong>Flip horizontal</strong> and
           <strong>Flip vertical</strong>, mirrors the picture. The two axes are the ones the user
-          sees, whichever way the picture has been turned.</li>
+          sees, whichever way the picture and its box have been turned.</li>
           <li>A <strong>rotation handle</strong> on the control frame, a knob on a short stem above
           the top edge, turns the selected item to any angle. The angle snaps to every multiple of
           45 degrees within 14 degrees of one, and the CTRL key turns the snapping off. An item
@@ -119,9 +122,12 @@
           <li>Dragging, resizing and cropping work on a turned item: mouse movement is converted
           into the item's own coordinates, and the item is shifted so that the edge opposite the
           one being dragged stays where it looks. Clicking picks the right item too, which
-          comicaljs alone cannot do, because it tests the un-turned box.</li>
+          comicaljs alone cannot do, because it tests the un-turned box. The mark that shows which
+          side of a picture is cropped counts the turn of the picture as well as the turn of the
+          box, so it marks the two sides that are really hidden rather than all four.</li>
           <li><strong>Undo</strong> puts back a Rotate right, a Flip, and a drag of the rotation
-          handle: one step for each command, and one step for each drag.</li>
+          handle: one step for each command, and one step for each drag. A turn moves the picture's
+          box as well as the picture, and Undo puts both back.</li>
           <li><strong>Reset Image</strong> now clears the crop, the turn and the mirror, and a
           transparency the user chose by hand, and puts the transparency back to Auto. It does not
           straighten a turned box, because that angle belongs to the box, as its size and its
@@ -142,7 +148,7 @@
             <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td><code>pnpm typecheck</code>, no blunder-class errors</td></tr>
             <tr><td>Lint</td><td class="pass">pass</td><td><span class="numeral">0 errors</span>, 764 warnings, all of them older than this branch</td></tr>
             <tr><td>Prettier</td><td class="pass">pass</td><td>every file this branch touches is formatted</td></tr>
-            <tr><td>TypeScript tests (vitest, full suite)</td><td class="pass">pass</td><td><span class="numeral">730 passed · 5 skipped · 65 files</span></td></tr>
+            <tr><td>TypeScript tests (vitest, full suite)</td><td class="pass">pass</td><td><span class="numeral">811 passed · 5 skipped · 69 files</span>, run against this commit</td></tr>
             <tr><td>C# tests (dotnet test)</td><td class="skip">not run</td><td>no C# in the diff, and no C# test reads the English XLF file it adds strings to</td></tr>
             <tr><td>Merge with master</td><td class="pass">clean</td><td>already up to date; no conflict</td></tr>
           </tbody>
@@ -152,11 +158,13 @@
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>This run added the undo step for a drag of the rotation handle, which also relaxed the
-        "can undo" test so a turned text box, video or button can be undone, and moved one new
-        function in <code>bloomImages.ts</code> below the comment that describes its neighbour.
-        Then it opened the draft PR for work that was already committed.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8227/commits" target="_blank" rel="noopener">All three commits</a> ·
+        <p>One commit. A quarter turn of a page background picture now keeps the crop and gives the
+        picture the whole page area, which is what you chose on the last report; the arithmetic that
+        does it is one exported function with 37 tests over it. Undo puts the picture's box back as
+        well as the picture, Expand Image works on a turned picture, and the crop marks count the
+        picture's own turn.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/commit/2e5cfad65c09ca7e709aaa758a69515bc4cac2ac" target="_blank" rel="noopener">The commit</a> ·
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227/commits" target="_blank" rel="noopener">All seven commits</a> ·
         <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227/files" target="_blank" rel="noopener">Files changed</a></p>
       </div>
 
@@ -169,27 +177,34 @@
             <tr>
               <td>Local review</td><td>complete</td>
               <td>Light pass, done inline (this session does not spawn agents unless asked). One
-              finding, fixed: a new function had been inserted between a comment and the function
-              that comment describes. Nothing else clear-cut; three judgment calls went to the
-              questions at the right.</td>
+              finding, raised against my own new code and fixed before the commit: the command that
+              turns a picture inside its box is reached by more than the page background, so the
+              first version of the change would have stretched an ordinary picture's box to the
+              whole page. It now leaves such a box the size it is. Nothing else.</td>
             </tr>
             <tr>
-              <td>Devin</td><td>timed out after 32 min</td>
-              <td>The review job for this commit finished, but the pass that produces the findings was still marked pending 32 minutes after the push, so there is nothing to read yet. I re-triggered it on giving up, and the next preflight run will fold in whatever it produces. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">Review page</a></td>
+              <td>Devin</td><td>complete</td>
+              <td>It re-read the whole PR at this commit and raised nothing new. It now marks all
+              three of its earlier Bugs as fixed, and its five Investigate flags are the same five
+              as before, each with its own thread. Four of those are answered and resolved; the
+              fifth is the question at the right.
+              <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">Review page</a> ·
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227#issuecomment-5389872761" target="_blank" rel="noopener">consultation log</a></td>
             </tr>
             <tr>
               <td>Greptile</td><td>complete</td>
-              <td>No review: it <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227#pullrequestreview-3752130000" target="_blank" rel="noopener">answered</a>
-              that the trial has ended, so it reviews nothing on this repo now.</td>
+              <td>No review. It answers every push with a notice that the trial has ended, so it
+              reviews nothing on this repository now.</td>
             </tr>
             <tr>
               <td>CodeRabbit</td><td>not active</td>
-              <td>The repository still holds a <code>.coderabbit.yml</code> file, but CodeRabbit has commented on none of the recent pull requests, and it posted nothing here. The file is stale.</td>
+              <td>The repository still holds a <code>.coderabbit.yml</code> file, but CodeRabbit has
+              posted nothing on this pull request at all. The file is stale.</td>
             </tr>
             <tr>
               <td>CI</td><td>complete</td>
-              <td><code>pr-automation</code> passed. That is the only check this repo runs on a PR;
-              the build and the test suites live on TeamCity, not on GitHub Actions.</td>
+              <td><code>pr-automation</code> passed. That is the only check this repository runs on a
+              pull request; the build and the test suites live on TeamCity.</td>
             </tr>
           </tbody>
         </table>
@@ -199,131 +214,106 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>The whole feature was driven by hand in a running Bloom over the debugging protocol:
-          the menu items, the handle, the snapping, and each step of Rotate right on both a
-          background image and a picture item.</li>
-          <li>Three modules have no unit tests yet:
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/379ee06750b0f6f04b714f0d2e803e0234139e64/src/BloomBrowserUI/bookEdit/js/canvasElementManager/canvasElementRotation.ts" target="_blank" rel="noopener">canvasElementRotation.ts</a>,
-          <a href="https://github.com/BloomBooks/BloomDesktop/blob/379ee06750b0f6f04b714f0d2e803e0234139e64/src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts" target="_blank" rel="noopener">imageContentTransform.ts</a>
-          and <code>getSnappedRotation</code>. Question 4 asks whether to add them now.</li>
-          <li>A speech bubble, thought bubble, caption, rectangle or ellipse gets no rotation
-          handle. That is a decision from earlier in this work, not an omission: comicaljs draws
-          those outlines upright onto a shared layer, so a CSS rotation would move the box away
-          from its own outline.</li>
+          <li>The new turn arithmetic has not been driven by hand in a running Bloom on a
+          <em>cropped</em> background picture. It was checked three other ways: 37 unit tests
+          including a four-turn round trip, a measurement of the real layout engine in the running
+          Bloom for the uncropped case, and a rendered five-panel check of what the reader sees,
+          using an asymmetric picture, for all three cases. A tester should still do the cropped
+          case by hand; the test ideas on the card say how.</li>
+          <li><strong>Left out of scope:</strong> dragging a crop handle on a picture whose content
+          has been turned moves the content sideways instead of following the pointer. That is the
+          question at the right. It is older than this branch, and the test ideas on the card now
+          warn a tester about it.</li>
+          <li>Rotate right reaches the picture inside the box whenever the box itself cannot turn on
+          the page. That is true of the page background, and also of an item whose outline comicaljs
+          draws. For the second kind the box keeps the size the author gave it and turns about its
+          own centre, rather than being fitted to the page. I could not confirm from the code that a
+          picture ever sits in such a box, so this may be a path nothing reaches; it is written that
+          way so that it is right if anything does.
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/2e5cfad65c09ca7e709aaa758a69515bc4cac2ac/src/BloomBrowserUI/bookEdit/js/imageContentTransform.ts#L268" target="_blank" rel="noopener">setTurnedBackgroundLayout, line 268</a>)</li>
+          <li>The picture's inline <code>transform</code> now carries the turn and the mirrors only.
+          The two functions that used to shrink a turned picture and drop its crop are gone, so
+          nothing writes a scale factor into a picture any more.</li>
         </ul>
       </div>
     </div>
 
     <div>
+
       <div class="card">
-        <h2>Rotate right: your report of a horizontal flip</h2>
+        <h2>Cropping a picture whose content has been turned</h2>
         <div class="item">
-          <p>Earlier in this work you said that Rotate right "seems to do the right thing for the
-          1st call, but then it just flips horizontally", and asked for 90 degrees on every call.
-          I measured the running Bloom afterwards and could not reproduce that. Each click adds a
-          quarter turn on both paths. On a background image the picture went
-          <code>rotate(90deg) scale(0.667, 0.667)</code>, then <code>rotate(180deg)</code>, then
-          <code>rotate(270deg) scale(0.667, 0.667)</code>, then no transform at all. On a picture
-          item the box went 90, 180, 270, then upright. So the code steps by 90 degrees, and the
-          question is what you saw.</p>
-          <p>One thing can look like a flip and is expected: at 180 degrees a picture with no
-          obvious top and bottom, or one that is nearly symmetrical, is hard to tell from its
-          mirror image. Another possibility is that the Bloom you were watching had not yet
-          picked up the change, since the second and third clicks came before I had finished
-          editing.</p>
-          <div class="opt"><label><input type="radio" name="q1" data-q="Rotate right stepping" value="Leave as is: the measurement stands" checked>
-            <span>Leave as is <span class="tag">recommended</span><br><span class="foot">The measurement says the stepping is right, so there is nothing to fix until it happens again. If you see it again, say which picture and how many clicks, and I will drive that exact case.</span></span></label></div>
-          <div class="opt"><label><input type="radio" name="q1" data-q="Rotate right stepping" value="Add a test that walks all four quarter turns">
-            <span>Add a test that walks the four quarter turns and asserts each transform<br><span class="foot">Small: about 40 lines in a new spec file for <code>imageContentTransform.ts</code>, no production code touched. It would catch a future regression, but it cannot tell us what you saw.</span></span></label></div>
-          <div class="opt"><label><input type="radio" name="q1" data-q="Rotate right stepping" value="I will reproduce it and report the exact picture and clicks">
-            <span>Hold the question: you will reproduce it and tell me the picture and the number of clicks<br><span class="foot">No code. The most direct route if it is still happening for you.</span></span></label></div>
+          <p>A background picture can be cropped by dragging the handle in the middle of one of its
+          sides: that moves the edge of what you see and leaves the picture behind it where it is.
+          Separately, Rotate right turns the picture inside its box. If you do both, the crop drag
+          stops working the way it looks: the pointer moves down and the picture slides sideways,
+          because the code that moves the picture writes its new position in the box's directions
+          and does not know that the picture inside is lying on its side.
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/2e5cfad65c09ca7e709aaa758a69515bc4cac2ac/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementHandleDragInteractions.ts" target="_blank" rel="noopener">continueSideDrag</a>)</p>
+          <p>This is not new. Before this branch, a turn threw the crop away, so the pair could not
+          be reached from the menu; but the drag code has never known about the picture's own turn,
+          and the rotation handle could already produce it. What is new is that a turn now keeps the
+          crop, so an author can reach the pair in two clicks and will meet it. The small marks that
+          say which side is cropped are correct, because those were fixed in this commit; only the
+          dragging is wrong.</p>
+          <p>Nothing is lost when it happens: the picture is still there, and Undo or Reset Image
+          brings it back. The user simply cannot adjust a crop by dragging while the picture is
+          turned.</p>
+          <div class="opt"><label><input type="radio" name="q1" data-q="Cropping a turned picture" value="Open a separate card for it and leave this PR alone" checked>
+            <span>Open a separate card for it, and leave this PR alone <span class="tag">recommended</span><br><span class="foot">No code here. Recommended because the fix is a second piece of coordinate work in the drag code, of about the same size as the whole turn change, and this PR is already large; and because the defect predates the branch, so it is not a regression this PR has to answer for. The test ideas already warn the tester.</span></span></label></div>
+          <div class="opt"><label><input type="radio" name="q1" data-q="Cropping a turned picture" value="Fix it in this PR">
+            <span>Fix it in this PR<br><span class="foot">Moderate to large: the drag code must convert the pointer movement into the picture's own directions before it writes the new position, and it must decide which edge of the picture each handle now moves. About 60 lines in one method, plus tests, plus checking every crop drag by hand on an un-turned picture as well, because the same method runs for those.</span></span></label></div>
+          <div class="opt"><label><input type="radio" name="q1" data-q="Cropping a turned picture" value="Turn the crop handles off while the picture content is turned">
+            <span>Hide the crop handles while the picture inside is turned<br><span class="foot">Small: about 10 lines, one rule in the availability code. It removes the wrong behaviour without solving anything, and it takes cropping away from an author who has turned a picture.</span></span></label></div>
           <div class="opt leaverow">
-            <label><input type="radio" name="q1" data-q="Rotate right stepping" value="Other"><span>Other:&nbsp;<input type="text" data-q="Rotate right stepping — other"></span></label>
+            <label><input type="radio" name="q1" data-q="Cropping a turned picture" value="Leave as is"><span>Leave as is</span></label>
+            <label class="leavecomment"><input type="checkbox" data-q="Cropping a turned picture — leave comment"> Leave comment</label>
           </div>
-          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Rotate right stepping — notes"></textarea></div>
+          <div class="opt"><label><input type="radio" name="q1" data-q="Cropping a turned picture" value="Other"><span>Other:&nbsp;<input type="text" data-q="Cropping a turned picture — other"></span></label></div>
+          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Cropping a turned picture — notes"></textarea></div>
         </div>
       </div>
 
       <div class="card">
-        <h2>The crop marks on a turned item</h2>
+        <h2>Undo of a turn works only while the turned item is selected</h2>
         <div class="item">
-          <p>When a picture is cropped, the four side handles on the control frame show a small mark
-          on the sides where the picture runs past the box, so the user can see which way the crop
-          goes. The code that decides this compares the on-screen rectangles of the picture and of
-          the item
-          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/379ee06750b0f6f04b714f0d2e803e0234139e64/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementHandleDragInteractions.ts#L947" target="_blank" rel="noopener">updateCurrentlyCropped, line 947</a>).
-          For a turned item those rectangles are the boxes drawn around the turned shape, which are
-          bigger than the item itself, so the mark can appear on a side that is not really cropped,
-          or appear on all four sides of a picture with no crop at all.</p>
-          <p>Nothing else goes wrong: the crop itself, the handles and the dragging are correct, and
-          for an item at 0 degrees the marks are exactly as they were. Only the small mark is
-          affected, and only on a turned item.</p>
-          <div class="opt"><label><input type="radio" name="q2" data-q="Crop marks on a turned item" value="Fix it now with the laid-out sizes" checked>
-            <span>Fix it now, comparing the laid-out sizes instead of the on-screen rectangles <span class="tag">recommended</span><br><span class="foot">Moderate: about 15 lines in one method, of the same kind as the fix already made for the "move the crop" handle. The risk is that it also runs for un-turned items, so it needs the crop marks checked by hand on a plain cropped picture as well as on a turned one.</span></span></label></div>
-          <div class="opt leaverow">
-            <label><input type="radio" name="q2" data-q="Crop marks on a turned item" value="Leave as is"><span>Leave as is</span></label>
-            <label class="leavecomment"><input type="checkbox" data-q="Crop marks on a turned item — leave comment"> Leave comment</label>
+          <p>Turn an item, then click on something else, then press Ctrl+Z: the turn is not undone.
+          Select the turned item again and Ctrl+Z does undo it. Devin raised this and it is the one
+          finding of its that is still open; it has been waiting for you since the run before last.
+          (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8227#discussion_r2688574000" target="_blank" rel="noopener">the thread</a>,
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/2e5cfad65c09ca7e709aaa758a69515bc4cac2ac/src/BloomBrowserUI/bookEdit/js/ImageUndoManager.ts#L184" target="_blank" rel="noopener">canUndoImageOperation, line 184</a>)</p>
+          <p>The rule is deliberate in one sense: it copies the rule the older picture undo records
+          already follow, where the selection has to be on the picture the record belongs to. Bloom
+          keeps one undo stack for each item rather than one for the page, so an undo whose item is
+          not selected is skipped rather than run. Whether that is right for a turn is a fair
+          question: a user who turns a picture, clicks away, and then presses Ctrl+Z is told nothing
+          about why nothing happened.</p>
+          <div class="opt"><label><input type="radio" name="q2" data-q="Undo of a turn needs the item selected" value="Leave as is" checked>
+            <span>Leave as is <span class="tag">recommended</span><br><span class="foot">Recommended because a turn then behaves exactly like every other picture command in Bloom, and widening it for turns alone would make Ctrl+Z mean one thing for a turn and another for a crop. Changing the rule for all of them is a bigger question than this PR.</span></span></label>
+            <label class="leavecomment"><input type="checkbox" data-q="Undo of a turn needs the item selected — leave comment"> Leave comment</label>
           </div>
-          <div class="opt"><label><input type="radio" name="q2" data-q="Crop marks on a turned item" value="Other"><span>Other:&nbsp;<input type="text" data-q="Crop marks on a turned item — other"></span></label></div>
-          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Crop marks on a turned item — notes"></textarea></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>The handle is clipped at the top of the page area</h2>
-        <div class="item">
-          <p>The rotation handle sits on a stem 20 pixels above the top edge of the item. When the
-          item is at the very top of its page area there is no room for it, and the part that does
-          not fit is cut off, so the user may see only a stub of the stem and no knob. To turn such
-          an item the user must first move it down.</p>
-          <p>The corner handles for resizing behave the same way today, so this is not new
-          behaviour in the page; it is new only for this handle, which is further out than they
-          are.</p>
-          <div class="opt"><label><input type="radio" name="q3" data-q="Handle clipped at the top" value="Leave as is" checked>
-            <span>Leave as is <span class="tag">recommended</span><br><span class="foot">It matches how the resize handles already behave at that edge, and an author who wants to turn an item can move it down first. Moving the handle inside the frame only where there is no room costs a measurement on every alignment, and puts the knob on top of the picture.</span></span></label>
-            <label class="leavecomment"><input type="checkbox" data-q="Handle clipped at the top — leave comment"> Leave comment</label>
-          </div>
-          <div class="opt"><label><input type="radio" name="q3" data-q="Handle clipped at the top" value="Put the handle below the item when there is no room above">
-            <span>Put the handle below the item when there is no room above it<br><span class="foot">Moderate: the alignment code must measure the space above the item on every move and swap the handle to the bottom edge, and the stem and the knob need a second set of rules. It also means the handle is not always in the same place, which is its own cost to the user.</span></span></label></div>
-          <div class="opt"><label><input type="radio" name="q3" data-q="Handle clipped at the top" value="Other"><span>Other:&nbsp;<input type="text" data-q="Handle clipped at the top — other"></span></label></div>
-          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Handle clipped at the top — notes"></textarea></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Unit tests for the three new pieces</h2>
-        <div class="item">
-          <p>The undo work has tests. The three pieces underneath it do not: the code that reads and
-          writes the angle of an item, the code that turns and mirrors a picture inside its box, and
-          the snapping of an angle to the nearest multiple of 45 degrees. All three are pure
-          functions over a DOM element, so they are cheap to test in the existing test runner, and
-          they are exactly the code a later change is most likely to break without anyone noticing.</p>
-          <div class="opt"><label><input type="radio" name="q4" data-q="Unit tests for the new modules" value="Add the three test files now" checked>
-            <span>Add the three test files now <span class="tag">recommended</span><br><span class="foot">Small: roughly 150 lines of tests, no production code touched, and it runs in the suite that already passes. It also settles question 1 for the future.</span></span></label></div>
-          <div class="opt"><label><input type="radio" name="q4" data-q="Unit tests for the new modules" value="Only the picture turn and mirror module">
-            <span>Only the picture turn and mirror module, which is the one with real arithmetic<br><span class="foot">Very small: about 60 lines. Leaves the angle reader and the snapping untested.</span></span></label></div>
-          <div class="opt leaverow">
-            <label><input type="radio" name="q4" data-q="Unit tests for the new modules" value="Leave as is"><span>Leave as is</span></label>
-            <label class="leavecomment"><input type="checkbox" data-q="Unit tests for the new modules — leave comment"> Leave comment</label>
-          </div>
-          <div class="opt"><label><input type="radio" name="q4" data-q="Unit tests for the new modules" value="Other"><span>Other:&nbsp;<input type="text" data-q="Unit tests for the new modules — other"></span></label></div>
-          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Unit tests for the new modules — notes"></textarea></div>
+          <div class="opt"><label><input type="radio" name="q2" data-q="Undo of a turn needs the item selected" value="Undo a turn whatever is selected">
+            <span>Let Ctrl+Z undo a turn whatever is selected<br><span class="foot">Moderate, and it changes what the user sees: the test that decides whether an undo is available drops the selection requirement, and the undo has to select the item it puts back so the user can see what happened. It also makes a turn behave differently from a crop, which is a difference an author has to learn.</span></span></label></div>
+          <div class="opt"><label><input type="radio" name="q2" data-q="Undo of a turn needs the item selected" value="Other"><span>Other:&nbsp;<input type="text" data-q="Undo of a turn needs the item selected — other"></span></label></div>
+          <div class="notes"><span>Notes</span><textarea rows="2" data-q="Undo of a turn needs the item selected — notes"></textarea></div>
         </div>
       </div>
 
       <div class="card">
         <h2>Next step</h2>
         <div class="item">
-          <p>The branch is on a draft PR, the gates are green, and no reviewer is waiting. Say what
-          I do with your answers above.</p>
-          <div class="opt"><label><input type="radio" name="q5" data-q="Next step" value="Implement the chosen options, then re-run preflight" checked>
+          <p>The branch is on a draft PR, every gate is green, and no reviewer is waiting. Say what I
+          do with your answers above.</p>
+          <div class="opt"><label><input type="radio" name="q3" data-q="Next step" value="Implement the chosen options, then re-run preflight" checked>
             <span>Implement what you chose, then run preflight again <span class="tag">recommended</span></span></label></div>
-          <div class="opt"><label><input type="radio" name="q5" data-q="Next step" value="Discuss first">
+          <div class="opt"><label><input type="radio" name="q3" data-q="Next step" value="Discuss first">
             <span>Talk it through before I change anything</span></label></div>
+          <div class="opt"><label><input type="radio" name="q3" data-q="Next step" value="Nothing more: this is ready for your own review">
+            <span>Nothing more here: the branch is ready for your own review</span></label></div>
           <div class="opt leaverow">
-            <label><input type="radio" name="q5" data-q="Next step" value="Leave as is"><span>Leave as is</span></label>
+            <label><input type="radio" name="q3" data-q="Next step" value="Leave as is"><span>Leave as is</span></label>
           </div>
-          <div class="opt"><label><input type="radio" name="q5" data-q="Next step" value="Other"><span>Other:&nbsp;<input type="text" data-q="Next step — other"></span></label></div>
+          <div class="opt"><label><input type="radio" name="q3" data-q="Next step" value="Other"><span>Other:&nbsp;<input type="text" data-q="Next step — other"></span></label></div>
           <div class="notes"><span>Notes</span><textarea rows="2" data-q="Next step — notes"></textarea></div>
         </div>
       </div>
@@ -349,7 +339,14 @@
     }
 
     function serialize() {
-        const lines = ["Preflight answers — BL-16741 (PR 8227)", ""];
+        const lines = [
+            "Decisions from a preflight report",
+            "Project: BloomDesktop, repo D:\\BL-16741-rotate-image, branch BL-16741-rotate-image",
+            "Pull request: https://github.com/BloomBooks/BloomDesktop/pull/8227",
+            "Card: https://issues.bloomlibrary.org/youtrack/issue/BL-16741",
+            "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-BL-16741-rotate-image.html",
+            "",
+        ];
         document.querySelectorAll(".card > .item").forEach((item) => {
             const radios = item.querySelectorAll("input[type=radio]");
             if (!radios.length) return;
