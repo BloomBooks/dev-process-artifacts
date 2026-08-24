@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — Bloom Freeze Doctor (BL-16719)</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+:root{
+  --ground:#faf8f4;
+  --card:#ffffff;
+  --ink:#22201c;
+  --ink-soft:#5c574e;
+  --line:#e3ded3;
+  --accent:#1f5d5a;
+  --accent-soft:#e8f1f0;
+  --ok:#2e6b3f;
+  --warn:#8a5a12;
+  --bad:#9c2f2f;
+}
+body{
+  background:var(--ground);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15px;line-height:1.55;
+}
+h1,h2,h3{font-family:Georgia,Cambria,"Times New Roman",serif;font-weight:600;line-height:1.25;text-wrap:balance;margin:0 0 .5rem}
+h1{font-size:1.6rem}
+h2{font-size:1.15rem;margin-top:0}
+h3{font-size:1rem;margin:1.1rem 0 .35rem}
+p{margin:0 0 .7rem}
+ul{margin:0 0 .7rem;padding-left:1.1rem}
+li{margin:.25rem 0}
+a{color:var(--accent)}
+.wrap{max-width:1400px;margin:0 auto;padding:1.6rem 1.4rem 3rem}
+header.top{margin-bottom:1.2rem}
+.sub{color:var(--ink-soft);margin:.2rem 0 .8rem}
+.chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.chip{display:inline-block;padding:.2rem .6rem;border:1px solid var(--line);border-radius:999px;background:var(--card);font-size:.8rem;color:var(--ink-soft)}
+.chip.good{border-color:#bcd8c4;background:#f1f8f3;color:var(--ok)}
+.chip.warnc{border-color:#e4d2ae;background:#fdf6e8;color:var(--warn)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:1.2rem;align-items:start}
+.grid>*{min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:1.1rem 1.15rem;margin-bottom:1.1rem}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:.45rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);font-weight:600}
+tr:last-child td{border-bottom:none}
+.numeral{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.85em}
+.pass{color:var(--ok);font-weight:600}
+.na{color:var(--ink-soft)}
+.item{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:1rem 1.05rem;margin-bottom:1rem}
+.item h3{margin-top:0}
+.opts{margin:.6rem 0 0;display:flex;flex-direction:column;gap:.45rem}
+.opt{display:flex;gap:.5rem;align-items:flex-start;padding:.4rem .5rem;border:1px solid transparent;border-radius:7px}
+.opt:hover{background:#fbfaf7;border-color:var(--line)}
+.opt input[type=radio]{margin-top:.25rem;flex:none}
+.opt .txt{flex:1}
+.rec{display:inline-block;margin-left:.35rem;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);background:var(--accent-soft);border-radius:4px;padding:.05rem .35rem;vertical-align:.08em}
+.cost{display:block;color:var(--ink-soft);font-size:.83rem;margin-top:.1rem}
+.leaverow{display:flex;align-items:center;gap:.5rem;justify-content:space-between;flex-wrap:wrap}
+.leavecomment{display:flex;align-items:center;gap:.35rem;font-size:.82rem;color:var(--ink-soft);white-space:nowrap}
+input[type=text].other,textarea.notes{
+  width:100%;font:inherit;font-size:.88rem;padding:.4rem .5rem;
+  border:1px solid var(--line);border-radius:6px;background:#fdfcfa;color:var(--ink)
+}
+textarea.notes{margin-top:.55rem;min-height:2.5rem;resize:vertical}
+.notelabel{display:block;font-size:.78rem;color:var(--ink-soft);margin-top:.55rem}
+button{
+  font:inherit;font-weight:600;background:var(--accent);color:#fff;border:none;
+  border-radius:7px;padding:.5rem .95rem;cursor:pointer
+}
+button:hover{filter:brightness(1.08)}
+#payload{width:100%;min-height:9rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;margin-top:.6rem;background:#fdfcfa;border:1px solid var(--line);border-radius:6px;padding:.5rem}
+.copied{margin-left:.6rem;color:var(--ok);font-size:.85rem}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — Bloom Freeze Doctor</h1>
+  <p class="sub">BL-16719 · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">PR #8229</a> · branch <span class="numeral">BL-16719-doctor-in-repo</span> · HEAD <span class="numeral">55875b966</span></p>
+  <p class="sub">All gates green and every reviewer terminal. <strong>Thirteen defects were found during this run and eleven were fixed.</strong> Not one of them produced a crash, a red build or a failing test — every single one would have failed silently, which is why review found them and the suite did not. The two still unfixed are questions 7 and 8 below.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Reviewers terminal</span>
+    <span class="chip warnc">9 items for you</span>
+  </div>
+</header>
+
+<div class="grid">
+<div class="left">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p>Users tell us Bloom froze, and we get almost nothing to work with. Their problem report is written <em>after</em> they killed Bloom, so it describes a healthy new process, and the log holds only what Bloom managed to write before it stopped responding. Three quite different failures arrive looking identical — the UI stops responding; Bloom exits without reporting anything; or Bloom's window is gone while the process lives on, so the user cannot start Bloom again.</p>
+
+    <h3>Cause</h3>
+    <p>Nobody is watching at the moment it happens, and the worst case cannot be watched from outside at all. A WinForms UI thread blocked in a managed wait on an STA thread still dispatches <em>sent</em> messages, so the window answers probes, <span class="numeral">IsHungAppWindow</span> reports it healthy and <span class="numeral">Process.Responding</span> returns true while Bloom is completely stuck — measured on a real Bloom at nine minutes frozen, reported responsive throughout.</p>
+
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Bloom publishes a health heartbeat through shared memory that a watcher can read without Bloom's cooperation, proves its clean exits, records which log file this run is using, tracks in-flight API requests, and notices a debugger.</li>
+      <li>A companion app — the Freeze Doctor, four projects now living in this repo — watches for the three failure states, gathers evidence while the process still exists, and files a tracker card itself. It will not touch a <em>frozen</em> Bloom, which may hold unsaved edits; only a window-less one.</li>
+      <li>It ships <em>inside</em> Bloom's installer, signed alongside <span class="numeral">Bloom.exe</span>. Whether it runs is a setting, off by default, toggled by <strong>“Run Freeze Doctor”</strong> in the collections-tab debug menu; turning it on starts it at once.</li>
+      <li>When running normally it shows no window at all — only a tray icon — until it has actually reported something.</li>
+    </ul>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/commits" target="_blank" rel="noopener">Commits</a> · <span class="numeral">64 files, ~13,000 insertions</span></p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td>no blunder-class type errors</td></tr>
+        <tr><td>ESLint</td><td class="pass">pass</td><td><span class="numeral">0 errors</span>, 764 warnings — the repo-wide pre-existing baseline</td></tr>
+        <tr><td>TypeScript tests (vitest)</td><td class="pass">pass</td><td><span class="numeral">723 passed · 5 skipped</span></td></tr>
+        <tr><td>C# tests — BloomTests</td><td class="pass">pass</td><td><span class="numeral">3185 passed · 13 skipped</span></td></tr>
+        <tr><td>C# tests — BloomFreezeDoctor.Tests</td><td class="pass">pass</td><td><span class="numeral">111 passed</span>; re-run after every fix, and one new test added for the drain gate</td></tr>
+        <tr><td>Merge with master</td><td class="pass">clean</td><td>master was 46 commits ahead; merged before squashing, so none of it is reverted</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:.7rem" class="sub">The last two commits touch only Freeze Doctor projects, which <span class="numeral">BloomTests</span> and the front-end suite cannot reach, so those two results stand from the identical tree earlier in the run rather than being re-run.</p>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>The Doctor moved into this repository and lost its separate installer, and with it Velopack; the menu switch and setting arrived; and the window was taught not to appear until it has something to say. The branch was then squashed to a single commit on master, and six rounds of fixes were added for bugs found by the local review, Devin and Greptile — the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/commits" target="_blank" rel="noopener">commit list</a> has each one with its reasoning.</p>
+    <p>Three of those rounds were a reviewer catching a flaw in the previous round's fix, all on the same piece of code — the gate that stops two things draining the report queue at once. That is why this run stops at the skill's four-cycle cap rather than continuing: the pattern could run indefinitely, and what is left is a design choice rather than a defect.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Local review<br><span class="sub" style="font-size:.8rem">light pass, done inline</span></td>
+          <td class="pass">complete</td>
+          <td>Two findings, both fixed. Bloom's build never built the Doctor at all — <span class="numeral">Bloom.proj</span> names projects individually rather than building the solution — and the new hidden-window behaviour would have made the Doctor exit milliseconds after starting, because a form that refuses to become visible never gets a window handle. Both would have failed with nothing going red.</td>
+        </tr>
+        <tr>
+          <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin</a></td>
+          <td class="pass">complete</td>
+          <td>Six bugs across the run, every one verified against the code before acting. Four fixed: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3845874338" target="_blank" rel="noopener">WebView2 fallback that could never fire</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3845874503" target="_blank" rel="noopener">dedup sets mutated from several threads</a>, a <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3845961221" target="_blank" rel="noopener">crash dump that could be aborted mid-write</a>, and a <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3846139457" target="_blank" rel="noopener">handle leak in the discovery sweep</a>. Two left open as decisions 8 and 9. Plus the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3845874675" target="_blank" rel="noopener">token-scope</a> flag, which is decision 1.</td>
+        </tr>
+        <tr>
+          <td>Greptile</td>
+          <td class="pass">complete</td>
+          <td>Four P1s, all correct, and the last three were each about the previous fix for the first: the report queue could be drained <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3845896893" target="_blank" rel="noopener">by two paths at once</a>, then <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3846049563" target="_blank" rel="noopener">by two processes</a>, then <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3846049736" target="_blank" rel="noopener">by two logon sessions</a>. Three fixed; the fourth is decision 7. It earned its keep on this PR.</td>
+        </tr>
+        <tr>
+          <td>CI</td>
+          <td class="pass">pass</td>
+          <td><span class="numeral">pr-automation</span> green. The PR reads <em>unstable</em> only because Greptile's own check sits permanently pending on this repo, which is unrelated to this branch.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li><strong>Nothing here has been run by hand yet.</strong> Every finding so far is from tests and review; the Doctor has not been watched doing its job in this arrangement. Turning the menu item on with <span class="numeral">BLOOM_SIMULATE_FREEZE</span> set is the test that matters, and the QA notes on the card lay it out.</li>
+      <li><strong>The Doctor's exe is not produced in the <span class="numeral">agent-dotnet</span> private build tree</strong>, because <span class="numeral">Directory.Build.props</span> disables apphosts there for everything but <span class="numeral">WebView2PdfMaker</span>. Harmless for tests, but a Doctor launched from such a tree will silently do nothing — that is decision 4, not a bug.</li>
+      <li><strong>Two earlier PRs are superseded.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8218" target="_blank" rel="noopener">#8218</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8219" target="_blank" rel="noopener">#8219</a> are both contained here in final form; #8219's NuGet-package approach is moot now that both consumers share a repo. Left open rather than closed — decision 5.</li>
+      <li><strong>Greptile re-resolves its own threads when the file changes</strong>, so a thread being marked resolved on this PR does not always mean the point was settled. The thread for decision 7 was auto-resolved twice and reopened twice. <strong>This report, not the thread state, is the reliable list of what is still open.</strong></li>
+      <li><strong>The three unfixed bugs are all in code that had never been reviewed by anyone</strong> before this PR — the Doctor spent its early life on a branch with no review, so decisions 8 and 9 are first looks rather than regressions. Neither is reachable from the tests, which is why review found them and the suite did not.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="right">
+
+  <div class="item">
+    <h3>1 · The YouTrack token's permission scope</h3>
+    <p>The Doctor files its cards using a shared permanent token for the <span class="numeral">auto_report_creator</span> account, embedded in the program as a base64 literal. The existing reasoning is that Bloom itself already ships that same token in a public repo, so this adds no new exposure — which holds. Devin's point is narrower: the token now also travels inside a <em>second</em> program, one that a support person may be asked to switch on during a call, so it is worth confirming what that token is actually allowed to do on the server. Nothing in the code can answer that; only somebody with YouTrack admin access can.</p>
+    <div class="opts" data-q="1. YouTrack token scope">
+      <label class="opt"><input type="radio" name="q1" value="Confirm the scope is create/comment only, then record it" checked><span class="txt">Someone with YouTrack admin confirms the token can only create and comment on issues in the intended projects, and can do nothing else — then we record that finding in a code comment beside the token <span class="rec">recommended</span><span class="cost">No code change; one lookup by someone with admin access. Recommended because it is the only option that actually answers the question, and the answer is then written down where the next reader of that literal will see it.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Narrow or rotate the token before this ships"><span class="txt">Narrow or rotate the token first, if the check shows it can do more than file issues<span class="cost">No code change here, but server-side work and a coordinated update of both Bloom and the Doctor.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q1" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="1. YouTrack token scope — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q1" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="1. YouTrack token scope — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="1. YouTrack token scope — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>2 · Turning the setting off leaves a running Doctor alive</h3>
+    <p>Unticking “Run Freeze Doctor” stops the Doctor being started next time, but does not stop one that is already running. I chose that deliberately: the running Doctor is watching this Bloom and may be holding a report it has gathered but not yet managed to send, so killing it on the spot could throw that evidence away. It exits by itself shortly after Bloom does. The cost is that “off” does not mean “off right now”, which a user could reasonably find surprising — and it is listed in the QA notes so a tester does not file it.</p>
+    <div class="opts" data-q="2. Off does not stop a running Doctor">
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q2" value="Leave as is" checked><span class="txt">Leave as is <span class="rec">recommended</span></span></label><label class="leavecomment"><input type="checkbox" data-q="2. Off does not stop a running Doctor — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q2" value="Ask it to quit when the setting is turned off"><span class="txt">Signal the running Doctor to quit when the setting is turned off<span class="cost">Small — the quit signal already exists and the Doctor already listens for it. The risk is the evidence one: it would need to finish sending anything queued first, which is the part that makes this more than a few lines.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="2. Off does not stop a running Doctor — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="2. Off does not stop a running Doctor — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>3 · The rest of the Doctor's file operations</h3>
+    <p>Bloom requires file operations to go through libpalaso's robust wrappers, which retry when Windows briefly refuses access — usually a virus scanner holding a file that was written a moment ago. The Doctor arrived with 44 plain <span class="numeral">File</span> and <span class="numeral">Directory</span> calls, so its tree is currently exempted from that check. One of them was already a real bug and is fixed: renaming a gathered report into the outbox failed about one run in three and lost the report. The other 44 are unconverted.</p>
+    <div class="opts" data-q="3. Remaining non-robust file operations">
+      <label class="opt"><input type="radio" name="q3" value="Convert in a follow-up PR and drop the exemption then" checked><span class="txt">Convert them in a follow-up PR, and delete the exemption with them <span class="rec">recommended</span><span class="cost">Moderate and mechanical — 44 call sites across 11 files. Recommended because it keeps this PR reviewable, and because the one site that was actually losing data is already done.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Convert them all now, in this PR"><span class="txt">Convert them all in this PR<span class="cost">Moderate; adds ~11 more changed files to an already large PR and touches code paths the tests barely cover.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q3" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="3. Remaining non-robust file operations — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q3" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="3. Remaining non-robust file operations — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="3. Remaining non-robust file operations — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>4 · The Doctor's exe is missing from agent build trees</h3>
+    <p>Builds made through <span class="numeral">build/agent-dotnet.ps1</span> — the wrapper that lets a build run while you have Bloom open — deliberately skip generating the small launcher <span class="numeral">.exe</span> for every project except <span class="numeral">WebView2PdfMaker</span>, which is exempted because Bloom shells out to it by name. Bloom now shells out to <span class="numeral">BloomFreezeDoctor.exe</span> by name in exactly the same way, so in such a tree the menu item will appear to do nothing at all. Normal builds are unaffected.</p>
+    <div class="opts" data-q="4. Doctor exe missing from agent build trees">
+      <label class="opt"><input type="radio" name="q4" value="Add the Doctor to the apphost exception" checked><span class="txt">Add the Doctor to that exception, alongside WebView2PdfMaker <span class="rec">recommended</span><span class="cost">One line in Directory.Build.props. Recommended because the reason the exception exists — Bloom launches the file by name — is now equally true of the Doctor, and a launcher that silently does nothing is an expensive thing to debug.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q4" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="4. Doctor exe missing from agent build trees — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q4" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="4. Doctor exe missing from agent build trees — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="4. Doctor exe missing from agent build trees — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>5 · The two superseded pull requests</h3>
+    <p>PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8218" target="_blank" rel="noopener">#8218</a> (Bloom's half of the feature) and PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8219" target="_blank" rel="noopener">#8219</a> (sharing the wire format as a NuGet package) are both contained in this PR in their final form, and #8219's whole approach is unnecessary now that Bloom and the Doctor share a repository. They both still carry review history, including resolved Devin threads, which is why I have not touched them.</p>
+    <div class="opts" data-q="5. Superseded PRs 8218 and 8219">
+      <label class="opt"><input type="radio" name="q5" value="Close both with a comment pointing at 8229" checked><span class="txt">Close both, each with a comment pointing here <span class="rec">recommended</span><span class="cost">No code. Recommended because two open PRs containing the same feature in earlier shapes will mislead anyone who finds them, and the review history stays readable on a closed PR.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q5" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="5. Superseded PRs 8218 and 8219 — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q5" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="5. Superseded PRs 8218 and 8219 — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="5. Superseded PRs 8218 and 8219 — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>6 · Long operations get no extra patience</h3>
+    <p>The Doctor can be told that Bloom is deliberately busy — publishing, uploading, making a PDF — and will then wait five minutes instead of one before deciding it has frozen. Nothing in Bloom ever sets that flag, so every freeze is judged at one minute. The exposure is real but narrow: work behind a progress dialog keeps pumping messages and so keeps the heartbeat alive, and it is only UI-blocking work lasting over a minute that could be reported as a freeze when it is merely slow. It is deliberately unwired because “a request has run a minute” is the same signal as the freeze itself, so no automatic rule can tell legitimately-slow from wedged — a human has to name the operations.</p>
+    <div class="opts" data-q="6. Long-operation patience flag unwired">
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q6" value="Leave as is" checked><span class="txt">Leave as is, and let field testing show whether it bites <span class="rec">recommended</span></span></label><label class="leavecomment"><input type="checkbox" data-q="6. Long-operation patience flag unwired — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q6" value="Wire it for named long operations now"><span class="txt">Name the long operations now and set the flag around them<span class="cost">Small per operation, but it needs a judgement about which ones qualify, and a missed one produces exactly the false report this is meant to prevent.</span></span></label>
+      <label class="opt"><input type="radio" name="q6" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="6. Long-operation patience flag unwired — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="6. Long-operation patience flag unwired — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>7 · “Report now” can say it failed when it did not</h3>
+    <p>“Report now” gathers a report, then drains the queue and looks for its own report among what was sent. If a support person happens to be running <span class="numeral">BloomFreezeDoctor --drain</span> by hand at that moment, the drain waits twenty seconds for them to finish, gives up, and files nothing — so “Report now” concludes there is no issue id and tells the user it failed, for a report the other process is about to file perfectly well. The report is not lost; only the message is wrong.</p>
+    <p>The reason this is a question rather than a fix: the honest correction changes what the drain method <em>returns</em>, so that “somebody else is draining” is distinguishable from “nothing was filed”. Today both are zero, and that method has existing callers and tests.</p>
+    <div class="opts" data-q="7. Report-now can wrongly say it failed">
+      <label class="opt"><input type="radio" name="q7" value="Distinguish gated-out from nothing-filed, and say queued" checked><span class="txt">Let the drain report that it was gated out, and have “Report now” say the report is <em>queued</em> rather than failed <span class="rec">recommended</span><span class="cost">Small but not trivial — a return-shape change on a method with existing callers and tests. Recommended because “it failed” about a report that is being filed is the kind of message that costs somebody an afternoon.</span></span></label>
+      <label class="opt"><input type="radio" name="q7" value="Have report-now wait and re-check instead"><span class="txt">Leave the return shape alone; have “Report now” pause and re-check the queue before concluding anything<span class="cost">Smaller and more localized, but it is a timing guess rather than a fact, so it narrows the window instead of closing it.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q7" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="7. Report-now can wrongly say it failed — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q7" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="7. Report-now can wrongly say it failed — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="7. Report-now can wrongly say it failed — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>8 · Wait-chain reports print nonsense thread ids</h3>
+    <p>When Bloom freezes, one of the most useful things a report can say is which thread is waiting on which — the “wait chain”. Windows returns that in a structure whose second half is a <em>union</em>: the thread numbers live at the same place as the object's name, not after it. Our copy of that structure lists them after a 256-byte name field, so the numbers are read from the wrong place, and the structure is the wrong size too, which misaligns every entry after the first. The result is that a card states a thread and process id that are simply garbage.</p>
+    <p>Nothing crashes, and no test fails — this is the “confident nonsense” failure this whole tool is meant to avoid, appearing inside the tool itself. It is not fixed here because it needs the structure re-expressed as a real union and can only be confirmed against an actually-blocked thread; a rushed version would keep printing rubbish while looking fixed.</p>
+    <div class="opts" data-q="8. Wait-chain thread ids are garbage">
+      <label class="opt"><input type="radio" name="q8" value="Fix the layout properly, verified against a real freeze" checked><span class="txt">Fix the structure properly, and confirm it against a real frozen Bloom <span class="rec">recommended</span><span class="cost">Moderate and fiddly — the union has to become a raw buffer with fields read out by offset, because a marshalled string cannot overlap numbers. Recommended because wait chains are headline evidence, and this is the one part of a report that is currently guaranteed wrong.</span></span></label>
+      <label class="opt"><input type="radio" name="q8" value="Stop printing the ids until the layout is fixed"><span class="txt">In the meantime, stop printing the thread and process ids so no card can carry a wrong one<span class="cost">A few lines. Loses some evidence, but omitting evidence is recoverable and publishing confident nonsense is not — reasonable as an interim step alongside the fix above.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q8" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="8. Wait-chain thread ids are garbage — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q8" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="8. Wait-chain thread ids are garbage — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="8. Wait-chain thread ids are garbage — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>9 · A hiccup contacting the tracker throws a report away for good</h3>
+    <p>Before filing, the Doctor looks up the tracker project's internal id. If that one request fails for any reason, the code treats it as “this project does not exist” and marks the report permanently failed, so it is never retried. Every other request in that class distinguishes “try again later” from “never”; this one does not. So an ordinary server hiccup or gateway timeout discards a gathered report for good — which defeats the entire purpose of queueing reports on disk, that being to survive exactly the flaky network a freeze so often comes with.</p>
+    <div class="opts" data-q="9. Transient tracker failure discards a report">
+      <label class="opt"><input type="radio" name="q9" value="Route it through the same retry classification as its neighbours" checked><span class="txt">Route that lookup's failures through the same classification as every other request, treating only a definite “not found” as permanent <span class="rec">recommended</span><span class="cost">Small in code, but it is a judgement rather than a mechanical change: getting it backwards either retries forever against a misconfigured project or keeps discarding reports. Recommended because losing reports is the one failure this component exists to prevent.</span></span></label>
+      <div class="opt leaverow"><label style="display:flex;gap:.5rem;align-items:flex-start;flex:1"><input type="radio" name="q9" value="Leave as is"><span class="txt">Leave as is</span></label><label class="leavecomment"><input type="checkbox" data-q="9. Transient tracker failure discards a report — leave comment"> Leave comment</label></div>
+      <label class="opt"><input type="radio" name="q9" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="9. Transient tracker failure discards a report — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="9. Transient tracker failure discards a report — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>Next step</h3>
+    <p>What would you like to happen once you have answered the above?</p>
+    <div class="opts" data-q="Next step">
+      <label class="opt"><input type="radio" name="qnext" value="Implement the chosen options, then I test it by running Bloom" checked><span class="txt">Implement the chosen options, then you try it by running Bloom with the setting on <span class="rec">recommended</span><span class="cost">Nothing here has been exercised by hand yet, so a real run is the most valuable next thing.</span></span></label>
+      <label class="opt"><input type="radio" name="qnext" value="Discuss some of these before any more code"><span class="txt">Discuss one or more of these before any more code</span></label>
+      <label class="opt"><input type="radio" name="qnext" value="Leave as is"><span class="txt">Leave as is</span></label>
+      <label class="opt"><input type="radio" name="qnext" value="Other"><span class="txt">Other:<input type="text" class="other" data-q="Next step — other" placeholder="your answer"></span></label>
+    </div>
+    <label class="notelabel">Notes<textarea class="notes" data-q="Next step — notes"></textarea></label>
+  </div>
+
+  <div class="item">
+    <h3>Send your answers back</h3>
+    <p>Copy this and paste it into the session.</p>
+    <button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>copied</span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+  function build(){
+    var out = ["Preflight answers - BloomDesktop BL-16719 (PR #8229)", ""];
+    document.querySelectorAll(".opts").forEach(function(group){
+      var label = group.getAttribute("data-q");
+      var picked = group.querySelector("input[type=radio]:checked");
+      var value = picked ? picked.value : "(nothing selected)";
+      if (value === "Other") {
+        var box = group.querySelector("input.other");
+        var typed = box && box.value.trim();
+        value = typed ? ("Other: " + typed) : "Other: (nothing typed)";
+      }
+      out.push(label + ": " + value);
+      var lc = group.querySelector("input[type=checkbox]");
+      if (lc && lc.checked) out.push("  Leave comment: yes - record this decision as a code comment");
+      var item = group.closest(".item");
+      var notes = item && item.querySelector("textarea.notes");
+      if (notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim());
+      out.push("");
+    });
+    return out.join("\n");
+  }
+  function refresh(){ document.getElementById("payload").value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyBtn").addEventListener("click", function(){
+    var ta = document.getElementById("payload");
+    refresh();
+    var done = function(){
+      var c = document.getElementById("copied");
+      c.hidden = false; setTimeout(function(){ c.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function(){
+        ta.select(); try { document.execCommand("copy"); } catch(e){} done();
+      });
+    } else {
+      ta.select(); try { document.execCommand("copy"); } catch(e){} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
