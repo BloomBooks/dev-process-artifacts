@@ -80,12 +80,13 @@ button {
 
 <header>
   <h1>Preflight — allow an image placeholder to get “Edit with AI…”</h1>
-  <p class="sub">BloomDesktop, branch <code>BL-16744-placeholder-edit-with-ai</code>, head <span class="numeral">5b116fe125</span>. Both halves of this two-repo change are pushed, the editor is released as <code>dist-v0.1.6</code> and pinned, Devin and CI have finished clean; Greptile has not spoken on the last two commits.</p>
+  <p class="sub">BloomDesktop, branch <code>BL-16744-placeholder-edit-with-ai</code>, head <span class="numeral">ad7a92e589</span>. This run committed the undo work, merged master, moved the editor pin to <code>dist-v0.1.7</code>, and fixed the one thing Devin found. Every gate is green and Devin’s re-review is clean; nothing waits on a decision.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
-    <span class="chip warn">Greptile timed out</span>
-    <span class="chip warn">2 items for you</span>
+    <span class="chip good">Devin clean</span>
+    <span class="chip warn">Greptile not current</span>
+    <span class="chip good">No open decisions</span>
   </div>
 </header>
 
@@ -95,17 +96,14 @@ button {
   <section class="card">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>Bloom offers “Edit with AI…” on a picture, but the item was greyed out on an empty picture box. An empty box is exactly where a user most wants the AI: there is no picture yet, and the editor can make one from a description. The user had to put some picture there first, then ask the AI to replace it.</p>
-    <h3>Cause</h3>
-    <p>The rule that enables the menu item required a real raster picture whose format the editor can open. An empty box shows <code>placeHolder.png</code>, which is neither.</p>
+    <p>Bloom offers “Edit with AI…” on a picture, but the item was greyed out on an empty picture box. An empty box is exactly where a user most wants the AI: there is no picture yet, and the editor can make one from a description. Testing that surfaced two more problems: on a page with several pictures, an accepted image could land in the wrong box, and an accepted image could not be undone.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>“Edit with AI…” is enabled on an empty picture box. A broken picture stays greyed out, which needs a new fact in the rule, because “no real picture” alone cannot tell an empty box from a picture that failed to load.</li>
-      <li>Bloom names the empty box as the one the user launched on. It used to withhold it, and the editor answers a missing box by aiming at the first picture of the book. A user who clicked an empty box on page 5 was therefore aimed at the front cover.</li>
-      <li>Two empty boxes on one page look identical and share a file name, so the page frame also counts the same-named boxes ahead of the clicked one. Without that count the second box always resolved to the first, and the created image landed in the wrong place.</li>
-      <li>Each box Bloom sends carries a name for the user to read: “Page 3”, the page’s own name for front and back matter, “Page 3 - Canvas Background” for the picture behind a page, and “Page 3 - Image 2” for the pictures on top of it. A page with several canvases numbers them all, so a Picture Dictionary page does not show six boxes called “Canvas Background”.</li>
-      <li>The four new strings are in <code>BloomMediumPriority.xlf</code> and come out in the user interface language.</li>
-      <li>The editor half lives in <a href="https://github.com/BloomBooks/bloom-ai-image-tools" target="_blank" rel="noopener">bloom-ai-image-tools</a>, which Bloom pins as an immutable <code>dist-</code> tag. That half is released as <code>dist-v0.1.6</code> and this PR moves the pin to it, so the two halves ship together: the editor keeps the placeholder graphic out of its “Image to Edit” panel, opens the tool that makes an image from a description, remembers the box the user launched on, and puts the created image back into it.</li>
+      <li>“Edit with AI…” is enabled on an empty picture box. A broken picture stays greyed out.</li>
+      <li>Each box Bloom sends carries a name for the user to read: “Page 3”, the page’s own name for front and back matter, “Page 3 - Canvas Background” for the picture behind a page, and “Page 3 - Image 2” for the pictures on top of it. Every empty box looks the same in the editor, so without a name a user with two empty boxes on one page cannot tell which is which. A page with several canvases numbers them all, so a Picture Dictionary page does not show six boxes called “Canvas Background”.</li>
+      <li>An accepted image now lands in the box the user chose. The page applies each replacement at the box’s position on the saved page, with the file name as a cross-check, instead of by file name alone (nine empty boxes all share <code>placeHolder.png</code>, so file name alone picked the first one).</li>
+      <li>Accepting an image is now undoable, like Paste Image. The page is no longer saved immediately after an accept, because that save discarded the undo.</li>
+      <li>The editor half lives in <a href="https://github.com/BloomBooks/bloom-ai-image-tools" target="_blank" rel="noopener">bloom-ai-image-tools</a>, pinned as <code>dist-v0.1.7</code>: each dummy image now shows its box’s page label in a random high-contrast color, the launched box’s thumbnail gets a wider, brighter border, and the strip scrolls that thumbnail into view when the editor opens.</li>
     </ul>
   </section>
 
@@ -115,19 +113,19 @@ button {
     <table>
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>TypeScript typecheck</td><td><span class="pass">pass</span></td></tr>
-      <tr><td>ESLint</td><td><span class="pass">pass</span> — <span class="numeral">0 errors, 764 warnings</span>, the repo’s standing warning baseline</td></tr>
-      <tr><td>Merge cleanliness</td><td><span class="pass">clean</span> — <code>master</code> merged at <span class="numeral">a3a7d62948</span>, nothing behind it since</td></tr>
-      <tr><td>TypeScript tests, vitest</td><td id="row-vitest"><span class="pass">pass</span> — <span class="numeral">742 passed, 5 skipped</span></td></tr>
-      <tr><td>C# tests, BloomTests</td><td id="row-csharp"><span class="pass">pass</span> — <span class="numeral">3243 passed, 13 skipped</span></td></tr>
-      <tr><td>Editor repo tests, bloom-ai-image-tools</td><td><span class="pass">pass</span> — <span class="numeral">162 unit tests</span>, and the Bloom host harness end-to-end file <span class="numeral">10 of 10</span></td></tr>
+      <tr><td>ESLint</td><td><span class="pass">pass</span> — <span class="numeral">0 errors</span> on the changed area; the pre-commit hook also linted every staged file</td></tr>
+      <tr><td>Merge cleanliness</td><td><span class="pass">clean</span> — <code>master</code> merged at <span class="numeral">403dd8e994</span> with no conflict</td></tr>
+      <tr><td>TypeScript tests, vitest (full)</td><td><span class="pass">pass</span> — <span class="numeral">750 passed, 5 skipped</span></td></tr>
+      <tr><td>C# tests, BloomTests (full)</td><td><span class="pass">pass</span> — <span class="numeral">3244 passed, 13 skipped</span></td></tr>
+      <tr><td>Editor repo tests, bloom-ai-image-tools</td><td><span class="pass">pass</span> — <span class="numeral">173 unit tests</span> and <span class="numeral">26 of 26</span> real-browser host-harness tests at the released <code>dist-v0.1.7</code></td></tr>
     </table>
     </div>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>The run named every picture box for the editor and localized those names, then fixed three ways the wrong box could be named: six boxes all called “Canvas Background” on a Picture Dictionary page, the second empty box on a page resolving to the first, and a branding or licence box being counted although Bloom never offers it. It published the editor half as <code>dist-v0.1.6</code> and moved Bloom’s pin to it.</p>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8230/commits" target="_blank" rel="noopener">All eleven commits</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8230/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/bloom-ai-image-tools/commit/00d8871" target="_blank" rel="noopener">the editor commit</a></p>
+    <p>The run made an accepted image undoable and stopped saving the page right after an accept (the save discarded the undo), merged master, released the editor as <code>dist-v0.1.7</code> and moved Bloom’s pin to it, and fixed a stale comment Devin caught. The 0.1.7 editor draws each dummy image’s page label, highlights the launched thumbnail, and scrolls it into view.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8230/commits" target="_blank" rel="noopener">All commits</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8230/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/bloom-ai-image-tools/commit/fc932fbb1dc16be38991c4f360d857ca02833f19" target="_blank" rel="noopener">the editor commit</a></p>
   </section>
 
   <section class="card">
@@ -137,19 +135,19 @@ button {
       <tr><th>Reviewer</th><th>State</th></tr>
       <tr>
         <td>Local review<br><span class="foot">light pass</span></td>
-        <td>Complete, one finding, fixed. It read the shipped template books and found pages that hold up to eight canvases, where the first naming rule would have printed “Canvas Background” six times on one page. The rule now names the background only when the page has exactly one canvas. <a href="https://github.com/BloomBooks/BloomDesktop/commit/433d3de492" target="_blank" rel="noopener">433d3de492</a></td>
+        <td>Complete, clean — no findings. It verified the ordinal round trip between C# and the page frame, the exclusion lists on both ends, the out-of-range fallbacks, and the retry path.</td>
       </tr>
       <tr>
         <td>Devin</td>
-        <td>Complete. Two bugs, both real and both fixed: the wrong empty box being targeted on a page with several (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8230#discussion_r3856038764" target="_blank" rel="noopener">thread</a>), and the count running ahead of the list when a branding or licence box shares the placeholder graphic (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8230#discussion_r3856109404" target="_blank" rel="noopener">thread</a>). Its earlier flag about the pinned editor is answered by the pin bump. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8230" target="_blank" rel="noopener">Devin review</a></td>
+        <td>Complete for <span class="numeral">ad7a92e589</span>. This run it raised one bug — a comment naming the pinned editor tag after the pin moved — fixed and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8230#discussion_r3858106501" target="_blank" rel="noopener">resolved</a>. Its re-review marks all three of its bugs on this PR resolved; its one standing Investigate flag was answered earlier by the pin bump. Nine informational items, none needing action. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8230" target="_blank" rel="noopener">Devin review</a></td>
       </tr>
       <tr>
         <td>Greptile</td>
-        <td>Timed out after 15 min on the last two commits. Its one earlier comment made the same point Devin raised about the pinned editor; that is answered by the pin bump and its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8230#discussion_r3855426059" target="_blank" rel="noopener">thread</a> is replied to and resolved. It has said nothing about the two bug fixes that came after it. Running preflight again folds in a late result.</td>
+        <td>Not current: its last review is from an older commit, and its one comment there is resolved. Per our standing rule this run did not wait on it, because its silence cannot be told apart from completion. Running preflight again folds in a late result.</td>
       </tr>
       <tr>
         <td>CI, <code>pr-automation</code></td>
-        <td><span class="pass">pass</span>.</td>
+        <td><span class="pass">pass</span>. The <code>code-review/reviewable</code> check stays pending until a human review, by design.</td>
       </tr>
     </table>
     </div>
@@ -158,10 +156,9 @@ button {
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>Nobody has yet opened the editor by hand on a page that holds two empty boxes. That path is the one both of Devin’s bugs lived in, and it is covered by six unit tests across the two sides, but not by a run in a real Bloom. It is the first thing to try.</li>
-      <li>The count of same-named boxes assumes the live page and the saved book list the same pictures in the same order. The three classes Bloom never offers, and the controls Bloom injects into the live page, are excluded on both sides; anything else that appears in one and not the other would shift it. A count that overshoots aims at the first empty box rather than at nothing.</li>
-      <li>The four new strings carry <code>translate="no"</code>, which is what the rules ask for on a new string. So on a French interface a front matter box can read a translated page name joined to an English “Image 1” until someone clears that flag. Devin noted it; it is the ordinary state of a new string, not a fault in this change.</li>
-      <li>The published <code>dist-v0.1.6</code> build is staged into <code>output/browser/aiImageEditor</code> in this worktree, so the Bloom running there serves it the next time the editor opens.</li>
+      <li>The risky paths were exercised in a real Bloom during this run’s development: creating and accepting images on a page with six pictures (the accepted image landed in the chosen box), and undo after an accept.</li>
+      <li>Undo reaches back one editor session. Each “Edit with AI…” launch saves the page first, and a save ends what undo can reach. That is deliberate, matches other image operations, and is recorded in the card’s test ideas so a tester does not file it.</li>
+      <li>The retry path — accepting again after a partial commit failure — is covered by unit tests only; nobody has forced a partial failure in a real Bloom.</li>
     </ul>
   </section>
 
@@ -172,23 +169,11 @@ button {
     <h2>Decisions</h2>
 
     <div class="item">
-      <h3>How should a page with several canvases name its boxes?</h3>
-      <p>You asked for “Page 1 - Canvas Background” and “Page 1 - Image 1” on a page that has one picture behind it and pictures on top. Most pages are like that. Some are not: a Picture Dictionary page holds six separate canvases and an arithmetic page up to eight, and each canvas has a background picture of its own. Naming every one of them “Canvas Background” would give one page six boxes with the same name, which is worse than no name, because the name is the only thing that tells two empty boxes apart.</p>
-      <p>So the rule as written says “Canvas Background” only when the page has exactly one canvas. On a page with several, every box is simply numbered, “Page 4 - Image 1” through “Page 4 - Image 6”, backgrounds included.</p>
-      <div class="opt"><input type="radio" name="q-canvas" id="q-canvas-1" checked><label for="q-canvas-1">Keep the rule as written: name the background only on a page with one canvas.<span class="tag">recommended</span><br><span class="foot">Already in the branch, no further work. Recommended because it keeps every name on a page distinct, which is the whole reason the names exist.</span></label></div>
-      <div class="opt"><input type="radio" name="q-canvas" id="q-canvas-2"><label for="q-canvas-2">Name the canvas too, so a page with several reads “Page 4 - Canvas 2 Background” and “Page 4 - Canvas 2 - Image 1”.<br><span class="foot">Moderate: a canvas counter through the slot loop and two more strings to localize. The names get long, and most books never meet them.</span></label></div>
-      <div class="opt leaverow"><input type="radio" name="q-canvas" id="q-canvas-3"><label for="q-canvas-3">Leave as is</label><span class="lc"><input type="checkbox" id="q-canvas-lc"> Leave comment</span></div>
-      <div class="opt"><input type="radio" name="q-canvas" id="q-canvas-4"><label for="q-canvas-4">Other: <input type="text" id="q-canvas-other" placeholder="your answer"></label></div>
-      <textarea class="notes" id="q-canvas-notes" placeholder="Notes"></textarea>
-    </div>
-
-    <div class="item">
       <h3>What next?</h3>
-      <p>The branch is a draft pull request. Nothing blocks it: the gates are green, both bots have finished and every thread is resolved, and the editor it depends on is released and pinned. Nobody has been asked to review it.</p>
+      <p>The branch is a draft pull request. Nothing blocks it: the gates are green, Devin has finished clean on the current commit and every review thread is resolved, and the editor it depends on is released and pinned. Nobody has been asked to review it.</p>
       <div class="opt"><input type="radio" name="q-next" id="q-next-1" checked><label for="q-next-1">Stop here. You look at it, and you decide when it goes to a colleague.<span class="tag">recommended</span><br><span class="foot">No work. This is where finished work lands on your board.</span></label></div>
-      <div class="opt"><input type="radio" name="q-next" id="q-next-2"><label for="q-next-2">Try the two-empty-boxes case in a real Bloom first, then decide.<br><span class="foot">No code, about fifteen minutes: make a page with two empty boxes, launch on the second, and confirm the image lands there.</span></label></div>
-      <div class="opt leaverow"><input type="radio" name="q-next" id="q-next-3"><label for="q-next-3">Leave as is</label><span class="lc"><input type="checkbox" id="q-next-lc"> Leave comment</span></div>
-      <div class="opt"><input type="radio" name="q-next" id="q-next-4"><label for="q-next-4">Other: <input type="text" id="q-next-other" placeholder="your answer"></label></div>
+      <div class="opt leaverow"><input type="radio" name="q-next" id="q-next-2"><label for="q-next-2">Leave as is</label><span class="lc"><input type="checkbox" id="q-next-lc"> Leave comment</span></div>
+      <div class="opt"><input type="radio" name="q-next" id="q-next-3"><label for="q-next-3">Other: <input type="text" id="q-next-other" placeholder="your answer"></label></div>
       <textarea class="notes" id="q-next-notes" placeholder="Notes"></textarea>
     </div>
 
@@ -209,26 +194,12 @@ button {
 (function () {
   var QUESTIONS = [
     {
-      key: "q-canvas",
-      title: "How should a page with several canvases name its boxes?",
-      options: {
-        "q-canvas-1": "Keep the rule as written: name the background only on a page with one canvas.",
-        "q-canvas-2": "Name the canvas too (“Page 4 - Canvas 2 Background”).",
-        "q-canvas-3": "Leave as is",
-        "q-canvas-4": "Other:"
-      },
-      other: "q-canvas-other",
-      leaveComment: "q-canvas-lc",
-      notes: "q-canvas-notes"
-    },
-    {
       key: "q-next",
       title: "What next?",
       options: {
         "q-next-1": "Stop here; you decide when it goes to a colleague.",
-        "q-next-2": "Try the two-empty-boxes case in a real Bloom first, then decide.",
-        "q-next-3": "Leave as is",
-        "q-next-4": "Other:"
+        "q-next-2": "Leave as is",
+        "q-next-3": "Other:"
       },
       other: "q-next-other",
       leaveComment: "q-next-lc",
@@ -246,7 +217,7 @@ button {
         if (el && el.checked) chosenId = id;
       });
       var answer = chosenId ? q.options[chosenId] : "(no answer)";
-      if (chosenId === q.key + "-4") {
+      if (chosenId === q.key + "-3") {
         var otherEl = document.getElementById(q.other);
         var typed = otherEl && otherEl.value.trim();
         answer = "Other: " + (typed || "(nothing typed)");
