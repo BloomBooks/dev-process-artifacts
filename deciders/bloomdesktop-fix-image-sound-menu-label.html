@@ -287,7 +287,7 @@
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
       <span class="chip good">Bots quiet</span>
-      <span class="chip warn">1 item waiting on you</span>
+      <span class="chip good">Nothing waiting on you</span>
     </div>
   </header>
 
@@ -482,81 +482,35 @@
 
     <div class="col">
 
-      <section class="card decision">
-        <h2>The branch rename closed the PR, so I put it back</h2>
+      <section class="card">
+        <h2>Nothing waiting on you</h2>
         <p class="desc">
-          You asked me to rename the branch to <code>BL-16669-sound-menu-label</code> so future preflight
-          runs would find the card by themselves. I used GitHub&rsquo;s branch-rename API, which is
-          supposed to retarget open pull requests. It renamed the branch, but instead of following it,
-          <strong>PR #8235 was closed</strong> and left pointing at the old name.
+          Every question from this run has been answered. The PR is clean and left as a draft;
+          promoting it to human review is <code>pr-ready-for-human</code>, which the developer runs.
         </p>
-        <p class="desc">
-          I renamed the branch back and reopened the PR. It is now exactly as it was &mdash; open, still
-          a draft, same commit, mergeable, all the reviewer history intact. Nothing is lost. But the
-          branch still has no ticket id in its name.
-        </p>
-        <p class="desc">
-          The catch with simply making a new PR from a renamed branch is that <strong>#8235 is already
-          referenced by a human</strong>: comment 13 on BL-16669 links it and describes this exact bug.
-          A new PR number would leave that link pointing at a closed one.
-        </p>
-        <fieldset>
-          <legend>Branch name</legend>
-          <label class="opt leaverow">
-            <input type="radio" name="q1" value="Leave as is" checked>
-            <span class="optbody">
-              Leave as is<span class="tag">Recommended</span>
-            </span>
-            <span class="leavecomment"><input type="checkbox" data-q="q1-comment"> Leave comment</span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q1" value="Rename the branch and open a fresh PR, updating the card link">
-            <span class="optbody">
-              Rename anyway, open a fresh PR, and update the card
-              <span class="cost">Moderate &mdash; a new PR number, re-running Devin/Greptile on it, and a comment on BL-16669 pointing from #8235 to the new one so the human&rsquo;s link isn&rsquo;t a dead end.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q1" value="Just tell me the id when preflight runs on this branch">
-            <span class="optbody">
-              Keep the name; I&rsquo;ll pass the id in when it matters
-              <span class="cost">No work &mdash; you say &ldquo;BL-16669&rdquo; when starting a run and the card steps happen normally.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q1" value="Other">
-            <span class="optbody">
-              Other:
-              <input class="otherinput" type="text" data-q="q1-other" placeholder="Your answer">
-            </span>
-          </label>
-        </fieldset>
-        <p class="desc" style="margin-top:12px">
-          Recommended because the PR is already linked from the card by hand and everything works today;
-          the only thing the name buys is saving you from typing the id on a future run, which is a small
-          price next to breaking a link a person wrote.
-        </p>
-        <label class="noteslabel" for="n1">Notes</label>
-        <textarea class="notes" id="n1" data-q="q1-notes" placeholder="Anything to add?"></textarea>
       </section>
 
       <section class="card">
-        <h2>Send your answer back</h2>
-        <p class="desc">Copy this and paste it into the session.</p>
-        <p>
-          <button class="copy" id="copyBtn" type="button">Copy answer</button>
-          <span class="copied" id="copiedMsg" hidden>Copied</span>
-        </p>
-        <textarea id="payload" readonly></textarea>
-      </section>
+        <h2>What was decided</h2>
 
-      <section class="card">
-        <h2>Everything else is settled</h2>
+        <h3>The unit test</h3>
         <p class="desc">
-          The unit test is in and verified to catch the regression, the e2e helper repair stays in this
-          PR, and the work is attached to BL-16669 with a round-3 test-ideas comment for QA. The PR is
-          left as a draft &mdash; promoting it to human review is
-          <code>pr-ready-for-human</code>, which you run when you are happy with it.
+          Added, and verified to fail when the <code>l10nId</code> is put back &mdash; so it catches
+          the regression rather than passing vacuously.
+        </p>
+
+        <h3>The e2e helper repair</h3>
+        <p class="desc">
+          Stays in this PR rather than being split out or dropped.
+        </p>
+
+        <h3>The branch name</h3>
+        <p class="desc">
+          Left as <code>fix-image-sound-menu-label</code>, with no ticket id. The developer&rsquo;s
+          reasoning: the PR already links the issue in its description, and many Bloom branches
+          don&rsquo;t put the issue number in the branch name. So the earlier premise here &mdash;
+          that a branch ought to carry the id &mdash; was wrong for this repo, and the failed rename
+          was chasing a convention that isn&rsquo;t one.
         </p>
       </section>
 
@@ -564,64 +518,6 @@
   </div>
 </div>
 
-<script>
-  var QUESTIONS = [{ name: "q1", title: "Branch name / BL-16669 attachment" }];
 
-  function buildPayload() {
-    var lines = ["Preflight answers - PR #8235 (run 2)", ""];
-    QUESTIONS.forEach(function (q) {
-      var picked = document.querySelector('input[name="' + q.name + '"]:checked');
-      var answer = picked ? picked.value : "(no answer)";
-      if (answer === "Other") {
-        var otherEl = document.querySelector('[data-q="' + q.name + '-other"]');
-        var otherVal = otherEl && otherEl.value.trim();
-        answer = "Other: " + (otherVal ? otherVal : "(not filled in)");
-      }
-      lines.push(q.title + ": " + answer);
-
-      var commentEl = document.querySelector('[data-q="' + q.name + '-comment"]');
-      if (commentEl && commentEl.checked) {
-        lines.push("  Leave comment: record this decision as a code comment in the repo");
-      }
-
-      var notesEl = document.querySelector('[data-q="' + q.name + '-notes"]');
-      var notesVal = notesEl && notesEl.value.trim();
-      if (notesVal) {
-        lines.push("  Notes: " + notesVal);
-      }
-      lines.push("");
-    });
-    return lines.join("\n").replace(/\n+$/, "\n");
-  }
-
-  function refresh() {
-    document.getElementById("payload").value = buildPayload();
-  }
-
-  document.addEventListener("input", refresh);
-  document.addEventListener("change", refresh);
-
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    var area = document.getElementById("payload");
-    var msg = document.getElementById("copiedMsg");
-    var done = function () {
-      msg.hidden = false;
-      setTimeout(function () { msg.hidden = true; }, 2200);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(area.value).then(done, function () {
-        area.select();
-        try { document.execCommand("copy"); } catch (e) {}
-        done();
-      });
-    } else {
-      area.select();
-      try { document.execCommand("copy"); } catch (e) {}
-      done();
-    }
-  });
-
-  refresh();
-</script>
 </body>
 </html>
