@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preflight — BL-16542 · paste replaces a standard-layout cover picture</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --line: #e3ddd2;
+    --line-soft: #efeae1;
+    --ink: #221f1b;
+    --ink-soft: #635c51;
+    --accent: #7a4e8c;
+    --accent-soft: #f2ecf5;
+    --pass: #2c6a4d;
+    --warn: #8f6415;
+    --fail: #a1382c;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    --mono: Consolas, "Cascadia Mono", "SFMono-Regular", Menlo, monospace;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; letter-spacing: -0.01em; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16.5px; margin-bottom: 6px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  code { font-family: var(--mono); font-size: 0.9em; background: #f4f1ec; padding: 1px 4px; border-radius: 3px; }
+
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 26px; }
+  .kicker { font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 8px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 14px; font-size: 13.5px; color: var(--ink-soft); }
+  .meta strong { color: var(--ink); font-weight: 600; }
+
+  .cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .card > h2 { margin-bottom: 14px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-soft); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.what { width: 34%; font-weight: 600; }
+
+  .pill {
+    display: inline-block; font-size: 11.5px; font-weight: 700; letter-spacing: 0.05em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+  }
+  .pill.pass { background: #e7f1ea; color: var(--pass); }
+  .pill.skip { background: #f1eee9; color: var(--ink-soft); }
+  .pill.note { background: var(--accent-soft); color: var(--accent); }
+  .pill.warn { background: #f6eedd; color: var(--warn); }
+
+  ul.tight { margin: 0 0 10px; padding-left: 20px; }
+  ul.tight li { margin-bottom: 5px; }
+  .filelist { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+  .filelist li { padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+  .filelist li:last-child { border-bottom: none; }
+  .filelist .path { font-family: var(--mono); font-size: 12.5px; }
+  .filelist .says { color: var(--ink-soft); display: block; }
+
+  .item { border: 1px solid var(--line); border-radius: 8px; background: var(--card); padding: 18px 20px; margin-bottom: 18px; }
+  .item .tag { font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-soft); margin-bottom: 7px; }
+  .choices { list-style: none; margin: 12px 0 0; padding: 0; }
+  .choices li { display: flex; gap: 9px; align-items: flex-start; padding: 8px 0; border-top: 1px solid var(--line-soft); }
+  .choices li:first-child { border-top: none; }
+  .choices input[type="radio"] { margin-top: 4px; flex: 0 0 auto; }
+  .choices label { flex: 1 1 auto; min-width: 0; }
+  .rec { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 999px; padding: 1px 6px; margin-left: 6px; }
+  .cost { display: block; color: var(--ink-soft); font-size: 13px; }
+  .leaveline { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+  .leaveline .spacer { flex: 1 1 auto; }
+  .leavecomment { font-size: 13px; color: var(--ink-soft); display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+  input[type="text"], textarea {
+    font-family: var(--sans); font-size: 14px; color: var(--ink);
+    background: #fcfbf9; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; width: 100%;
+  }
+  .notes { margin-top: 12px; }
+  .notes span { display: block; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 4px; }
+  .otherbox { margin-top: 6px; }
+
+  button.copy {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent);
+    border: 1px solid #6a4179; border-radius: 6px; padding: 8px 16px; cursor: pointer;
+  }
+  button.copy:hover { background: #6a4179; }
+  #payload { margin-top: 12px; min-height: 190px; font-family: var(--mono); font-size: 12.5px; }
+  .copied { margin-left: 10px; font-size: 13px; color: var(--pass); opacity: 0; transition: opacity 160ms; }
+  .copied.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="kicker">Preflight report</div>
+  <h1>Pasting on a Standard&nbsp;Layout cover replaces its picture instead of stacking one on top</h1>
+  <div class="meta">
+    <span><strong>Card</strong> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16542" target="_blank" rel="noopener">BL-16542</a></span>
+    <span><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8234" target="_blank" rel="noopener">#8234 (draft)</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8234/files" target="_blank" rel="noopener">files changed</a></span>
+    <span><strong>Branch</strong> <span class="numeral">BL-16542-PasteImageFrontCoverAgain</span></span>
+    <span><strong>HEAD</strong> <a href="https://github.com/BloomBooks/BloomDesktop/commit/0fab6387b2832b262f9b52a92c886e0a12174dd6" target="_blank" rel="noopener"><span class="numeral">0fab6387b</span></a></span>
+    <span><strong>Run</strong> 25 Aug 2026</span>
+  </div>
+</header>
+
+<div class="cols">
+
+  <!-- ================= LEFT: the run ================= -->
+  <div>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">TypeScript typecheck</td>
+            <td><span class="pill pass">pass</span></td>
+            <td>No blunder-class type errors.</td>
+          </tr>
+          <tr>
+            <td class="what">ESLint (whole front end)</td>
+            <td><span class="pill pass">pass</span></td>
+            <td>No errors. The pre-existing repo-wide warnings (<code>eqeqeq</code>, <code>no-explicit-any</code>) are untouched by this branch; the five changed files are warning-free.</td>
+          </tr>
+          <tr>
+            <td class="what">TypeScript tests — vitest</td>
+            <td><span class="pill pass">pass</span></td>
+            <td><span class="numeral">736 passed · 5 skipped · 0 failed</span> across <span class="numeral">68</span> files (full suite). Three of those tests are new here.</td>
+          </tr>
+          <tr>
+            <td class="what">C# tests — <code>dotnet test</code></td>
+            <td><span class="pill skip">not run</span></td>
+            <td>No C# in the diff. Every changed file is TypeScript under <code>src/BloomBrowserUI/bookEdit</code>; the .NET suite neither builds nor reads those modules, and no shared schema, content file, or build config changed.</td>
+          </tr>
+          <tr>
+            <td class="what">Production bundle — vite</td>
+            <td><span class="pill pass">pass</span></td>
+            <td>Built through <code>build/agent-vite.sh</code> into an isolated tree, because this change adds a cross-module import that the lenient dev server would not have exercised.</td>
+          </tr>
+          <tr>
+            <td class="what">Base integration</td>
+            <td><span class="pill pass">clean</span></td>
+            <td><code>origin/master</code> merged: already up to date (the branch sits directly on <span class="numeral">7cd482f63</span>). GitHub reports the PR <strong>mergeable</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>One commit: <a href="https://github.com/BloomBooks/BloomDesktop/commit/0fab6387b2832b262f9b52a92c886e0a12174dd6" target="_blank" rel="noopener"><span class="numeral">0fab6387b</span></a> — “Paste on a standard-layout xmatter page replaces its background image (BL-16542)”.</p>
+      <p>The rule the paste follows is now decided by <em>the page</em>, not only by what is selected. A Standard Layout cover cannot hold a free-floating picture at all, so a paste there can only sensibly mean “replace the picture that is here”. Interior pages and Custom Layout covers keep today’s behavior of adding a new picture on top — which is why this card’s earlier “nothing selected replaces the picture” rule had to be reversed for them.</p>
+      <ul class="filelist">
+        <li>
+          <a class="path" href="https://github.com/BloomBooks/BloomDesktop/blob/0fab6387b2832b262f9b52a92c886e0a12174dd6/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementClipboard.ts#L301" target="_blank" rel="noopener">CanvasElementClipboard.ts:301</a>
+          <span class="says">The new rule. Reuses the existing <code>replaceImageInCanvasElement()</code> helper, so the copyright/credits button is rebuilt exactly as it is on the other paste paths (that was BL-16605). Deliberately not gated on the canvas subscription: replacing a cover picture is not the overlay feature.</span>
+        </li>
+        <li>
+          <a class="path" href="https://github.com/BloomBooks/BloomDesktop/blob/0fab6387b2832b262f9b52a92c886e0a12174dd6/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasElementDomUtils.ts#L13" target="_blank" rel="noopener">canvasElementDomUtils.ts:13</a>
+          <span class="says">New shared <code>pageAllowsCanvasElements()</code> — a front/back-matter page allows them only once it is switched to Custom Layout.</span>
+        </li>
+        <li>
+          <a class="path" href="https://github.com/BloomBooks/BloomDesktop/blob/0fab6387b2832b262f9b52a92c886e0a12174dd6/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlAvailabilityRules.ts#L71" target="_blank" rel="noopener">canvasControlAvailabilityRules.ts:71</a>
+          <span class="says">The “Become Background” rule had that same test written inline; it now calls the shared one, so the rule exists in a single place.</span>
+        </li>
+        <li>
+          <a class="path" href="https://github.com/BloomBooks/BloomDesktop/blob/0fab6387b2832b262f9b52a92c886e0a12174dd6/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementClipboard.test.ts#L291" target="_blank" rel="noopener">CanvasElementClipboard.test.ts:291</a>
+          <span class="says">Three new tests: a standard-layout cover with a real picture replaces it; a placeholder there still fills in; a Custom Layout cover still adds a picture on top. The shared fixture now wraps the canvas in a real page element, so the <em>kind of page</em> is what selects the branch.</span>
+        </li>
+        <li>
+          <a class="path" href="https://github.com/BloomBooks/BloomDesktop/blob/0fab6387b2832b262f9b52a92c886e0a12174dd6/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementManager.ts#L2628" target="_blank" rel="noopener">CanvasElementManager.ts:2628</a>
+          <span class="says">Two copies of the same fifteen-line comment had already drifted apart; this one now points at the other rather than restating it.</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Reviewers</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="what">Local review — light, done inline</td>
+            <td><span class="pill pass">clean</span></td>
+            <td>Done in-session rather than by a sub-agent, per your standing instruction not to dispatch agents unasked. One thing worth writing down: replacing a cover picture has to keep the <code>coverImage</code> designation pointing at the right image, and <code>changeImageInfo()</code> already calls <code>normalizeCoverImageDesignation()</code>, so this path inherits that. No findings.</td>
+          </tr>
+          <tr>
+            <td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8234" target="_blank" rel="noopener">Devin</a></td>
+            <td><span class="pill pass">complete</span></td>
+            <td>Finished on this exact commit after about <span class="numeral">6</span> minutes: no bugs, nothing flagged for investigation. Two informational notes, neither asking for a change — it independently checked that the extracted helper behaves identically to the inline test it replaced, and it spotted the same “nothing to replace” edge case raised on the right. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8234#issuecomment-5416157473" target="_blank" rel="noopener">Consultation log</a>.</td>
+          </tr>
+          <tr>
+            <td class="what">Greptile</td>
+            <td><span class="pill pass">complete</span></td>
+            <td>Finished in <span class="numeral">4m22s</span> on this commit. It posted a <a href="https://github.com/BloomBooks/BloomDesktop/pull/8234#issuecomment-5416119062" target="_blank" rel="noopener">summary</a> that describes the change accurately and raised no findings.</td>
+          </tr>
+          <tr>
+            <td class="what">CI checks</td>
+            <td><span class="pill pass">pass</span></td>
+            <td><a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/32893361798" target="_blank" rel="noopener"><code>pr-automation</code></a> passed in <span class="numeral">34s</span> — that is the workflow that kicks off the Devin review for the pushed commit.</td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Checked in the running program, not just in tests</h2>
+      <p>Bloom was launched from this worktree and driven over its debugging connection, on a real book’s Standard Layout front cover that already had a cover picture, with nothing selected:</p>
+      <ul class="tight">
+        <li>the <strong>Paste</strong> button in the top bar replaced the cover picture; the page still held exactly one picture, and the credits button was rebuilt;</li>
+        <li><strong>Ctrl+V</strong> did the same;</li>
+        <li>on an <strong>interior page</strong> that already had a picture, with nothing selected, a paste still added a new picture on top and left the existing one alone — the behavior testers asked us to keep.</li>
+      </ul>
+      <p>Afterwards the test book was put back the way it was found, using ordinary editing actions (delete the pasted picture on the interior page; delete the cover picture, which returns it to the empty placeholder it started as). That was confirmed both in the saved book file and by eye.</p>
+      <p>Two housekeeping notes from that session: the Bloom instance is <strong>still running</strong> (closing its window shuts the whole dev stack down), and the pasted images Bloom copied into the book folder are still there — see the questions on the right.</p>
+    </section>
+
+  </div>
+
+  <!-- ================= RIGHT: decisions ================= -->
+  <div>
+
+    <section class="item">
+      <div class="tag">Decision · user-visible behavior</div>
+      <h3>Should Bloom say anything when a paste replaces a Standard Layout cover picture?</h3>
+      <p>On the card, a tester pointed out an inconsistency worth settling. When someone with no subscription pastes onto a page that already has a picture, Bloom now shows a “this needs a subscription” notice, which they liked — it makes replacing a picture feel like something you have to ask for. But on a <em>Standard Layout cover</em>, pasting quietly replaces the cover picture, because that page cannot hold a second picture at all. Their suggestion was a message along the lines of “Standard Layout covers can’t hold an extra picture, so change the page to Custom Layout if that is what you wanted.”</p>
+      <p>As shipped in this branch there is no message: the paste simply replaces the cover picture, which is what Bloom 6.4 did and what the card originally asked for. The picture visibly changes, so the result is its own feedback — and a modal on a routine action gets tiresome fast. The counter-argument is that someone who <em>meant</em> to add a second picture gets no hint about why they did not.</p>
+      <ul class="choices">
+        <li>
+          <input type="radio" name="q1" id="q1a" data-q="Notice when replacing a Standard Layout cover picture" data-v="Add a brief non-blocking notice (toast) when a paste replaces a standard-layout cover picture" />
+          <label for="q1a">Add a brief, non-blocking notice when this happens — a toast saying the pasted image replaced the cover picture because this cover cannot hold an extra one.
+            <span class="cost">(small — a toast call plus one new translatable string in the XLF; low risk, but it is a new string for translators)</span></label>
+        </li>
+        <li>
+          <input type="radio" name="q1" id="q1b" data-q="Notice when replacing a Standard Layout cover picture" data-v="Only mention it in the tooltip/help text, no runtime notice" />
+          <label for="q1b">No runtime message, but say it where people look for it — the cover picture’s hover tip or the Standard/Custom Layout menu.
+            <span class="cost">(small — wording only, one string; no behavior change)</span></label>
+        </li>
+        <li class="leaveline">
+          <input type="radio" name="q1" id="q1c" checked data-q="Notice when replacing a Standard Layout cover picture" data-v="Leave as is" />
+          <label for="q1c">Leave as is <span class="rec">recommended</span></label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="Notice when replacing a Standard Layout cover picture" data-leave-comment="1" /> Leave comment</label>
+        </li>
+        <li>
+          <input type="radio" name="q1" id="q1d" data-q="Notice when replacing a Standard Layout cover picture" data-v="Other" data-other="1" />
+          <label for="q1d">Other:
+            <span class="otherbox"><input type="text" data-q="Notice when replacing a Standard Layout cover picture" data-other-text="1" placeholder="your answer" /></span>
+          </label>
+        </li>
+      </ul>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="Notice when replacing a Standard Layout cover picture" data-notes="1" placeholder="caveats, constraints, who to ask"></textarea></div>
+    </section>
+
+    <section class="item">
+      <div class="tag">FYI · edge case</div>
+      <h3>If such a page somehow has no picture area at all, the paste now does nothing</h3>
+      <p>The new rule replaces the page’s picture. If a Standard Layout front- or back-matter page ever turned up with a picture frame that contains no picture area, there is nothing to replace, and the paste ends silently rather than adding a floating picture the page cannot hold. In practice Bloom builds that picture area for every picture frame as the page loads, so this should not be reachable; the code takes the quiet route deliberately, on the grounds that adding something the page cannot hold is worse than doing nothing.</p>
+      <ul class="choices">
+        <li>
+          <input type="radio" name="q2" id="q2a" data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-v="Show a message in that case instead of doing nothing silently" />
+          <label for="q2a">Show a message in that case, so the user is not left wondering whether the paste worked.
+            <span class="cost">(small — one new translatable string plus the message call; guards a case we believe is unreachable)</span></label>
+        </li>
+        <li class="leaveline">
+          <input type="radio" name="q2" id="q2b" checked data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-v="Leave as is" />
+          <label for="q2b">Leave as is <span class="rec">recommended</span></label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-leave-comment="1" /> Leave comment</label>
+        </li>
+        <li>
+          <input type="radio" name="q2" id="q2c" data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-v="Other" data-other="1" />
+          <label for="q2c">Other:
+            <span class="otherbox"><input type="text" data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-other-text="1" placeholder="your answer" /></span>
+          </label>
+        </li>
+      </ul>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="Silent no-op when a standard-layout xmatter page has no background image element" data-notes="1" placeholder="optional"></textarea></div>
+    </section>
+
+    <section class="item">
+      <div class="tag">Decision · your machine</div>
+      <h3>Five pasted image files are still sitting in the “Decodable 2” book folder</h3>
+      <p>Checking the fix in the real program meant pasting real images, and Bloom copies each pasted image into the book’s folder. The book’s own content was fully restored afterwards, so nothing refers to these files any more, but the files themselves remain: <code>image.png</code> through <code>image4.png</code> in <code>Documents\Bloom\English Books A\Decodable 2</code>, about 27&nbsp;KB in total. Deleting them was blocked by this session’s permission rules, so they were left in place rather than worked around.</p>
+      <ul class="choices">
+        <li>
+          <input type="radio" name="q3" id="q3a" checked data-q="Leftover pasted image files in the Decodable 2 book folder" data-v="Delete the five leftover image files" />
+          <label for="q3a">Delete them <span class="rec">recommended</span>
+            <span class="cost">(no code — one file deletion, once you allow it or do it yourself; recommended because nothing references them and they will otherwise ride along in any future backup or upload of that book)</span></label>
+        </li>
+        <li class="leaveline">
+          <input type="radio" name="q3" id="q3b" data-q="Leftover pasted image files in the Decodable 2 book folder" data-v="Leave as is" />
+          <label for="q3b">Leave as is</label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="Leftover pasted image files in the Decodable 2 book folder" data-leave-comment="1" /> Leave comment</label>
+        </li>
+        <li>
+          <input type="radio" name="q3" id="q3c" data-q="Leftover pasted image files in the Decodable 2 book folder" data-v="Other" data-other="1" />
+          <label for="q3c">Other:
+            <span class="otherbox"><input type="text" data-q="Leftover pasted image files in the Decodable 2 book folder" data-other-text="1" placeholder="your answer" /></span>
+          </label>
+        </li>
+      </ul>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="Leftover pasted image files in the Decodable 2 book folder" data-notes="1" placeholder="optional"></textarea></div>
+    </section>
+
+    <section class="item">
+      <div class="tag">FYI · coverage</div>
+      <h3>The Custom Layout cover was checked by test, not in the running program</h3>
+      <p>Three of the four behaviors were exercised in real Bloom. The fourth — a cover switched to <strong>Custom Layout</strong>, where a paste should still add a picture on top — was left to the unit test, because setting it up means converting a real book’s cover to Custom Layout (a change the book carries afterwards, and one that needs the Custom Layout subscription feature). The unit test drives the same code with that page shape and asserts the paste goes down the add-a-picture branch.</p>
+      <ul class="choices">
+        <li>
+          <input type="radio" name="q4" id="q4a" data-q="Verify the Custom Layout cover path in the running app" data-v="Verify the Custom Layout cover path in the running app too" />
+          <label for="q4a">Check it in the running program too, on a throwaway book.
+            <span class="cost">(no code — a few minutes of driving Bloom; converts a test book’s cover to Custom Layout)</span></label>
+        </li>
+        <li class="leaveline">
+          <input type="radio" name="q4" id="q4b" checked data-q="Verify the Custom Layout cover path in the running app" data-v="Leave as is" />
+          <label for="q4b">Leave as is <span class="rec">recommended</span></label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="Verify the Custom Layout cover path in the running app" data-leave-comment="1" /> Leave comment</label>
+        </li>
+        <li>
+          <input type="radio" name="q4" id="q4c" data-q="Verify the Custom Layout cover path in the running app" data-v="Other" data-other="1" />
+          <label for="q4c">Other:
+            <span class="otherbox"><input type="text" data-q="Verify the Custom Layout cover path in the running app" data-other-text="1" placeholder="your answer" /></span>
+          </label>
+        </li>
+      </ul>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="Verify the Custom Layout cover path in the running app" data-notes="1" placeholder="optional"></textarea></div>
+    </section>
+
+    <section class="item">
+      <div class="tag">Next step</div>
+      <h3>How would you like to proceed?</h3>
+      <p>The PR is open as a draft and nothing has been promoted. Once you have looked it over yourself, <code>pr-ready-for-human</code> is what moves it to peer review.</p>
+      <ul class="choices">
+        <li>
+          <input type="radio" name="q5" id="q5a" checked data-q="Next step" data-v="Implement my answers above, then re-run the gauntlet" />
+          <label for="q5a">Carry out whatever I chose above, then re-check everything <span class="rec">recommended</span>
+            <span class="cost">(each chosen fix is a new commit, so the review bots run again)</span></label>
+        </li>
+        <li>
+          <input type="radio" name="q5" id="q5b" data-q="Next step" data-v="Discuss the behavior question with the team first" />
+          <label for="q5b">Take the message question to the team first, since it is a user-visible call.
+            <span class="cost">(no code now — parks the branch until the team answers)</span></label>
+        </li>
+        <li class="leaveline">
+          <input type="radio" name="q5" id="q5c" data-q="Next step" data-v="Leave as is" />
+          <label for="q5c">Leave as is</label>
+          <span class="spacer"></span>
+          <label class="leavecomment"><input type="checkbox" data-q="Next step" data-leave-comment="1" /> Leave comment</label>
+        </li>
+        <li>
+          <input type="radio" name="q5" id="q5d" data-q="Next step" data-v="Other" data-other="1" />
+          <label for="q5d">Other:
+            <span class="otherbox"><input type="text" data-q="Next step" data-other-text="1" placeholder="your answer" /></span>
+          </label>
+        </li>
+      </ul>
+      <div class="notes"><span>Notes</span><textarea rows="2" data-q="Next step" data-notes="1" placeholder="optional"></textarea></div>
+    </section>
+
+    <section class="item">
+      <h3>Send your answers back</h3>
+      <p>Copy this and paste it into the session.</p>
+      <button class="copy" id="copybtn" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+      <textarea id="payload" readonly></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  const header = "Preflight answers — BL-16542 (PR #8234, HEAD 0fab6387b)";
+
+  function build() {
+    const lines = [header, ""];
+    const groups = new Map();
+    document.querySelectorAll('input[type="radio"]').forEach(function (r) {
+      const q = r.getAttribute("data-q");
+      if (!groups.has(q)) groups.set(q, { chosen: null, other: "", leave: false, notes: "" });
+      if (r.checked) {
+        const g = groups.get(q);
+        if (r.hasAttribute("data-other")) {
+          const box = document.querySelector('input[data-other-text][data-q="' + q + '"]');
+          g.chosen = "Other: " + ((box && box.value.trim()) || "(no text given)");
+        } else {
+          g.chosen = r.getAttribute("data-v");
+        }
+      }
+    });
+    document.querySelectorAll("input[data-leave-comment]").forEach(function (c) {
+      const q = c.getAttribute("data-q");
+      if (groups.has(q) && c.checked) groups.get(q).leave = true;
+    });
+    document.querySelectorAll("textarea[data-notes]").forEach(function (t) {
+      const q = t.getAttribute("data-q");
+      if (groups.has(q) && t.value.trim()) groups.get(q).notes = t.value.trim();
+    });
+    groups.forEach(function (g, q) {
+      lines.push(q + ": " + (g.chosen || "(nothing chosen)"));
+      if (g.leave) lines.push("  Leave comment: yes — record this decision as a code comment near the relevant code");
+      if (g.notes) lines.push("  Notes: " + g.notes);
+      lines.push("");
+    });
+    document.getElementById("payload").value = lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  build();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    const ta = document.getElementById("payload");
+    const done = function () {
+      const tag = document.getElementById("copied");
+      tag.classList.add("on");
+      setTimeout(function () { tag.classList.remove("on"); }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () {
+        ta.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      ta.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
