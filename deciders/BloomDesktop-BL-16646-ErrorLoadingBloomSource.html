@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16749 WebView2 rename crash (PR 8232)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --border: #e3ddd2;
+    --border-strong: #cfc6b7;
+    --ink: #211f1c;
+    --muted: #6a6157;
+    --accent: #1f5f73;
+    --accent-soft: #eaf2f4;
+    --pass: #2c6b46;
+    --warn: #8a6413;
+    --info: #4a4f7a;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 32px 28px 64px;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  header.top { border-bottom: 1px solid var(--border-strong); padding-bottom: 20px; margin-bottom: 26px; }
+  header.top h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    text-wrap: balance;
+    margin-bottom: 8px;
+  }
+  header.top .sub { color: var(--muted); max-width: 70ch; }
+  header.top .links { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  .chip {
+    display: inline-block;
+    border: 1px solid var(--border-strong);
+    background: var(--card);
+    border-radius: 999px;
+    padding: 3px 11px;
+    font-size: 13px;
+    text-decoration: none;
+  }
+  .chip:hover { border-color: var(--accent); }
+
+  .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 26px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+  .col { display: flex; flex-direction: column; gap: 22px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .card > h2 + .lede { color: var(--muted); margin-top: -8px; margin-bottom: 14px; }
+
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--border); }
+  th { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.what { width: 27%; font-weight: 600; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+
+  .status { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .status.pass { color: var(--pass); }
+  .status.skip { color: var(--muted); }
+  .status.note { color: var(--info); }
+
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .commit { display: flex; flex-direction: column; gap: 2px; }
+  .commit .sha { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .commit .msg { font-weight: 600; }
+  .commit p { color: var(--muted); font-size: 14px; }
+
+  .rev { display: flex; flex-direction: column; gap: 3px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .rev:last-child { border-bottom: none; padding-bottom: 0; }
+  .rev .who { font-weight: 600; }
+  .rev .body { font-size: 14px; color: var(--muted); }
+  .rev .body strong { color: var(--ink); font-weight: 600; }
+
+  .item { border: 1px solid var(--border); border-radius: 6px; background: var(--card); padding: 20px 22px; }
+  .item h3 { font-family: var(--serif); font-size: 18px; font-weight: 600; margin-bottom: 4px; text-wrap: balance; }
+  .item .kind { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+  .item p { margin-bottom: 10px; }
+  .item p:last-of-type { margin-bottom: 14px; }
+
+  .opts { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+  .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 10px; align-items: start; }
+  .opt input[type="radio"] { margin-top: 4px; }
+  .opt .lbl { display: flex; flex-direction: column; gap: 2px; }
+  .opt .lbl > span:first-child { font-weight: 600; }
+  .foot { font-size: 13px; color: var(--muted); }
+  .tag {
+    align-self: start;
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 2px 8px;
+    white-space: nowrap;
+  }
+  .leaveComment { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .otherbox, .notes {
+    width: 100%;
+    font: inherit;
+    font-size: 14px;
+    padding: 7px 9px;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: #fdfcfa;
+    color: inherit;
+  }
+  .notes { margin-top: 12px; min-height: 54px; resize: vertical; }
+  .noteslabel { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-top: 14px; }
+
+  .sendcard button {
+    font: inherit;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  .sendcard button:hover { background: #19505f; }
+  .sendcard .row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .sendcard .confirm { font-size: 13px; color: var(--pass); font-weight: 600; }
+  #payload { width: 100%; min-height: 190px; font-family: var(--mono); font-size: 12px; line-height: 1.5; resize: vertical; }
+
+  code, .path { font-family: var(--mono); font-size: 13px; }
+  footer.foot-note { margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--border-strong); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — the WebView2 crash when importing a <span class="path">.bloomSource</span></h1>
+  <p class="sub">Branch <code>BL-16646-ErrorLoadingBloomSource</code> against <code>master</code>. Three commits, draft PR open, every gate green. Four things want your call, none of them blocking a merge on their own.</p>
+  <div class="links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8232" target="_blank" rel="noopener">PR #8232 (draft)</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8232/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8232/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8232" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16749" target="_blank" rel="noopener">BL-16749</a>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- LEFT -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Quality gates</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="what">C# build</td>
+              <td><span class="status pass">pass</span></td>
+              <td><code>BloomExe.csproj</code>, <span class="numeral">0</span> errors, through <code>build/agent-dotnet.sh</code>.</td>
+            </tr>
+            <tr>
+              <td class="what">C# tests (dotnet test)</td>
+              <td><span class="status pass">pass</span></td>
+              <td>Full <code>BloomTests</code> suite at the final commit: <span class="numeral">3233 passed · 13 skipped · 0 failed</span> in <span class="numeral">3 m 28 s</span>. Includes the new worker-thread rename test.</td>
+            </tr>
+            <tr>
+              <td class="what">C# formatting</td>
+              <td><span class="status pass">pass</span></td>
+              <td>CSharpier, run explicitly and again by the pre-commit hook on every commit.</td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript typecheck</td>
+              <td><span class="status skip">not run</span></td>
+              <td>No front-end code in the diff — three <code>.cs</code> files only, and none of them is read or built by the web UI.</td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript lint</td>
+              <td><span class="status skip">not run</span></td>
+              <td>Same reason: nothing in the diff eslint would look at.</td>
+            </tr>
+            <tr>
+              <td class="what">Front-end tests (vitest)</td>
+              <td><span class="status skip">not run</span></td>
+              <td>Same reason: no <code>.ts</code>/<code>.tsx</code>/<code>.less</code>, no shared schema or content file the front-end tests read.</td>
+            </tr>
+            <tr>
+              <td class="what">Merge with master</td>
+              <td><span class="status pass">clean</span></td>
+              <td>Fetched and merged before publishing: already up to date, <span class="numeral">0</span> commits behind, no conflicts.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <div class="stack">
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/7d88ec56f567cee8d3b39bc0f84af3580d23b929" target="_blank" rel="noopener">7d88ec56f</a></span>
+          <span class="msg">Never touch the WebView2 from a background thread on a book rename</span>
+          <p>The fix itself.
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/15876a4251fb09da3e8b20ba93102c94884e4054/src/BloomExe/WebView2Browser.cs#L820" target="_blank" rel="noopener">WebView2Browser.cs:820</a>
+            re-posts a fire-and-forget script to the control's own thread before anything reads <code>CoreWebView2</code>, and
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/15876a4251fb09da3e8b20ba93102c94884e4054/src/BloomExe/Edit/EditingView.cs#L209" target="_blank" rel="noopener">EditingView.cs:209</a>
+            marshals the whole book-renamed handler (moved out of the constructor into
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/15876a4251fb09da3e8b20ba93102c94884e4054/src/BloomExe/Edit/EditingView.cs#L222" target="_blank" rel="noopener">HandleBookRenamed</a>).
+            Plus a test at
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/15876a4251fb09da3e8b20ba93102c94884e4054/src/BloomTests/Book/BookStorageTests.cs#L1126" target="_blank" rel="noopener">BookStorageTests.cs:1126</a>.
+          </p>
+        </div>
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/c6dbf9f3d36602ddae99409d5cc61e08a6abbc73" target="_blank" rel="noopener">c6dbf9f3d</a></span>
+          <span class="msg">Note why the rename handler marshals synchronously</span>
+          <p>Devin raised the blocking <code>Invoke</code> as worth a look; it is deliberate, so the reasoning (and the one condition under which it could deadlock) is now recorded where the next reader will ask.</p>
+        </div>
+        <div class="commit">
+          <span class="sha"><a href="https://github.com/BloomBooks/BloomDesktop/commit/15876a4251fb09da3e8b20ba93102c94884e4054" target="_blank" rel="noopener">15876a425</a></span>
+          <span class="msg">Say what the worker-thread rename test does and does not cover</span>
+          <p>Greptile was right that the test's comment claimed more than the test does. It now says what it checks and admits the WebView2 half needs the running app.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Reviewers</h2>
+      <div class="stack">
+        <div class="rev">
+          <span class="who">Local review — light pass, done inline</span>
+          <span class="body"><strong>2 findings, both fixed.</strong> A concurrent edit to my comment in <code>WebView2Browser.cs</code> had left two typos and an over-strong claim ("throws" where it only sometimes throws); corrected. Checked the one risk the change introduces — a synchronous marshal from a worker thread — by looking for any path where the UI thread waits on that worker (<code>.Wait()</code>/<code>.Result</code> across the book-save, import and progress-dialog code): none. No correctness defects found. Run inline rather than in a sub-agent, per this session's policy.</span>
+        </div>
+        <div class="rev">
+          <span class="who">Devin — <span id="devin-state">complete</span></span>
+          <span class="body" id="devin-body"><strong>0 bugs, 0 investigate flags, 1 informational.</strong> The informational one ("synchronous marshalling depends on UI thread pumping") independently reached the same conclusion I did: it can only deadlock if the UI thread is blocked waiting on the worker, and no current path does that. Acted on it by documenting the reasoning in the code (<a href="https://github.com/BloomBooks/BloomDesktop/commit/c6dbf9f3d36602ddae99409d5cc61e08a6abbc73" target="_blank" rel="noopener">c6dbf9f3d</a>) rather than changing behavior. Nothing mirrored to the PR, because informational items are not posted as threads. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8232" target="_blank" rel="noopener">Review page</a>.</span>
+        </div>
+        <div class="rev">
+          <span class="who">Greptile — <span id="greptile-state">complete on the code commit; re-review timed out after 25 min</span></span>
+          <span class="body" id="greptile-body"><strong>1 point raised, fixed.</strong> It reviewed <code>7d88ec56f</code> — the commit that contains all of the actual code — and its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8232#issuecomment-5414416385" target="_blank" rel="noopener">review summary</a> called the new test's documentation overstated. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/15876a4251fb09da3e8b20ba93102c94884e4054" target="_blank" rel="noopener">15876a425</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8232#issuecomment-5414562441" target="_blank" rel="noopener">answered on the PR</a>. It posted no inline threads. It then never picked up the two later commits, even after an explicit re-trigger, so that re-review is recorded as timed out; both of those commits change only comments, so nothing substantive is unreviewed. Re-running preflight would fold in a late result.</span>
+        </div>
+        <div class="rev">
+          <span class="who">CodeRabbit — <span id="cr-state">no review</span></span>
+          <span class="body" id="cr-body">The repo carries a <code>.coderabbit.yml</code>, but CodeRabbit posted nothing at all on this PR — no summary, no comment, no check.</span>
+        </div>
+        <div class="rev">
+          <span class="who">CI — complete</span>
+          <span class="body"><strong>Green.</strong> <code>pr-automation</code> passed on the final commit (<span class="numeral">35 s</span>); that is also the job that triggers Devin. No other required GitHub checks on this repo.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Session notes</h2>
+      <div class="stack">
+        <div class="rev">
+          <span class="who">How the fix was verified</span>
+          <span class="body">The reported crash does not reproduce on this machine — two derivative imports with a book selected went through cleanly on the unfixed build, with the rename event and page-list refresh happening on the import's worker thread and no exception. So the fix was verified by mechanism plus a live trace: with it in place, a real import logged the rename arriving on worker thread 3 and the handler body running on UI thread 1, and completed. See the decision item on the right.</span>
+        </div>
+        <div class="rev">
+          <span class="who">Tracker</span>
+          <span class="body">Posted to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16749" target="_blank" rel="noopener">BL-16749</a>: the PR link, and a fresh QA test-ideas comment (kept short, per the team's ask). The report link goes there too.</span>
+        </div>
+        <div class="rev">
+          <span class="who">Leftovers in your collection</span>
+          <span class="body">Today's testing left four <code>Huge Image Test Book*</code> derivative books in the <em>English Books A</em> collection. The one my own verification run imported was deleted; the other four are from your imports. See the housekeeping item on the right.</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+
+    <section class="item" data-item="verification">
+      <div class="kind">Decision</div>
+      <h3>The crash never reproduced here, so nobody has watched this fix turn a failure into a success</h3>
+      <p>The bug is that importing a <code>.bloomSource</code> and choosing "make a new book based on it" can end with the message "Bloom was not able to import …", even though the book was in fact created. Colin hit it repeatedly on his machine; it has never happened on yours.</p>
+      <p>The reason is now understood. The import runs on a background thread, and part-way through it renames the new book's folder to the book's title, which makes Bloom refresh the page-list thumbnails — and that refresh reaches into the WebView2 browser control from the wrong thread. Whether that is <em>fatal</em> depends on which COM apartment the browser's controller object ended up in when it was created, which is why the same import fails on one computer and succeeds on another. Colin's machine runs a native ARM64 build; yours is x64, and there the illegal access is tolerated. So on this machine the "before" picture cannot be produced at all: with the fix reverted, two imports ran the offending code path and simply did not fail.</p>
+      <p>What <em>was</em> confirmed here, with temporary logging in a real Bloom: the rename now arrives on the background thread and the handler body then runs on the UI thread, and the import finishes normally. That proves the marshalling works; it does not prove it cures Colin's failure, because his failure can't be staged here.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q-verification" id="v1" value="Ask Colin (or anyone on the machine where it failed) to try the import on a build with this fix before merging" checked>
+          <label class="lbl" for="v1">
+            <span>Before merging, have Colin try it on the machine where it failed</span>
+            <span class="foot">No code — one message plus an alpha/test build for him to import <code>HugeTest.bloomSource</code> as a derivative. Recommended because it is the only way to see the actual failure turn into a success, and it costs nothing but a round-trip.</span>
+          </label>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-verification" id="v2" value="Leave as is">
+          <label class="lbl" for="v2">
+            <span>Leave as is</span>
+          </label>
+          <span class="leaveComment"><input type="checkbox" data-q="Leave comment (verification)" id="v2c"><label for="v2c">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-verification" id="v3" value="Other">
+          <label class="lbl" for="v3">
+            <span>Other:</span>
+            <input class="otherbox" type="text" data-q="Other (verification)" placeholder="your answer">
+          </label>
+        </div>
+      </div>
+      <label class="noteslabel" for="n-verification">Notes</label>
+      <textarea class="notes" id="n-verification" data-q="Notes (verification)" placeholder="caveats, constraints, who to ask…"></textarea>
+    </section>
+
+    <section class="item" data-item="invoke">
+      <div class="kind">Decision</div>
+      <h3>The rename handler now waits for the UI thread instead of just handing work to it</h3>
+      <p>When a book's folder is renamed on a background thread, the code that reacts to it — saving which book is selected, and refreshing the page thumbnails — now runs on the UI thread. It does so with a <em>blocking</em> call: the background work pauses until the UI thread has finished those steps. That keeps the old behavior exactly (everything finishes before the rename returns) and matches what the import code already does elsewhere when it selects a book.</p>
+      <p>The alternative is to hand the work over without waiting. Nothing would block, but the thumbnail refresh and the "which book is selected" write would land slightly later, while the import carries on — and if the selection changed in that gap, the settings write could be based on a stale comparison. Devin flagged the blocking version as worth a look and then agreed it is safe: it could only deadlock if the UI thread were itself waiting on that background work, and no path in Bloom does that (a modal dialog would still keep processing messages). That reasoning is now a comment in the code.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q-invoke" id="i1" value="Switch to the non-blocking hand-off (BeginInvoke)">
+          <label class="lbl" for="i1">
+            <span>Switch to the non-blocking hand-off</span>
+            <span class="foot">~2 lines, localized, but a real behavior change: the refresh and the settings write would no longer be finished by the time the rename returns.</span>
+          </label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-invoke" id="i2" value="Leave as is" checked>
+          <label class="lbl" for="i2">
+            <span>Leave as is</span>
+          </label>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-invoke" id="i2b" value="Other">
+          <label class="lbl" for="i2b">
+            <span>Other:</span>
+            <input class="otherbox" type="text" data-q="Other (blocking marshal)" placeholder="your answer">
+          </label>
+        </div>
+      </div>
+      <label class="noteslabel" for="n-invoke">Notes</label>
+      <textarea class="notes" id="n-invoke" data-q="Notes (blocking marshal)" placeholder="anything to add…"></textarea>
+      <span class="leaveComment" style="margin-top:10px"><input type="checkbox" data-q="Leave comment (blocking marshal)" id="i2c"><label for="i2c">Leave comment</label></span>
+    </section>
+
+    <section class="item" data-item="ticket">
+      <div class="kind">FYI — needs your call</div>
+      <h3>The branch is named after a different ticket than the one this fixes</h3>
+      <p>The branch is <code>BL-16646-ErrorLoadingBloomSource</code>, but BL-16646 is the huge-image hang, which was finished and merged earlier. This work fixes <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16749" target="_blank" rel="noopener">BL-16749</a>, the error report from Colin. The commits, the PR title and the PR body all say BL-16749, and the PR link, the test ideas and this report were posted on the BL-16749 card, since that is the card someone would open to find out whether this is fixed. Nothing was written to the BL-16646 card. Renaming the branch now would mean closing this PR and opening another, which is why leaving it is the recommendation — the mismatch is only in the branch name, and every other pointer is correct.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q-ticket" id="t1" value="Also post a cross-reference comment on the BL-16646 card">
+          <label class="lbl" for="t1">
+            <span>Also cross-reference it from the BL-16646 card</span>
+            <span class="foot">No code — one comment on the old card pointing at the PR, for anyone who follows the branch name there.</span>
+          </label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-ticket" id="t2" value="Leave as is" checked>
+          <label class="lbl" for="t2">
+            <span>Leave as is</span>
+          </label>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-ticket" id="t3" value="Other">
+          <label class="lbl" for="t3">
+            <span>Other:</span>
+            <input class="otherbox" type="text" data-q="Other (ticket mismatch)" placeholder="your answer">
+          </label>
+        </div>
+      </div>
+      <label class="noteslabel" for="n-ticket">Notes</label>
+      <textarea class="notes" id="n-ticket" data-q="Notes (ticket mismatch)" placeholder="anything to add…"></textarea>
+    </section>
+
+    <section class="item" data-item="leftovers">
+      <div class="kind">FYI — housekeeping</div>
+      <h3>Four test books are left over in the English Books A collection</h3>
+      <p>Reproducing and verifying this fix meant importing <code>HugeTest.bloomSource</code> as a derivative several times, which leaves a real book in the collection each time. Four of them are still there, named <code>Huge Image Test Book - 4bdd6a0a</code>, <code>- f6e3a4a0</code>, <code>- e40bea9f</code> and <code>- 945320fa</code>, in <code>Documents\Bloom\English Books A</code>. The one my own verification run created has already been deleted. They are harmless, but the last one is currently Bloom's remembered selected book, so it will be the book that opens next time you start Bloom in that collection.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q-leftovers" id="l1" value="Delete the four leftover Huge Image Test Book derivatives" checked>
+          <label class="lbl" for="l1">
+            <span>Delete the four leftover books</span>
+            <span class="foot">No code — deleting four book folders, or removing them from inside Bloom. Recommended because they are throwaway copies of a test book and one of them is holding the collection's selection.</span>
+          </label>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-leftovers" id="l2" value="Leave as is">
+          <label class="lbl" for="l2">
+            <span>Leave as is</span>
+          </label>
+          <span class="leaveComment"><input type="checkbox" data-q="Leave comment (leftovers)" id="l2c"><label for="l2c">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-leftovers" id="l3" value="Other">
+          <label class="lbl" for="l3">
+            <span>Other:</span>
+            <input class="otherbox" type="text" data-q="Other (leftovers)" placeholder="your answer">
+          </label>
+        </div>
+      </div>
+      <label class="noteslabel" for="n-leftovers">Notes</label>
+      <textarea class="notes" id="n-leftovers" data-q="Notes (leftovers)" placeholder="anything to add…"></textarea>
+    </section>
+
+    <section class="item" data-item="next">
+      <div class="kind">Next step</div>
+      <h3>Where does this go from here?</h3>
+      <p>The PR is deliberately still a draft: preflight never promotes work to human review. Everything mechanical is done — gates green, reviewers answered, card updated.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q-next" id="x1" value="I will review it myself, then run /pr-ready-for-human" checked>
+          <label class="lbl" for="x1">
+            <span>You review it, then promote it with <code>/pr-ready-for-human</code></span>
+            <span class="foot">The normal path — no further work from me unless a decision above says otherwise.</span>
+          </label>
+          <span class="tag">Recommended</span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-next" id="x2" value="Discuss the decisions above with me first, before anything else happens">
+          <label class="lbl" for="x2">
+            <span>Talk the decisions above through first</span>
+            <span class="foot">No code until we have agreed — useful if the verification question changes what you want merged.</span>
+          </label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-next" id="x3" value="Leave as is">
+          <label class="lbl" for="x3">
+            <span>Leave as is</span>
+          </label>
+          <span class="leaveComment"><input type="checkbox" data-q="Leave comment (next step)" id="x3c"><label for="x3c">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q-next" id="x4" value="Other">
+          <label class="lbl" for="x4">
+            <span>Other:</span>
+            <input class="otherbox" type="text" data-q="Other (next step)" placeholder="your answer">
+          </label>
+        </div>
+      </div>
+      <label class="noteslabel" for="n-next">Notes</label>
+      <textarea class="notes" id="n-next" data-q="Notes (next step)" placeholder="anything to add…"></textarea>
+    </section>
+
+    <section class="item sendcard">
+      <h3>Send your answers back</h3>
+      <p>Copy this and paste it into the session; that is all I need to act on it.</p>
+      <div class="row">
+        <button type="button" id="copybtn">Copy answers</button>
+        <span class="confirm" id="copied" hidden>Copied</span>
+      </div>
+      <textarea id="payload" readonly></textarea>
+    </section>
+
+  </div>
+</div>
+
+<footer class="foot-note">
+  Preflight on <code>BL-16646-ErrorLoadingBloomSource</code> at <code>15876a425</code> — Claude Opus 5 (1M context), from Steve McConnel's machine.
+</footer>
+</div>
+
+<script>
+(function () {
+  var QUESTIONS = [
+    { name: "q-verification", label: "Verification on the failing machine" },
+    { name: "q-invoke",       label: "Blocking marshal vs non-blocking hand-off" },
+    { name: "q-ticket",       label: "Branch named after a different ticket" },
+    { name: "q-leftovers",    label: "Leftover test books" },
+    { name: "q-next",         label: "Next step" }
+  ];
+
+  function itemOf(name) {
+    var radio = document.querySelector('input[name="' + name + '"]');
+    return radio ? radio.closest('.item') : null;
+  }
+
+  function serialize() {
+    var lines = ["Preflight answers - BL-16749 / PR 8232 (commit 15876a425)", ""];
+    QUESTIONS.forEach(function (q) {
+      var chosen = document.querySelector('input[name="' + q.name + '"]:checked');
+      var answer = chosen ? chosen.value : "(no answer)";
+      var scope = itemOf(q.name);
+      if (chosen && chosen.value === "Other" && scope) {
+        var otherInput = scope.querySelector('.otherbox');
+        var typed = otherInput && otherInput.value.trim();
+        answer = "Other: " + (typed ? typed : "(nothing typed)");
+      }
+      lines.push(q.label + ": " + answer);
+      if (scope) {
+        var lc = scope.querySelector('input[type="checkbox"][data-q]');
+        if (lc && lc.checked) lines.push("  Leave comment: yes - record this decision as a code comment near the relevant code");
+        var notes = scope.querySelector('.notes');
+        if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      }
+      lines.push("");
+    });
+    return lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = payload.value;
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.hidden = false;
+      setTimeout(function () { tag.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        payload.select();
+        try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is right there for Ctrl+C */ }
+      });
+    } else {
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* ditto */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
