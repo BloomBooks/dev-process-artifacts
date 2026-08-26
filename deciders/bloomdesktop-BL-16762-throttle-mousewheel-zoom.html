@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wheel Zoom Freeze Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  :root {
+    --ground: #f7f5f0;
+    --card: #ffffff;
+    --ink: #23211d;
+    --muted: #6d6862;
+    --line: #e2ddd3;
+    --accent: #1c6b58;
+    --accent-soft: #e7f0ec;
+    --pass: #22694f;
+    --warn: #8a5a10;
+    --code-bg: #f2efe8;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.55;
+    padding: 32px 28px 64px;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  header.top { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 26px; }
+  header.top h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .kicker { font-size: 12.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .runline { color: var(--muted); margin-top: 8px; max-width: 68ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    font-size: 12.5px; padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+  }
+  .chip.good { border-color: #b9d6c9; background: var(--accent-soft); color: var(--pass); }
+  .chip.attn { border-color: #e4d3b3; background: #fbf4e6; color: var(--warn); }
+  .grid { display: grid; grid-template-columns: 1.45fr 1fr; gap: 26px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 22px 24px; min-width: 0;
+  }
+  .card > * + * { margin-top: 14px; }
+  .card h2 {
+    font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: -0.005em;
+  }
+  .card h3 {
+    font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .card p, .card li { max-width: 68ch; }
+  ul.bullets { display: flex; flex-direction: column; gap: 9px; }
+  ul.bullets li { padding-left: 16px; position: relative; }
+  ul.bullets li::before {
+    content: ""; position: absolute; left: 0; top: 0.62em;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13.5px; }
+  .verdict { font-weight: 600; }
+  .verdict.pass { color: var(--pass); }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); padding: 1px 4px; border-radius: 3px; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  .item { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; }
+  .item > * + * { margin-top: 12px; }
+  .item h2 { font-family: var(--serif); font-size: 18px; font-weight: 600; }
+  .opts { display: flex; flex-direction: column; gap: 10px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; }
+  .opt input[type=radio] { margin-top: 3px; flex: none; }
+  .opt .body { min-width: 0; }
+  .tag {
+    font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+    background: var(--accent-soft); color: var(--pass); border-radius: 3px; padding: 1px 6px; margin-left: 6px;
+  }
+  .foot { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .leaverow { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .leavecomment { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--muted); flex: none; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 14px; color: var(--ink);
+    background: var(--ground); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; width: 100%;
+  }
+  textarea { min-height: 62px; resize: vertical; }
+  .notes { margin-top: 6px; }
+  .notes label { display: block; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
+  button {
+    font-family: var(--sans); font-size: 14.5px; font-weight: 600;
+    background: var(--accent); color: #fff; border: 0; border-radius: 4px;
+    padding: 9px 16px; cursor: pointer;
+  }
+  button:hover { background: #17594a; }
+  #payload { font-family: var(--mono); font-size: 12.5px; min-height: 150px; margin-top: 12px; }
+  .copied { font-size: 13px; color: var(--pass); margin-left: 10px; }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    body { padding: 24px 18px 48px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div class="kicker">Preflight report</div>
+  <h1>Ctrl+mousewheel zoom no longer freezes Bloom</h1>
+  <p class="runline">First preflight run on <code>BL-16762-throttle-mousewheel-zoom</code>. One commit, one draft PR. Every reviewer finished, every gate is green, and three things wait on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip attn">3 items for you</span>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>While zooming the edit page with Ctrl+mousewheel, Bloom goes &quot;Not Responding&quot; for several minutes, with the UI thread busy on one core, and then recovers on its own.</p>
+    <h3>Cause</h3>
+    <p>Every wheel notch posted its own zoom request. Each request runs on the UI thread and calls into the WebView2, while the browser process sends each Ctrl key event to the host synchronously and waits for the answer. A fast spin therefore left the UI thread waiting inside WebView2's accelerator-key handshake. The native stack captured on the card shows the UI thread blocked in <code>CoWaitForMultipleHandles</code> under <code>Controller::HandleAcceleratorKeyEvent</code>, with no Bloom frames on it.</p>
+    <h3>What the PR does</h3>
+    <ul class="bullets">
+      <li>The browser now counts wheel notches and sends at most one zoom request every 150 ms. The first notch still goes out at once, so the zoom stays responsive (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ccb47f23f0fbf48a08e9a2d9c7b220bb2c43dc42/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L1256" target="_blank" rel="noopener">bloomEditing.ts:1256</a>).</li>
+      <li>The two endpoints <code>zoomPlus</code> and <code>zoomMinus</code> become one endpoint, <code>zoomBy</code>, which carries the accumulated notch count. A fast spin therefore makes one large zoom change instead of many small ones, and no notch is lost (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ccb47f23f0fbf48a08e9a2d9c7b220bb2c43dc42/src/BloomExe/Edit/PageControlsApi.cs#L98" target="_blank" rel="noopener">PageControlsApi.cs:98</a>).</li>
+      <li>Deleted the comment that said zooming re-loads the page, which stopped being true in July 2025, and the old comment that said wheel zoom feels sluggish, which this change answers.</li>
+    </ul>
+    <p>The zoom was also driven by hand in a running Bloom: a burst of twelve notches produced two requests instead of twelve, and the zoom still landed on the value the notches asked for.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript typecheck</td><td class="verdict pass">Pass</td><td>No type errors.</td></tr>
+        <tr><td>Front-end lint</td><td class="verdict pass">Pass</td><td>The changed file reports only warnings that were there before.</td></tr>
+        <tr><td>Front-end tests (vitest)</td><td class="verdict pass">Pass</td><td><span class="numeral">69 files &middot; 759 passed &middot; 5 skipped</span></td></tr>
+        <tr><td>C# tests (dotnet test)</td><td class="verdict pass">Pass</td><td><span class="numeral">3247 passed &middot; 0 failed &middot; 13 skipped</span>, full suite through <code>build/agent-dotnet.sh</code>.</td></tr>
+        <tr><td>Production bundle</td><td class="verdict pass">Pass</td><td>Built with <code>build/agent-vite.sh</code>.</td></tr>
+        <tr><td>Merge with master</td><td class="verdict pass">Clean</td><td>Master had no new commits; GitHub reports the PR mergeable.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>One commit: the throttle, the new <code>zoomBy</code> endpoint, and the two stale comments removed. Nothing needed fixing after the reviewers ran.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8240/commits" target="_blank" rel="noopener">Commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8240/files" target="_blank" rel="noopener">Files changed</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>What it said</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Local review</td><td class="verdict pass">Clean</td>
+          <td>Light pass, done inline after the sub-agent stopped responding. It checked for leftover callers of the two removed endpoints (there are none anywhere in the repository), the throttle state across page loads, notch loss, integer parsing, and the zoom limits. No findings.</td>
+        </tr>
+        <tr>
+          <td>Devin</td><td class="verdict pass">Complete</td>
+          <td>No bugs and no flags to investigate. Two informational notes, both agreeing with the change: no notch is dropped and the timer never blocks an immediate send; and applying the notches together gives the same clamped zoom as one at a time. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8240" target="_blank" rel="noopener">Devin review</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8240#issuecomment-5431071040" target="_blank" rel="noopener">log comment</a></td>
+        </tr>
+        <tr>
+          <td>Greptile</td><td class="verdict pass">Complete</td>
+          <td>Reviewed this commit and found no actionable defect in either file. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8240#issuecomment-5431058506" target="_blank" rel="noopener">Summary</a></td>
+        </tr>
+        <tr>
+          <td>CI</td><td class="verdict pass">Pass</td>
+          <td><code>pr-automation</code> and the Greptile check are both green; this PR has no other check.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul class="bullets">
+      <li>The throttle makes the freeze far less likely; it does not make it impossible. One zoom request per 150 ms still calls into the WebView2 from the UI thread. The card names two hardening jobs filed separately for that: the per-notch settings save, and re-entrant script injection from inside a WebView2 event.</li>
+      <li>Another session is working the related card about saving the zoom setting on every notch, in its own worktree. If both land, the per-notch disk write goes away as well.</li>
+      <li>The freeze itself was never reproduced on demand; it was captured once with a debugger. So the evidence that this fixes it is the request count, which drops from one per notch to at most one per 150 ms, and not a before-and-after freeze.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="col">
+
+  <section class="item">
+    <h2>Is 150 ms the right gap between zoom requests?</h2>
+    <p>The browser now waits 150 ms after each zoom request before it sends the next one, and the notches that arrive in the meantime are added up and sent together. A larger gap means fewer calls into the WebView2, so less risk of the freeze, but the zoom then moves in bigger visible steps. A smaller gap makes the zoom smoother and brings back some of the risk. 150 ms is about seven zoom changes per second, which looked smooth when I drove it by hand.</p>
+    <div class="opts" data-q="Gap between zoom requests">
+      <label class="opt"><input type="radio" name="q1" value="Keep 150 ms" checked><span class="body">Keep 150 ms<span class="tag">Recommended</span><span class="foot">No work. It cuts a fast spin from about eighteen requests to two, which is recommended because it removes the flood with no visible step change.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Raise it to 250 ms"><span class="body">Raise it to 250 ms<span class="foot">One constant, no risk. Fewer calls into the WebView2; the zoom moves in larger jumps on a fast spin.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Lower it to 100 ms"><span class="body">Lower it to 100 ms<span class="foot">One constant, no risk. Smoother zoom, more calls into the WebView2.</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q1" value="Leave as is"><span class="body">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="Gap between zoom requests / leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q1" value="Other"><span class="body">Other: <input type="text" data-q="Gap between zoom requests / other" placeholder="your answer"></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Gap between zoom requests / notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h2>Replacing the two zoom endpoints with one</h2>
+    <p>Before this change the browser called <code>edit/pageControls/zoomPlus</code> or <code>edit/pageControls/zoomMinus</code>, and each of them moved the zoom by ten percentage points. Those two are now one call, <code>edit/pageControls/zoomBy?notches=N</code>, so the accumulated notches can travel in a single request. Nothing else in the repository used the old two, and both ends of this API live in this repository, so no other caller can break. It is still a change to an internal interface, which is why it is here and not decided silently.</p>
+    <div class="opts" data-q="One zoom endpoint instead of two">
+      <label class="opt"><input type="radio" name="q2" value="Keep the single zoomBy endpoint" checked><span class="body">Keep the single <code>zoomBy</code> endpoint<span class="tag">Recommended</span><span class="foot">No work. Recommended because the notch count only helps if it can reach the server, and one endpoint that takes a signed count is simpler than two that do not.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Go back to zoomPlus/zoomMinus and only throttle"><span class="body">Go back to <code>zoomPlus</code> and <code>zoomMinus</code>, and only throttle<span class="foot">About 20 lines to back out, low risk. Smaller diff, but a fast spin then discards the extra notches instead of applying them, so the zoom lags behind the wheel.</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q2" value="Leave as is"><span class="body">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="One zoom endpoint instead of two / leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q2" value="Other"><span class="body">Other: <input type="text" data-q="One zoom endpoint instead of two / other" placeholder="your answer"></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="One zoom endpoint instead of two / notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h2>One more comment in that file is now wrong</h2>
+    <p>Just above the call to the wheel-zoom setup, a comment says the setup must happen late in page loading &quot;because a mouse zoom event will regenerate the page&quot;. Zooming stopped reloading the page in July 2025, so that reason no longer holds. The card asked me to remove only the other stale comment, a few lines further down. I left this one alone to hold the change to what the card asked for, and because touching it now restarts the review bots for a comment. See <a href="https://github.com/BloomBooks/BloomDesktop/blob/ccb47f23f0fbf48a08e9a2d9c7b220bb2c43dc42/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L1241" target="_blank" rel="noopener">bloomEditing.ts:1241</a>.</p>
+    <div class="opts" data-q="The stale comment at the call site">
+      <label class="opt"><input type="radio" name="q3" value="Correct that comment too" checked><span class="body">Correct that comment too<span class="tag">Recommended</span><span class="foot">Three lines of comment, no code, no risk. Recommended because the sentence states something untrue about the code, right where the next reader meets it.</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q3" value="Leave as is"><span class="body">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="The stale comment at the call site / leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q3" value="Other"><span class="body">Other: <input type="text" data-q="The stale comment at the call site / other" placeholder="your answer"></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="The stale comment at the call site / notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h2>Next step</h2>
+    <p>Tell me how to proceed with whatever you chose above.</p>
+    <div class="opts" data-q="Next step">
+      <label class="opt"><input type="radio" name="q4" value="Implement my answers, then re-run preflight" checked><span class="body">Implement my answers, then re-run preflight<span class="tag">Recommended</span><span class="foot">Recommended because every answer above is a small, contained change.</span></span></label>
+      <label class="opt"><input type="radio" name="q4" value="Discuss first"><span class="body">Discuss first<span class="foot">No code until we talk it through.</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q4" value="Leave as is"><span class="body">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="Next step / leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q4" value="Other"><span class="body">Other: <input type="text" data-q="Next step / other" placeholder="your answer"></span></label>
+    </div>
+    <div class="notes"><label>Notes</label><textarea data-q="Next step / notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h2>Send your answers back</h2>
+    <p>Copy this block and paste it into the session.</p>
+    <p><button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></p>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+    var groups = Array.prototype.slice.call(document.querySelectorAll(".item .opts"));
+    function build() {
+        var lines = ["Preflight answers for BL-16762 (PR 8240)", ""];
+        groups.forEach(function (group) {
+            var q = group.getAttribute("data-q");
+            var item = group.parentNode;
+            var chosen = group.querySelector("input[type=radio]:checked");
+            var value = chosen ? chosen.value : "(no answer)";
+            if (value === "Other") {
+                var other = group.querySelector("input[type=text]");
+                var typed = other ? other.value.replace(/^\s+|\s+$/g, "") : "";
+                value = "Other: " + (typed || "(nothing typed)");
+            }
+            lines.push(q + ": " + value);
+            var box = group.querySelector("input[type=checkbox]");
+            if (box && box.checked) {
+                lines.push("  Leave comment: yes");
+            }
+            var notes = item.querySelector(".notes textarea");
+            var noteText = notes ? notes.value.replace(/^\s+|\s+$/g, "") : "";
+            if (noteText) {
+                lines.push("  Notes: " + noteText);
+            }
+            lines.push("");
+        });
+        return lines.join("\n");
+    }
+    var payload = document.getElementById("payload");
+    function refresh() { payload.value = build(); }
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+    document.getElementById("copybtn").addEventListener("click", function () {
+        var text = payload.value;
+        var done = function () {
+            var tag = document.getElementById("copied");
+            tag.hidden = false;
+            setTimeout(function () { tag.hidden = true; }, 2500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () {
+                payload.select();
+                document.execCommand("copy");
+                done();
+            });
+        } else {
+            payload.select();
+            document.execCommand("copy");
+            done();
+        }
+    });
+})();
+</script>
+</body>
+</html>
