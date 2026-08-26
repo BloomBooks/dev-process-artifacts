@@ -102,12 +102,12 @@
 <body>
 <div class="wrap">
   <h1>Zoom setting debounce: preflight report</h1>
-  <p class="lede">BloomDesktop PR 8239, branch <code>BL-16763-debounce-save-settings-on-zoom</code>, at commit <span class="numeral">cb70423</span>. Local gate clean, C# suite green, no findings from any reviewer.</p>
+  <p class="lede">BloomDesktop PR 8239, branch <code>BL-16763-debounce-save-settings-on-zoom</code>, at commit <span class="numeral">26a41fc</span>. Local gate clean, C# suite green, no findings from any reviewer, and nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip">2 items for you</span>
+    <span class="chip good">Nothing waiting on you</span>
   </div>
 
   <div class="grid">
@@ -124,13 +124,13 @@
         but each write holds the UI thread longer, which widens the window in which the host-to-browser and
         browser-to-host calls collide.</p>
         <h3>What the PR does</h3>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/cb70423164aab0321b7ca208ef1e282a14a4efb4/src/BloomExe/Edit/EditingView.cs#L1642" target="_blank" rel="noopener"><code>EditingView.SetZoom</code></a>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/blob/26a41fc48224a6b03ef38e67a6369f22fe4fc9cd/src/BloomExe/Edit/EditingView.cs#L1642" target="_blank" rel="noopener"><code>EditingView.SetZoom</code></a>
         no longer writes the settings file. It still applies the zoom to the browser at once, and it still
-        updates the zoom value in memory at once, so nothing the user sees changes. A one-second timer now
+        updates the zoom value in memory at once, so nothing the user sees changes. A two-second timer now
         does the disk write, and each zoom step restarts that timer, so a whole wheel spin costs one write
         instead of one write per notch.</p>
         <p>The pending write is also flushed at once when the user leaves the Edit tab, when the main window
-        becomes inactive, and when the view is disposed. So a zoom made in the last second before any of
+        becomes inactive, and when the view is disposed. So a zoom made in the last two seconds before any of
         those events is still saved.</p>
       </section>
 
@@ -142,24 +142,24 @@
             <tbody>
               <tr><td>C# build</td><td><span class="tag pass">pass</span></td><td><span class="numeral">0</span> errors, through <code>build/agent-dotnet.sh</code></td></tr>
               <tr><td>C# format (CSharpier)</td><td><span class="tag pass">pass</span></td><td>clean; the pre-commit hook also formats</td></tr>
-              <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="tag pass">pass</span></td><td><span class="numeral">3247 passed · 13 skipped · 0 failed · 4 m 51 s</span></td></tr>
+              <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="tag pass">pass</span></td><td><span class="numeral">3247 passed · 13 skipped · 0 failed · 4 m 26 s</span></td></tr>
               <tr><td>TypeScript tests (vitest)</td><td><span class="tag skip">not run</span></td><td>no TypeScript, LESS, or content file in the diff</td></tr>
               <tr><td>TypeScript typecheck and lint</td><td><span class="tag skip">not run</span></td><td>same reason; both cover the front end only</td></tr>
               <tr><td>Merge with master</td><td><span class="tag pass">clean</span></td><td>already up to date; GitHub reports the PR mergeable</td></tr>
             </tbody>
           </table>
         </div>
-        <p style="margin-top:14px; color:var(--muted); font-size:14px;">The C# suite ran against commit
-        <span class="numeral">ec3f888</span>. The two commits after it add one code comment and one line in
-        <code>PAPERCUTS.md</code>, so no test can see the difference. The build was re-run at the final commit.</p>
+        <p style="margin-top:14px; color:var(--muted); font-size:14px;">The suite ran twice, the second time
+        against the final commit.</p>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
         <p>The whole PR was written in this run: the debounce itself, then a comment saying why the flush on
         window-deactivate is safe next to the older warning about saving there, then a note in
-        <code>PAPERCUTS.md</code> about a build tool collision hit during the run.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8239/commits" target="_blank" rel="noopener">All three commits</a> ·
+        <code>PAPERCUTS.md</code> about a build tool collision hit during the run, and finally the delay raised
+        from one second to two.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8239/commits" target="_blank" rel="noopener">All four commits</a> ·
         <a href="https://github.com/BloomBooks/BloomDesktop/pull/8239/files" target="_blank" rel="noopener">Files changed</a></p>
       </section>
 
@@ -180,12 +180,11 @@
                 <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8239" target="_blank" rel="noopener">Devin</a></td>
                 <td id="devin-state">complete</td>
                 <td id="devin-found">Ran to completion on the final commit: no bugs and no Investigate flags.
-                Two Informational items, both of which Devin judged low risk itself. One says a zoom made in the
-                last second before an abrupt kill is lost, which is the deliberate trade-off. The other asks
-                whether the flush on window-deactivate touches the path the old BL-6299 comment warns about;
-                that warning is about the model save, which runs Javascript, and the PR now carries a code
-                comment saying so.
-                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8239#issuecomment-5431123791" target="_blank" rel="noopener">Consultation log</a>.</td>
+                Three Informational items, all of which Devin judged low risk itself: the debounce timer stays
+                on the UI thread, a pending zoom is lost on a hard crash, and the flush on window-deactivate
+                sits next to the old BL-6299 warning, which is about the model save and its Javascript. The
+                second is the deliberate trade-off; the third is answered by a code comment.
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8239#issuecomment-5431237687" target="_blank" rel="noopener">Consultation log</a>.</td>
               </tr>
               <tr>
                 <td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8239#issuecomment-3573936793" target="_blank" rel="noopener">Greptile</a></td>
@@ -209,7 +208,7 @@
         <h2>Worth knowing</h2>
         <ul>
           <li>Nobody has run Bloom by hand against this build. The change is small and the C# suite is green,
-          but no person has watched a zoom survive a restart.</li>
+          but no person has watched a zoom survive a restart. The test ideas on the card lead with that.</li>
           <li>The freeze itself is not fixed by this PR. The throttle in the browser code, which is the actual
           fix, is
           <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16762" target="_blank" rel="noopener">BL-16762</a>,
@@ -225,158 +224,23 @@
     <div class="col">
 
       <section class="card">
-        <h2>Decisions</h2>
-
-        <div class="item" data-item="throttle">
-          <h3 style="margin-top:0">Should the browser-side throttle come into this PR too?</h3>
-          <p>The multi-minute freeze this work came from has three cards. This PR is the second of them: it
-          removes the repeated disk write. The first card, BL-16762, is the one that actually stops the flood
-          of zoom requests, by counting wheel notches in the browser code and sending at most one request every
-          100 to 200 milliseconds. Until that lands, a fast wheel spin still makes one round trip to the UI
-          thread per notch, so a user can still meet the freeze. A separate worktree already exists for it.</p>
-          <label class="opt">
-            <input type="radio" name="q-throttle" value="Keep them separate" checked>
-            <span class="body">Keep them separate, one PR per card.
-              <span class="foot">Recommended, because the worktree for BL-16762 is already made, the two changes touch different languages, and a reviewer can judge each on its own.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-throttle" value="Add the throttle to this PR">
-            <span class="body">Add the throttle to this PR and close both cards together.
-              <span class="foot">Moderate: about 20 lines in <code>bloomEditing.ts</code>, plus the stale comment BL-16762 asks to delete. It widens the PR into the front end, so the front-end suite would then have to run.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-throttle" value="Leave as is">
-            <span class="body">Leave as is</span>
-            <span class="leaveWrap"><input type="checkbox" data-leave="throttle"> Leave comment</span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-throttle" value="Other">
-            <span class="body">Other: <input type="text" data-other="throttle" placeholder="your answer"></span>
-          </label>
-          <div class="notes"><label for="n-throttle">Notes</label><textarea id="n-throttle" data-notes="throttle"></textarea></div>
-        </div>
-
-        <div class="item" data-item="delay">
-          <h3>Is one second the right delay before the write?</h3>
-          <p>The card suggested "a second or so". One second is long enough that a whole wheel spin costs one
-          write, and short enough that the setting is on disk before a user could realistically do anything
-          else. The cost of a longer delay is only the rare case where Bloom is killed, rather than closed,
-          within the window; the cost of a shorter one is more writes during a slow, deliberate zoom with the
-          buttons.</p>
-          <label class="opt">
-            <input type="radio" name="q-delay" value="Keep one second" checked>
-            <span class="body">Keep one second.
-              <span class="foot">Recommended: it matches the card, and every ordinary way of leaving the Edit tab flushes the write at once anyway.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-delay" value="Make it longer (2-3 seconds)">
-            <span class="body">Make it longer, two or three seconds.
-              <span class="foot">Trivial: one constant, <code>kSaveZoomSettingDelayMs</code>.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-delay" value="Leave as is">
-            <span class="body">Leave as is</span>
-            <span class="leaveWrap"><input type="checkbox" data-leave="delay"> Leave comment</span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-delay" value="Other">
-            <span class="body">Other: <input type="text" data-other="delay" placeholder="your answer"></span>
-          </label>
-          <div class="notes"><label for="n-delay">Notes</label><textarea id="n-delay" data-notes="delay"></textarea></div>
-        </div>
-
-        <div class="item" data-item="next">
-          <h3>Next step</h3>
-          <p>The PR is a draft, the gate is clean, and the test ideas are on the card.</p>
-          <label class="opt">
-            <input type="radio" name="q-next" value="I will review it myself now" checked>
-            <span class="body">Leave it in Personal Review for you to read.
-              <span class="foot">Recommended: nothing is blocked, and no answer above changes the code unless you pick one.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-next" value="Run Bloom and watch the zoom survive a restart">
-            <span class="body">Run Bloom first and confirm by hand that the zoom survives a restart.
-              <span class="foot">No code: about ten minutes of driving the running Bloom.</span>
-            </span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-next" value="Leave as is">
-            <span class="body">Leave as is</span>
-            <span class="leaveWrap"><input type="checkbox" data-leave="next"> Leave comment</span>
-          </label>
-          <label class="opt">
-            <input type="radio" name="q-next" value="Other">
-            <span class="body">Other: <input type="text" data-other="next" placeholder="your answer"></span>
-          </label>
-          <div class="notes"><label for="n-next">Notes</label><textarea id="n-next" data-notes="next"></textarea></div>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>Send your answers back</h2>
-        <p style="color:var(--muted); font-size:14px;">Copy this block and paste it into the session.</p>
-        <button id="copyBtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
-        <textarea id="payload" readonly></textarea>
+        <h2>Nothing is waiting on you</h2>
+        <p>Both questions from the first run are answered and acted on.</p>
+        <ul>
+          <li>The browser-side throttle stays on its own card,
+          <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16762" target="_blank" rel="noopener">BL-16762</a>,
+          in its own worktree. This PR does not touch the front end.</li>
+          <li>The delay went from one second to two, in commit
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/26a41fc48224a6b03ef38e67a6369f22fe4fc9cd" target="_blank" rel="noopener"><span class="numeral">26a41fc</span></a>.
+          The constant is <code>kSaveZoomSettingDelayMs</code>.</li>
+        </ul>
+        <p>The PR is a draft and sits in Personal Review for you to read. Promoting it to a colleague is
+        <code>pr-ready-for-human</code>, which only you run.</p>
       </section>
 
     </div>
   </div>
 </div>
 
-<script>
-  var LABELS = {
-    throttle: "Should the browser-side throttle come into this PR too?",
-    delay: "Is one second the right delay before the write?",
-    next: "Next step"
-  };
-
-  function serialize() {
-    var lines = ["Preflight answers - BloomDesktop PR 8239 (BL-16763)", ""];
-    Object.keys(LABELS).forEach(function (key) {
-      var picked = document.querySelector('input[name="q-' + key + '"]:checked');
-      var value = picked ? picked.value : "(no answer)";
-      if (value === "Other") {
-        var other = document.querySelector('[data-other="' + key + '"]');
-        value = "Other: " + ((other && other.value.trim()) || "(blank)");
-      }
-      lines.push(LABELS[key]);
-      lines.push("  -> " + value);
-      var leave = document.querySelector('[data-leave="' + key + '"]');
-      if (leave && leave.checked) lines.push("  Leave comment: record this decision in the code");
-      var notes = document.querySelector('[data-notes="' + key + '"]');
-      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
-      lines.push("");
-    });
-    return lines.join("\n");
-  }
-
-  function refresh() { document.getElementById("payload").value = serialize(); }
-
-  document.addEventListener("input", refresh);
-  document.addEventListener("change", refresh);
-  refresh();
-
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    var area = document.getElementById("payload");
-    refresh();
-    var done = function () {
-      var flag = document.getElementById("copied");
-      flag.hidden = false;
-      setTimeout(function () { flag.hidden = true; }, 2000);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(area.value).then(done, function () {
-        area.select(); document.execCommand("copy"); done();
-      });
-    } else {
-      area.select(); document.execCommand("copy"); done();
-    }
-  });
-</script>
 </body>
 </html>
