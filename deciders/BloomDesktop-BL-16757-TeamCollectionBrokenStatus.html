@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16757 Team Collection status dialog (PR #8237)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  img, svg { max-width: 100%; }
+
+  :root {
+    --ground: #f7f6f3;
+    --card: #ffffff;
+    --line: #e0dfd9;
+    --line-soft: #eceae4;
+    --ink: #1e232a;
+    --ink-soft: #565e6b;
+    --ink-faint: #7d8593;
+    --accent: #1c5a80;
+    --accent-soft: #eef4f8;
+    --ok: #1d6f4a;
+    --ok-soft: #edf5f0;
+    --warn: #8a5d00;
+    --warn-soft: #fbf3e2;
+    --skip: #5f6570;
+    --skip-soft: #f1f0ec;
+
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 40px 28px 72px; }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 28px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: clamp(1.7rem, 3.2vw, 2.4rem);
+    line-height: 1.16;
+    font-weight: 600;
+    margin: 0 0 10px;
+    text-wrap: balance;
+    letter-spacing: -0.012em;
+  }
+  .masthead .sub { color: var(--ink-soft); margin: 0; max-width: 68ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 16px; font-size: 0.84rem; }
+  .facts div { display: flex; gap: 7px; align-items: baseline; }
+  .facts dt, .facts .k {
+    text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.7rem;
+    color: var(--ink-faint); font-weight: 600;
+  }
+
+  /* ---- grid ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 22px; }
+  @media (max-width: 920px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---- cards ---- */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 5px; padding: 22px 24px; }
+  .card > h2 {
+    font-family: var(--serif); font-size: 1.16rem; font-weight: 600;
+    margin: 0 0 4px; letter-spacing: -0.006em;
+  }
+  .card > .lede { margin: 0 0 16px; color: var(--ink-soft); font-size: 0.9rem; }
+  .card > :last-child { margin-bottom: 0; }
+
+  /* ---- tables ---- */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.89rem; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.68rem;
+    color: var(--ink-faint); font-weight: 600; border-bottom-color: var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 500; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.93em; }
+
+  /* ---- pills ---- */
+  .pill {
+    display: inline-block; font-size: 0.7rem; font-weight: 650; letter-spacing: 0.045em;
+    text-transform: uppercase; padding: 2px 8px; border-radius: 3px; white-space: nowrap;
+  }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.skip { background: var(--skip-soft); color: var(--skip); }
+  .pill.info { background: var(--accent-soft); color: var(--accent); }
+
+  code {
+    font-family: var(--mono); font-size: 0.88em;
+    background: var(--skip-soft); padding: 1px 4px; border-radius: 3px;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  ul.notes { margin: 0; padding-left: 1.1em; }
+  ul.notes li { margin-bottom: 9px; }
+  ul.notes li:last-child { margin-bottom: 0; }
+
+  .commit { border-left: 3px solid var(--accent); padding-left: 14px; }
+  .commit h3 { margin: 0 0 4px; font-size: 0.97rem; font-weight: 600; font-family: var(--sans); }
+  .commit p { margin: 0; color: var(--ink-soft); font-size: 0.89rem; }
+
+  /* ---- decisions ---- */
+  .decision { border-left: 3px solid var(--warn); }
+  .decision.fyi { border-left-color: var(--ink-faint); }
+  .decision .kind {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--warn); margin: 0 0 6px;
+  }
+  .decision.fyi .kind { color: var(--ink-faint); }
+  .decision p { margin: 0 0 12px; }
+  .decision p:last-of-type { margin-bottom: 16px; }
+
+  .opts { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
+  .opt {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px;
+    align-items: start; padding: 9px 10px; border-radius: 4px; cursor: pointer;
+  }
+  .opt:hover { background: var(--skip-soft); }
+  .opt input[type=radio] { margin: 4px 0 0; accent-color: var(--accent); }
+  .opt .body { min-width: 0; }
+  .opt .label { font-size: 0.91rem; }
+  .opt .fix { display: block; color: var(--ink-faint); font-size: 0.81rem; margin-top: 2px; }
+  .opt .rec {
+    display: inline-block; margin-left: 6px; font-size: 0.64rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 3px;
+  }
+  .leaveco {
+    display: flex; align-items: center; gap: 6px; font-size: 0.76rem;
+    color: var(--ink-soft); white-space: nowrap; cursor: pointer;
+  }
+  .leaveco input { accent-color: var(--accent); margin: 0; }
+
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 0.88rem; color: var(--ink);
+    background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 7px 9px; width: 100%;
+  }
+  .opt input[type=text] { margin-top: 5px; }
+  label.notelab {
+    display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-faint); font-weight: 600; margin-bottom: 5px;
+  }
+
+  button {
+    font-family: var(--sans); font-size: 0.9rem; font-weight: 600;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 4px; padding: 9px 18px; cursor: pointer;
+  }
+  button:hover { background: #17496a; }
+  #payload {
+    font-family: var(--mono); font-size: 0.78rem; line-height: 1.5;
+    margin-top: 12px; min-height: 150px; resize: vertical;
+  }
+  .copied { margin-left: 12px; font-size: 0.84rem; color: var(--ok); font-weight: 600; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>One null in a history record blanked all of Bloom</h1>
+    <p class="sub">Preflight on <code>BL-16757-TeamCollectionBrokenStatus</code> — a one-line null guard for the Team Collection status dialog, targeting the 6.4 stable branch. Every gate and every reviewer is green; four things are left for you, none of them blocking the PR.</p>
+    <div class="facts">
+      <div><span class="k">PR</span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8237" target="_blank" rel="noopener">#8237 (draft)</a></div>
+      <div><span class="k">Base</span><span>Version6.4</span></div>
+      <div><span class="k">Head</span><a class="numeral" href="https://github.com/BloomBooks/BloomDesktop/commit/a05c97d65649f4d30ce686868066c80bba48b8af" target="_blank" rel="noopener">a05c97d65</a></div>
+      <div><span class="k">Card</span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16757" target="_blank" rel="noopener">BL-16757</a></div>
+      <div><span class="k">Files</span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8237/files" target="_blank" rel="noopener">1 changed</a></div>
+      <div><span class="k">Mergeable</span><span class="pill ok">clean</span></div>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT ================= -->
+    <div class="col">
+
+      <section class="card">
+        <h2>Quality gates</h2>
+        <p class="lede">One row per gate, and one row per test stack in the repo so nothing looks silently skipped.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Gate</th><th>Result</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="what">Lint</td>
+                <td><span class="pill ok">pass</span></td>
+                <td><code>yarn lint</code> exited 0 — <span class="numeral">0 errors, 775 warnings</span>. The warnings are repo-wide and pre-existing; none are in the touched file.</td>
+              </tr>
+              <tr>
+                <td class="what">Typecheck</td>
+                <td><span class="pill info">no change</span></td>
+                <td>This repo has no <code>typecheck</code> script, and bare <code>tsc --noEmit</code> is not a usable gate here: <span class="numeral">1107</span> errors across <span class="numeral">176</span> files (jQuery typings, spec globals). Verified <span class="numeral">1107</span> on the base commit too, so this change adds none — and <span class="numeral">0</span> of them are in <code>bloomAvatar.tsx</code>. The sanctioned front-end check per <code>AGENTS.md</code> is lint.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests <span class="pill skip">vitest</span></td>
+                <td><span class="pill ok">pass</span></td>
+                <td><span class="numeral">532 passed, 5 skipped</span> across <span class="numeral">48</span> files (1 file skipped). Run with <code>--no-file-parallelism</code> per <code>AGENTS.md</code>, on a tree byte-identical to this HEAD.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests <span class="pill skip">dotnet test</span></td>
+                <td><span class="pill skip">not run</span></td>
+                <td>Deliberate: the diff is one <code>.tsx</code> file that no C# test reads or builds, so nothing in <code>Bloom.sln</code>'s suite can reach it. Running it would have cost many minutes and risked reporting a pre-existing failure this branch did not cause.</td>
+              </tr>
+              <tr>
+                <td class="what">Base integration</td>
+                <td><span class="pill ok">clean</span></td>
+                <td><span class="numeral">0</span> commits behind <code>origin/Version6.4</code> — nothing to merge. GitHub reports the PR <code>MERGEABLE</code> / <code>CLEAN</code>.</td>
+              </tr>
+              <tr>
+                <td class="what">Build</td>
+                <td><span class="pill skip">not run</span></td>
+                <td><code>AGENTS.md</code> forbids <code>yarn build</code> — a watch build may be running, and node processes predating this session suggest one is.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p class="lede">One commit, five lines, one file.</p>
+        <div class="commit">
+          <h3><a href="https://github.com/BloomBooks/BloomDesktop/commit/a05c97d65649f4d30ce686868066c80bba48b8af" target="_blank" rel="noopener">a05c97d65</a> — Fix Team Collection status dialog blanking the whole window (BL-16757)</h3>
+          <p>Guards the email before hashing it, at <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/react_components/bloomAvatar.tsx#L52" target="_blank" rel="noopener">bloomAvatar.tsx:52</a>.</p>
+        </div>
+        <ul class="notes" style="margin-top:16px">
+          <li><strong>Why the whole window went blank, not just the dialog.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/collectionsTab/CollectionsTabPane.tsx#L694" target="_blank" rel="noopener">CollectionsTabPane.tsx:694</a> mounts the dialog inside the main app's single React root, and <code>ErrorBoundary.tsx</code> is imported nowhere, so a throw during the dialog's render unmounted everything — top bar, book list and all.</li>
+          <li><strong>The throw.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/teamCollection/CollectionHistoryTable.tsx#L166" target="_blank" rel="noopener">CollectionHistoryTable.tsx:166</a> passes <code>e.UserId</code> as the avatar's email. That column is nullable in C# (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomExe/History/HistoryEvent.cs#L41" target="_blank" rel="noopener">HistoryEvent.cs:41</a>), serialized with plain <code>JsonConvert</code> and no <code>NullValueHandling.Ignore</code>, so it arrives as <code>null</code> — and <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/bookEdit/toolbox/talkingBook/md5Util.ts#L24" target="_blank" rel="noopener">md5Util.ts:24</a> is <code>message.length</code>.</li>
+          <li><strong>Confirmed against the reporting collection.</strong> Of 88 history events across its 12 <code>history.db</code> files, three have a NULL <code>userid</code> — two "uploaded to Bloom Library" rows written by Bloom 6.0.2, one "renamed" row by 5.6.7. Any one is enough. (Those databases were copied out and read; the originals were never modified.)</li>
+          <li><strong>Why not a cherry-pick.</strong> Master is immune because BL-16514 (<code>ae181659b</code>) rewrote this component behind the same guard — but that commit is 18 files and ~1,560 insertions, adding <code>AccountApi</code>, <code>AvatarApi</code> and a 382-line <code>AvatarCache</code> that 6.4 has no equivalent of. Taking its <code>bloomAvatar.tsx</code> hunk alone would point every avatar at an endpoint 6.4 doesn't serve.</li>
+          <li><strong>Verified by hand.</strong> You opened the dialog on the reporting collection with this build and it worked.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <p class="lede">Every reviewer reached a terminal state for this HEAD. Nothing is still running.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>Reviewer</th><th>State</th><th>Findings</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="what">Local review<br><span style="color:var(--ink-faint);font-size:0.9em;font-weight:400">light sub-agent pass</span></td>
+                <td><span class="pill ok">complete</span></td>
+                <td><strong>Clean — no findings.</strong> Confirmed <code>md5Email={undefined}</code> is safe in react-avatar 3.10 (<code>GravatarSource.isCompatible</code> is <code>!!email || !!md5Email</code>, so the source is skipped before <code>get()</code>); that the normal path is byte-identical for a real email; that null email + empty name lands on the <code>✷</code> Icon placeholder rather than throwing; and that no other <code>BloomAvatar</code> call site regresses.</td>
+              </tr>
+              <tr>
+                <td class="what">Devin</td>
+                <td><span class="pill ok">complete</span></td>
+                <td><strong>0 bugs, 0 Investigate flags, 0 informational.</strong> Job completed for <span class="numeral">a05c97d65</span> with <code>lifeguard_status: complete</code> and a matching <code>head_sha</code>. Nothing to mirror. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8237" target="_blank" rel="noopener">Review page</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8237#issuecomment-5429342582" target="_blank" rel="noopener">consultation log</a></td>
+              </tr>
+              <tr>
+                <td class="what">Greptile</td>
+                <td><span class="pill ok">complete</span></td>
+                <td><strong>Passed in 3m23s, with one observation</strong> — the <code>email</code> prop is still typed as an always-present string. Valid; escalated to you as decision 1 rather than folded in, since it widens a stable-branch diff. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8237#issuecomment-5429358620" target="_blank" rel="noopener">Its summary</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8237#issuecomment-5429372297" target="_blank" rel="noopener">my reply</a></td>
+              </tr>
+              <tr>
+                <td class="what">CI</td>
+                <td><span class="pill ok">complete</span></td>
+                <td>All three checks passed: <code>pr-automation</code>, <code>track / set-waiting</code>, <code>Greptile Review</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Session notes</h2>
+        <ul class="notes">
+          <li>The PR is <strong>draft</strong> and stays that way. Promoting it to human review is <code>pr-ready-for-human</code>'s job, not this one.</li>
+          <li>Posted to BL-16757: the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16757" target="_blank" rel="noopener">PR link</a> (no PR link was present) and a fresh QA test-ideas comment (no earlier marked comment existed, so this created one rather than updating).</li>
+          <li>The card's own third comment already reached the same conclusion — "a simple one liner that tests for null input" and "should probably be null merged onto master". Decision 2 below turns that instinct into a verified fact.</li>
+          <li>The Devin review link was already in the PR description, added by <code>pr-automation</code>; the idempotence check correctly left it alone.</li>
+          <li>No personal board skill is installed, so board moves were skipped.</li>
+          <li>Card state is <strong>In Progress</strong> on the Bloom 6.5 board. Preflight does not move it; that is also <code>pr-ready-for-human</code>'s step.</li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT ================= -->
+    <div class="col">
+
+      <section class="card decision" id="d1">
+        <p class="kind">Decision 1 · from Greptile</p>
+        <h2>The types still claim a user is always recorded</h2>
+        <p>The code is now correct at runtime, but the type declarations around it still say the thing that can't happen, can't happen. <code>BloomAvatar</code> declares <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/react_components/bloomAvatar.tsx#L8" target="_blank" rel="noopener"><code>email: string</code></a>, and the history table declares <a href="https://github.com/BloomBooks/BloomDesktop/blob/a05c97d65649f4d30ce686868066c80bba48b8af/src/BloomBrowserUI/teamCollection/CollectionHistoryTable.tsx#L15" target="_blank" rel="noopener"><code>UserId: string</code></a> for a C# column that is genuinely nullable.</p>
+        <p>That second declaration is the more interesting one: it is <em>why</em> the null reached a render in the first place. TypeScript had been told the field was always a string, so it never asked the question, and the crash shipped. Nothing breaks today either way — the guard handles null, undefined and empty string regardless of what the annotation claims — so this is about whether the next person to touch this code is warned or misled.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q1" value="Widen both declarations" checked>
+            <span class="body"><span class="label">Widen both — <code>BloomAvatar.email</code> and <code>IBookHistoryEvent.UserId</code><span class="rec">recommended</span></span>
+            <span class="fix">~2 lines, types only, no runtime effect, no new type errors (verified: the widened value is only used as a JSX child and as the guarded prop). Recommended because it documents the hazard at its source, where the original lie was, instead of only where the crash happened to surface.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Widen only BloomAvatar's email prop">
+            <span class="body"><span class="label">Widen only <code>BloomAvatar</code>'s <code>email</code> prop</span>
+            <span class="fix">~1 line, types only. Describes the component honestly but leaves the caller still handing it a value TypeScript believes is a string — so it answers Greptile without addressing the root cause.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <label class="leaveco" title="Record the decision as a code comment in the repo">
+              <input type="checkbox" data-q="Decision 1 leave-comment"> Leave comment
+            </label>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Other">
+            <span class="body"><span class="label">Other:</span>
+            <input type="text" data-q="Decision 1 other" placeholder="your call"></span>
+            <span></span>
+          </label>
+        </div>
+        <label class="notelab" for="n1">Notes</label>
+        <textarea id="n1" rows="2" data-q="Decision 1 notes" placeholder="caveats, constraints, or a different reading"></textarea>
+      </section>
+
+      <section class="card decision" id="d2">
+        <p class="kind">Decision 2 · cross-branch hazard</p>
+        <h2>This commit will conflict when 6.4 next merges into master</h2>
+        <p>Master fixed this same crash a different way, as a side effect of the BL-16514 login/avatar feature: it deleted the <code>getMd5</code> call entirely and fetches avatars from Bloom's own server. This commit edits the very line master deleted.</p>
+        <p>I confirmed the consequence rather than guessing at it — a read-only <code>git merge-tree</code> of this branch against <code>origin/master</code> produces <strong>exactly one conflict</strong>, in <code>bloomAvatar.tsx</code>, and nothing else. So the next 6.4-to-master merge will stop there, and resolving it carelessly would drag 6.4's <code>getMd5</code> call back into master and undo the better fix. Master's side is the one to keep; it already has the guard.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q2" value="Null merge onto master as a follow-up" checked>
+            <span class="body"><span class="label">Null-merge this commit onto master as a follow-up<span class="rec">recommended</span></span>
+            <span class="fix">Small and self-contained — a merge commit against master that records this commit as merged while keeping master's file unchanged. Recommended because it matches your own note on the card, and it removes the conflict before anyone meets it unprepared rather than relying on them resolving it correctly under time pressure.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Leave the conflict for the next 6.4-to-master merge">
+            <span class="body"><span class="label">Leave it for whoever does the next 6.4-to-master merge</span>
+            <span class="fix">No work now. The conflict is a single file and the correct resolution is "take master", but it depends on that person knowing why — so it is worth a note somewhere if you pick this.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <label class="leaveco" title="Record the decision as a code comment in the repo">
+              <input type="checkbox" data-q="Decision 2 leave-comment"> Leave comment
+            </label>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Other">
+            <span class="body"><span class="label">Other:</span>
+            <input type="text" data-q="Decision 2 other" placeholder="your call"></span>
+            <span></span>
+          </label>
+        </div>
+        <label class="notelab" for="n2">Notes</label>
+        <textarea id="n2" rows="2" data-q="Decision 2 notes" placeholder="who does it, and when relative to this PR landing"></textarea>
+      </section>
+
+      <section class="card decision" id="d3">
+        <p class="kind">Decision 3 · release scope</p>
+        <h2>The card says 6.3 is affected too</h2>
+        <p>BL-16757's second comment records that "Bloom 6.3 and Bloom 6.4 both exhibit this bug", and that fits the cause: the crash needs only a history record written by an older Bloom, which 6.3 reads the same way 6.4 does. This PR targets <code>Version6.4</code> only.</p>
+        <p>Whether that matters is a release question I can't answer from the repo — it depends on whether another 6.3 build will ever ship. I'd default to no backport, on the grounds that shipping a 6.4 upgrade is the normal answer for a 6.3 user hitting this, but you know the release plan.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q3" value="No 6.3 backport" checked>
+            <span class="body"><span class="label">No 6.3 backport<span class="rec">recommended</span></span>
+            <span class="fix">No work. Recommended only because a 6.3 patch release seems unlikely — overrule this freely if one is planned.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Backport the same guard to a 6.3 branch">
+            <span class="body"><span class="label">Backport the same guard to a 6.3 branch</span>
+            <span class="fix">Cheap — the identical one-line guard, since 6.3's <code>bloomAvatar.tsx</code> predates the BL-16514 rewrite too. Cost is a second branch, PR and release, not the code.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <label class="leaveco" title="Record the decision as a code comment in the repo">
+              <input type="checkbox" data-q="Decision 3 leave-comment"> Leave comment
+            </label>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Other">
+            <span class="body"><span class="label">Other:</span>
+            <input type="text" data-q="Decision 3 other" placeholder="your call"></span>
+            <span></span>
+          </label>
+        </div>
+        <label class="notelab" for="n3">Notes</label>
+        <textarea id="n3" rows="2" data-q="Decision 3 notes" placeholder="release plans for 6.3"></textarea>
+      </section>
+
+      <section class="card decision fyi" id="d4">
+        <p class="kind">For your information</p>
+        <h2>Nothing in Bloom uses its ErrorBoundary</h2>
+        <p><code>react_components/ErrorBoundary.tsx</code> defines a working error boundary, and grep across the whole front end finds exactly one reference to it: its own definition. Nothing imports it — not the app root, not the collection tab, nothing.</p>
+        <p>That is the difference between this bug being "an avatar didn't load" and "quit Bloom and start again". Master has the same gap, and hit the same failure mode from a different trigger in <code>0b405085a</code> (BL-16209). Out of scope for a stable-branch fix, and genuinely its own piece of work — but it is the reason this was severe rather than cosmetic.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q4" value="File a YouTrack card for wiring up ErrorBoundary" checked>
+            <span class="body"><span class="label">File a YouTrack card for it<span class="rec">recommended</span></span>
+            <span class="fix">No code — one card. Recommended because two separate bugs have now produced a blank window from a single unguarded field, which suggests the next one will too.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <label class="leaveco" title="Record the decision as a code comment in the repo">
+              <input type="checkbox" data-q="FYI leave-comment"> Leave comment
+            </label>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q4" value="Other">
+            <span class="body"><span class="label">Other:</span>
+            <input type="text" data-q="FYI other" placeholder="your call"></span>
+            <span></span>
+          </label>
+        </div>
+        <label class="notelab" for="n4">Notes</label>
+        <textarea id="n4" rows="2" data-q="FYI notes" placeholder="board, priority, or why not"></textarea>
+      </section>
+
+      <section class="card decision fyi" id="d5">
+        <p class="kind">Next step</p>
+        <h2>How should I proceed?</h2>
+        <p>Nothing above blocks the PR — it is green and mergeable as it stands. This only decides what I do with your answers.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q5" value="Implement the chosen options now" checked>
+            <span class="body"><span class="label">Implement whatever you chose, then re-run the gauntlet<span class="rec">recommended</span></span>
+            <span class="fix">Any code change is a new commit, so the reviewers restart — a few minutes. Recommended because the choices above are small and independent.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q5" value="Discuss first">
+            <span class="body"><span class="label">Discuss first — change nothing yet</span>
+            <span class="fix">No work. Pick this if decision 2 or 3 needs another person's input.</span></span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q5" value="Leave as is">
+            <span class="body"><span class="label">Leave as is</span></span>
+            <label class="leaveco" title="Record the decision as a code comment in the repo">
+              <input type="checkbox" data-q="Next step leave-comment"> Leave comment
+            </label>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q5" value="Other">
+            <span class="body"><span class="label">Other:</span>
+            <input type="text" data-q="Next step other" placeholder="your call"></span>
+            <span></span>
+          </label>
+        </div>
+        <label class="notelab" for="n5">Notes</label>
+        <textarea id="n5" rows="2" data-q="Next step notes" placeholder="anything else"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="lede">Copy this and paste it into the session; I'll act on it from there.</p>
+        <button id="copyBtn" type="button">Copy my answers</button><span class="copied" id="copied" hidden>Copied</span>
+        <textarea id="payload" readonly rows="9" aria-label="Your answers, ready to copy"></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { q: "q1", title: "Decision 1 — types claiming a user is always recorded" },
+    { q: "q2", title: "Decision 2 — conflict when 6.4 merges into master" },
+    { q: "q3", title: "Decision 3 — 6.3 backport" },
+    { q: "q4", title: "FYI — ErrorBoundary is unused" },
+    { q: "q5", title: "Next step" }
+  ];
+
+  function textFor(name) {
+    var sel = document.querySelector('input[name="' + name + '"]:checked');
+    if (!sel) return null;
+    if (sel.value === "Other") {
+      var box = sel.closest(".opt").querySelector('input[type=text]');
+      var typed = box && box.value.trim();
+      return typed ? "Other: " + typed : "Other: (nothing typed)";
+    }
+    return sel.value;
+  }
+
+  function extras(card) {
+    var out = [];
+    var lc = card.querySelector('.leaveco input[type=checkbox]');
+    if (lc && lc.checked) out.push("Leave comment");
+    var note = card.querySelector("textarea");
+    if (note && note.value.trim()) out.push("Notes: " + note.value.trim());
+    return out;
+  }
+
+  function build() {
+    var lines = [
+      "Preflight answers — BL-16757 / PR #8237 (BloomDesktop, Version6.4)",
+      "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16757-TeamCollectionBrokenStatus.html",
+      ""
+    ];
+    ITEMS.forEach(function (it) {
+      var card = document.querySelector('input[name="' + it.q + '"]').closest(".card");
+      lines.push(it.title);
+      lines.push("  -> " + (textFor(it.q) || "(no selection)"));
+      extras(card).forEach(function (e) { lines.push("  " + e); });
+      lines.push("");
+    });
+    return lines.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.hidden = false;
+      setTimeout(function () { tag.hidden = true; }, 2500);
+    };
+    var fallback = function () {
+      payload.removeAttribute("readonly");
+      payload.select();
+      try { document.execCommand("copy"); } catch (e) { /* user can Ctrl+C the visible box */ }
+      payload.setAttribute("readonly", "readonly");
+      done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
