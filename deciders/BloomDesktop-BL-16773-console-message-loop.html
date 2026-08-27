@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Console Message Loop Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #f8f6f2;
+    --card: #ffffff;
+    --line: #e3ded4;
+    --line-soft: #efebe3;
+    --ink: #2a2925;
+    --ink-mute: #6d685f;
+    --accent: #2f6360;
+    --accent-soft: #eaf1f0;
+    --ok: #2c6e45;
+    --warn: #8a6417;
+    --stop: #96342c;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.6 var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 32px 24px 72px; }
+
+  header.top { margin-bottom: 26px; }
+  h1 {
+    font: 400 30px/1.25 var(--serif);
+    margin: 0 0 8px;
+    text-wrap: balance;
+    letter-spacing: -0.005em;
+  }
+  .runline { color: var(--ink-mute); margin: 0 0 16px; max-width: 68ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip {
+    display: inline-block;
+    font: 600 11.5px/1 var(--sans);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 6px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--ink-mute);
+    white-space: nowrap;
+  }
+  .chip.good { color: var(--ok); border-color: #c5ddcd; background: #f2f8f4; }
+  .chip.note { color: var(--accent); border-color: #c3d8d6; background: var(--accent-soft); }
+  .chip.attn { color: var(--warn); border-color: #e0d3ae; background: #fbf6e9; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 22px 24px;
+    min-width: 0;
+  }
+  .card > h2 {
+    font: 400 20px/1.3 var(--serif);
+    margin: 0 0 14px;
+    text-wrap: balance;
+  }
+  .card > h3, .sub {
+    font: 600 12px/1 var(--sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 18px 0 7px;
+  }
+  .card > h3:first-of-type { margin-top: 0; }
+  p { margin: 0 0 11px; max-width: 70ch; }
+  p:last-child { margin-bottom: 0; }
+  ul { margin: 0 0 11px; padding-left: 20px; max-width: 70ch; }
+  li { margin-bottom: 7px; }
+  li:last-child { margin-bottom: 0; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  code {
+    font: 0.87em var(--mono);
+    background: #f4f1ec;
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: 0.08em 0.32em;
+  }
+  .numeral { font-variant-numeric: tabular-nums; }
+
+  .tablewrap { overflow-x: auto; min-width: 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font: 600 11.5px/1 var(--sans);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    border-bottom-color: var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.verdict { white-space: nowrap; font-weight: 600; }
+  td.verdict.pass { color: var(--ok); }
+  td.verdict.skip { color: var(--ink-mute); font-weight: 500; }
+  td.verdict.warn { color: var(--warn); white-space: normal; }
+  .rv th:first-child { width: 22%; }
+
+  .item { border: 1px solid var(--line); border-radius: 5px; background: var(--card); padding: 20px 22px; }
+  .item h2 { font: 400 19px/1.3 var(--serif); margin: 0 0 10px; text-wrap: balance; }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 0; }
+  .opt {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 10px;
+    align-items: start;
+    padding: 9px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+  }
+  .opt:hover { background: #faf9f6; }
+  .opt input[type=radio] { margin: 4px 0 0; }
+  .opt .lbl { min-width: 0; }
+  .opt .lbl b { font-weight: 600; }
+  .tag {
+    display: inline-block;
+    font: 600 10px/1 var(--sans);
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid #c3d8d6;
+    border-radius: 3px;
+    padding: 3px 6px;
+    margin-left: 7px;
+    vertical-align: 1px;
+  }
+  .foot { display: block; color: var(--ink-mute); font-size: 13.5px; margin-top: 3px; }
+  .leaverow { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px; align-items: start; }
+  .leaverow > input[type=radio] { margin: 4px 0 0; }
+  .leavecomment {
+    display: inline-flex; align-items: center; gap: 6px; margin-top: 1px;
+    font-size: 13px; color: var(--ink-mute); white-space: nowrap;
+  }
+  .otherrow { display: grid; grid-template-columns: auto auto minmax(0,1fr); gap: 8px; align-items: center; }
+  input[type=text] {
+    font: 14px var(--sans);
+    color: var(--ink);
+    background: #fdfcfa;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 6px 8px;
+    min-width: 0;
+    width: 100%;
+  }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font: 600 11.5px/1 var(--sans); letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 6px; }
+  textarea {
+    font: 14px/1.5 var(--sans);
+    color: var(--ink);
+    background: #fdfcfa;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 8px;
+    width: 100%;
+    min-width: 0;
+    resize: vertical;
+  }
+  button {
+    font: 600 14px var(--sans);
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid #27544f;
+    border-radius: 4px;
+    padding: 9px 16px;
+    cursor: pointer;
+  }
+  button:hover { background: #27544f; }
+  #payload { margin-top: 12px; min-height: 150px; font: 13px/1.5 var(--mono); }
+  .copied { color: var(--ok); font-weight: 600; font-size: 13.5px; margin-left: 10px; }
+
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — command-line Bloom gets a real message loop</h1>
+  <p class="runline">One run, eight commits. Base was already current and the full C# suite is green at this HEAD. Greptile's one P1 was correct and is fixed, though it has not re-run against the fix. Two things need your judgment.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip attn">2 items for you</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <div class="col">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>Command-line Bloom could not reliably use a browser. Bulk upload was the visible casualty (BL-16767, fixed separately in <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246" target="_blank" rel="noopener">#8246</a>): every book after the first failed with &ldquo;The instance of CoreWebView2 is uninitialized.&rdquo; The same trap sat under console <code>spreadsheetImport</code> of a spreadsheet carrying audio, and under anything else a console verb might want a browser for. Worse, when it sprang it said nothing useful — the real error was thrown away, and what surfaced twenty seconds later was a navigation timeout somewhere else.</p>
+
+      <h3>Cause</h3>
+      <p>Console mode waited for its command by spinning <code>Application.DoEvents()</code>. As the <em>outermost</em> message loop, that uninstalls the <code>WindowsFormsSynchronizationContext</code> and leaves a plain one, whose <code>Post</code> queues to the thread pool — so from the first <code>await</code> that actually yielded, console work moved onto MTA thread-pool threads. A WebView2 cannot even be created there: <code>CoreWebView2Environment.CreateAsync</code> needs an STA thread and throws <code>RPC_E_CHANGED_MODE</code>. <code>Program.Main</code>'s own comment said a synchronous <code>Main</code> was kept precisely to stop this happening; the wait loop immediately below it undid it. And because the browser constructors started initialization as <code>_ = InitWebView()</code>, nothing ever observed the resulting exception.</p>
+
+      <h3>What the PR does</h3>
+      <ul>
+        <li>Console commands now run inside a real message loop (<a href="https://github.com/BloomBooks/BloomDesktop/blob/3c022619109eeccae4b9cc5b4154a3732e749133/src/BloomExe/Program.cs#L1064" target="_blank" rel="noopener"><code>Program.RunConsoleCommandLoop</code></a>), started from <em>inside</em> it so their awaits resume on the pumping STA main thread. This is what actually fixes the class of bug, console spreadsheet import included.</li>
+        <li>A failed WebView2 initialization is <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c022619109eeccae4b9cc5b4154a3732e749133/src/BloomExe/WebView2Browser.cs#L155" target="_blank" rel="noopener">recorded and reported</a> — log, Sentry, and stderr in console mode — naming the creating thread and its apartment state. The ready-waits, <a href="https://github.com/BloomBooks/BloomDesktop/blob/3c022619109eeccae4b9cc5b4154a3732e749133/src/BloomExe/Publish/OffScreenBrowser.cs#L156" target="_blank" rel="noopener">including <code>OffScreenBrowser</code>'s own</a>, now give up at once with the real cause instead of spinning out a timeout and blaming the timeout.</li>
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/3c022619109eeccae4b9cc5b4154a3732e749133/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L200" target="_blank" rel="noopener"><code>SpreadsheetImporter.GetBrowserAsync</code></a> no longer casts the <code>Task&lt;Browser&gt;</code> that <code>Control.Invoke</code> hands back to <code>(Browser)</code>.</li>
+        <li>Removed about forty lines of dead shared-WebView2-environment machinery, and corrected two comments that had explained themselves in terms of it.</li>
+      </ul>
+      <p>Not a behavior change for the desktop app: nested inside <code>Application.Run</code>, <code>DoEvents</code> never discarded the context, which is why only console mode was affected.</p>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>C# build</td><td class="verdict pass">Pass</td><td><span class="numeral">0</span> errors, <span class="numeral">0</span> warnings introduced</td></tr>
+            <tr><td>C# format (CSharpier)</td><td class="verdict pass">Pass</td><td>Enforced by the pre-commit hook on every commit</td></tr>
+            <tr><td>C# tests (<code>dotnet test</code>)</td><td class="verdict pass">Pass</td><td><span class="numeral">3263</span> passed &middot; <span class="numeral">13</span> skipped &middot; <span class="numeral">0</span> failed, at this HEAD</td></tr>
+            <tr><td>Front-end typecheck / lint / tests</td><td class="verdict skip">Not run</td><td>No front-end in the diff — six C# files, and nothing the front-end consumes (no shared schema, generated content, or build config)</td></tr>
+            <tr><td>Base integration</td><td class="verdict pass">Clean</td><td>Branch already contains <code>origin/master</code>; no merge needed</td></tr>
+            <tr><td>Mergeable</td><td class="verdict pass">Yes</td><td>No conflicts with <code>master</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>Everything on the branch is this run: the console message loop and its tests, the WebView2 initialization-failure reporting, the <code>SpreadsheetImporter</code> cast fix, the dead-code removal, and then three rounds of review fixes — two findings from my own pass, Greptile's P1 about <code>OffScreenBrowser</code>, and Devin's flag about blocking console commands.</p>
+      <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8251/commits" target="_blank" rel="noopener">All eight commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8251/files" target="_blank" rel="noopener">Files changed</a></p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="tablewrap">
+        <table class="rv">
+          <thead><tr><th>Reviewer</th><th>State</th><th>What it found</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Local review</td>
+              <td class="verdict pass">Complete</td>
+              <td>Light pass, done inline by me rather than by a sub-agent (this session's instructions bar dispatching agents). Two findings, both fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/c0c043f6983ada1efbf462c66d5c22cac7704240" target="_blank" rel="noopener"><code>c0c043f</code></a>: a cross-thread field the ready-waits spin on needed <code>volatile</code>, and a test that assumed rather than established its starting synchronization context, so its premise depended on test order.</td>
+            </tr>
+            <tr>
+              <td>Greptile</td>
+              <td class="verdict warn">Complete for <code>c0c043f</code>; re-review timed out after 25 min</td>
+              <td>Its completed review raised one P1, and it was right: <code>OffScreenBrowser</code> runs its own readiness loop and tested only <code>IsReadyToNavigate</code>, so an off-screen browser that failed to initialize still sat out the full twenty-second timeout and reported a generic timeout — on the path publishing and the upload font check use. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/3c022619109eeccae4b9cc5b4154a3732e749133" target="_blank" rel="noopener"><code>3c02261</code></a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8251#issuecomment-5444338469" target="_blank" rel="noopener">answered on the PR</a>. It also flagged three test methods missing doc comments, per this project's convention; added. It has <em>not</em> re-run against the fix: its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8251#issuecomment-5444295051" target="_blank" rel="noopener">review comment</a> still reads &ldquo;Last reviewed commit: Harden two things&hellip;&rdquo; and its check has dropped off the PR. The only delta it has not seen is the fix it asked for plus three doc comments, so little is riding on it — re-running preflight would fold in a late result.</td>
+            </tr>
+            <tr>
+              <td>Devin</td>
+              <td class="verdict pass">Complete</td>
+              <td>No bugs, one Investigate flag, five informational. The flag — <em>blocking console commands can now deadlock</em> — was the sharpest framing anyone gave the risk, and broader than the version I had written down: because awaits now return to the main thread, sync-over-async there can deadlock where it previously could not. Assessed, acted on, and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8251#discussion_r3875485649" target="_blank" rel="noopener">recorded on its own thread</a>. One informational item was worth acting on too: if anything other than the command's completion ended the loop, <code>commandTask.Result</code> would have blocked forever — it now throws instead. Full review: <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8251" target="_blank" rel="noopener">Devin review</a>.</td>
+            </tr>
+            <tr>
+              <td>CI</td>
+              <td class="verdict pass">Complete</td>
+              <td><code>pr-automation</code> passed. <code>code-review/reviewable</code> shows pending — that is Reviewable's human-review progress counter, not a build gate.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><b>None of this has been exercised by hand end to end.</b> The change alters how <em>every</em> command-line verb runs. My evidence is unit tests plus two real runs of the built binary (<code>--help</code> and <code>getfonts</code>, both exit 0 with correct output). A real bulk upload and a real <code>createArtifacts</code> have not been run — hence the first question.</li>
+        <li><b><code>Program.MainContext</code> is deliberately not published</b> by the new loop, and there is a code comment saying why: code keyed off it (<code>RabProjectService</code>, <code>CommonApi</code>, <code>ToastService</code>) behaves differently when it is set, and <code>RabProjectService</code> has a null branch precisely for the no-UI case. Publishing it would have silently changed those paths in console mode. Mentioned so a reviewer doesn't read the omission as an oversight.</li>
+        <li><b>The one deadlock candidate was checked, not assumed.</b> Console work now stays on the main thread, so anything that blocks it matters. <code>ApiRequest</code> only marshals to a form drawn from <code>Application.OpenForms</code>, which is empty in console mode, so no API handler can wait on the main thread while it is busy.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="col">
+
+    <section class="item">
+      <h2>Should the command-line paths be exercised by hand before this merges?</h2>
+      <p>This PR changes the machinery every command-line verb runs on: <code>hydrate</code>, <code>upload</code>, <code>download</code>, <code>getfonts</code>, <code>changeLayout</code>, <code>createArtifacts</code>, <code>spreadsheetExport</code>, <code>spreadsheetImport</code>, <code>sendFontAnalytics</code>. What none of them do any more is drift onto a thread where the browser can't start — but the characteristic way to get a message loop wrong is a command that never returns, and a hang is exactly what a unit test is worst at catching.</p>
+      <p>What I have verified: the loop's behavior in unit tests (including a WebView2 created after an await, which is the case that used to be impossible), and two real runs of the built binary — <code>--help</code> and a <code>getfonts</code> run, both exit 0 with correct output. What I have <em>not</em> verified: a real bulk upload, and a real <code>createArtifacts</code>, which is the path the Bloom Library harvester depends on.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q1" value="Yes - bulk upload and createArtifacts by hand before merge" data-q="Hand-verification before merge" checked>
+          <span class="lbl"><b>Yes — a real bulk upload and a real <code>createArtifacts</code></b><span class="tag">Recommended</span>
+            <span class="foot">No code work; roughly half an hour of someone's time. Recommended because these two are the paths with real consequences if a console verb hangs — a stuck bulk upload wastes an afternoon, and a stuck harvester run is a production incident — and they are the only paths automated tests here cannot speak for.</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Yes - bulk upload only" data-q="Hand-verification before merge">
+          <span class="lbl"><b>Yes, but only the bulk upload</b>
+            <span class="foot">No code work; ~15 minutes. Covers the path BL-16767 came from and leaves the harvester to CI and to its own monitoring.</span></span>
+        </label>
+        <div class="opt leaverow">
+          <input type="radio" name="q1" id="q1-leave" value="Leave as is - merge on the automated evidence" data-q="Hand-verification before merge">
+          <label class="lbl" for="q1-leave"><b>Leave as is</b><span class="foot">Merge on the automated evidence: the unit tests plus the two real binary runs.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Hand-verification before merge / leave comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="q1" id="q1-other" value="Other" data-q="Hand-verification before merge">
+          <label for="q1-other"><b>Other:</b></label>
+          <input type="text" data-q="Hand-verification before merge / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q1n">Notes</label>
+        <textarea id="q1n" rows="2" data-q="Hand-verification before merge / notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <h2>Should the blocking S3 calls be made properly async?</h2>
+      <p>This change introduces one new hazard, which Devin flagged independently and more sharply than I had framed it: because awaits now come back to the main thread, <em>sync-over-async on that thread can deadlock</em>, where under the old <code>DoEvents</code> wait it could not. A command that blocks on a task whose continuation posts back to this context would be waiting for something nothing will ever run.</p>
+      <p>Every blocking wait reachable from a console verb has been checked individually, and all of them are safe. They wait on either a library task whose internals use <code>ConfigureAwait(false)</code> so the continuation never needs this thread (the AWS SDK in <code>BloomS3Client</code>, <code>HttpClient</code> in <code>YouTrackIssueSubmission</code>); or work owned by a different thread that completes it (<code>OffScreenBrowser</code> completes its own); or <code>AsyncUtil.RunSync</code>, which pins its work to <code>TaskScheduler.Default</code> for exactly this reason. The one path that could have waited on the main thread — an API handler marshalling to a form — cannot, because <code>ApiRequest</code> draws that form from <code>Application.OpenForms</code>, which is empty in console mode.</p>
+      <p>The hazard is now documented where it matters: <code>RunConsoleCommandLoop</code>'s doc comment says what changed, which calls are safe and why, and that blocking on one of Bloom's <em>own</em> async methods is the case to avoid. So what is left is genuinely optional — whether to remove the sync-over-async on the upload path now rather than rely on an SDK's internal use of <code>ConfigureAwait(false)</code>.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q2" value="Make the S3 calls properly async" data-q="Blocking S3 calls on the console main thread">
+          <span class="lbl"><b>Make the blocking S3 calls properly async now</b>
+            <span class="foot">Moderate: touches the live upload path and its error handling, so it carries real regression risk for a problem that has not been observed. Worth doing only if relying on the AWS SDK's internal <code>ConfigureAwait(false)</code> bothers you more than changing upload code does.</span></span>
+        </label>
+        <div class="opt leaverow">
+          <input type="radio" name="q2" id="q2-leave" value="Leave as is" data-q="Blocking S3 calls on the console main thread" checked>
+          <label class="lbl" for="q2-leave"><b>Leave as is</b><span class="tag">Recommended</span><span class="foot">The paths are checked and the hazard is already written into the code comment, so this buys nothing beyond what is there.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Blocking S3 calls on the console main thread / leave comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="q2" id="q2-other" value="Other" data-q="Blocking S3 calls on the console main thread">
+          <label for="q2-other"><b>Other:</b></label>
+          <input type="text" data-q="Blocking S3 calls on the console main thread / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q2n">Notes</label>
+        <textarea id="q2n" rows="2" data-q="Blocking S3 calls on the console main thread / notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <h2>Next step</h2>
+      <p>Once you have answered the above, how would you like to proceed?</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q3" value="Implement the answers, then hand to peer review" data-q="Next step" checked>
+          <span class="lbl"><b>Act on the answers, then run <code>pr-ready-for-human</code></b><span class="tag">Recommended</span>
+            <span class="foot">Recommended because nothing here is architecturally open — the two questions are about verification effort and about writing a judgment down, not about changing the design.</span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Discuss first" data-q="Next step">
+          <span class="lbl"><b>Talk it through first</b>
+            <span class="foot">Pick this if you would rather look at the message loop yourself before anything else happens to the branch.</span></span>
+        </label>
+        <div class="opt leaverow">
+          <input type="radio" name="q3" id="q3-leave" value="Leave as is" data-q="Next step">
+          <label class="lbl" for="q3-leave"><b>Leave as is</b><span class="foot">Park the branch as it stands.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Next step / leave comment"> Leave comment</label>
+        </div>
+        <div class="opt otherrow">
+          <input type="radio" name="q3" id="q3-other" value="Other" data-q="Next step">
+          <label for="q3-other"><b>Other:</b></label>
+          <input type="text" data-q="Next step / other" placeholder="your answer">
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q3n">Notes</label>
+        <textarea id="q3n" rows="2" data-q="Next step / notes" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <h2>Send your answers back</h2>
+      <p>Copy this and paste it into the session.</p>
+      <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to copy"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var groups = ["q1", "q2", "q3"];
+
+  function labelFor(name) {
+    var el = document.querySelector('input[name="' + name + '"][data-q]');
+    return el ? el.getAttribute("data-q") : name;
+  }
+
+  function build() {
+    var out = ["Preflight answers - BloomDesktop PR 8251 (BL-16773)", ""];
+    groups.forEach(function (name) {
+      var chosen = document.querySelector('input[name="' + name + '"]:checked');
+      if (!chosen) return;
+      var q = labelFor(name);
+      var value = chosen.value;
+      if (value === "Other") {
+        var otherBox = document.querySelector('input[type=text][data-q="' + q + ' / other"]');
+        var typed = otherBox && otherBox.value.trim();
+        value = "Other: " + (typed || "(nothing typed)");
+      }
+      out.push(q + ": " + value);
+
+      var lc = document.querySelector('input[type=checkbox][data-q="' + q + ' / leave comment"]');
+      if (lc && lc.checked) out.push("  Leave comment: record this decision in a code comment near the relevant code");
+
+      var notes = document.querySelector('textarea[data-q="' + q + ' / notes"]');
+      var noteText = notes && notes.value.trim();
+      if (noteText) out.push("  Notes: " + noteText);
+      out.push("");
+    });
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var text = payload.value;
+    function done() {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
