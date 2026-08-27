@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16767 Preflight</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --ground: #faf7f2;
+    --card: #ffffff;
+    --border: #e3ddd2;
+    --ink: #2b2620;
+    --muted: #6f675c;
+    --accent: #1f6f54;
+    --accent-soft: #e5f0eb;
+    --warn: #8a6d1f;
+    --warn-soft: #f5edd8;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    line-height: 1.55;
+    padding: 2rem 1.25rem 4rem;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; }
+  h1 { font-size: 1.7rem; margin-bottom: .35rem; }
+  h2 { font-size: 1.15rem; margin-bottom: .6rem; }
+  h3 { font-size: 1rem; margin: .8rem 0 .3rem; }
+  p { margin-bottom: .7rem; }
+  a { color: var(--accent); }
+  header { margin-bottom: 1.5rem; }
+  header p.sub { color: var(--muted); margin-bottom: .8rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .chip {
+    display: inline-block; padding: .18rem .7rem; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--card);
+    font-size: .85rem; color: var(--muted);
+  }
+  .chip.good { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .chip.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+  .cols { display: grid; grid-template-columns: 3fr 2fr; gap: 1.25rem; align-items: start; }
+  .cols > div { min-width: 0; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.1rem 1.25rem; margin-bottom: 1.25rem;
+  }
+  .card > :last-child { margin-bottom: 0; }
+  ul { margin: 0 0 .7rem 1.2rem; }
+  li { margin-bottom: .35rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  .table-wrap { overflow-x: auto; }
+  th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .numeral { font-family: Consolas, monospace; font-variant-numeric: tabular-nums; font-size: .9em; }
+  .pass { color: var(--accent); font-weight: 600; }
+  .na { color: var(--muted); }
+  .timeout { color: var(--warn); font-weight: 600; }
+  code { font-family: Consolas, monospace; font-size: .88em; background: var(--ground); padding: .05em .3em; border-radius: 3px; }
+  .quiet { color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight report: BL-16767 bulk upload fix</h1>
+  <p class="sub">Run of 2026-08-27 on branch <code>BL-16767-bulk-upload</code> &middot; PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246" target="_blank" rel="noopener">#8246</a> &middot; card <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16767" target="_blank" rel="noopener">BL-16767</a></p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Tests green</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">Greptile re-review timed out</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+</header>
+
+<div class="cols">
+<div>
+  <div class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bulk upload (<code>Bloom.exe upload &lt;collection&gt;</code>) fails for every book after the first one or two. Each failed book reports "The instance of CoreWebView2 is uninitialized and unable to complete this operation. See EnsureCoreWebView2Async." Reported on 6.6.1001 Alpha; also reproduced on 6.5.3002.</p>
+    <h3>Cause</h3>
+    <p>The font check that runs while a book is staged for upload created a new hidden browser (an inline WebView2) on the calling thread for every book. In the bulk-upload console process, every inline WebView2 after the first fails to finish initialization. The 10-second navigation wait times out, and the next JavaScript call throws the reported exception. A test that imitates the console message pump reproduced this exactly: book 1 passed, books 2-5 failed with the reported error.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>The font check is now synchronous <code>PublishHelper.ReportInvalidFonts</code> and drives an <a href="https://github.com/BloomBooks/BloomDesktop/blob/ec7843b894741d9212c364cd814814edc495df4c/src/BloomExe/Publish/PublishHelper.cs#L2088" target="_blank" rel="noopener">OffScreenBrowser</a>: a WebView2 on its own dedicated thread with a real message loop. The ePUB and BloomPUB page checks already use the same mechanism.</li>
+      <li><code>BookUpload.SetUpStaging</code> is synchronous as well, and the <code>controlToInvokeOn</code> thread juggling is gone from the upload path.</li>
+      <li>A new regression test, <a href="https://github.com/BloomBooks/BloomDesktop/blob/ec7843b894741d9212c364cd814814edc495df4c/src/BloomTests/Publish/ReportInvalidFontsTests.cs" target="_blank" rel="noopener">ReportInvalidFontsTests</a>, runs the font check for five books in a row in one process, and requires that each run really finds the book's fonts. With the old code the check failed from book two onward; with the fix all five pass, and each check is also faster (about <span class="numeral">350 ms</span> against <span class="numeral">712 ms</span>).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>C# build (BloomExe + BloomTests)</td><td class="pass">Pass</td></tr>
+      <tr><td>C# full test suite at HEAD <code>ec7843b8</code></td><td><span class="pass">Pass</span> &mdash; <span class="numeral">3257 passed, 0 failed, 13 skipped</span></td></tr>
+      <tr><td>Front-end typecheck / lint / tests</td><td class="na">Not run &mdash; the diff has no front-end code (C#, one test, one script doc comment)</td></tr>
+      <tr><td>Base integration</td><td class="pass">Merged cleanly &mdash; <code>origin/master</code> was already up to date</td></tr>
+      <tr><td>Mergeable</td><td class="pass">Yes</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the fix and the new regression test, opened draft PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246" target="_blank" rel="noopener">#8246</a>, and then strengthened the test in response to a Greptile observation: <code>ReportInvalidFonts</code> now returns the fonts it found, and the test requires a non-empty set for each of the five books. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246/commits" target="_blank" rel="noopener">commit list</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246/files" target="_blank" rel="noopener">files changed</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="table-wrap">
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td><span class="pass">Clean</span> &mdash; no findings.</td></tr>
+      <tr><td>Devin</td><td><span class="pass">Complete</span> for HEAD <code>ec7843b8</code>: 0 bugs, 0 Investigate flags, 3 Informational items (assessed, all fine). <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8246" target="_blank" rel="noopener">Devin review</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8246#issuecomment-5441016750" target="_blank" rel="noopener">consultation log</a></td></tr>
+      <tr><td>Greptile</td><td><span class="pass">Complete</span> for the first commit: summary only, no inline findings; its one test-coverage observation was fixed in <code>ec7843b8</code> (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8246#issuecomment-5440951755" target="_blank" rel="noopener">reply</a>). <span class="timeout">Timed out after ~25 min</span> waiting for its re-review of the final commit; a preflight re-run folds in late results.</td></tr>
+      <tr><td>CI</td><td><span class="pass">Complete</span> &mdash; <code>pr-automation</code> passed for the final commit.</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The fix was proven by a test that faithfully imitates the bulk-upload console process, but no real end-to-end <code>upload</code> run of a full collection was performed in this session. The tester notes on the card ask for exactly that.</li>
+      <li>The single-book upload from the Publish tab uses the same reworked check and was not hand-tested; the full C# suite covers its staging path indirectly.</li>
+    </ul>
+  </div>
+</div>
+
+<div>
+  <div class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. Every reviewer finding was either clean or fixed during the run, and no change crossed the autonomy line.</p>
+    <p class="quiet">If Greptile's late re-review of the final commit raises anything, a re-run of <code>preflight</code> will pick it up.</p>
+  </div>
+</div>
+</div>
+</div>
+</body>
+</html>
