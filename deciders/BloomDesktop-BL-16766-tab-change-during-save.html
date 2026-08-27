@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tab Change During Save</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; border-spacing: 0; }
+  img { max-width: 100%; display: block; }
+
+  :root {
+    --ground: #f4f5f6;
+    --card: #ffffff;
+    --line: #dfe3e6;
+    --line-soft: #ebeef0;
+    --ink: #1b2126;
+    --ink-2: #495661;
+    --ink-3: #6d7a85;
+    --accent: #d65649;
+    --accent-ink: #a3372c;
+    --accent-wash: #fdf2f0;
+    --good: #2f7d4f;
+    --good-wash: #eef7f1;
+    --warn: #8a6410;
+    --warn-wash: #fdf6e6;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.62;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 34px 28px 72px; }
+
+  /* ---------- header ---------- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .masthead h1 {
+    font-family: var(--serif);
+    font-size: 2.05rem;
+    line-height: 1.18;
+    font-weight: 700;
+    letter-spacing: -0.011em;
+    text-wrap: balance;
+    max-width: 30ch;
+  }
+  .masthead .sub {
+    margin-top: 8px;
+    color: var(--ink-2);
+    max-width: 78ch;
+  }
+  .idline {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    color: var(--ink-3);
+    margin-bottom: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+  }
+  .idline a { color: var(--accent-ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 0.775rem; font-weight: 600; letter-spacing: 0.015em;
+    padding: 4px 11px; border-radius: 2px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink-2);
+  }
+  .chip.good { border-color: #b9dcc6; background: var(--good-wash); color: var(--good); }
+  .chip.attn { border-color: #e6d3a6; background: var(--warn-wash); color: var(--warn); }
+  .chip.draft { border-color: #cfd6db; background: #f0f3f5; color: var(--ink-2); }
+
+  /* ---------- grid ---------- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  .stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 22px 24px;
+    min-width: 0;
+  }
+  .card > * + * { margin-top: 12px; }
+  .card h2 {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: -0.004em;
+  }
+  .card h3 {
+    font-size: 0.735rem;
+    text-transform: uppercase;
+    letter-spacing: 0.085em;
+    font-weight: 700;
+    color: var(--accent-ink);
+  }
+  .card p { max-width: 68ch; }
+  .card p + h3 { margin-top: 18px; }
+
+  .bullets { display: flex; flex-direction: column; gap: 8px; }
+  .bullets li { position: relative; padding-left: 17px; max-width: 68ch; }
+  .bullets li::before {
+    content: ""; position: absolute; left: 0; top: 0.64em;
+    width: 6px; height: 6px; background: var(--accent); border-radius: 50%;
+  }
+
+  code, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 0.855em; background: #f2f4f6; border: 1px solid var(--line-soft); border-radius: 2px; padding: 0.06em 0.32em; }
+  .numeral { font-size: 0.88em; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---------- gate table ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 700; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 600; }
+  .verdict { display: inline-block; font-size: 0.76rem; font-weight: 700; padding: 2px 8px; border-radius: 2px; white-space: nowrap; }
+  .verdict.pass { background: var(--good-wash); color: var(--good); border: 1px solid #b9dcc6; }
+  .verdict.na { background: #f0f3f5; color: var(--ink-3); border: 1px solid var(--line); }
+
+  /* ---------- reviewers ---------- */
+  .reviewers { display: flex; flex-direction: column; gap: 15px; }
+  .reviewer { display: grid; grid-template-columns: minmax(0, 140px) minmax(0, 1fr); gap: 4px 16px; }
+  .reviewer .who { font-weight: 700; }
+  .reviewer .who .state { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ink-3); margin-top: 1px; }
+  .reviewer .said { color: var(--ink-2); max-width: 62ch; }
+  @media (max-width: 640px) { .reviewer { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---------- decisions ---------- */
+  .qcard { background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 22px 24px; min-width: 0; }
+  .qcard > * + * { margin-top: 12px; }
+  .qcard h2 { font-family: var(--serif); font-size: 1.12rem; font-weight: 700; }
+  .qcard .why { color: var(--ink-2); max-width: 62ch; }
+  .qnum {
+    display: inline-block; font-family: var(--mono); font-size: 0.72rem; font-weight: 700;
+    color: var(--accent-ink); background: var(--accent-wash);
+    border: 1px solid #f0d6d1; border-radius: 2px; padding: 1px 7px; margin-bottom: 8px;
+  }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+  .opt {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+    gap: 10px; align-items: start;
+    padding: 9px 10px; border: 1px solid transparent; border-radius: 2px;
+  }
+  .opt:hover { background: #fafbfc; border-color: var(--line-soft); }
+  .opt input[type=radio], .opt input[type=checkbox] { margin: 0.36em 0 0 0; accent-color: var(--accent); }
+  .opt .label { font-size: 0.94rem; }
+  .opt .foot { display: block; color: var(--ink-3); font-size: 0.83rem; margin-top: 2px; }
+  .tag {
+    display: inline-block; font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--good); background: var(--good-wash);
+    border: 1px solid #b9dcc6; border-radius: 2px; padding: 1px 6px; margin-left: 7px;
+    vertical-align: 0.12em; white-space: nowrap;
+  }
+  .leavecomment { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--ink-3); white-space: nowrap; }
+  .leavecomment input { accent-color: var(--accent); }
+  .otherrow { grid-column: 2 / -1; }
+  input[type=text], textarea {
+    width: 100%; font-family: inherit; font-size: 0.9rem; color: var(--ink);
+    background: #fcfdfd; border: 1px solid var(--line); border-radius: 2px; padding: 6px 9px;
+  }
+  .opt input[type=text] { margin-top: 6px; }
+  .notes { margin-top: 14px; }
+  .notes label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--ink-3); margin-bottom: 5px; }
+  .notes textarea { min-height: 58px; resize: vertical; }
+
+  .sendback textarea { min-height: 190px; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; margin-top: 12px; }
+  .btn {
+    font-family: inherit; font-size: 0.9rem; font-weight: 700; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 2px; padding: 8px 16px;
+  }
+  .btn:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+  .copied { margin-left: 11px; font-size: 0.84rem; font-weight: 600; color: var(--good); opacity: 0; transition: opacity .18s; }
+  .copied.show { opacity: 1; }
+
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: minmax(0, 1fr); }
+    .wrap { padding: 26px 18px 60px; }
+    .masthead h1 { font-size: 1.7rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="idline">
+      <span>BL-16766</span>
+      <span>BloomDesktop</span>
+      <span>BL-16766-tab-change-during-save</span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8248" target="_blank" rel="noopener">PR #8248</a></span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8248/files" target="_blank" rel="noopener">Files changed</a></span>
+      <span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8248/commits" target="_blank" rel="noopener">Commits</a></span>
+      <span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16766" target="_blank" rel="noopener">YouTrack card</a></span>
+    </div>
+    <h1>Leaving the Edit tab mid-save</h1>
+    <p class="sub">
+      Preflight is done. Every gate is green and both review bots have had their say; three
+      questions and a next-step choice are waiting for you at the right.
+    </p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable &mdash; clean</span>
+      <span class="chip good">Bots quiet</span>
+      <span class="chip good">C# suite green</span>
+      <span class="chip attn">4 items for you</span>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ============ LEFT ============ -->
+    <div class="stack">
+
+      <section class="card">
+        <h2>What this PR is about</h2>
+
+        <h3>Problem</h3>
+        <p>
+          Leaving the Edit tab could put up an error report &mdash; &ldquo;Cannot empty page while
+          saving&rdquo; &mdash; and leave the workspace drawn half way between the Edit tab and the
+          tab the user asked for: the new tab&rsquo;s frame, but no book preview, no
+          &ldquo;Edit this book&rdquo; button, and most of the collection&rsquo;s icons and the
+          whole Sources For New Books panel missing. The user&rsquo;s page had not finished saving
+          at that point either, so a book title they had just typed had not reached the
+          collection&rsquo;s book list.
+        </p>
+
+        <h3>Cause</h3>
+        <p>
+          Clicking another tab while editing starts a save, and the tab change waits until the
+          browser hands the page content back. During that window the tab bar still offers the
+          target tab &mdash; the disable travels to React over a websocket, so it cannot win the
+          race &mdash; and <code>WorkspaceView</code> still regards the Edit tab as current, so a
+          second click goes straight through <code>ChangeTab</code>. That second request cannot
+          start a save of its own, and the fallback handling it pressed on with the tab change
+          anyway. Completing the change reaches
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomExe/Edit/EditingStateMachine.cs#L115" target="_blank" rel="noopener"><code>EditingStateMachine.ToNoPage()</code></a>,
+          which throws while a save is pending &mdash; out of the middle of <code>ChangeTab</code>,
+          so the rest of the tab switch never ran. Clicking a page thumbnail and then a tab crashed
+          the same way.
+        </p>
+
+        <h3>What the PR does</h3>
+        <ul class="bullets">
+          <li>
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomExe/Edit/EditingStateMachine.cs#L396" target="_blank" rel="noopener"><code>EditingStateMachine.DeferUntilSaveCompletes(work)</code></a>
+            remembers work that arrived while a save was in flight and runs it once that save has
+            completed &mdash; in a <code>finally</code>, so a save that fails cannot swallow a
+            pending tab change.
+          </li>
+          <li>
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomExe/Workspace/WorkspaceView.cs#L1551" target="_blank" rel="noopener"><code>WorkspaceView.ChangeTab</code></a>
+            now offers a <code>RetryWork</code> that re-attempts the whole tab change. Retrying from
+            the top means the existing &ldquo;already on the desired tab&rdquo; check turns a
+            duplicate click into a clean no-op, while a genuinely queued click &mdash; a thumbnail
+            click followed by a tab click &mdash; is still honoured rather than dropped.
+          </li>
+          <li>
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomExe/Edit/EditingModel.cs#L465" target="_blank" rel="noopener"><code>EditingModel.OnTabAboutToChange</code></a>&rsquo;s
+            fallback defers instead of pressing on.
+          </li>
+          <li>
+            Corrected the comment on
+            <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomExe/Edit/EditingView.cs#L388" target="_blank" rel="noopener"><code>EditingView.OnVisibleChanged</code></a>,
+            which claimed <code>ToNoPage()</code> is ignored when it isn&rsquo;t valid. It throws.
+          </li>
+        </ul>
+        <p>
+          The tab now switches exactly once, after the save &mdash; so the collection list also
+          shows the title the user just typed. A
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomTests/Edit/EditingStateMachineTests.cs#L194" target="_blank" rel="noopener">new test fixture</a>
+          covers the deferral, including an end-to-end replay of the reported double-click.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">C# build (typecheck)</td>
+                <td><span class="verdict pass">pass</span></td>
+                <td>Clean via <code>build/agent-dotnet.sh</code>.</td>
+              </tr>
+              <tr>
+                <td class="what">C# format (csharpier)</td>
+                <td><span class="verdict pass">pass</span></td>
+                <td><span class="numeral">565</span> files checked, none reformatted.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests (<code>dotnet test</code>)</td>
+                <td><span class="verdict pass">pass</span></td>
+                <td>Full suite at HEAD: <span class="numeral">3263 passed &middot; 13 skipped &middot; 0 failed</span>.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript typecheck &amp; lint</td>
+                <td><span class="verdict na">not run</span></td>
+                <td>No TypeScript in the diff, and nothing the front end consumes: six C# files, no API contract, schema or content change.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests (vitest)</td>
+                <td><span class="verdict na">not run</span></td>
+                <td>Same reason &mdash; the diff cannot reach them.</td>
+              </tr>
+              <tr>
+                <td class="what">Merge with <code>master</code></td>
+                <td><span class="verdict pass">clean</span></td>
+                <td>Merged before publishing; no conflicts, and base did not touch any file this branch changes. GitHub reports <span class="numeral">MERGEABLE / CLEAN</span>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>
+          This run built the whole fix from scratch: diagnosis, the deferral mechanism and its
+          wiring, and a new test fixture, then a base merge and one follow-up commit adding a code
+          comment prompted by Devin. See the
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248/commits" target="_blank" rel="noopener">commit list</a>
+          &mdash; the fix itself is
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/8d2c9d1ae" target="_blank" rel="noopener"><code>8d2c9d1ae</code></a>
+          and the comment is
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/cafcd6455" target="_blank" rel="noopener"><code>cafcd6455</code></a>.
+        </p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="reviewers">
+
+          <div class="reviewer">
+            <div class="who">Local review<span class="state">complete &mdash; light pass</span></div>
+            <div class="said">
+              Done inline rather than in a sub-agent, because this session is configured not to
+              spawn them. One finding, fixed: an unused <code>using</code> in the new test file. It
+              also confirmed the deferred work cannot leak &mdash; <code>SavePending</code> has
+              exactly one legal exit &mdash; and that the retry cannot loop.
+            </div>
+          </div>
+
+          <div class="reviewer">
+            <div class="who">Devin<span class="state">complete</span></div>
+            <div class="said">
+              No bugs, across two reviews.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248#discussion_r3873992437" target="_blank" rel="noopener">One flag</a>
+              about the reload-from-disk path was assessed as not an issue and resolved, with the
+              reasoning added to the code so the next reader doesn&rsquo;t have to redo it.
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248#discussion_r3874085575" target="_blank" rel="noopener">A second flag</a>
+              is open for you &mdash; question 1 at the right. Its two informational notes were
+              both confirmations rather than concerns.
+              <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8248" target="_blank" rel="noopener">Review page</a>.
+            </div>
+          </div>
+
+          <div class="reviewer">
+            <div class="who">Greptile<span class="state">complete on the code; timed out after 30 min on the comment</span></div>
+            <div class="said">
+              Reviewed
+              <a href="https://github.com/BloomBooks/BloomDesktop/commit/0badd12ae" target="_blank" rel="noopener"><code>0badd12ae</code></a>
+              &mdash; which contains the entire code change &mdash; and
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248#issuecomment-5442468126" target="_blank" rel="noopener">raised nothing</a>,
+              summarising the change accurately. It never started a review of the comment-only
+              follow-up commit, including after a re-trigger, so its state at HEAD is a timeout
+              rather than a pass.
+            </div>
+          </div>
+
+          <div class="reviewer">
+            <div class="who">CI<span class="state">complete &mdash; green</span></div>
+            <div class="said">
+              <code>pr-automation</code> passes. That is the only required check on this PR;
+              BloomDesktop does not build or test on PRs, which is why the C# suite is run locally
+              above.
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul class="bullets">
+          <li>
+            <strong>Nothing has been exercised by hand.</strong> The crash is reproduced and the fix
+            verified only by the new unit tests, which replay the click sequence through the real
+            state machine. Hitting the race deliberately in a running Bloom means two clicks inside
+            a sub-second window. Question 3 asks whether to try.
+          </li>
+          <li>
+            <strong>The tests were checked for teeth.</strong> With the deferral neutered, four of
+            the seven fail &mdash; the end-to-end replay with the original
+            <code>InvalidOperationException</code>. They are not passing vacuously.
+          </li>
+          <li>
+            <strong>A second rapid click now produces no visible response</strong> until the save
+            finishes, rather than an error. That is the intended behaviour but it is also a small
+            UX question &mdash; question 2.
+          </li>
+          <li>
+            <strong>If the browser never returns the page content, the queued tab click is
+            dropped.</strong> Pre-existing: the first click&rsquo;s save was already lost in that
+            situation. Worth knowing so it isn&rsquo;t read as new.
+          </li>
+        </ul>
+      </section>
+
+    </div>
+
+    <!-- ============ RIGHT ============ -->
+    <div class="stack">
+
+      <section class="qcard">
+        <span class="qnum">Question 1</span>
+        <h2>A second place the same crash could happen</h2>
+        <p class="why">
+          Devin pointed at another route into the same kind of failure. When Bloom opens a different
+          collection &mdash; the user clicks a collection card in the collection chooser &mdash; it
+          announces the tab change in a way that carries no work to retry, so the new
+          &ldquo;wait for the save&rdquo; mechanism does not engage. If a page save were somehow
+          still in flight at that moment, the code would ask the state machine to empty the page and
+          would throw exactly as this bug did.
+        </p>
+        <p class="why">
+          I do not think it can actually happen, and this PR makes it less likely rather than more:
+          the chooser is a dialog opened from the Collections tab&rsquo;s own toolbar, so you have to
+          already be on the Collections tab to click a collection &mdash; and getting there from the
+          Edit tab is precisely what now waits for the save to finish. Fixing it properly would mean
+          holding a collection switch until the page save completes, which changes behaviour in a
+          path that has no test coverage, in a PR about something else. Devin&rsquo;s stated reason
+          for it being safe was wrong, though, which is why it is worth your eyes rather than mine.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q1" value="Harden the collection-switch path in this PR">
+            <span class="label">Harden the collection-switch path in this PR
+              <span class="foot">Moderate &mdash; a collection switch would have to wait for the in-flight save; touches shutdown/restart sequencing that no test covers.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Leave as is" checked>
+            <span class="label">Leave as is<span class="tag">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="q1-comment"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Other">
+            <span class="label">Other:</span>
+            <span></span>
+            <span class="otherrow"><input type="text" data-q="q1-other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notes">
+          <label for="q1n">Notes</label>
+          <textarea id="q1n" data-q="q1-notes"></textarea>
+        </div>
+      </section>
+
+      <section class="qcard">
+        <span class="qnum">Question 2</span>
+        <h2>Should the tab bar say it is working?</h2>
+        <p class="why">
+          With this fix, clicking Collections while editing starts a save and the tab changes a
+          moment later. If the user clicks again during that moment, nothing at all appears to
+          happen &mdash; the click is absorbed and honoured silently. On a heavy page, or a slow
+          disk, that moment is long enough to notice, and the natural human response to a button
+          that seems not to have worked is to click it again.
+        </p>
+        <p class="why">
+          The tab bar could instead show the tab the user asked for as pending &mdash; greyed, or
+          marked as loading &mdash; the instant they click it, rather than waiting for C# to push
+          the state back over the websocket. That is a front-end change in
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/cafcd6455e29b3d433d79991f26b6b10d72a5236/src/BloomBrowserUI/react_components/TopBar/TopBar.tsx#L110" target="_blank" rel="noopener"><code>TopBar.tsx</code></a>
+          and independent of the crash fix, so it can equally well be its own card.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q2" value="Add optimistic pending feedback to the tab bar in this PR">
+            <span class="label">Add pending feedback to the tab bar in this PR
+              <span class="foot">Small &mdash; roughly 20 lines of React, no C# change; user-visible, so it widens what a reviewer has to look at.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Worth doing, but as its own YouTrack card">
+            <span class="label">Worth doing, but as its own card
+              <span class="foot">No code here &mdash; I would file the card and describe the change.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Leave as is" checked>
+            <span class="label">Leave as is<span class="tag">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="q2-comment"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Other">
+            <span class="label">Other:</span>
+            <span></span>
+            <span class="otherrow"><input type="text" data-q="q2-other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notes">
+          <label for="q2n">Notes</label>
+          <textarea id="q2n" data-q="q2-notes"></textarea>
+        </div>
+      </section>
+
+      <section class="qcard">
+        <span class="qnum">Question 3</span>
+        <h2>Try to reproduce it in a running Bloom?</h2>
+        <p class="why">
+          The crash is reproduced and the fix demonstrated by unit tests that drive the real state
+          machine through the exact sequence from the report. What no test can show is that the
+          workspace looks right afterwards in the actual application &mdash; that a double-click on
+          Collections lands you on a fully drawn Collections tab with the book preview and the
+          Sources For New Books panel present.
+        </p>
+        <p class="why">
+          Doing that by hand needs two clicks inside the save window, which is under a second on an
+          ordinary page. It is reachable with a deliberately heavy page, or by temporarily slowing
+          the save down in a local build. Either way it costs a Bloom session, and a temporary slow
+          down would need to be removed again afterwards.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q3" value="Yes - try it by hand on a heavy page, no code changes">
+            <span class="label">Try it by hand on a heavy page
+              <span class="foot">No code &mdash; run Bloom, use a calendar or picture-heavy page, and screenshot the result. May simply fail to hit the window.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Yes - slow the save down temporarily to make it deterministic">
+            <span class="label">Slow the save temporarily to make it deterministic
+              <span class="foot">Small but invasive &mdash; a throwaway delay in the save path, verified, then removed; reliable, and leaves debris if I get it wrong.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Leave as is" checked>
+            <span class="label">Leave as is<span class="tag">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="q3-comment"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q3" value="Other">
+            <span class="label">Other:</span>
+            <span></span>
+            <span class="otherrow"><input type="text" data-q="q3-other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notes">
+          <label for="q3n">Notes</label>
+          <textarea id="q3n" data-q="q3-notes"></textarea>
+        </div>
+      </section>
+
+      <section class="qcard">
+        <span class="qnum">Next step</span>
+        <h2>Where do you want this to go?</h2>
+        <p class="why">
+          The PR is a clean, mergeable draft with every gate green. Nothing is blocking your own
+          review of it.
+        </p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="next" value="Implement my answers above, then stop for my own review" checked>
+            <span class="label">Implement my answers, then stop for my review<span class="tag">Recommended</span>
+              <span class="foot">I act on the questions above, re-run the gauntlet if anything changes, and leave the PR in draft for you.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next" value="Discuss the questions with me before changing anything">
+            <span class="label">Discuss before changing anything
+              <span class="foot">No code &mdash; we talk through question 1 in particular first.</span>
+            </span>
+            <span></span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next" value="Leave as is">
+            <span class="label">Leave as is</span>
+            <span class="leavecomment"><input type="checkbox" data-q="next-comment"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="next" value="Other">
+            <span class="label">Other:</span>
+            <span></span>
+            <span class="otherrow"><input type="text" data-q="next-other" placeholder="your answer"></span>
+          </label>
+        </div>
+        <div class="notes">
+          <label for="nextn">Notes</label>
+          <textarea id="nextn" data-q="next-notes"></textarea>
+        </div>
+      </section>
+
+      <section class="qcard sendback">
+        <h2>Send your answers back</h2>
+        <p class="why">Copy this and paste it into the session.</p>
+        <div>
+          <button class="btn" id="copybtn" type="button">Copy answers</button>
+          <span class="copied" id="copied">Copied</span>
+        </div>
+        <textarea id="payload" readonly></textarea>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var ITEMS = [
+    { key: "q1",   title: "Q1 - Second place the same crash could happen (OpenSpecificCollection)" },
+    { key: "q2",   title: "Q2 - Tab bar pending feedback" },
+    { key: "q3",   title: "Q3 - Reproduce by hand in a running Bloom" },
+    { key: "next", title: "Next step" }
+  ];
+
+  function val(sel) { var el = document.querySelector(sel); return el ? el.value.trim() : ""; }
+
+  function build() {
+    var out = ["Preflight answers - BL-16766 / PR #8248", ""];
+    ITEMS.forEach(function (item) {
+      var picked = document.querySelector('input[name="' + item.key + '"]:checked');
+      var answer = picked ? picked.value : "(no selection)";
+      if (answer === "Other") {
+        var other = val('[data-q="' + item.key + '-other"]');
+        answer = other ? "Other: " + other : "Other: (nothing typed)";
+      }
+      out.push(item.title);
+      out.push("  Answer: " + answer);
+      var cb = document.querySelector('[data-q="' + item.key + '-comment"]');
+      if (cb && cb.checked) out.push("  Leave comment: record this decision as a code comment in the repo");
+      var notes = val('[data-q="' + item.key + '-notes"]');
+      if (notes) out.push("  Notes: " + notes);
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.classList.add("show");
+      setTimeout(function () { tag.classList.remove("show"); }, 1600);
+    };
+    var fallback = function () {
+      payload.removeAttribute("readonly");
+      payload.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      payload.setAttribute("readonly", "readonly");
+      done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
