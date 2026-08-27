@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Splitter Layout Preflight</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; }
+html, body, h1, h2, h3, p, ul, ol, li, table, figure { margin: 0; padding: 0; }
+ul, ol { list-style: none; }
+
+:root {
+  --ground:   #faf8f5;
+  --card:     #ffffff;
+  --border:   #e4ded4;
+  --ink:      #23201c;
+  --muted:    #6d665c;
+  --accent:   #1f6f5c;
+  --accent-soft: #eaf2ef;
+  --pass:     #2c7a58;
+  --warn:     #9a5f1c;
+  --fail:     #a33a2e;
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 1280px; margin: 0 auto; padding: 40px 28px 72px; }
+
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 28px; }
+header.page h1 {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-wrap: balance;
+  letter-spacing: -0.01em;
+}
+header.page .sub { color: var(--muted); margin-top: 8px; max-width: 68ch; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.chip {
+  display: inline-block;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+}
+.chip.good { color: var(--pass); border-color: #bcdccb; background: #f1f8f4; }
+.chip.attn { color: var(--warn); border-color: #e6d3b8; background: #fdf6ec; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 22px 24px; }
+.card > h2 {
+  font-family: var(--serif);
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 14px;
+  letter-spacing: -0.005em;
+}
+.card h3 {
+  font-size: 12.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  margin: 16px 0 6px;
+}
+.card h3:first-of-type { margin-top: 0; }
+.card p { margin-bottom: 11px; max-width: 68ch; }
+.card p:last-child { margin-bottom: 0; }
+
+ul.bul { display: flex; flex-direction: column; gap: 8px; }
+ul.bul li { position: relative; padding-left: 17px; max-width: 68ch; }
+ul.bul li::before {
+  content: "";
+  position: absolute; left: 3px; top: 0.62em;
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+}
+
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+th {
+  font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); font-weight: 700;
+}
+tr:last-child td { border-bottom: none; }
+td.what { font-weight: 600; white-space: nowrap; padding-right: 18px; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+.verdict { font-weight: 700; font-size: 13px; }
+.verdict.p { color: var(--pass); }
+.verdict.f { color: var(--fail); }
+.verdict.n { color: var(--muted); }
+
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+code { font-family: var(--mono); font-size: 0.9em; background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; }
+
+.rev { display: flex; flex-direction: column; gap: 15px; }
+.rev .who { font-weight: 700; }
+.rev .state { font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em; }
+.rev .state.ok { color: var(--pass); }
+.rev .state.warnc { color: var(--warn); }
+.rev p { margin: 3px 0 0; }
+
+.item { border-top: 1px solid var(--border); padding-top: 16px; margin-top: 16px; }
+.item:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+.item .q { font-family: var(--serif); font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+.item .ctx { color: var(--ink); margin-bottom: 12px; }
+.badge {
+  display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent); background: var(--accent-soft);
+  border-radius: 3px; padding: 2px 6px; margin-left: 7px; vertical-align: 1px;
+}
+.opts { display: flex; flex-direction: column; gap: 9px; }
+.opt { display: flex; gap: 9px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; flex: none; }
+.opt label { flex: 1; min-width: 0; }
+.opt .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 1px; }
+.leaverow { display: flex; gap: 12px; align-items: flex-start; }
+.leaverow .lc { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); flex: none; white-space: nowrap; }
+.otherrow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.otherrow input[type=text] { flex: 1 1 180px; min-width: 0; }
+input[type=text], textarea {
+  font-family: var(--sans); font-size: 14px; color: var(--ink);
+  background: var(--ground); border: 1px solid var(--border); border-radius: 4px;
+  padding: 6px 9px; width: 100%;
+}
+textarea { resize: vertical; }
+.notes { margin-top: 11px; }
+.notes span { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+
+button {
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  background: var(--accent); color: #fff; border: none; border-radius: 4px;
+  padding: 9px 18px; cursor: pointer;
+}
+button:hover { background: #1a5d4e; }
+#payload { margin-top: 12px; font-family: var(--mono); font-size: 12px; min-height: 130px; }
+.copied { color: var(--pass); font-weight: 700; font-size: 13px; margin-left: 10px; }
+
+footer.page { margin-top: 30px; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 900px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .wrap { padding: 28px 18px 56px; }
+  td.what { white-space: normal; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>Preflight — BL-16768, the Collections tab layout that wouldn&rsquo;t stay put</h1>
+  <p class="sub">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8250" target="_blank" rel="noopener">PR #8250</a> ·
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8250/files" target="_blank" rel="noopener">Files changed</a> ·
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16768" target="_blank" rel="noopener">BL-16768</a> ·
+    branch <code>BL-16768</code> → <code>Version6.4</code> · HEAD <span class="numeral">4d38d39d5</span>
+  </p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &mdash; clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip attn">1 decision waiting</span>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- ================= LEFT ================= -->
+  <div class="col">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>
+        Resizing the four quadrants of Bloom&rsquo;s Collections tab doesn&rsquo;t stick. Drag the
+        dividers where you want them, go to the Edit tab, come back, and the layout has snapped
+        back to the defaults. It&rsquo;s a 6.4 regression &mdash; it worked in 6.3.
+      </p>
+
+      <h3>Cause</h3>
+      <p>
+        The splitter sizes only ever lived in <code>CollectionsTabPane</code>&rsquo;s React state
+        (the vertical one not even there &mdash; its sizes were hardcoded). That was invisible
+        while each tab was its own WinForms control with its own browser, kept alive across tab
+        switches. Once we moved to a single browser (BL-15894) and let <code>App.tsx</code> own the
+        workspace root (BL-16012), only the active tab is rendered &mdash; so leaving the
+        Collections tab unmounts the pane and discards its state.
+      </p>
+
+      <h3>What the PR does</h3>
+      <ul class="bul">
+        <li>
+          A new module,
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/4d38d39d501e6ba76e7f6d78d4785fa5087bc0cd/src/BloomBrowserUI/utils/persistedSplitterSizes.ts" target="_blank" rel="noopener"><code>persistedSplitterSizes.ts</code></a>,
+          keeps the sizes outside the component so they survive the unmount, and reads and writes
+          them through the existing <code>app/userSetting</code> API. It&rsquo;s keyed by setting
+          name so a second splitter elsewhere can reuse it.
+        </li>
+        <li>
+          A new <code>CollectionTabSplitterSizes</code> user setting, so a custom layout now
+          survives restarting Bloom too &mdash; which it never did, in any version.
+        </li>
+        <li>
+          The pane derives the sizes during render rather than mirroring them in state, which
+          removes a derived-state <code>useEffect</code>.
+        </li>
+        <li>
+          What gets restored is guarded: an unreadable or wrong-shaped setting falls back to the
+          defaults instead of leaving the tab blank, a late-arriving read can&rsquo;t overwrite a
+          layout the user just dragged, and each pane is floored at about 50px. That last one
+          matters because the sizes are stored as proportions &mdash; a layout chosen on a large
+          monitor, rescaled into a small window, could otherwise bring a pane back invisibly thin.
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Check</th><th>Result</th><th>Notes</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="what">Lint (eslint)</td>
+              <td class="verdict p">PASS</td>
+              <td>0 errors. <span class="numeral">775</span> warnings, all pre-existing across the repo.</td>
+            </tr>
+            <tr>
+              <td class="what">Typecheck (tsc)</td>
+              <td class="verdict p">PASS</td>
+              <td>
+                Zero errors in the changed files. Whole-project <code>tsc -p</code> reports
+                <span class="numeral">1107</span> errors repo-wide on this branch and on its base
+                alike &mdash; it isn&rsquo;t a maintained gate here (AGENTS.md points at lint).
+              </td>
+            </tr>
+            <tr>
+              <td class="what">TypeScript tests (vitest)</td>
+              <td class="verdict p">PASS</td>
+              <td><span class="numeral">532 passed · 5 skipped · 0 failed</span>, at final HEAD.</td>
+            </tr>
+            <tr>
+              <td class="what">C# tests (dotnet test)</td>
+              <td class="verdict f">3 FAILED</td>
+              <td>
+                <span class="numeral">2869 passed · 13 skipped · 3 failed</span>. All three are
+                environmental, not from this change &mdash; see the FYI opposite.
+              </td>
+            </tr>
+            <tr>
+              <td class="what">C# build</td>
+              <td class="verdict p">PASS</td>
+              <td><code>BloomExe.csproj</code>, 0 errors.</td>
+            </tr>
+            <tr>
+              <td class="what">Base integration</td>
+              <td class="verdict p">CLEAN</td>
+              <td>
+                Branch sits exactly on <code>origin/Version6.4</code> &mdash; nothing to merge.
+                Mergeable, <code>CLEAN</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>
+        Pushed the branch, opened the PR, and then fixed the two review findings described below,
+        both in the new module. No other code moved.
+      </p>
+      <ul class="bul">
+        <li>
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/68e19686b557d3897538e696e02ebcb40fec7676" target="_blank" rel="noopener"><span class="numeral">68e19686b</span></a>
+          &mdash; the fix itself.
+        </li>
+        <li>
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/4d38d39d501e6ba76e7f6d78d4785fa5087bc0cd" target="_blank" rel="noopener"><span class="numeral">4d38d39d5</span></a>
+          &mdash; guards for an unreadable setting and for a late-arriving read.
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="rev">
+
+        <div>
+          <span class="who">Local review</span> &mdash;
+          <span class="state ok">COMPLETE</span>
+          <p>
+            Light sub-agent pass. Two findings, both real, both fixed: an unparseable saved value
+            threw out of the settings callback and left the Collections tab permanently blank, and
+            a second in-flight read could land after a drag and overwrite the new layout with the
+            old one. Nothing escalated, nothing dismissed.
+          </p>
+        </div>
+
+        <div>
+          <span class="who">Greptile</span> &mdash;
+          <span class="state ok">COMPLETE</span>
+          <p>
+            Two P1s on the first commit, both now replied to and resolved.
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8250#discussion_r3874364871" target="_blank" rel="noopener">Malformed JSON blanks the tab</a>
+            was the same real bug the local review found, fixed in <span class="numeral">4d38d39d5</span>.
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8250#discussion_r3874364891" target="_blank" rel="noopener">Writes persist stale snapshots</a>
+            we judged not worth acting on; Greptile read the reasoning and agreed on the thread.
+            Its re-review of the fix commit raised nothing new.
+          </p>
+        </div>
+
+        <div>
+          <span class="who">Devin</span> &mdash;
+          <span class="state ok">COMPLETE</span>
+          <p>
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8250" target="_blank" rel="noopener">Re-review clean</a>
+            at the current HEAD: no bugs, no Investigate flags, 3 informational items (not
+            mirrored). One of those informational notes independently agreed that the write-merge
+            Greptile worried about is sound.
+          </p>
+        </div>
+
+        <div>
+          <span class="who">CI</span> &mdash;
+          <span class="state ok">COMPLETE</span>
+          <p>
+            All checks terminal and green at HEAD: <code>pr-automation</code>,
+            <code>track / set-waiting</code>, <code>Greptile Review</code>.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul class="bul">
+        <li>
+          The behavior was exercised by hand in a running Bloom over CDP, at the first commit:
+          drag both dividers, Edit tab and back, restart, plus a deliberately degenerate saved
+          value and a corrupt one. The two guards added in
+          <span class="numeral">4d38d39d5</span> have <strong>not</strong> been re-driven by hand
+          &mdash; they are covered by reasoning and by the suite, not by a manual run.
+        </li>
+        <li>
+          The pane&rsquo;s bottom half stays hidden if you add a source collection to a collection
+          that had none, until you leave and return to the tab. That is pre-existing &mdash; the
+          old state-based code did the same &mdash; and Devin flagged it as informational only.
+          Deliberately out of scope here; it&rsquo;s written into the test notes so QA
+          doesn&rsquo;t file it.
+        </li>
+        <li>
+          <code>minSizes</code> is now passed explicitly to both splitters. It is a no-op &mdash;
+          50 is already the library&rsquo;s default &mdash; kept so the number lives in our code
+          next to the restore-time floor that has to match it.
+        </li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div class="col">
+
+    <section class="card">
+      <h2>Decisions</h2>
+
+      <!-- ITEM 1 -->
+      <div class="item">
+        <div class="q">The Collections tab now waits on one more API call before it paints</div>
+        <p class="ctx">
+          Before this change, the Collections tab drew as soon as its list of collections came back
+          from Bloom&rsquo;s local server. It now also waits for the saved splitter sizes, because a
+          splitter only reads its starting sizes once, on its very first render &mdash; paint before
+          the sizes arrive and the saved layout is lost. The
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/4d38d39d501e6ba76e7f6d78d4785fa5087bc0cd/src/BloomBrowserUI/collectionsTab/CollectionsTabPane.tsx#L360" target="_blank" rel="noopener">render gate</a>
+          therefore has two conditions instead of one. If that second request never answers, the
+          user sees an empty Collections tab rather than a partly-drawn one. The request goes to
+          Bloom&rsquo;s own server on localhost and the first request has the same exposure, so
+          this doesn&rsquo;t introduce a new class of failure &mdash; but it does widen the
+          surface, and it is the one part of this PR I would want a second opinion on before a
+          beta ships.
+        </p>
+        <div class="opts">
+          <div class="opt">
+            <input type="radio" name="q1" id="q1a" data-q="Render gate" value="Leave as is" checked>
+            <label for="q1a">
+              <strong>Leave as is</strong> <span class="badge">Recommended</span>
+              <span class="fn">
+                Recommended because the tab already depended on a working local API for its
+                collection list; if that server isn&rsquo;t answering, Bloom is broken in bigger
+                ways than a blank tab, and the two realistic ways this request could return
+                something unusable are now both handled.
+              </span>
+            </label>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q1" id="q1b" data-q="Render gate" value="Fall back to defaults if the settings read fails">
+            <label for="q1b">
+              Paint with the default layout if the settings read fails, instead of waiting
+              <span class="fn">
+                (~10 lines: an error callback that fills the cache with the defaults. Low risk,
+                and it removes the blank-tab outcome entirely. Costs a little complexity for a
+                case that shouldn&rsquo;t happen.)
+              </span>
+            </label>
+          </div>
+          <div class="opt leaverow">
+            <input type="radio" name="q1" id="q1c" data-q="Render gate" value="Other">
+            <label for="q1c" class="otherrow">
+              <span>Other:</span>
+              <input type="text" data-q="Render gate — other" placeholder="your answer">
+            </label>
+          </div>
+        </div>
+        <div class="leaverow" style="margin-top:9px">
+          <span class="lc"><input type="checkbox" id="q1lc" data-q="Render gate — leave comment"> <label for="q1lc">Leave comment</label></span>
+        </div>
+        <div class="notes">
+          <span>Notes</span>
+          <textarea rows="2" data-q="Render gate — notes" placeholder="caveats, constraints&hellip;"></textarea>
+        </div>
+      </div>
+
+      <!-- ITEM 2 -->
+      <div class="item">
+        <div class="q">FYI &mdash; the C# suite&rsquo;s 3 failures are this machine, not this branch</div>
+        <p class="ctx">
+          <code>dotnet test</code> came back <span class="numeral">2869 passed, 3 failed</span>. Two
+          are <code>BloomFileLocatorTests</code> looking for
+          <code>output\browser\infoPages\TrainingVideos-en.htm</code>, which this worktree has never
+          built because AGENTS.md says not to run <code>yarn build</code>. The third is the opt-in
+          Reading App Builder real-build test, which ran only because
+          <code>BLOOM_RUN_RAB_MANUAL_TESTS=1</code> is set in this shell; CI never runs it. None of
+          the three touch settings or the Collections tab, and nothing in BloomTests references the
+          new setting. Flagging it so a red row in the gate table doesn&rsquo;t read as a
+          regression.
+        </p>
+        <div class="opts">
+          <div class="opt">
+            <input type="radio" name="q2" id="q2a" data-q="C# failures" value="Leave as is" checked>
+            <label for="q2a"><strong>Leave as is</strong> <span class="badge">Recommended</span></label>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q2" id="q2b" data-q="C# failures" value="Investigate the environmental failures separately">
+            <label for="q2b">
+              Worth a separate look
+              <span class="fn">(no change to this PR &mdash; a note or a card about the worktree setup.)</span>
+            </label>
+          </div>
+          <div class="opt leaverow">
+            <input type="radio" name="q2" id="q2c" data-q="C# failures" value="Other">
+            <label for="q2c" class="otherrow">
+              <span>Other:</span>
+              <input type="text" data-q="C# failures — other" placeholder="your answer">
+            </label>
+          </div>
+        </div>
+        <div class="leaverow" style="margin-top:9px">
+          <span class="lc"><input type="checkbox" id="q2lc" data-q="C# failures — leave comment"> <label for="q2lc">Leave comment</label></span>
+        </div>
+        <div class="notes">
+          <span>Notes</span>
+          <textarea rows="2" data-q="C# failures — notes" placeholder="&hellip;"></textarea>
+        </div>
+      </div>
+
+      <!-- ITEM 3 -->
+      <div class="item">
+        <div class="q">FYI &mdash; the restore-time floor is approximate on the top/bottom divider</div>
+        <p class="ctx">
+          The splitter library keeps a pane from being <em>dragged</em> below 50px, but ignores that
+          minimum when it applies saved starting sizes &mdash; which is exactly the path a restored
+          layout takes. So
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/4d38d39d501e6ba76e7f6d78d4785fa5087bc0cd/src/BloomBrowserUI/utils/persistedSplitterSizes.ts#L67" target="_blank" rel="noopener"><code>restoreSizes</code></a>
+          enforces it. Nothing is laid out at the moment we need the number, so it uses the window
+          size as a stand-in for the divider&rsquo;s container. That is exact for the left/right
+          divider (measured at exactly 50px) but the top/bottom one sits below the toolbar, so its
+          floor lands a few pixels under &mdash; 46px when measured. It is a guard against a pane
+          disappearing, not a promise of an exact size, and it is commented as such.
+        </p>
+        <div class="opts">
+          <div class="opt">
+            <input type="radio" name="q3" id="q3a" data-q="Approximate floor" value="Leave as is" checked>
+            <label for="q3a"><strong>Leave as is</strong> <span class="badge">Recommended</span></label>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q3" id="q3b" data-q="Approximate floor" value="Measure the real container instead of using the window size">
+            <label for="q3b">
+              Measure the actual container instead
+              <span class="fn">
+                (moderate: needs a ref plus a layout effect and a re-key, because the sizes are
+                only read on first render &mdash; so it would mount the splitter twice. More
+                machinery than the 4px is worth, in my view.)
+              </span>
+            </label>
+          </div>
+          <div class="opt leaverow">
+            <input type="radio" name="q3" id="q3c" data-q="Approximate floor" value="Other">
+            <label for="q3c" class="otherrow">
+              <span>Other:</span>
+              <input type="text" data-q="Approximate floor — other" placeholder="your answer">
+            </label>
+          </div>
+        </div>
+        <div class="leaverow" style="margin-top:9px">
+          <span class="lc"><input type="checkbox" id="q3lc" data-q="Approximate floor — leave comment"> <label for="q3lc">Leave comment</label></span>
+        </div>
+        <div class="notes">
+          <span>Notes</span>
+          <textarea rows="2" data-q="Approximate floor — notes" placeholder="&hellip;"></textarea>
+        </div>
+      </div>
+
+      <!-- ITEM 4 -->
+      <div class="item">
+        <div class="q">Next step</div>
+        <p class="ctx">
+          The PR is green, the bots are quiet, and it is sitting as a draft waiting for your own
+          review before it goes to a colleague.
+        </p>
+        <div class="opts">
+          <div class="opt">
+            <input type="radio" name="q4" id="q4a" data-q="Next step" value="Implement my answers above, then it's ready for my review" checked>
+            <label for="q4a">
+              <strong>Implement my answers above, then hand it back</strong>
+              <span class="badge">Recommended</span>
+              <span class="fn">Recommended because nothing here is architectural &mdash; the one real question is a ten-line call either way.</span>
+            </label>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q4" id="q4b" data-q="Next step" value="Discuss first">
+            <label for="q4b">Let&rsquo;s talk it through before any more code</label>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q4" id="q4c" data-q="Next step" value="Leave as is">
+            <label for="q4c">Leave as is</label>
+          </div>
+          <div class="opt leaverow">
+            <input type="radio" name="q4" id="q4d" data-q="Next step" value="Other">
+            <label for="q4d" class="otherrow">
+              <span>Other:</span>
+              <input type="text" data-q="Next step — other" placeholder="your answer">
+            </label>
+          </div>
+        </div>
+        <div class="notes">
+          <span>Notes</span>
+          <textarea rows="2" data-q="Next step — notes" placeholder="&hellip;"></textarea>
+        </div>
+      </div>
+
+    </section>
+
+    <section class="card">
+      <h2>Send your answers back</h2>
+      <p>Copy this and paste it into the session.</p>
+      <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+      <textarea id="payload" readonly rows="8"></textarea>
+    </section>
+
+  </div>
+</div>
+
+<footer class="page">
+  Preflight report for <a href="https://github.com/BloomBooks/BloomDesktop/pull/8250" target="_blank" rel="noopener">BloomDesktop&nbsp;#8250</a>,
+  branch <code>BL-16768</code>, HEAD <span class="numeral">4d38d39d5</span>.
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var out = ["BL-16768 preflight — answers", ""];
+
+    document.querySelectorAll(".item").forEach(function (item) {
+      var q = item.querySelector(".q").textContent.trim();
+      var chosen = item.querySelector("input[type=radio]:checked");
+      if (!chosen) return;
+      var val = chosen.value;
+
+      if (val === "Other") {
+        var otherBox = item.querySelector('input[type=text][data-q$="other"]');
+        var typed = otherBox && otherBox.value.trim();
+        val = "Other: " + (typed ? typed : "(nothing typed)");
+      }
+      out.push("## " + q);
+      out.push("Answer: " + val);
+
+      var lc = item.querySelector('input[type=checkbox][data-q$="leave comment"]');
+      if (lc && lc.checked) {
+        out.push("Leave comment: yes — record this decision as a code comment near the relevant code");
+      }
+
+      var notes = item.querySelector("textarea[data-q]");
+      var n = notes && notes.value.trim();
+      if (n) out.push("Notes: " + n);
+
+      out.push("");
+    });
+
+    payload.value = out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.removeAttribute("readonly");
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* user can Ctrl+C */ }
+      payload.setAttribute("readonly", "readonly");
+    }
+  });
+})();
+</script>
+</body>
+</html>
