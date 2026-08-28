@@ -209,7 +209,7 @@
       <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Edit/EditingStateMachine.cs#L272" target="_blank" rel="noopener">The state machine</a> now runs the caller&rsquo;s recovery action when the post-save action throws, not only when applying the page content does &mdash; completing a design that already existed for the other failure path.</li>
       <li>A <a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomTests/Book/BookDataTests.cs#L1495" target="_blank" rel="noopener">regression test</a> for the orphaned-image crash.</li>
     </ul>
-    <p>The other half of the report &mdash; the branding logo being designated as the cover image in the first place, in <code>bloomImages.ts</code> &mdash; is not touched here, has no card of its own, and belongs on 6.5, where custom cover layouts actually exist.</p>
+    <p>The other half of the report &mdash; the branding logo being designated as the cover image in the first place, in <code>bloomImages.ts</code> &mdash; is not touched here and has no card of its own.</p>
   </section>
 
   <section class="card">
@@ -261,7 +261,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul class="bul">
-      <li><strong>On 6.4 this is a fix for books made elsewhere.</strong> A custom-layout front cover can only be created in 6.5 &mdash; 6.4 has no cover-layout UI at all &mdash; so the bad data always arrives from a 6.5-authored book. 6.4 is built to open those, and its copy of the save code crashes on them exactly as 6.5 does, which is what the regression test pins down. The two save-failure traps are unconditional 6.4 behaviour and are unrelated to covers.</li>
+      <li><strong>This is a 6.4 bug, not only a 6.5 one.</strong> Custom front-cover layout is a subscription feature (<code>CustomXMatterPage</code>) present in 6.4 as well &mdash; the cover template carries <code>data-custom-layout-id</code>, and the Standard/Custom menu is <code>customPageLayoutMenu.tsx</code>. Only the &ldquo;Cover Layout Changed&rdquo; analytics event is 6.5-only. The two save-failure traps are unconditional and unrelated to covers.</li>
       <li><strong>The forward-merge into 6.5 will conflict, certainly.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248" target="_blank" rel="noopener">PR&nbsp;#8248</a> is already merged into <code>Version6.5</code> and renames <code>TabChangedDetails.PostponedWork</code> to <code>CompleteTheChange</code> on exactly the lines this PR wraps in a try/catch. Mechanical: keep the try/catch, use the new name.</li>
       <li><strong>Nothing here was exercised in the running app.</strong> The crash and both traps were diagnosed against a live 6.5.3007 session, its log, and the book on disk, and the crash is covered by a unit test &mdash; but the tab-change and shutdown paths have only been reasoned about, not driven by hand.</li>
       <li><strong>One test fails on <code>Version6.4</code> before this branch exists.</strong> <code>InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> &mdash; confirmed failing at the base commit, so a reviewer seeing it red need not chase it here.</li>
@@ -277,28 +277,32 @@
     <h2>Over to you</h2>
 
     <div class="item" data-item="frontend-half">
-      <div class="q">The front-end half has no card, and belongs on 6.5</div>
-      <p>Two defects produced this report. This PR fixes the second &mdash; the crash, and the fact that it made Bloom unusable. The first is in the editor: on a custom-layout front cover whose picture is still the placeholder, <code>normalizeCoverImageDesignation</code> takes the branding logo to be the book&rsquo;s cover picture and saves that into the book. Nobody is tracking it.</p>
-      <p>It has to be fixed on 6.5. The function is present on both branches, but it does nothing unless the front cover is in custom layout, and <strong>6.4 has no cover-layout UI or endpoint at all</strong> &mdash; the &ldquo;Cover Layout Changed&rdquo; event in the crash log exists only in 6.5&rsquo;s <code>EditingViewApi</code>. So the bad data can only be made on 6.5.</p>
-      <p><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16780" target="_blank" rel="noopener">BL-16780</a> / <a href="https://github.com/BloomBooks/BloomDesktop/pull/8256" target="_blank" rel="noopener">PR&nbsp;#8256</a> is the nearest work, but it is a 6.4 card fixing the <em>read</em> side &mdash; which picture becomes the book icon, in <code>Book.GetCoverImagePathAndElt</code>. I checked its branch: the editor code is untouched, so it cannot stop the logo being written into the book. What it does give us is the rule, already agreed and implemented in C#: an image counts only inside an image container, plus a branding / licence / QR exclusion. The front end excludes only Bloom&rsquo;s own UI images.</p>
+      <div class="q">The front-end half still has no card</div>
+      <p>Two defects produced this report. This PR fixes the second &mdash; the crash, and the fact that it made Bloom unusable. The first is in the editor: on a custom-layout front cover whose picture is still the placeholder, <code>normalizeCoverImageDesignation</code> takes the branding logo to be the book&rsquo;s cover picture and saves that into the book. Nobody is tracking it. It affects 6.4 as much as 6.5 &mdash; custom cover layout is a subscription feature, not a version feature.</p>
+      <p><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16780" target="_blank" rel="noopener">BL-16780</a> / <a href="https://github.com/BloomBooks/BloomDesktop/pull/8256" target="_blank" rel="noopener">PR&nbsp;#8256</a> is the nearest work, on the same base branch. It fixes the <em>read</em> side &mdash; which picture becomes the book icon, in <code>Book.GetCoverImagePathAndElt</code>. I checked its branch: the editor code is untouched, so it cannot stop the logo being written into the book. What it does give us is the rule, already agreed and implemented in C# as <code>Book.IsBrandingOrLicenseImage</code>: an image counts only inside an image container, plus a branding / licence / QR exclusion. The front end excludes only Bloom&rsquo;s own UI images.</p>
       <div class="opt">
-        <input type="radio" name="q1" id="q1a" value="File a 6.5 card for the front-end designation bug" checked>
-        <span class="body"><label class="lab" for="q1a">File a 6.5 card for it<span class="tag">Recommended</span></label>
-        <span class="fn">No code &mdash; one card, on the branch where the bug can actually happen. Recommended because BL-16780 is a 6.4 card about the book icon; folding a 6.5 editor bug into it would put the fix on the wrong branch and blur two different defects.</span></span>
+        <input type="radio" name="q1" id="q1a" value="Ask Hatton to widen BL-16780 to cover the front end too" checked>
+        <span class="body"><label class="lab" for="q1a">Ask Hatton to widen BL-16780 to cover the front end<span class="tag">Recommended</span></label>
+        <span class="fn">Small &mdash; a few lines in <code>bloomImages.ts</code> mirroring the rule he just wrote in C#. Recommended because it is his card, his rule, and the same base branch; splitting one idea across two people is how the halves drift apart.</span></span>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1b" value="Ask Hatton to widen BL-16780 to cover the front end too">
-        <span class="body"><label class="lab" for="q1b">Ask Hatton to widen BL-16780 instead</label>
-        <span class="fn">Small in code &mdash; a few lines mirroring his C# rule &mdash; but it is his 6.4 card, and this fix belongs on 6.5.</span></span>
+        <input type="radio" name="q1" id="q1b" value="File a separate card for the front-end designation bug">
+        <span class="body"><label class="lab" for="q1b">File a separate card for it</label>
+        <span class="fn">No code &mdash; one new card, so it is tracked and can be scheduled independently.</span></span>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1c" value="Leave as is">
-        <span class="body"><label class="lab" for="q1c">Leave as is</label></span>
+        <input type="radio" name="q1" id="q1c" value="Add the front-end fix to this PR">
+        <span class="body"><label class="lab" for="q1c">Add the front-end fix to this PR</label>
+        <span class="fn">Small in code, but it widens this PR from &ldquo;recover from a failed save&rdquo; to &ldquo;also change which picture is the cover&rdquo; &mdash; two risks in one review, and it would collide with #8256.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" value="Leave as is">
+        <span class="body"><label class="lab" for="q1d">Leave as is</label></span>
         <label class="leavecomment"><input type="checkbox" data-lc="q1"> Leave comment</label>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1d" value="Other">
-        <span class="body"><label class="lab" for="q1d">Other:</label>
+        <input type="radio" name="q1" id="q1e" value="Other">
+        <span class="body"><label class="lab" for="q1e">Other:</label>
         <input type="text" data-other="q1" placeholder="your answer"></span>
       </div>
       <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-notes="q1"></textarea></div>
@@ -397,7 +401,7 @@
 <script>
 (function () {
   var LABELS = {
-    "frontend-half": "The front-end half has no card, and belongs on 6.5",
+    "frontend-half": "The front-end half still has no card",
     "preexisting-red-test": "The pre-existing failing test on Version6.4",
     "manual-verification": "Should the two traps be verified by hand before review?",
     "next-step": "Next step"
