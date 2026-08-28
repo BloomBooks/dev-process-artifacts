@@ -120,12 +120,12 @@
 <header class="top">
   <div class="eyebrow">Preflight &middot; BloomDesktop &middot; BL-16719</div>
   <h1>Bloom Freeze Doctor</h1>
-  <p class="lede">Every reviewer is in. Devin found two real bugs in how a dead Bloom&rsquo;s exit was judged; both are fixed and it now reports nothing outstanding. Master is merged, every suite is green, and two questions are waiting on you &mdash; neither of them blocking.</p>
+  <p class="lede">Every reviewer is in and Devin reports no unresolved bugs. This run answered its readability questions, made the server&rsquo;s thread trouble diagnosable from a card, and merged master. Three questions are waiting on you &mdash; two of them carried over unanswered from last time, none blocking.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Reviewers quiet</span>
-    <span class="chip">2 questions waiting</span>
+    <span class="chip">3 questions waiting</span>
   </div>
 </header>
 
@@ -146,6 +146,7 @@
     <ul>
       <li><strong>Bloom publishes its health</strong>: a UI-thread heartbeat whose silence is the freeze signal, a separate background beat so &ldquo;UI thread blocked&rdquo; can be told from &ldquo;whole process wedged&rdquo;, what Bloom thinks it is doing, how far shutdown got, and whether a debugger is or has been attached.</li>
       <li><strong>Bloom proves its clean exits</strong>, and marks its deliberately slow work &mdash; publishing, uploading, downloading &mdash; so a five-minute publish is not reported as a freeze.</li>
+      <li><strong>Bloom reports what its server threads are doing</strong>, which is what makes a server-side deadlock nameable rather than merely visible: the worker pool&rsquo;s size and queue depth beside the busy and blocked counts, which of the API&rsquo;s three locks each in-flight request wants or holds, and the whole list of requests in flight with how long each has run. A card can then say &ldquo;every worker is blocked and requests are waiting behind them&rdquo;, or show one request holding a lock with three queued behind it.</li>
       <li><strong>Bloom asks to be dumped as it dies</strong>, waiting on the Doctor&rsquo;s continued existence rather than on a clock, since the dying process is itself what writes the dump.</li>
       <li><strong>The Doctor</strong> watches for the three states, gathers evidence while the process still exists, queues reports on disk (a freeze often arrives with a dead network), and files them. It will not touch a <em>frozen</em> Bloom on its own, which may hold unsaved edits in the WebView2 DOM &mdash; only a window-less one, where there is nothing left to save.</li>
       <li><strong>Guard rails on filing</strong>, since it posts unattended: never from a developer or automation build, never about a rehearsal or a Bloom a debugger has been near, deduplicated by fingerprint so a recurrence is a comment rather than a new card, and at most three new cards a day automatically.</li>
@@ -162,9 +163,9 @@
         <tr><td>TypeScript typecheck</td><td>no errors</td><td class="verdict pass">Pass</td></tr>
         <tr><td>ESLint</td><td><span class="numeral">0 errors &middot; 764 warnings</span>, all pre-existing</td><td class="verdict pass">Pass</td></tr>
         <tr><td>Front-end tests (vitest)</td><td><span class="numeral">775 passed &middot; 5 skipped</span></td><td class="verdict pass">Pass</td></tr>
-        <tr><td>C# tests &mdash; <code>BloomTests</code></td><td><span class="numeral">3274 passed &middot; 13 skipped</span></td><td class="verdict pass">Pass</td></tr>
-        <tr><td>C# tests &mdash; <code>BloomFreezeDoctor.Tests</code></td><td><span class="numeral">148 passed</span></td><td class="verdict pass">Pass</td></tr>
-        <tr><td>Merge with <code>master</code></td><td>clean; <code>build/Bloom.proj</code> and <code>BloomExe.csproj</code> auto-merged</td><td class="verdict pass">Pass</td></tr>
+        <tr><td>C# tests &mdash; <code>BloomTests</code></td><td><span class="numeral">3312 passed &middot; 13 skipped</span></td><td class="verdict pass">Pass</td></tr>
+        <tr><td>C# tests &mdash; <code>BloomFreezeDoctor.Tests</code></td><td><span class="numeral">158 passed</span></td><td class="verdict pass">Pass</td></tr>
+        <tr><td>Merge with <code>master</code></td>
       </tbody>
     </table>
     </div>
@@ -173,10 +174,10 @@
   <section class="card">
     <h2>What changed this run</h2>
     <ul>
-      <li>A readability pass over the feature&rsquo;s comments: rules that had been explained by narrating the bug that taught them to us now read as rules, the liveness-bounded wait is explained once where it is implemented rather than twice, and <code>BLOOM_NO_FREEZE_DOCTOR</code> is gone in favour of the menu setting that already existed.</li>
-      <li>Fixed the two bugs Devin raised &mdash; see the reviewer notes below.</li>
-      <li>Restored <code>ReportNowAsync</code>&rsquo;s documentation, which had come adrift onto a neighbouring method, leaving a public method undocumented and that neighbour carrying two summaries.</li>
-      <li>Merged <code>master</code>: 16 commits of Crowdin translations, the promotion to 6.6, and a language-chooser test.</li>
+      <li><strong>Server-thread trouble is now diagnosable from a card</strong> &mdash; the pool size and queue depth, which lock each request wants, the full in-flight list, and threads classified from their own stacks. Folded into the narrative above, since it changed what the PR does.</li>
+      <li><strong>Answered the readability questions</strong> raised on this branch: the shutdown phase became a real enum (pinned by name and number on both sides), an API request&rsquo;s URL path is no longer called a <em>path</em>, and &ldquo;Publish&rdquo; no longer means three different things in the file that talks about publishing a BloomPUB.</li>
+      <li><strong>Split a flag that was lying.</strong> <code>ForcedByDoctor</code> was <code>endedAtDoctorsRequest || phase == None</code>, so it was true for exits the Doctor had nothing to do with. It is now two facts, because the two readers want different combinations of them.</li>
+      <li><strong>Merged <code>master</code></strong> (22 commits). It reshaped <code>BookUpload</code>&rsquo;s async signature with no git conflict, so the long-operation scope this branch adds there was checked by hand rather than trusted.</li>
     </ul>
     <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/commits" target="_blank" rel="noopener">All commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/files" target="_blank" rel="noopener">Files changed</a></p>
   </section>
@@ -185,13 +186,13 @@
     <h2>Reviewer outcomes</h2>
 
     <div class="rev">
-      <span class="who">Local review</span><span class="state">Clean</span>
-      <p>Light pass, done inline over this run&rsquo;s code changes rather than its comment edits. Nothing found. The one deletion worth checking &mdash; the credentials lookup losing a hand-rolled directory walk &mdash; is sound: it now uses the same libpalaso lookup that <code>AccessKeys</code> already used on master, plus a beside-the-exe probe, and returns null rather than throwing.</p>
+      <span class="who">Local review</span><span class="state">1 finding, fixed</span>
+      <p>Light pass, inline over this run&rsquo;s production diff. It found one real defect that no reviewer reported: the lock-state note wrote its entry back with the dictionary indexer, which would resurrect an entry <code>Dispose</code> had already removed &mdash; and a phantom in-flight request makes every later report claim something is stuck. Call-site ordering made it unreachable today; <code>TryUpdate</code> makes it unreachable regardless.</p>
     </div>
 
     <div class="rev">
-      <span class="who">Devin</span><span class="state">Complete</span>
-      <p>Two bugs, both real, both fixed, each with its own resolved thread: a Bloom dying within 30 seconds of the machine booting was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3867444363" target="_blank" rel="noopener">written off as wreckage from before a restart</a>, and the departure sweep could <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3867444489" target="_blank" rel="noopener">file a card about a shutdown the Doctor itself had asked for</a>. On re-review it reports no unresolved bugs. It raised one new flag after the merge &mdash; whether a slow startup could look like a window-less &ldquo;zombie&rdquo; &mdash; which was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3867532685" target="_blank" rel="noopener">assessed and answered on its thread</a>: the splash screen is itself a visible top-level window and is shown before the Doctor is even launched, so the window-less clock never starts. Its three standing flags &mdash; always-on health publishing, cross-process session pruning, and the shipped YouTrack token &mdash; are unchanged from earlier rounds, and each already has a decided, resolved thread. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin review</a></p>
+      <span class="who">Devin</span><span class="state">Complete &mdash; no unresolved bugs</span>
+      <p>Two new flags, both assessed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3883362017" target="_blank" rel="noopener">Ending a zombie trusts a process id</a> &mdash; real in structure, and it splits: the Doctor&rsquo;s own path is safe because it holds an open handle and Windows will not recycle a process id while one is open, but the &ldquo;Restart Bloom&rdquo; button takes a bare id, which is the first question opposite. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229#discussion_r3883362201" target="_blank" rel="noopener">An arm64 Release install derives an empty channel name</a> &mdash; confirmed and left, because <code>DeriveFromExePath</code> exists to agree with Bloom&rsquo;s own <code>ChannelName</code>, which returns the same empty string. Four standing flags are unchanged and already decided. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin review</a></p>
     </div>
 
     <div class="rev">
@@ -208,28 +209,28 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li><strong>The three failure modes have been exercised by hand, and only by hand</strong> &mdash; freezes both visible and invisible to Windows, a window-less zombie ended and restarted, a wait chain Windows can actually see, and a real crash that produced a 16.9&nbsp;MB dump uploaded to the support bucket. None of that can be staged in a unit test, so the automated suites say nothing about it.</li>
-      <li><strong>Neither of this run&rsquo;s two fixes has automated coverage</strong> &mdash; see the first question opposite. One reads the machine&rsquo;s boot time and the Event Log; the other depends on which of two timers fires first.</li>
-      <li><strong>Health publishing runs in every Bloom</strong>, whether or not the Doctor is switched on. That was decided earlier on this branch, because a Doctor installed later still needs the data, but it is a cost that ships to every user.</li>
+      <li><strong>Devin says it did not exhaustively read the Doctor-only modules</strong> &mdash; the supervisor, status form, evidence gatherers and YouTrack submitter. It concentrated on the code that runs inside production Bloom, the shared protocol, the detector and the outbox. That is a sensible division, but it means a human reviewer should not read &ldquo;Devin is clean&rdquo; as covering the Doctor&rsquo;s own bulk.</li>
+      <li><strong>The new server-thread reporting has never been read on a real card.</strong> The counts and the wording are unit-tested and the starvation arithmetic is pinned, but no deliberate server deadlock has been staged against a live Bloom. The test-ideas comment now asks a tester to read those rows during a slow publish.</li>
+      <li><strong>The three failure modes have been exercised by hand, and only by hand</strong> &mdash; freezes visible and invisible to Windows, a window-less zombie ended and restarted, and a real crash that produced a 16.9&nbsp;MB dump uploaded to the support bucket. None of that can be staged in a unit test.</li>
+      <li><strong>Health publishing runs in every Bloom</strong>, whether or not the Doctor is switched on. Decided earlier on this branch, because a Doctor installed later still needs the data, but it is a cost that ships to every user.</li>
     </ul>
   </section>
 
 </main>
 
 <aside>
-
-  <div class="q" data-item="Test coverage for the two exit-judgement fixes">
-    <h2>Should the boot-time fix get a test?</h2>
+  <div class="q" data-item="Identity check before ending a Bloom by process id">
+    <h2>Should &ldquo;Restart Bloom&rdquo; check what it is about to kill?</h2>
     <div class="body">
-      <p>Devin found that a Bloom which died within 30 seconds of the computer starting up was treated as wreckage left over from before a restart, and so was never reported at all. The cause was a sign error: the tolerance around &ldquo;did the machine reboot after Bloom died?&rdquo; allowed a boot up to 30 seconds <em>before</em> the death, and since a boot time is always in the past, every early death matched. It is fixed, but nothing would catch the sign being flipped back.</p>
-      <p>Testing it means the code has to stop reading the boot time for itself and accept it as an argument instead &mdash; a small change, but it does alter the shape of a private method. The companion fix (the Doctor forgetting it had asked a Bloom to stop) depends on which of two timers happens to fire first, and is not realistically unit-testable; the manual check for it is already in the test-ideas comment on the card.</p>
+      <p>When the Doctor ends a stuck Bloom, it looks the process up by its number and, if asking nicely fails, kills it. Devin asked whether that number could by then belong to something else &mdash; Windows reuses process numbers.</p>
+      <p>For the Doctor&rsquo;s own decision to end a zombie, it cannot: the Doctor keeps a handle open on every Bloom it watches, and Windows will not hand that number to anything else while a handle is open. The <strong>&ldquo;Restart Bloom&rdquo; button</strong> is different. It passes a bare number, and if that Bloom has already gone the handle will have been closed, freeing the number for reuse. A click landing in that gap would kill an unrelated program. The gap is small &mdash; the Bloom has to exit, its number be reused, and the click arrive in between &mdash; but it is the only thing in this feature that could harm something outside Bloom.</p>
     </div>
     <div class="opts">
       <label class="opt">
-        <input type="radio" name="q1" data-value="Make the boot-time comparison testable and add a test for the slack direction" checked>
-        <span class="txt">Make the boot-time comparison testable and add a test for the slack direction
+        <input type="radio" name="q1" data-value="Check identity before killing, and decline if it does not match" checked>
+        <span class="txt">Check identity before killing, and decline if it does not match
           <span class="tag">Recommended</span>
-          <span class="foot">~20 lines including the test; the method takes the boot time as a parameter instead of reading it. Recommended because a sign error is exactly what a cheap test pins down for good, and the failure it caused is silent &mdash; no report at all, which looks identical to nothing having gone wrong.</span>
+          <span class="foot">~15 lines: pass the start time the Doctor already records into the kill path and compare before killing. Recommended because the cost is trivial and the failure it prevents is the worst available &mdash; killing a program that has nothing to do with Bloom.</span>
         </span>
       </label>
       <div class="leaverow">
@@ -250,24 +251,25 @@
     </div>
   </div>
 
-  <div class="q" data-item="Your launch.json still carries the simulated-crash setting">
-    <h2>Leave the simulated crash armed in your <code>launch.json</code>?</h2>
+  <div class="q" data-item="Test coverage for the boot-time fix (carried over, unanswered)">
+    <h2>Should the boot-time fix get a test?</h2>
     <div class="body">
-      <p><code>.vscode/launch.json</code> is modified in your working tree and deliberately not committed. It sets <code>BLOOM_SIMULATE_FREEZE=crashthread:120</code>, which is what the manual crash test needed: two minutes after Bloom starts, a background thread throws and Bloom dies on purpose.</p>
-      <p>That means your next F5 will crash Bloom two minutes in, whatever you were doing. Fine while you are still exercising the Doctor, surprising if you have moved on to something else. Nothing about the branch depends on it either way.</p>
+      <p><em>Carried over from the last report, unanswered.</em></p>
+      <p>A Bloom that died within 30 seconds of the computer starting up was treated as wreckage left over from before a restart, and so was never reported. The cause was a sign error: the tolerance around &ldquo;did the machine reboot after Bloom died?&rdquo; allowed a boot up to 30 seconds <em>before</em> the death, and since a boot time is always in the past, every early death matched. It is fixed, but nothing would catch the sign being flipped back.</p>
+      <p>Testing it means the code stops reading the boot time for itself and accepts it as an argument &mdash; a small change that does alter the shape of a private method.</p>
     </div>
     <div class="opts">
       <label class="opt">
-        <input type="radio" name="q2" data-value="Revert launch.json so F5 runs an ordinary Bloom" checked>
-        <span class="txt">Revert <code>launch.json</code> so F5 runs an ordinary Bloom
+        <input type="radio" name="q2" data-value="Make the boot-time comparison testable and add a test for the slack direction" checked>
+        <span class="txt">Make the boot-time comparison testable and add a test for the slack direction
           <span class="tag">Recommended</span>
-          <span class="foot">One <code>git checkout</code> of an uncommitted file, no effect on the branch. Recommended only because a deliberate crash you have forgotten about is an unpleasant surprise; say the word if you still want it armed.</span>
+          <span class="foot">~20 lines including the test. Recommended because a sign error is exactly what a cheap test pins down for good, and the failure it caused is silent &mdash; no report at all, which looks identical to nothing having gone wrong.</span>
         </span>
       </label>
       <div class="leaverow">
         <label class="opt">
           <input type="radio" name="q2" data-value="Leave as is">
-          <span class="txt">Leave as is &mdash; more manual crash testing to do</span>
+          <span class="txt">Leave as is</span>
         </label>
         <label class="lc"><input type="checkbox" data-leavecomment> Leave comment</label>
       </div>
@@ -282,22 +284,27 @@
     </div>
   </div>
 
-  <div class="q" data-item="Next step">
-    <h2>Next step</h2>
+  <div class="q" data-item="Your launch.json still carries the simulated-crash setting (carried over, unanswered)">
+    <h2>Leave the simulated crash armed in your <code>launch.json</code>?</h2>
     <div class="body">
-      <p>The branch is mergeable, every suite is green and no reviewer has anything outstanding. The PR stays a draft either way &mdash; promoting it to human review is a separate, deliberate step.</p>
+      <p><em>Carried over from the last report, unanswered &mdash; and still true.</em></p>
+      <p><code>.vscode/launch.json</code> is modified in your working tree and deliberately not committed. It sets <code>BLOOM_SIMULATE_FREEZE=crashthread:120</code>, so two minutes after Bloom starts, a background thread throws and Bloom dies on purpose. Your next F5 will do that, whatever you were doing.</p>
     </div>
     <div class="opts">
       <label class="opt">
-        <input type="radio" name="q3" data-value="Answer the questions above, then it is ready for your own final read" checked>
-        <span class="txt">Answer the questions above, then it is ready for your own final read
+        <input type="radio" name="q3" data-value="Revert launch.json so F5 runs an ordinary Bloom" checked>
+        <span class="txt">Revert <code>launch.json</code> so F5 runs an ordinary Bloom
           <span class="tag">Recommended</span>
+          <span class="foot">One <code>git checkout</code> of an uncommitted file, no effect on the branch. Recommended only because a deliberate crash you have forgotten about is an unpleasant surprise.</span>
         </span>
       </label>
-      <label class="opt">
-        <input type="radio" name="q3" data-value="Discuss something before anything else happens">
-        <span class="txt">Discuss something before anything else happens</span>
-      </label>
+      <div class="leaverow">
+        <label class="opt">
+          <input type="radio" name="q3" data-value="Leave as is">
+          <span class="txt">Leave as is &mdash; more manual crash testing to do</span>
+        </label>
+        <label class="lc"><input type="checkbox" data-leavecomment> Leave comment</label>
+      </div>
       <label class="opt">
         <input type="radio" name="q3" data-value="Other:">
         <span class="otherwrap"><span class="txt">Other:</span><input type="text" data-other placeholder="your answer"></span>
@@ -306,6 +313,33 @@
     <div class="notes">
       <label for="n3">Notes</label>
       <textarea id="n3" data-notes rows="2"></textarea>
+    </div>
+  </div>
+
+  <div class="q" data-item="Next step">
+    <h2>Next step</h2>
+    <div class="body">
+      <p>The branch is mergeable, every suite is green and no reviewer has anything outstanding. The PR stays a draft either way &mdash; promoting it to human review is a separate, deliberate step.</p>
+    </div>
+    <div class="opts">
+      <label class="opt">
+        <input type="radio" name="q4" data-value="Answer the questions above, then it is ready for your own final read" checked>
+        <span class="txt">Answer the questions above, then it is ready for your own final read
+          <span class="tag">Recommended</span>
+        </span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" data-value="Discuss something before anything else happens">
+        <span class="txt">Discuss something before anything else happens</span>
+      </label>
+      <label class="opt">
+        <input type="radio" name="q4" data-value="Other:">
+        <span class="otherwrap"><span class="txt">Other:</span><input type="text" data-other placeholder="your answer"></span>
+      </label>
+    </div>
+    <div class="notes">
+      <label for="n4">Notes</label>
+      <textarea id="n4" data-notes rows="2"></textarea>
     </div>
   </div>
 
@@ -322,7 +356,7 @@
 <footer>
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">PR #8229</a> &middot;
   <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16719" target="_blank" rel="noopener">BL-16719</a> &middot;
-  HEAD <span class="numeral">dae807f3e</span>
+  HEAD <span class="numeral">504d79a73</span>
 </footer>
 
 </div>
@@ -332,7 +366,7 @@
   var payload = document.getElementById('payload');
 
   function serialize() {
-    var out = ['Preflight answers - BL-16719 / PR #8229 @ dae807f3e', ''];
+    var out = ['Preflight answers - BL-16719 / PR #8229 @ 504d79a73', ''];
     var items = document.querySelectorAll('[data-item]');
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
