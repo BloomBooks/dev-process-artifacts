@@ -209,7 +209,7 @@
       <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Edit/EditingStateMachine.cs#L272" target="_blank" rel="noopener">The state machine</a> now runs the caller&rsquo;s recovery action when the post-save action throws, not only when applying the page content does &mdash; completing a design that already existed for the other failure path.</li>
       <li>A <a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomTests/Book/BookDataTests.cs#L1495" target="_blank" rel="noopener">regression test</a> for the orphaned-image crash.</li>
     </ul>
-    <p>The other half of the report &mdash; the branding logo being designated as the cover image in the first place &mdash; is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16775" target="_blank" rel="noopener">BL-16775</a> and is not touched here.</p>
+    <p>The other half of the report &mdash; the branding logo being designated as the cover image in the first place, in <code>bloomImages.ts</code> &mdash; is not touched here, and has no card of its own. <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16780" target="_blank" rel="noopener">BL-16780</a> is the nearest work, and it fixes a different side of the same idea.</p>
   </section>
 
   <section class="card">
@@ -261,7 +261,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul class="bul">
-      <li><strong>This PR does not stop the cover image being replaced by the branding logo.</strong> It stops that from bricking the session. A user on a custom-layout cover with a placeholder cover image will still find the branding logo silently promoted to be their cover image &mdash; that is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16775" target="_blank" rel="noopener">BL-16775</a>, in progress separately.</li>
+      <li><strong>This PR does not stop the cover image being replaced by the branding logo.</strong> It stops that from bricking the session. A user on a custom-layout cover with a placeholder cover image will still find the branding logo silently promoted to be their cover image, and saved into the book.</li>
       <li><strong>Expect a small conflict forward-porting to master.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248" target="_blank" rel="noopener">PR&nbsp;#8248</a> renames <code>TabChangedDetails.PostponedWork</code> to <code>CompleteTheChange</code> on exactly the lines this PR wraps in a try/catch. Mechanical to resolve: keep the try/catch, use the new name.</li>
       <li><strong>Nothing here was exercised in the running app.</strong> The crash and both traps were diagnosed against a live 6.5.3007 session, its log, and the book on disk, and the crash is covered by a unit test &mdash; but the tab-change and shutdown paths have only been reasoned about, not driven by hand.</li>
       <li><strong>One test fails on <code>Version6.4</code> before this branch exists.</strong> <code>InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> &mdash; confirmed failing at the base commit, so a reviewer seeing it red need not chase it here.</li>
@@ -276,27 +276,33 @@
   <section class="card">
     <h2>Over to you</h2>
 
-    <div class="item" data-item="ship-without-16775">
-      <div class="q">Ship this while BL-16775 is still open?</div>
-      <p>Two separate defects produced this report. The front-end one &mdash; <code>normalizeCoverImageDesignation</code> picking the branding logo as the cover image &mdash; is BL-16775, assigned to John Hatton and marked In Progress, with no branch or PR yet. This PR fixes only what happens afterwards: the crash it triggers, and the fact that the crash used to make Bloom unusable. Landing this on its own means a user in that situation gets a wrong cover image and a &ldquo;couldn&rsquo;t save&rdquo; message, but can still work and still quit &mdash; a large improvement, but not the whole bug the reporter hit.</p>
+    <div class="item" data-item="frontend-half">
+      <div class="q">The front-end half has no card. Where should it go?</div>
+      <p>Two defects produced this report. This PR fixes the second one &mdash; the crash, and the fact that the crash made Bloom unusable. The first one is in the editor: on a custom-layout front cover whose picture is still the placeholder, <code>normalizeCoverImageDesignation</code> takes the branding logo to be the book&rsquo;s cover picture, and saves that into the book. Nobody is tracking it.</p>
+      <p>The nearest work is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16780" target="_blank" rel="noopener">BL-16780</a> / <a href="https://github.com/BloomBooks/BloomDesktop/pull/8256" target="_blank" rel="noopener">PR&nbsp;#8256</a> (Hatton, same base branch, in progress). It stops the same kind of image being chosen as the book&rsquo;s <em>icon</em>, in <code>Book.GetCoverImagePathAndElt</code> &mdash; a read, changing nothing in the book. I checked its branch: it leaves the editor code byte-identical, so it cannot stop the branding logo being written into the book as the cover picture. What it does give us is the rule, already agreed and already implemented in C#: an image only counts if it sits inside an image container, plus a branding / licence / QR-code exclusion. The front end has no such rule &mdash; it excludes only Bloom&rsquo;s own UI images.</p>
       <div class="opt">
-        <input type="radio" name="q1" id="q1a" value="Land this now, independently of BL-16775" checked>
-        <span class="body"><label class="lab" for="q1a">Land this now, independently of BL-16775<span class="tag">Recommended</span></label>
-        <span class="fn">No further work. The defects are independent, and the resilience half is valuable on its own for any future save failure, not just this one.</span></span>
+        <input type="radio" name="q1" id="q1a" value="Ask Hatton to widen BL-16780 to cover the front end too" checked>
+        <span class="body"><label class="lab" for="q1a">Ask Hatton to widen BL-16780 to cover the front end<span class="tag">Recommended</span></label>
+        <span class="fn">Small &mdash; a few lines in <code>bloomImages.ts</code> mirroring the rule he just wrote in C#. Recommended because it is his card, his rule, and the same base branch; splitting one idea across two people is how the halves drift apart.</span></span>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1b" value="Hold until BL-16775 lands, then merge together">
-        <span class="body"><label class="lab" for="q1b">Hold until BL-16775 lands, then merge together</label>
-        <span class="fn">No code &mdash; just waiting, plus a re-run of preflight when BL-16775 arrives.</span></span>
+        <input type="radio" name="q1" id="q1b" value="File a separate card for the front-end designation bug">
+        <span class="body"><label class="lab" for="q1b">File a separate card for it</label>
+        <span class="fn">No code &mdash; one new card, so it is at least tracked and can be scheduled independently.</span></span>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1c" value="Leave as is">
-        <span class="body"><label class="lab" for="q1c">Leave as is</label></span>
+        <input type="radio" name="q1" id="q1c" value="Add the front-end fix to this PR">
+        <span class="body"><label class="lab" for="q1c">Add the front-end fix to this PR</label>
+        <span class="fn">Small in code, but it widens this PR from &ldquo;recover from a failed save&rdquo; to &ldquo;also change which picture is the cover&rdquo; &mdash; two different risks in one review, and it would collide with #8256.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" value="Leave as is">
+        <span class="body"><label class="lab" for="q1d">Leave as is</label></span>
         <label class="leavecomment"><input type="checkbox" data-lc="q1"> Leave comment</label>
       </div>
       <div class="opt">
-        <input type="radio" name="q1" id="q1d" value="Other">
-        <span class="body"><label class="lab" for="q1d">Other:</label>
+        <input type="radio" name="q1" id="q1e" value="Other">
+        <span class="body"><label class="lab" for="q1e">Other:</label>
         <input type="text" data-other="q1" placeholder="your answer"></span>
       </div>
       <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-notes="q1"></textarea></div>
@@ -395,7 +401,7 @@
 <script>
 (function () {
   var LABELS = {
-    "ship-without-16775": "Ship this while BL-16775 is still open?",
+    "frontend-half": "The front-end half has no card. Where should it go?",
     "preexisting-red-test": "The pre-existing failing test on Version6.4",
     "manual-verification": "Should the two traps be verified by hand before review?",
     "next-step": "Next step"
