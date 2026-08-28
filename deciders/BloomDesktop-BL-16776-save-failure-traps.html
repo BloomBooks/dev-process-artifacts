@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — Save-Failure Traps</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #f7f4ef;
+    --card: #ffffff;
+    --rule: #e3ddd2;
+    --rule-soft: #efeae1;
+    --ink: #241f1a;
+    --ink-2: #4b433a;
+    --muted: #7a7065;
+    --accent: #1d5c50;
+    --accent-soft: #e6efec;
+    --good: #2c6e4a;
+    --good-soft: #e6f0e9;
+    --warn: #92601c;
+    --warn-soft: #f6eddd;
+    --bad: #9c3729;
+    --bad-soft: #f6e6e3;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 32px 28px 72px;
+  }
+
+  .wrap { max-width: 1320px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  header.top { margin-bottom: 26px; }
+  header.top .kicker {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  header.top h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 600;
+    text-wrap: balance;
+    margin-bottom: 10px;
+  }
+  header.top .lede { color: var(--ink-2); max-width: 68ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--rule); background: var(--card);
+    border-radius: 999px; padding: 4px 12px;
+    font-size: 12.5px; color: var(--ink-2);
+  }
+  .chip.ok { background: var(--good-soft); border-color: #cfe2d6; color: var(--good); }
+  .chip.attn { background: var(--warn-soft); border-color: #e8d8bc; color: var(--warn); }
+
+  /* ---- layout ---- */
+  .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: start; }
+  .col { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 940px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 20px 22px;
+  }
+  .card > h2 {
+    font-family: var(--serif);
+    font-size: 19px;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .card h3 {
+    font-family: var(--sans);
+    font-size: 12px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 16px 0 6px;
+  }
+  .card h3:first-of-type { margin-top: 0; }
+  .card p { margin-bottom: 10px; color: var(--ink-2); max-width: 70ch; }
+  .card p:last-child { margin-bottom: 0; }
+  .card ul.bul { margin: 0 0 10px; }
+  .card ul.bul li { position: relative; padding-left: 17px; margin-bottom: 6px; color: var(--ink-2); }
+  .card ul.bul li::before {
+    content: ""; position: absolute; left: 3px; top: .62em;
+    width: 5px; height: 5px; border-radius: 50%; background: var(--accent);
+  }
+  .card ul.bul li:last-child { margin-bottom: 0; }
+
+  code, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 12.8px; background: var(--rule-soft); padding: 1px 5px; border-radius: 3px; }
+  .numeral { font-size: 13px; }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- tables ---- */
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  td.what { color: var(--ink); font-weight: 500; width: 1%; white-space: nowrap; }
+  .verdict { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 3px; white-space: nowrap; }
+  .v-pass { background: var(--good-soft); color: var(--good); }
+  .v-fail { background: var(--bad-soft); color: var(--bad); }
+  .v-na { background: var(--rule-soft); color: var(--muted); }
+  .v-known { background: var(--warn-soft); color: var(--warn); }
+
+  .rev { border-bottom: 1px solid var(--rule-soft); padding: 11px 0; }
+  .rev:first-of-type { padding-top: 0; }
+  .rev:last-of-type { border-bottom: 0; padding-bottom: 0; }
+  .rev .name { font-weight: 600; margin-bottom: 2px; }
+  .rev .name .state { font-weight: 400; color: var(--muted); font-size: 13px; }
+  .rev p { margin: 0; font-size: 14px; }
+
+  /* ---- decisions ---- */
+  .item { border-bottom: 1px solid var(--rule-soft); padding-bottom: 18px; margin-bottom: 18px; }
+  .item:last-of-type { border-bottom: 0; padding-bottom: 0; margin-bottom: 0; }
+  .item > .q { font-family: var(--serif); font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .opt { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-top: 1px solid var(--rule-soft); }
+  .opt:first-of-type { border-top: 0; }
+  .opt input[type=radio] { margin-top: 4px; flex: none; }
+  .opt .body { min-width: 0; flex: 1; }
+  .opt .lab { font-weight: 500; }
+  .opt .tag {
+    font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+    background: var(--accent-soft); color: var(--accent);
+    padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: 1px;
+  }
+  .opt .fn { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .opt .leavecomment { flex: none; font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .opt input[type=text] { width: 100%; margin-top: 5px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--ground); }
+  .notes { margin-top: 10px; }
+  .notes label { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .notes textarea { width: 100%; min-height: 46px; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--ground); resize: vertical; }
+
+  button.copy {
+    background: var(--accent); color: #fff; border: 0; border-radius: 5px;
+    padding: 9px 18px; font-weight: 600; cursor: pointer;
+  }
+  button.copy:hover { background: #17493f; }
+  #payload { width: 100%; min-height: 150px; margin-top: 12px; font-family: var(--mono); font-size: 12px; padding: 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--ground); }
+  .copied { margin-left: 10px; font-size: 13px; color: var(--good); opacity: 0; transition: opacity .18s; }
+  .copied.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div class="kicker">Preflight &middot; BloomDesktop &middot; BL-16776</div>
+  <h1>Don&rsquo;t let a failed page save trap the user in Bloom</h1>
+  <p class="lede">Three commits on <code>BL-16776-save-failure-traps</code>, based on <code>Version6.4</code>. The crash is fixed and the two exits it was blocking &mdash; changing tabs and quitting &mdash; no longer depend on the save succeeding.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">No findings anywhere</span>
+    <span class="chip attn">4 items for you</span>
+  </div>
+</header>
+
+<div class="grid">
+
+<!-- ============ LEFT ============ -->
+<div class="col">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p>Switch a front cover to custom layout, add an image to it, and the book can reach a state where the page will never save again. Every action that saves &mdash; clicking a page thumbnail, switching to the Collections or Publish tab, even quitting &mdash; puts up &ldquo;Bloom had trouble saving a page&rdquo; and then does nothing else. There is no way out of the program except Task Manager. Reported from 6.5.3007 with Little&nbsp;Zebra branding.</p>
+
+    <h3>Cause</h3>
+    <p>A branding HTML value can itself contain an <code>&lt;img&gt;</code> marked as the cover image. <code>UpdateDomFromDataSet</code> collects every <code>data-book</code> node up front, then restores the branding element &mdash; which replaces everything inside it, orphaning that image. When the orphan&rsquo;s turn comes, the update code reaches for parents it no longer has and throws.</p>
+    <p>That alone would be one failed save. What makes it inescapable is separate: leaving the Edit tab and shutting down both run their real work only <em>after</em> <code>Book.Save()</code> returns, so a save that always throws blocks both of them permanently.</p>
+
+    <h3>What the PR does</h3>
+    <ul class="bul">
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Book/BookData.cs#L1914" target="_blank" rel="noopener">Skips collected nodes that an earlier update has since detached</a> from the document, in both of <code>UpdateDomFromDataSet</code>&rsquo;s passes. This is the crash itself.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Edit/EditingModel.cs#L400" target="_blank" rel="noopener">Leaving the Edit tab</a> now reports a failed save and changes tabs anyway.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Edit/EditingModel.cs#L223" target="_blank" rel="noopener">Shutdown</a> likewise reports and carries on, so quitting never depends on the save.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomExe/Edit/EditingStateMachine.cs#L272" target="_blank" rel="noopener">The state machine</a> now runs the caller&rsquo;s recovery action when the post-save action throws, not only when applying the page content does &mdash; completing a design that already existed for the other failure path.</li>
+      <li>A <a href="https://github.com/BloomBooks/BloomDesktop/blob/92a7fcce3da6ba375bb87ca0c4058c747f5dea34/src/BloomTests/Book/BookDataTests.cs#L1495" target="_blank" rel="noopener">regression test</a> for the orphaned-image crash.</li>
+    </ul>
+    <p>The other half of the report &mdash; the branding logo being designated as the cover image in the first place &mdash; is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16775" target="_blank" rel="noopener">BL-16775</a> and is not touched here.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td class="what">C# build</td><td><span class="verdict v-pass">pass</span></td><td><code>dotnet build BloomExe.csproj</code> &mdash; <span class="numeral">0</span> errors. This is the typecheck and lint for a C#-only change.</td></tr>
+          <tr><td class="what">C# tests</td><td><span class="verdict v-known">2 known fails</span></td><td><span class="numeral">2871</span> passed, <span class="numeral">13</span> skipped, <span class="numeral">2</span> failed &mdash; both failures unrelated to this branch and confirmed so: <code>InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> fails at the base commit too, and <code>SetupAndBuildAsync_RealReadingAppBuilderBuild_CreatesValidApk</code> is an opt-in test needing a Reading App Builder install, never run on CI.</td></tr>
+          <tr><td class="what">TypeScript tests</td><td><span class="verdict v-na">not run</span></td><td>No TypeScript in the diff, and nothing the vitest suite reads or builds is touched.</td></tr>
+          <tr><td class="what">TypeScript lint / typecheck</td><td><span class="verdict v-na">not run</span></td><td>Same reason &mdash; the diff is four C# files.</td></tr>
+          <tr><td class="what">Merges cleanly</td><td><span class="verdict v-pass">pass</span></td><td>Up to date with <code>origin/Version6.4</code>; no conflicts.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>First run on this branch. It committed the fix that was already in the working tree, then added two things the reviews turned up: reporting the tab-change save failure instead of throwing out of the post-save action, and the same orphan guard on <code>UpdateDomFromDataSet</code>&rsquo;s first pass.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8254/commits" target="_blank" rel="noopener">All three commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8254/files" target="_blank" rel="noopener">Files changed</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+
+    <div class="rev">
+      <div class="name">Local review <span class="state">&mdash; light pass, done inline &middot; 1 raised, 1 fixed</span></div>
+      <p>Caught that completing the tab change in a <code>finally</code> while letting the exception propagate left the state machine navigating a page whose tab had just been left. Changed to report-and-continue, which ends on the same path a successful save takes.</p>
+    </div>
+
+    <div class="rev">
+      <div class="name">Devin <span class="state">&mdash; complete, re-review clean</span></div>
+      <p>No bugs and nothing to investigate at the current commit. It raised four informational notes, none mirrored to the PR: three of them independently confirm the reasoning behind the change, and the fourth pointed out that the orphan guard was missing from the first of the two loops &mdash; which is what the third commit fixes. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8254" target="_blank" rel="noopener">Devin review</a></p>
+    </div>
+
+    <div class="rev">
+      <div class="name">Greptile <span class="state">&mdash; timed out after 30 min on the final commit</span></div>
+      <p>It reviewed the branch at the second commit and posted a summary with no findings &mdash; no inline comments, no flags. It never started a review of the third commit (the one-line orphan guard) within the wait, so that commit is unreviewed by Greptile. Re-running preflight would fold in a late result. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8254#issuecomment-5455878273" target="_blank" rel="noopener">Its summary</a>.</p>
+    </div>
+
+    <div class="rev">
+      <div class="name">CI <span class="state">&mdash; complete</span></div>
+      <p><code>pr-automation</code> passed on the current commit.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul class="bul">
+      <li><strong>This PR does not stop the cover image being replaced by the branding logo.</strong> It stops that from bricking the session. A user on a custom-layout cover with a placeholder cover image will still find the branding logo silently promoted to be their cover image &mdash; that is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16775" target="_blank" rel="noopener">BL-16775</a>, in progress separately.</li>
+      <li><strong>Expect a small conflict forward-porting to master.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8248" target="_blank" rel="noopener">PR&nbsp;#8248</a> renames <code>TabChangedDetails.PostponedWork</code> to <code>CompleteTheChange</code> on exactly the lines this PR wraps in a try/catch. Mechanical to resolve: keep the try/catch, use the new name.</li>
+      <li><strong>Nothing here was exercised in the running app.</strong> The crash and both traps were diagnosed against a live 6.5.3007 session, its log, and the book on disk, and the crash is covered by a unit test &mdash; but the tab-change and shutdown paths have only been reasoned about, not driven by hand.</li>
+      <li><strong>One test fails on <code>Version6.4</code> before this branch exists.</strong> <code>InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> &mdash; confirmed failing at the base commit, so a reviewer seeing it red need not chase it here.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ============ RIGHT ============ -->
+<div class="col">
+
+  <section class="card">
+    <h2>Over to you</h2>
+
+    <div class="item" data-item="ship-without-16775">
+      <div class="q">Ship this while BL-16775 is still open?</div>
+      <p>Two separate defects produced this report. The front-end one &mdash; <code>normalizeCoverImageDesignation</code> picking the branding logo as the cover image &mdash; is BL-16775, assigned to John Hatton and marked In Progress, with no branch or PR yet. This PR fixes only what happens afterwards: the crash it triggers, and the fact that the crash used to make Bloom unusable. Landing this on its own means a user in that situation gets a wrong cover image and a &ldquo;couldn&rsquo;t save&rdquo; message, but can still work and still quit &mdash; a large improvement, but not the whole bug the reporter hit.</p>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" value="Land this now, independently of BL-16775" checked>
+        <span class="body"><label class="lab" for="q1a">Land this now, independently of BL-16775<span class="tag">Recommended</span></label>
+        <span class="fn">No further work. The defects are independent, and the resilience half is valuable on its own for any future save failure, not just this one.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" value="Hold until BL-16775 lands, then merge together">
+        <span class="body"><label class="lab" for="q1b">Hold until BL-16775 lands, then merge together</label>
+        <span class="fn">No code &mdash; just waiting, plus a re-run of preflight when BL-16775 arrives.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1c" value="Leave as is">
+        <span class="body"><label class="lab" for="q1c">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-lc="q1"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" value="Other">
+        <span class="body"><label class="lab" for="q1d">Other:</label>
+        <input type="text" data-other="q1" placeholder="your answer"></span>
+      </div>
+      <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-notes="q1"></textarea></div>
+    </div>
+
+    <div class="item" data-item="preexisting-red-test">
+      <div class="q">The pre-existing failing test on Version6.4</div>
+      <p><code>InsideBackCover_PaperAndDeviceXMatter_ShareOneCustomLayoutId</code> fails at the base commit of <code>Version6.4</code>, with and without this branch, so it is not caused by this work. It is about two x-matter variants sharing one custom-layout id &mdash; adjacent to the custom-cover area this PR touches, which is why it is being surfaced rather than ignored. A red test on a release branch tends to get normalised, and then the next person cannot tell a real regression from the usual noise.</p>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" value="File a YouTrack card for it" checked>
+        <span class="body"><label class="lab" for="q2a">File a YouTrack card for it<span class="tag">Recommended</span></label>
+        <span class="fn">No code &mdash; one card on the 6.4 board, so the red suite stops being background noise. Recommended because it is on a release branch and in the same feature area.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" value="Investigate and fix it on this branch">
+        <span class="body"><label class="lab" for="q2b">Investigate and fix it on this branch</label>
+        <span class="fn">Unknown size, and unrelated to BL-16776 &mdash; would widen this PR&rsquo;s scope and its review.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2c" value="Leave as is">
+        <span class="body"><label class="lab" for="q2c">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-lc="q2"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2d" value="Other">
+        <span class="body"><label class="lab" for="q2d">Other:</label>
+        <input type="text" data-other="q2" placeholder="your answer"></span>
+      </div>
+      <div class="notes"><label for="n2">Notes</label><textarea id="n2" data-notes="q2"></textarea></div>
+    </div>
+
+    <div class="item" data-item="manual-verification">
+      <div class="q">Should the two traps be verified by hand before review?</div>
+      <p>The crash has a unit test. The tab-change and shutdown fixes do not &mdash; there is no test harness for the editing state machine on <code>Version6.4</code> (the one that exists was added on master by PR&nbsp;#8248). They were reasoned about from the code and from the live wedged session, but nobody has actually watched Bloom recover: made a page fail to save, then changed tabs and quit. Reproducing it takes a Little&nbsp;Zebra collection, a custom-layout cover, and a pasted image &mdash; a few minutes.</p>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3a" value="Yes - reproduce and verify recovery in a dev build before human review" checked>
+        <span class="body"><label class="lab" for="q3a">Reproduce and verify recovery before human review<span class="tag">Recommended</span></label>
+        <span class="fn">No code &mdash; a manual pass in a dev build. Recommended because these are the two paths the reporter actually got stuck on, and neither is covered by a test.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3b" value="Port the EditingStateMachine test harness from PR 8248 and cover it with tests">
+        <span class="body"><label class="lab" for="q3b">Port the state-machine test harness from #8248 and cover it</label>
+        <span class="fn">Moderate &mdash; pulls ~280 lines of test infrastructure onto a release branch, and would need its own review.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3c" value="Leave as is">
+        <span class="body"><label class="lab" for="q3c">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-lc="q3"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3d" value="Other">
+        <span class="body"><label class="lab" for="q3d">Other:</label>
+        <input type="text" data-other="q3" placeholder="your answer"></span>
+      </div>
+      <div class="notes"><label for="n3">Notes</label><textarea id="n3" data-notes="q3"></textarea></div>
+    </div>
+
+    <div class="item" data-item="next-step">
+      <div class="q">Next step</div>
+      <p>The branch is clean: build green, reviewers quiet, mergeable, and left as a draft. Nothing here is blocked on anything except your answers above.</p>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4a" value="Act on my answers above, then stop for my own review" checked>
+        <span class="body"><label class="lab" for="q4a">Act on my answers, then stop for my own review<span class="tag">Recommended</span></label>
+        <span class="fn">You read the diff yourself before it goes to a colleague; promotion stays your call.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4b" value="Discuss the approach with me before doing anything else">
+        <span class="body"><label class="lab" for="q4b">Discuss the approach first</label>
+        <span class="fn">No code &mdash; talk it through before any further change.</span></span>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4c" value="Leave as is">
+        <span class="body"><label class="lab" for="q4c">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-lc="q4"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q4" id="q4d" value="Other">
+        <span class="body"><label class="lab" for="q4d">Other:</label>
+        <input type="text" data-other="q4" placeholder="your answer"></span>
+      </div>
+      <div class="notes"><label for="n4">Notes</label><textarea id="n4" data-notes="q4"></textarea></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the Claude Code session.</p>
+    <button class="copy" id="copybtn" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var LABELS = {
+    "ship-without-16775": "Ship this while BL-16775 is still open?",
+    "preexisting-red-test": "The pre-existing failing test on Version6.4",
+    "manual-verification": "Should the two traps be verified by hand before review?",
+    "next-step": "Next step"
+  };
+
+  function serialize() {
+    var out = ["Preflight answers - BL-16776 (PR #8254)", ""];
+    var items = document.querySelectorAll(".item");
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var key = item.getAttribute("data-item");
+      var chosen = item.querySelector("input[type=radio]:checked");
+      var value = chosen ? chosen.value : "(no answer)";
+      if (chosen && chosen.value === "Other") {
+        var other = item.querySelector("input[data-other]");
+        var t = other && other.value.trim();
+        value = t ? "Other: " + t : "Other: (blank)";
+      }
+      out.push("## " + (LABELS[key] || key));
+      out.push("Answer: " + value);
+      var lc = item.querySelector("input[data-lc]");
+      if (lc && lc.checked) out.push("Leave comment: record this decision as a code comment near the relevant code.");
+      var notes = item.querySelector("textarea[data-notes]");
+      var n = notes && notes.value.trim();
+      if (n) out.push("Notes: " + n);
+      out.push("");
+    }
+    return out.join("\n").replace(/\n+$/, "\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.classList.add("show");
+      setTimeout(function () { c.classList.remove("show"); }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      });
+    } else {
+      payload.select(); try { document.execCommand("copy"); } catch (e) {} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
