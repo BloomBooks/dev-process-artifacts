@@ -1,0 +1,680 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Publish App Analytics Backport</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body, h1, h2, h3, h4, p, ul, ol, li, table, figure, blockquote { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+
+  :root {
+    --ground:      #f6f4ef;
+    --card:        #ffffff;
+    --line:        #e2ddd2;
+    --line-soft:   #eeeae1;
+    --ink:         #221f18;
+    --ink-2:       #4a443a;
+    --muted:       #756d5f;
+    --accent:      #2c6a66;
+    --accent-soft: #eaf1f0;
+    --good:        #2c6b45;
+    --warn:        #8d6310;
+    --bad:         #9d3228;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    --mono:  ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 34px 30px 70px; }
+
+  /* ---------- header ---------- */
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 26px; }
+  .kicker {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 9px;
+  }
+  h1 {
+    font-family: var(--serif); font-weight: 600; font-size: clamp(27px, 3.4vw, 37px);
+    line-height: 1.15; letter-spacing: -.012em; text-wrap: balance; margin-bottom: 9px;
+  }
+  .standfirst { color: var(--ink-2); max-width: 66ch; font-size: 16px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 17px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 12px; font-size: 12.5px; color: var(--ink-2);
+  }
+  .chip strong { font-weight: 600; color: var(--ink); }
+  .chip.ok    { border-color: #c3ddcc; background: #f2f8f4; color: var(--good); }
+  .chip.hold  { border-color: #e6d5ae; background: #fbf6ea; color: var(--warn); }
+
+  /* ---------- layout ---------- */
+  .cols { display: grid; grid-template-columns: 1.62fr 1fr; gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 7px;
+    padding: 22px 24px;
+  }
+  .card > * + * { margin-top: 13px; }
+  h2 {
+    font-family: var(--serif); font-weight: 600; font-size: 21px;
+    letter-spacing: -.008em; line-height: 1.25;
+  }
+  h3 {
+    font-family: var(--sans); font-weight: 650; font-size: 12.5px;
+    letter-spacing: .075em; text-transform: uppercase; color: var(--accent);
+  }
+  h4 { font-family: var(--sans); font-weight: 650; font-size: 15px; }
+  p { max-width: 72ch; }
+  .card p + h3 { margin-top: 19px; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid #b9d2d0; }
+  a:hover { border-bottom-color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  code, .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: .88em; background: #f4f1ea; border: 1px solid var(--line-soft);
+         border-radius: 3px; padding: .06em .32em; }
+  .numeral { font-size: .93em; }
+
+  ul.bullets { display: flex; flex-direction: column; gap: 9px; }
+  ul.bullets > li { position: relative; padding-left: 17px; max-width: 72ch; }
+  ul.bullets > li::before {
+    content: ""; position: absolute; left: 2px; top: .62em;
+    width: 5px; height: 5px; border-radius: 50%; background: #c0b8a8;
+  }
+
+  /* ---------- gate table ---------- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.4px; }
+  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th {
+    font-size: 11.5px; letter-spacing: .075em; text-transform: uppercase;
+    color: var(--muted); font-weight: 650; border-bottom-color: var(--line);
+  }
+  tr:last-child td { border-bottom: none; }
+  td.verdict { white-space: nowrap; font-weight: 600; }
+  .v-pass { color: var(--good); }
+  .v-skip { color: var(--muted); font-weight: 500; }
+  .v-open { color: var(--warn); }
+
+  /* ---------- reviewers ---------- */
+  .rev { display: flex; flex-direction: column; gap: 15px; }
+  .rev > li { border-left: 2px solid var(--line); padding-left: 14px; max-width: 74ch; }
+  .rev > li.done { border-left-color: #8fb9ab; }
+  .rev > li.late { border-left-color: #d9c08a; }
+  .rev .who { font-weight: 650; }
+  .rev .state {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--muted); margin-left: 8px;
+  }
+
+  /* ---------- decisions ---------- */
+  .decision { border-left: 3px solid var(--accent); }
+  .qnum {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+  .opt {
+    display: grid; grid-template-columns: auto 1fr auto; gap: 9px;
+    align-items: start; padding: 9px 10px; border-radius: 5px;
+    border: 1px solid transparent;
+  }
+  .opt:hover { background: #faf8f4; }
+  .opt input[type=radio], .opt input[type=checkbox] { margin-top: .34em; }
+  .opt label { cursor: pointer; }
+  .opt .fx {
+    display: block; color: var(--muted); font-size: 13.2px; margin-top: 3px;
+  }
+  .tag {
+    display: inline-block; background: var(--accent-soft); color: var(--accent);
+    border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 650;
+    letter-spacing: .05em; text-transform: uppercase; margin-left: 7px;
+    vertical-align: 1px; white-space: nowrap;
+  }
+  .leavecomment {
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+    font-size: 12.6px; color: var(--muted);
+  }
+  .otherline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  input[type=text] {
+    font: inherit; font-size: 14px; padding: 5px 9px; border: 1px solid var(--line);
+    border-radius: 4px; background: #fdfcfa; color: var(--ink); min-width: 12ch; flex: 1 1 16ch;
+  }
+  .notes { margin-top: 13px; }
+  .notes label {
+    display: block; font-size: 12.2px; color: var(--muted); margin-bottom: 5px;
+  }
+  textarea {
+    font: inherit; font-size: 14px; width: 100%; padding: 7px 9px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fdfcfa;
+    color: var(--ink); resize: vertical;
+  }
+
+  /* ---------- copy-back ---------- */
+  .copyback { border-left: 3px solid #c0b8a8; }
+  .btn {
+    font: inherit; font-weight: 650; font-size: 14.4px; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid #245652;
+    border-radius: 5px; padding: 8px 16px;
+  }
+  .btn:hover { background: #245652; }
+  .copied { color: var(--good); font-size: 13px; font-weight: 600; margin-left: 10px; }
+  #payload { margin-top: 12px; min-height: 130px; font-family: var(--mono); font-size: 12.4px; }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  @media (max-width: 900px) {
+    .cols { grid-template-columns: 1fr; }
+    .wrap { padding: 26px 18px 56px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">Preflight report &middot; BloomDesktop &middot; BL-16716</div>
+  <h1>Publish App analytics, backported to 6.4</h1>
+  <p class="standfirst">
+    One analytics event carried back from the 6.5 work so that 6.4 does not ship the App Builder
+    with no telemetry at all. Three commits, one file, two review findings fixed &mdash; and three
+    questions waiting for you.
+  </p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><strong>Draft PR</strong> #8260</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable &middot; clean</span>
+    <span class="chip ok">Quality gate green</span>
+    <span class="chip hold"><strong>3</strong> items waiting on you</span>
+    <span class="chip">HEAD <code>e6ede7f</code></span>
+  </div>
+</header>
+
+<div class="cols">
+
+  <!-- ============ LEFT ============ -->
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>
+        Bloom 6.4 ships the App Builder, and reports nothing about it. Whether a real Reading App
+        Builder build actually succeeds for a user, how long it takes, and how it fails are things
+        we currently have no way to see. CI never runs a real App Builder build, so field telemetry
+        is the only continuous coverage this path can ever have &mdash; and 6.4 has none.
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8228" target="_blank" rel="noopener">PR&nbsp;#8228</a>
+        wrote exactly that telemetry, but only on the 6.5 branch, and the App Builder is one of the
+        features that also ships in 6.4.
+      </p>
+
+      <h3>What the PR does</h3>
+      <ul class="bullets">
+        <li>
+          Sends a <code>Publish App</code> event when a build or an install finishes, carrying the
+          stage, whether it succeeded, how long it took, the failure type when it failed, the number
+          of books in the app, and the size of the resulting APK. It is identical to 6.5's event, so
+          data from the two versions is directly comparable. <strong>Prepare</strong> is fast and
+          local and, as in 6.5, deliberately is not reported.
+        </li>
+        <li>
+          <strong>Nothing else from #8228 comes back.</strong> The other six events cover features
+          6.4 does not have, and none of the plumbing travels with this one: no
+          <code>analytics/track</code> endpoint, no front-end <code>trackEvent()</code> helper, no
+          <code>BloomAnalytics</code> wrapper and no commit-time check for it. The event is entirely
+          C#-side, so the whole change is
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/e6ede7f1206bc19d0c4206325b79a5fc3ce5c631/src/BloomExe/Publish/Rab/RabPublishApi.cs" target="_blank" rel="noopener">one file</a>.
+        </li>
+        <li>
+          <strong>Reporting an event cannot disturb the thing it reports on.</strong> The event is
+          sent after the build's own outcome has been settled and shown to the user, and the whole
+          of it &mdash; gathering the numbers, sending, and logging &mdash; cannot throw. That
+          matters more than it looks: this code runs between &ldquo;the build finished&rdquo; and
+          &ldquo;tell the screen the build finished&rdquo;, so an escaping exception would leave a
+          <em>successful</em> build looking to the user like a hung one. Both halves of that came
+          out of review.
+        </li>
+      </ul>
+
+      <h3>Two deliberate differences from 6.5</h3>
+      <p>
+        Both are forced by 6.4's code rather than chosen. This branch calls
+        <code>DesktopAnalytics.Analytics.Track</code> directly, as all ~30 of its existing call
+        sites do, with a log line kept alongside so the event can be confirmed on a machine where
+        tracking is off. And there is no <code>"cancelled"</code> result, because 6.4's build and
+        install cannot be cancelled &mdash; that code does not exist on this branch.
+      </p>
+      <p>
+        The commit wants a null merge (<code>-s ours</code>) into master and 6.5, which already
+        carry the real implementation.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>C# build (<code>Bloom.sln</code>)</td>
+              <td class="verdict v-pass">Pass</td>
+              <td><span class="numeral">0</span> errors, at final HEAD</td>
+            </tr>
+            <tr>
+              <td>C# format (CSharpier)</td>
+              <td class="verdict v-pass">Pass</td>
+              <td>Clean; the pre-commit hook also reformatted on each commit</td>
+            </tr>
+            <tr>
+              <td>C# tests &mdash; App Builder</td>
+              <td class="verdict v-pass">Pass</td>
+              <td><span class="numeral">106</span> passed &middot; the fast gate, re-run after every fix</td>
+            </tr>
+            <tr>
+              <td>C# tests &mdash; full suite</td>
+              <td class="verdict v-pass" id="cs-verdict">Pass</td>
+              <td id="cs-detail"><span class="numeral">2871</span> passed &middot; <span class="numeral">0</span> failed &middot; <span class="numeral">13</span> skipped, in <span class="numeral">8m 37s</span>, at final HEAD</td>
+            </tr>
+            <tr>
+              <td>TypeScript typecheck / lint</td>
+              <td class="verdict v-skip">Not run</td>
+              <td>No TypeScript in the diff &mdash; the change is one C# file</td>
+            </tr>
+            <tr>
+              <td>TypeScript tests (vitest)</td>
+              <td class="verdict v-skip">Not run</td>
+              <td>Same reason: the front-end suite neither reads nor builds any of this change</td>
+            </tr>
+            <tr>
+              <td>Base integration</td>
+              <td class="verdict v-pass">Clean</td>
+              <td>Up to date with <code>origin/Version6.4</code>; GitHub reports the PR mergeable</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:13.6px;color:var(--muted)">
+        Note that this repo's C# suite does not run in GitHub Actions &mdash; TeamCity runs it &mdash;
+        so green PR checks are not evidence that the C# tests ran. The full-suite row above is a local run.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>
+        First run on this branch. It wrote the backport, then fixed the two things review found:
+        the analytics reporting could throw and strand a request that a finished build was waiting
+        on, and then its own fallback could do the same.
+      </p>
+      <ul class="bullets">
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/6f466a7ee7ef137e04f9365db65112c09db66b27" target="_blank" rel="noopener"><code>6f466a7</code></a> &mdash; report the <code>Publish App</code> event</li>
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/1c80fa319ca93b16054262f48d1270111b736b3e" target="_blank" rel="noopener"><code>1c80fa3</code></a> &mdash; make the reporting incapable of throwing</li>
+        <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/e6ede7f1206bc19d0c4206325b79a5fc3ce5c631" target="_blank" rel="noopener"><code>e6ede7f</code></a> &mdash; guard the logging fallback too</li>
+      </ul>
+      <p>
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8260/files" target="_blank" rel="noopener">Files changed</a>
+        &middot;
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8260/commits" target="_blank" rel="noopener">All commits</a>
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <ul class="rev">
+        <li class="done">
+          <div><span class="who">Local review</span><span class="state">complete &middot; light</span></div>
+          <p>
+            Light pass, done inline rather than in a sub-agent. One finding: the success-path
+            analytics call sat inside the <code>try</code> whose <code>catch</code> tells the user
+            the build failed. Fixed by settling the outcome first and reporting afterwards, which
+            also removed a duplicated guard.
+          </p>
+        </li>
+        <li class="done">
+          <div><span class="who">Devin</span><span class="state">complete &middot; 3 reviews</span></div>
+          <p>
+            Two Bugs, no flags, and both were real &mdash; the escaping-exception problem and then
+            its fallback. Fixed in <code>1c80fa3</code> and <code>e6ede7f</code>; both threads are
+            replied to and resolved
+            (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8260#discussion_r3896194916" target="_blank" rel="noopener">one</a>,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8260#discussion_r3896223456" target="_blank" rel="noopener">two</a>).
+            <strong>Its review page still lists both against the final commit</strong> &mdash; see
+            the note below before you read that as unfinished business.
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8260" target="_blank" rel="noopener">Devin review</a>
+          </p>
+        </li>
+        <li class="late">
+          <div><span class="who">Greptile</span><span class="state">one review &middot; quota exhausted</span></div>
+          <p>
+            Reviewed the first commit and raised one P1, which is decision&nbsp;1 on the right and
+            whose <a href="https://github.com/BloomBooks/BloomDesktop/pull/8260#discussion_r3896160315" target="_blank" rel="noopener">thread is deliberately left open</a>.
+            No further reviews are coming: the account is past its free limit, so Greptile never saw
+            the two later commits and won't. Its finding still applies exactly as written, because
+            the code it points at is untouched since &mdash; but note it has not looked at the
+            robustness fixes, so Devin and the local review are the only reviews those two commits
+            received.
+          </p>
+        </li>
+        <li class="done">
+          <div><span class="who">CodeRabbit</span><span class="state">not a reviewer here</span></div>
+          <p>
+            <code>.coderabbit.yml</code> in this repo sets <code>auto_review.enabled: false</code>,
+            so it is switched off by configuration rather than absent by accident.
+          </p>
+        </li>
+        <li class="done">
+          <div><span class="who">CI</span><span class="state">complete &middot; pass</span></div>
+          <p>
+            <code>pr-automation</code> passed on every push. It is the only required check on this
+            repo, and its job is to trigger Devin rather than to test the code.
+          </p>
+        </li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul class="bullets">
+        <li>
+          <strong>No real App Builder build has been run against this code.</strong> That needs
+          Reading App Builder installed and, for the install path, a connected phone. Everything
+          here is verified by compilation and the unit suite only, and the code's whole job is to
+          run at the end of a real build &mdash; so an actual Build and a deliberately-failed Build
+          are the checks that matter most. The test-ideas comment on the card leads with them.
+        </li>
+        <li>
+          <strong>Devin's page shows two open bugs and they are both false positives on this
+          commit.</strong> Its re-review of <code>e6ede7f</code> re-lists both findings with the
+          pre-fix wording and the pre-fix line numbers &mdash; one of them now points at a comment
+          line. Both were checked line by line against the current code; the reasoning is on each
+          thread. Worth knowing before someone re-opens a fixed issue.
+        </li>
+        <li>
+          <strong>The empty <code>catch</code> is deliberate.</strong>
+          <a href="https://github.com/BloomBooks/BloomDesktop/blob/e6ede7f1206bc19d0c4206325b79a5fc3ce5c631/src/BloomExe/Publish/Rab/RabPublishApi.cs#L258" target="_blank" rel="noopener"><code>LogAnalyticsWithoutThrowing</code></a>
+          ends in a bare <code>catch {}</code> because standard error is genuinely the last channel
+          available; with nowhere left to report to, returning is the only correct move. It reads
+          like a smell and isn't, which is why it carries a comment saying so.
+        </li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- ============ RIGHT ============ -->
+  <div class="stack">
+
+    <section class="card decision">
+      <div class="qnum">Decision 1 &middot; from Greptile</div>
+      <h2 style="margin-top:6px">A failed build reports the size of an APK it never built</h2>
+      <p>
+        Every <code>Publish App</code> event carries <code>apkSizeMB</code>, the size of the app
+        file. Bloom works that out by looking for the newest APK sitting in the App Builder project
+        folder. On a build that <em>succeeded</em> that is exactly the right number. On a build that
+        <em>failed</em>, there is no new APK &mdash; so if an earlier build had succeeded, Bloom
+        reports that older file's size instead, attached to an event that says the build failed.
+        Nobody sees a wrong number on screen; the cost is that anyone later asking &ldquo;how big
+        are the apps people build?&rdquo; gets answers contaminated by failed builds describing
+        artifacts they did not produce.
+      </p>
+      <p>
+        This is inherited, not introduced: 6.5's version of the event does exactly the same thing,
+        because it calls the same status-reading code. So fixing it here alone would make the two
+        versions disagree on failed builds, which cuts against the &ldquo;equivalent analytics&rdquo;
+        goal of the backport.
+      </p>
+      <div class="opts" data-q="Decision 1 — stale APK size on failed builds">
+        <div class="opt">
+          <input type="radio" name="d1" id="d1a" value="Fix it in both branches now">
+          <label for="d1a">Fix it in both branches now
+            <span class="fx">Send <code>apkSizeMB</code> only when the action succeeded, here and on master/6.5. Correct data everywhere and equivalence preserved. ~3 lines each, but it means a second PR on master during a release run.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d1" id="d1b" value="Fix it here only">
+          <label for="d1b">Fix it in 6.4 only
+            <span class="fx">~3 lines, localized, low risk &mdash; but 6.4 and 6.5 would then report failed builds differently, so the two versions' data stops being directly comparable.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d1" id="d1c" value="File it against master/6.5, change nothing here" checked>
+          <label for="d1c">File it against master/6.5 and leave this PR alone <span class="tag">Recommended</span>
+            <span class="fx">No code change in a near-release branch, equivalence intact, and the fix lands once in the branch that owns the code. Recommended because the flaw is inherited and harmless to users, so it does not justify touching 6.4 this close to release &mdash; but it is real enough to be worth a card rather than a shrug. No code; one YouTrack card.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d1" id="d1d" value="Leave as is">
+          <label for="d1d">Leave as is</label>
+          <span class="leavecomment"><input type="checkbox" id="d1lc" data-q="Decision 1 — leave comment"><label for="d1lc">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d1" id="d1e" value="Other">
+          <label for="d1e" class="otherline">Other:
+            <input type="text" data-q="Decision 1 — other" placeholder="your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="d1n">Notes on decision 1</label>
+        <textarea id="d1n" rows="2" data-q="Decision 1 — notes" placeholder="Caveats, constraints, anything else"></textarea>
+      </div>
+    </section>
+
+    <section class="card decision">
+      <div class="qnum">Decision 2 &middot; tracker hygiene</div>
+      <h2 style="margin-top:6px">Should the backport have its own card?</h2>
+      <p>
+        This branch is named for <strong>BL-16716</strong>, so that is the card preflight used: it
+        posted this PR's link, a 6.4-scoped test-ideas comment, and the link to this report there.
+        But BL-16716 is a <em>Bloom 6.5</em> board card, currently In Progress, and it already
+        carries two earlier PRs (#8215 and #8228), their test ideas, and their preflight reports.
+        Adding a third release's worth of material makes it a card about two different shipments.
+        Nothing is broken either way &mdash; this is about whether the 6.4 work is findable by
+        whoever runs the 6.4 release.
+      </p>
+      <div class="opts" data-q="Decision 2 — separate card for the 6.4 backport">
+        <div class="opt">
+          <input type="radio" name="d2" id="d2a" value="Create a 6.4 card and move the backport material onto it" checked>
+          <label for="d2a">Create a 6.4 card and move the backport material to it <span class="tag">Recommended</span>
+            <span class="fx">Recommended because the 6.4 release board is where someone will look for what shipped in 6.4, and it keeps the 6.5 card's history readable. No code; one new card plus re-posting the PR link, test ideas and report link.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d2" id="d2b" value="Leave as is">
+          <label for="d2b">Leave as is
+            <span class="fx">Everything stays on BL-16716, which then covers four PRs across two releases.</span>
+          </label>
+          <span class="leavecomment"><input type="checkbox" id="d2lc" data-q="Decision 2 — leave comment"><label for="d2lc">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d2" id="d2c" value="Other">
+          <label for="d2c" class="otherline">Other:
+            <input type="text" data-q="Decision 2 — other" placeholder="your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="d2n">Notes on decision 2</label>
+        <textarea id="d2n" rows="2" data-q="Decision 2 — notes" placeholder="Caveats, constraints, anything else"></textarea>
+      </div>
+    </section>
+
+    <section class="card decision">
+      <div class="qnum">Decision 3 &middot; for information</div>
+      <h2 style="margin-top:6px">The extra log line 6.5 gets a different way</h2>
+      <p>
+        6.4 writes one line to the Bloom log for every <code>Publish App</code> event, saying what
+        was reported and &mdash; on a build where tracking is off, which is every developer and
+        tester build &mdash; that it was not actually sent. On 6.5 the <code>BloomAnalytics</code>
+        wrapper does this for every event; on 6.4 that wrapper does not exist, so the line is
+        written at the one call site instead. It is the only part of this PR that is not a
+        straight port, and it is worth keeping: without it, nobody can tell &ldquo;the event fired
+        but was not sent&rdquo; from &ldquo;the event never fired&rdquo; short of shipping to alpha,
+        which for a code path CI cannot exercise is the difference between a verifiable change and
+        a hopeful one.
+      </p>
+      <div class="opts" data-q="Decision 3 — the per-event log line">
+        <div class="opt">
+          <input type="radio" name="d3" id="d3a" value="Drop the log line">
+          <label for="d3a">Drop the log line
+            <span class="fx">~10 lines removed, no risk &mdash; but the event then cannot be confirmed on any build where tracking is off.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d3" id="d3b" value="Leave as is" checked>
+          <label for="d3b">Leave as is <span class="tag">Recommended</span></label>
+          <span class="leavecomment"><input type="checkbox" id="d3lc" data-q="Decision 3 — leave comment"><label for="d3lc">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d3" id="d3c" value="Other">
+          <label for="d3c" class="otherline">Other:
+            <input type="text" data-q="Decision 3 — other" placeholder="your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="d3n">Notes on decision 3</label>
+        <textarea id="d3n" rows="2" data-q="Decision 3 — notes" placeholder="Caveats, constraints, anything else"></textarea>
+      </div>
+    </section>
+
+    <section class="card decision">
+      <div class="qnum">Next step</div>
+      <h2 style="margin-top:6px">How should I proceed?</h2>
+      <p>
+        The PR is a draft with a green gate and every reviewer accounted for. Nothing is blocked on
+        code &mdash; only on the answers above.
+      </p>
+      <div class="opts" data-q="Next step">
+        <div class="opt">
+          <input type="radio" name="d4" id="d4a" value="Implement the answers, then hand back for your own review" checked>
+          <label for="d4a">Implement the answers above, then hand it back for your review <span class="tag">Recommended</span>
+            <span class="fx">I act on each decision, close the open Greptile thread with the reasoning, and re-run the gauntlet if any code changed.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d4" id="d4b" value="Discuss decision 1 before doing anything">
+          <label for="d4b">Discuss first &mdash; I want to talk through decision 1
+            <span class="fx">Nothing changes until we have talked.</span>
+          </label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d4" id="d4c" value="Leave as is">
+          <label for="d4c">Leave as is
+            <span class="fx">The PR stays exactly as it is now; I do nothing further.</span>
+          </label>
+          <span class="leavecomment"><input type="checkbox" id="d4lc" data-q="Next step — leave comment"><label for="d4lc">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="d4" id="d4d" value="Other">
+          <label for="d4d" class="otherline">Other:
+            <input type="text" data-q="Next step — other" placeholder="your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="d4n">Notes on next step</label>
+        <textarea id="d4n" rows="2" data-q="Next step — notes" placeholder="Caveats, constraints, anything else"></textarea>
+      </div>
+    </section>
+
+    <section class="card copyback">
+      <h2>Send your answers back</h2>
+      <p style="font-size:14px">
+        Copy this and paste it into the Claude Code session.
+      </p>
+      <div>
+        <button class="btn" id="copybtn" type="button">Copy answers</button>
+        <span class="copied" id="copied" hidden>Copied</span>
+      </div>
+      <textarea id="payload" readonly rows="8" aria-label="Answers to copy"></textarea>
+    </section>
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var groups = Array.prototype.slice.call(document.querySelectorAll(".opts"));
+
+  function serialize() {
+    var out = ["Preflight answers — BloomDesktop PR #8260 (BL-16716), HEAD e6ede7f", ""];
+    groups.forEach(function (g) {
+      var qLabel = g.getAttribute("data-q");
+      var picked = g.querySelector("input[type=radio]:checked");
+      var value = picked ? picked.value : "(no answer)";
+      if (picked && picked.value === "Other") {
+        var otherInput = g.querySelector('input[type=text][data-q$="other"]');
+        var typed = otherInput && otherInput.value.trim();
+        value = typed ? "Other: " + typed : "Other: (nothing typed)";
+      }
+      out.push(qLabel);
+      out.push("  -> " + value);
+
+      var lc = g.querySelector('input[type=checkbox]');
+      if (lc && lc.checked) out.push("  -> Leave comment: record this decision as a code comment in the repo");
+
+      var card = g.closest(".card");
+      var notes = card && card.querySelector('textarea[data-q$="notes"]');
+      if (notes && notes.value.trim()) out.push("  -> Notes: " + notes.value.trim());
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  var copied = document.getElementById("copied");
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    function done() {
+      copied.hidden = false;
+      setTimeout(function () { copied.hidden = true; }, 2600);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* the textarea is visible; Ctrl+C works */ }
+    }
+  });
+})();
+</script>
+</body>
+</html>
