@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freeze Doctor — simplification options</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body, h1, h2, h3, h4, p, ul, ol, li, table { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; width: 100%; }
+
+  :root {
+    --ground: #faf8f4; --card: #ffffff; --ink: #23201c; --ink-soft: #5d564d;
+    --ink-faint: #857c70; --rule: #e4ded4; --accent: #7a4a2b; --accent-soft: #f3ece5;
+    --good: #2f6b46; --good-bg: #eaf3ed;
+  }
+  body {
+    background: var(--ground); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.6; padding: 40px 28px 90px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 30px 34px; min-width: 0;
+  }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: 1.95rem; line-height: 1.2; font-weight: 600; letter-spacing: -0.01em;
+    text-wrap: balance; margin-bottom: 6px;
+  }
+  h2 {
+    font-family: Georgia, "Iowan Old Style", serif; font-size: 1.3rem; font-weight: 600;
+    margin: 34px 0 12px; padding-top: 6px; text-wrap: balance;
+  }
+  h3 {
+    font-family: Georgia, "Iowan Old Style", serif; font-size: 1.08rem; font-weight: 600;
+    margin: 26px 0 10px; text-wrap: balance;
+  }
+  p { margin-bottom: 13px; }
+  hr { border: none; border-top: 1px solid var(--rule); margin: 30px 0; }
+  ul, ol { margin: 0 0 14px; }
+  li { position: relative; padding-left: 22px; margin-bottom: 8px; }
+  ul > li::before { content: "—"; position: absolute; left: 0; color: var(--ink-faint); }
+  ol { counter-reset: n; }
+  ol > li { counter-increment: n; }
+  ol > li::before {
+    content: counter(n) "."; position: absolute; left: 0; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+    font-size: 0.87em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px;
+  }
+  .tablewrap { overflow-x: auto; margin: 0 0 18px; }
+  th, td {
+    text-align: left; padding: 9px 14px 9px 0; border-bottom: 1px solid var(--rule);
+    vertical-align: top; font-size: 0.94rem;
+  }
+  th {
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 600;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  .backlink {
+    display: inline-block; margin-bottom: 22px; font-size: 0.9rem;
+    padding: 5px 12px; border: 1px solid var(--rule); border-radius: 999px;
+    background: var(--card); text-decoration: none;
+  }
+  strong { font-weight: 650; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="./bloomdesktop-BL-16719-doctor-in-repo.html">← Preflight report</a>
+  <div class="card">
+<h1>Simplifying the Freeze Doctor — options and what each costs</h1>
+<p>Prepared 2026-08-30, branch <code>BL-16719-doctor-in-repo</code>; revised 2026-08-31 at <code>51fc21523</code>.</p>
+<p><strong>Status: option (E) has been implemented</strong> — reworked from "drop exit reporting" into "report on evidence, never on its absence" after John's clarification that Bloom already reports ordinary crashes. See that section for the measurement behind it. Everything else here is still analysis only.</p>
+<h2>The premise, measured</h2>
+<div class="tablewrap"><table>
+<tbody>
+<tr><td>Diff against <code>master</code></td><td><strong>19,645 added lines, 90 files</strong></td></tr>
+<tr><td>Commits on the branch</td><td><strong>73</strong>, of which ~30 read as corrections</td></tr>
+<tr><td>Doctor projects</td><td>Protocol 1,536 · Core 9,345 · exe 1,137 · tests 4,589</td></tr>
+<tr><td>Changes inside Bloom</td><td><strong>2,784 lines across 29 files</strong></td></tr>
+</tbody></table></div>
+<p>So the worry is fair, and the number that should worry us most is not 19,645 — it is <strong>29 files inside Bloom</strong>. The Doctor is a separate process; if it is wrong, a card is wrong. Bloom's own 2,784 lines run inside the application we are trying to protect.</p>
+<h2>Where the bugs actually were</h2>
+<p>This matters more than the sizes, because a simplification only reduces risk if it removes an area that has actually produced bugs. Grouping what testing, the bots, and your questions turned up:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Area</th><th>Examples</th><th>Simplification that removes it</th></tr></thead>
+<tbody>
+<tr><td>Exit / crash classification</td><td>two Devin findings on misjudged exits; <code>ForcedByDoctor</code> conflating two facts; boot-time gap</td><td><strong>(E) below — now done</strong></td></tr>
+<tr><td>Bloom-side instrumentation</td><td>managed-vs-OS thread id join; a late lock note resurrecting a finished request; video recording unannounced</td><td><strong>2</strong></td></tr>
+<tr><td>Developer-build handling</td><td><code>--automation</code> treated as headless; simulator channel rules; dev-channel filing</td><td><strong>1</strong></td></tr>
+<tr><td>Multiple Blooms</td><td>restart offering to kill a healthy Bloom; process-id reuse</td><td><strong>4</strong></td></tr>
+<tr><td>Outbox</td><td><code>GatedOut</code> naming; a drain flag nobody read</td><td><strong>3</strong></td></tr>
+<tr><td>Packaging</td><td>Doctor and Bloom on different library versions</td><td>none</td></tr>
+</tbody></table></div>
+<p>Every one of your four candidates targets a real bug cluster. That is a good sign for the exercise. The largest single cluster — exit classification — is not in your list, and I have added it as <strong>(E)</strong>.</p>
+<hr>
+<h2>1. Drop developer-build support</h2>
+<p><strong>What goes.</strong> <code>FreezeSimulator.cs</code> (315, in Bloom) and its session field; <code>IsDeveloperChannel</code> and the channel-derivation rules; the debugger machinery (probe sampling, "poisoned by debugger" stickiness, <code>DebuggerCouldExplainIt</code>, three shared-page fields); <code>MayFile</code> / <code>NeverFile</code> / <code>NotForFiling</code> / <code>ReportSavedWithoutFiling</code>; the <code>--force</code> switch.</p>
+<p><strong>Size:</strong> roughly <strong>1,200 lines</strong>, but the striking figure is the spread — the concept appears in <strong>17 files</strong>.</p>
+<p><strong>Risk:</strong> the largest reduction of the four, and not because of the line count. This is a cross-cutting predicate every filing path has to consult, and that is exactly the shape of bug we hit: the "four reasons never to file" existed in one place <em>after</em> we discovered that two paths — the crash-dump path and the exit examination — had each grown a shorter version, so a deliberately simulated crash filed a real card. Cross-cutting predicates are re-derived and get re-derived wrongly.</p>
+<p><strong>Capability cost — the highest of the four, and it is not obvious.</strong> You lose the ability to exercise the thing before shipping it. The simulator is how the crash, freeze and zombie paths are provoked at all; the whole zombie sequence was validated end-to-end this week only because <code>BLOOM_SIMULATE_FREEZE=zombie</code> was set. Without it, the first real test of the crash path is a user's crash.</p>
+<p><strong>Mitigation that keeps most of the win:</strong> keep the simulator and the developer-channel <em>filing</em> guard (perhaps 200 lines, one predicate consulted in one place), drop the debugger machinery and the <code>--force</code>/<code>NotForFiling</code> plumbing. Debugger-awareness only exists because the Doctor watches developer machines; if it does not, a developer stopping a debugger is not our problem.</p>
+<p><strong>Verdict: do a version of this, but not the whole thing.</strong> Dropping the simulator would be trading the ability to find bugs for a smaller diff.</p>
+<hr>
+<h2>2. Reduce what Bloom sends to two kinds of information</h2>
+<p>Bloom currently publishes eighteen fields on the shared page and twenty on the session file. My two:</p>
+<p><strong>Keep (a): the UI-thread heartbeat.</strong> Non-negotiable. The measured finding this whole feature rests on is that a WinForms UI thread blocked in a managed wait still dispatches sent messages, so <code>IsHungAppWindow</code> and <code>Process.Responding</code> report a wedged Bloom as healthy — nine minutes frozen, reported responsive. A timer-driven heartbeat in shared memory is the <em>only</em> detector that works. Everything else is evidence; this is detection.</p>
+<p><strong>Keep (b): the session file's identity facts</strong> — log path, ports, channel, version. Small, written once, and the log path cannot be derived from outside: Bloom recreates <code>Log.txt</code> each run and falls back to a random name only when another Bloom holds it, so from outside the newest log is the wrong answer <em>exactly</em> in the restart-after-a-freeze case. <code>BloomLogLocator</code> is 222 lines of approximating something Bloom can state in one.</p>
+<p><strong>What goes:</strong> the API activity tracker (309 + 159 tests + 37 in <code>BloomApiHandler</code>), server thread counts (~150), the activity string and long-operation scopes (~200 across six call sites in Publish/Epub/RAB/video/upload/download), the crash-dump handshake (~270 across both sides), the shutdown-phase protocol (~100), <code>BloomAlreadyReported</code> (~80).</p>
+<p><strong>Size: ~1,300 lines out of Bloom, ~400 out of the Doctor, plus tests.</strong> It also removes six touchpoints in unrelated Bloom subsystems, which is where "small, safe change" quietly stopped being true.</p>
+<p><strong>Risk:</strong> high reduction, and concentrated in the right place — most of the Bloom-side bugs were in the activity tracker.</p>
+<p><strong>Capability cost, in order of pain:</strong></p>
+<ol>
+<li><strong>Long-operation suppression is load-bearing and I would fight for it.</strong> Without it, the freeze threshold is 60 seconds flat, and a legitimate two-minute BloomPUB build or video render looks exactly like a freeze. This does not merely lose information — it manufactures false cards, which is the failure mode most likely to make people stop trusting the tool. If you keep a third thing, keep this.</li>
+<li>Dropping the shutdown phase drops the clean-exit proof, which returns exit reporting to "only when something corroborates a crash". That is a real loss <em>unless</em> you take <strong>(E)</strong>, in which case it costs nothing.</li>
+<li>Reports stop saying what Bloom was doing, which is most of a freeze card's diagnostic value. You would get "the UI thread's stack" and not "…while publishing to BloomPUB".</li>
+</ol>
+<p><strong>Verdict: strong, and the best value-per-line of the four — provided long operations survive.</strong></p>
+<hr>
+<h2>3. Stop trying to send; keep reports on disk for a while</h2>
+<p><strong>What goes.</strong> <code>YouTrackSubmitter</code> (671), most of <code>ReportOutbox</code> (1,043) — the cross-process drain gate, the daily cap, the fingerprint merge, the follow-on window, reclaiming abandoned uploads, retry and backoff — plus <code>ReportOutboxTests</code> (832). <code>SupportUploadCredentials</code> and the <code>AccessKeys</code> changes go with them.</p>
+<p><strong>Size: ~2,000 lines, the largest single removal available.</strong></p>
+<p><strong>Risk:</strong> substantial. This is also the only part of the Doctor that talks to the network and handles credentials, so it removes a whole category of failure (and the outstanding <code>BLOOMBOOKS_NUGET</code> / signing-credential dependency along with it).</p>
+<p><strong>Capability cost — the largest of any option here, and I think it changes what the feature <em>is</em>.</strong> The stated goal is to improve our chances of collecting information about freezes. Automatic filing is the part that turns "we can investigate a freeze once a user thinks to tell us" into "we learn about freezes nobody reported". Freezes are exactly the failure users <em>don't</em> report — they kill Bloom and carry on. Keeping evidence on disk that someone must think to ask for restores the old dependency on the user reporting.</p>
+<p>You would also lose deduplication: today twenty occurrences of one freeze become one card with a count, via a fingerprint of the UI thread's top frames. Without the outbox there is nowhere for that to live.</p>
+<p><strong>Middle path worth costing separately:</strong> keep filing, drop <em>durability</em> — try once, and if it fails leave the bundle on disk with no retry, no cap, no merge. That removes the gate, the retries and the reclaim logic (~700 lines) while keeping the "we hear about it" property. Reports from an offline machine are lost, but a machine that freezes is usually online again within the hour and the <em>next</em> freeze reports fine.</p>
+<p><strong>Verdict: the biggest line saving, and the one I would think hardest about, because it is the only option that changes the feature's purpose rather than its implementation.</strong></p>
+<hr>
+<h2>4. Watch only one Bloom</h2>
+<p><strong>What goes.</strong> The discovery sweep and its channel-name list; the watcher/probe dictionaries and everything keyed by process id; <code>RestartBlockers</code> (75); most of <code>ProcessIdentity</code> (51) — with a single process you hold a handle for its whole life, so reuse cannot arise; the single-instance-token field and its reasoning; a large part of <code>DoctorSupervisor</code>'s 1,268 lines.</p>
+<p><strong>Size: roughly 600–700 lines</strong>, mostly concentrated in the largest and most stateful file.</p>
+<p><strong>Risk:</strong> better than the line count suggests, because it removes <em>state</em>, not just code. Four <code>HashSet&lt;int&gt;</code> fields tracking per-process bookkeeping (dumps requested, zombies reported, zombies ended, exits examined, plus who we asked to stop) all collapse to plain booleans when there is one target, and every one of those sets is a place a stale entry can silence or duplicate a report.</p>
+<p><strong>Capability cost: genuinely small, as you say.</strong> End users run one Bloom. The cases lost are the Ctrl-held second instance and an alpha tester running two channels — and in both, the Doctor still watches one of them.</p>
+<p>One thing to keep: the Doctor is launched <em>by</em> Bloom and can simply be told which process id to watch, which is both simpler and more reliable than sweeping. The sweep exists for the "Doctor started later" case, which then degrades gracefully to "attach to whichever Bloom is running".</p>
+<p><strong>Verdict: the best risk-to-cost ratio of the four. I would take this one whatever else you decide.</strong></p>
+<hr>
+<h2>Others worth considering</h2>
+<h3>(E) Report an exit only on positive evidence — <strong>DONE</strong>, commit <code>51fc21523</code></h3>
+<p>This started as "report freezes only, dropping exits and crashes entirely". John's clarification replaced it with something better: <em>Bloom normally reports its own crashes; what the Doctor needs to cover is the crash that exits Bloom with <strong>no indication of why</strong></em> — an exception thrown, and not caught, on a thread Bloom does not control.</p>
+<p>That reframes the question. The problem was never that exit classification existed; it was that one of its two regimes reasoned <strong>from the absence of evidence</strong>. So the fix is not to delete the capability but to delete that regime.</p>
+<p><strong>What was wrong with reasoning from absence:</strong></p>
+<ul>
+<li><strong>It is where the bugs were.</strong> Every defect found in <code>ExitClassifier</code> came from it: two of Devin's findings, the conflation of "how far shutdown got" with "who asked for it", and a startup crash read as a machine restart. Absence has many innocent causes and the code kept meeting another one.</li>
+<li><strong>It could not tell a crash from a Task Manager kill</strong>, and said so in the card's own text — "may be a user-initiated kill". A card that concedes it may be about nothing trains people to ignore the next one.</li>
+<li><strong>It was not needed for the case that justified it</strong> — which was measurable, and measured.</li>
+</ul>
+<p><strong>The measurement</strong> (this machine, 2026-08-31; a minimal .NET 8 program throwing on a thread-pool thread, which is John's scenario in miniature):</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Signal</th><th>Present?</th><th>Depends on</th></tr></thead>
+<tbody>
+<tr><td><code>ProcessExit</code> handler ran</td><td><strong>No</strong> — so there is genuinely no clean-exit proof</td><td>—</td></tr>
+<tr><td>Process exit code</td><td><strong><code>0xE0434352</code></strong> (<code>ExitCodeUnhandledManagedException</code>)</td><td>the CLR alone</td></tr>
+<tr><td><code>.NET Runtime</code> event 1026</td><td>yes</td><td>the runtime</td></tr>
+<tr><td><code>Application Error</code> event 1000</td><td>yes</td><td>the Windows fault handler</td></tr>
+<tr><td>WER report folder</td><td>yes</td><td>WER proper</td></tr>
+</tbody></table></div>
+<p>Four independent signals for the case we must not miss — and the first comes from the CLR, not from any Windows feature an administrator can switch off. WER on this machine is at its defaults (no <code>Disabled</code>/<code>DontShowUI</code>/<code>LoggingDisabled</code> policy keys) and demonstrably working: 526 report folders under <code>C:\ProgramData\Microsoft\Windows\WER</code>, including several <code>AppCrash_Bloom.exe_*</code>. So the narrow rule catches the case, and does not depend on the one signal a policy could remove.</p>
+<p><strong>What went:</strong> the <code>ExitReportPolicy</code> enum and both regimes, the branch that reported on missing proof, <code>ExitVerdict.Unknown</code>, and the supervisor's choice between regimes.</p>
+<p><strong>What stayed, and why the plan changed twice:</strong></p>
+<ul>
+<li><code>WindowsExitEvidenceCollector</code> <strong>stays</strong>. Under this rule its Event Log and WER reading <em>is</em> the trigger rather than a corroboration, so it does more work than before, not less.</li>
+<li>The <strong>stalled-shutdown log check stays</strong>, and checking this is what caught a mistake in my own plan. Bloom's 20-second safety net ends with <code>Environment.Exit</code>, so <code>ProcessExit</code> runs and records a shutdown phase — the session file describes a perfectly clean exit. Scraping Bloom's log for its own "forcing Bloom to close" line is the <strong>only</strong> thing that identifies that case, and dropping it would have silently lost a real bug class.</li>
+</ul>
+<p><strong>Honest accounting: this removed 33 lines of logic, not the ~1,000 I first estimated.</strong> That estimate was for deleting exit reporting outright; keeping the capability keeps the collector. The value here is not line count — it is that one decision axis and all the reasoning-from-absence are gone, from precisely the file that produced the most defects.</p>
+<p><strong>Verdict: done, and it is the pattern I would apply to the rest</strong> — separate <em>evidence to gather</em> from <em>evidence to reason from</em>, and never act on an absence. It targets the densest bug cluster and duplicates an existing capability.</p>
+<h3>(F) Detect and report zombies, but never end them</h3>
+<p><strong>What goes.</strong> <code>ZombieEnder</code>'s ending half (~150), the grace period, the work-in-progress check, the quit handshake, <code>RestartBlockers</code> (75), the single-instance-token protocol, and the "Restart Bloom" flow in <code>StatusForm</code> (~150) — around <strong>600 lines with its tests</strong>.</p>
+<p><strong>Risk:</strong> this is the only <em>destructive</em> thing the Doctor does. Every guard around it — grace period, "never kill a frozen Bloom", identity checks, work-in-progress — exists because killing the wrong process, or the right one at the wrong moment, is unrecoverable. Removing the action removes the entire class.</p>
+<p><strong>Capability cost:</strong> the user must end a window-less Bloom themselves via Task Manager. They already have to notice it. Against that, this removes the only path by which the Doctor can destroy someone's work.</p>
+<p><strong>Verdict: high value, low cost. Pairs naturally with 4.</strong></p>
+<h3>(G) Leave the shape alone; ship it off by default</h3>
+<p>Already true — it is a setting, off by default, toggled from the debug menu. Worth stating explicitly because it bounds the blast radius of everything above: no user gets this until someone turns it on. That is an argument for shipping a <em>slightly</em> larger thing that has been exercised, over a minimal thing that has not.</p>
+<hr>
+<h2>If you want a recommendation</h2>
+<p><strong>(E) is done.</strong> Of what remains, take <strong>4 + (F) + the trimmed version of 1</strong> — roughly <strong>1,800 lines</strong>, removing the multi-process bookkeeping that produced several bugs and the only irreversible action in the system, while leaving intact the thing the feature exists for: noticing that Bloom is frozen and getting evidence about it off the machine.</p>
+<p>Then take <strong>2</strong>, keeping long operations as a third — about another <strong>1,300 lines out of Bloom</strong>, which is where the risk to users actually lives.</p>
+<p>I would leave <strong>3</strong> alone unless the credential dependency is the blocker, because it is the only one that changes what the feature does rather than how much code does it. If it must go, take the middle path — file once, no retry — rather than dropping filing entirely.</p>
+<p>Combined, that is on the order of <strong>half the diff</strong>, with the freeze-detection core, the evidence gatherer, and automatic filing untouched.</p>
+<h2>One caveat on all of it</h2>
+<p>Removal is not free of risk either. Every one of these areas is now covered by tests that were written <em>because</em> something went wrong there, and the code carries comments explaining decisions that were expensive to learn. Deleting a subsystem deletes that record too. Where a simplification is taken, the reasoning worth keeping should move into a comment on whatever remains, or into the ticket — otherwise the second attempt rediscovers the same problems.</p>
+<p>Also worth noting while it is in view: <code>BloomFreezeDoctor.Core.csproj</code> refers to <code>docs/SPIKE-FINDINGS.md</code>, which does not exist in this repository — the measured findings behind the heartbeat design were left behind in the spike. If simplification 2 is on the table, that document is the evidence for keeping the heartbeat, and it should be recovered before it is lost.</p>
+  </div>
+</div>
+</body>
+</html>
