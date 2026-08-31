@@ -78,7 +78,12 @@
   <div class="card">
 <h1>Simplifying the Freeze Doctor — options and what each costs</h1>
 <p>Prepared 2026-08-30, branch <code>BL-16719-doctor-in-repo</code>; revised 2026-08-31 at <code>51fc21523</code>.</p>
-<p><strong>Status: option (E) has been implemented</strong> — reworked from "drop exit reporting" into "report on evidence, never on its absence" after John's clarification that Bloom already reports ordinary crashes. See that section for the measurement behind it. Everything else here is still analysis only.</p>
+<p><strong>Status.</strong> Two things here have been done, and this document describes the state <em>after</em> them rather than proposing them:</p>
+<ul>
+<li><strong>(E) is implemented</strong> (<code>51fc21523</code>) — reworked from "drop exit reporting" into "report on evidence, never on its absence", after John's clarification that Bloom already reports ordinary crashes.</li>
+<li><strong>Part of 1 followed from it</strong> (<code>ab72d5eb4</code>) — two exemptions that existed only to make absence-reporting safe are gone, including the debugger exemption on the exit path. See "What (E) already took with it" below.</li>
+</ul>
+<p>Options <strong>2</strong>, <strong>3</strong>, <strong>4</strong>, <strong>(F)</strong> and the rest of <strong>1</strong> are still analysis only.</p>
 <h2>The premise, measured</h2>
 <div class="tablewrap"><table>
 <tbody>
@@ -95,19 +100,21 @@
 <tbody>
 <tr><td>Exit / crash classification</td><td>two Devin findings on misjudged exits; <code>ForcedByDoctor</code> conflating two facts; boot-time gap</td><td><strong>(E) below — now done</strong></td></tr>
 <tr><td>Bloom-side instrumentation</td><td>managed-vs-OS thread id join; a late lock note resurrecting a finished request; video recording unannounced</td><td><strong>2</strong></td></tr>
-<tr><td>Developer-build handling</td><td><code>--automation</code> treated as headless; simulator channel rules; dev-channel filing</td><td><strong>1</strong></td></tr>
+<tr><td>Developer-build handling</td><td><code>--automation</code> treated as headless; simulator channel rules; dev-channel filing</td><td><strong>1</strong> — the exit-path half now done</td></tr>
 <tr><td>Multiple Blooms</td><td>restart offering to kill a healthy Bloom; process-id reuse</td><td><strong>4</strong></td></tr>
 <tr><td>Outbox</td><td><code>GatedOut</code> naming; a drain flag nobody read</td><td><strong>3</strong></td></tr>
 <tr><td>Packaging</td><td>Doctor and Bloom on different library versions</td><td>none</td></tr>
 </tbody></table></div>
-<p>Every one of your four candidates targets a real bug cluster. That is a good sign for the exercise. The largest single cluster — exit classification — is not in your list, and I have added it as <strong>(E)</strong>.</p>
+<p>Every one of your four candidates targets a real bug cluster. The largest single one — exit classification — was not in your list; it became <strong>(E)</strong>, and it is done.</p>
 <hr>
 <h2>1. Drop developer-build support</h2>
-<p><strong>What goes.</strong> <code>FreezeSimulator.cs</code> (315, in Bloom) and its session field; <code>IsDeveloperChannel</code> and the channel-derivation rules; the debugger machinery (probe sampling, "poisoned by debugger" stickiness, <code>DebuggerCouldExplainIt</code>, three shared-page fields); <code>MayFile</code> / <code>NeverFile</code> / <code>NotForFiling</code> / <code>ReportSavedWithoutFiling</code>; the <code>--force</code> switch.</p>
-<p><strong>Size:</strong> roughly <strong>1,200 lines</strong>, but the striking figure is the spread — the concept appears in <strong>17 files</strong>.</p>
+<p><strong>Already done, and it came free.</strong> See "What (E) already took with it" below: the debugger exemption on the <em>exit</em> path is gone, along with the machine-went-down exemption, because neither had anything to do once an absence stopped being reportable.</p>
+<p><strong>What is left to go.</strong> <code>FreezeSimulator.cs</code> (315, in Bloom) and its session field; <code>IsDeveloperChannel</code> and the channel-derivation rules; the debugger machinery on the <strong>freeze</strong> path (probe sampling, "poisoned by debugger" stickiness, three shared-page fields); <code>MayFile</code> / <code>NeverFile</code> / <code>NotForFiling</code> / <code>ReportSavedWithoutFiling</code>; the <code>--force</code> switch.</p>
+<p><strong>Size:</strong> roughly <strong>1,100 lines</strong> remaining, and the striking figure is still the spread — the concept appears in 16 files.</p>
 <p><strong>Risk:</strong> the largest reduction of the four, and not because of the line count. This is a cross-cutting predicate every filing path has to consult, and that is exactly the shape of bug we hit: the "four reasons never to file" existed in one place <em>after</em> we discovered that two paths — the crash-dump path and the exit examination — had each grown a shorter version, so a deliberately simulated crash filed a real card. Cross-cutting predicates are re-derived and get re-derived wrongly.</p>
 <p><strong>Capability cost — the highest of the four, and it is not obvious.</strong> You lose the ability to exercise the thing before shipping it. The simulator is how the crash, freeze and zombie paths are provoked at all; the whole zombie sequence was validated end-to-end this week only because <code>BLOOM_SIMULATE_FREEZE=zombie</code> was set. Without it, the first real test of the crash path is a user's crash.</p>
-<p><strong>Mitigation that keeps most of the win:</strong> keep the simulator and the developer-channel <em>filing</em> guard (perhaps 200 lines, one predicate consulted in one place), drop the debugger machinery and the <code>--force</code>/<code>NotForFiling</code> plumbing. Debugger-awareness only exists because the Doctor watches developer machines; if it does not, a developer stopping a debugger is not our problem.</p>
+<p><strong>Mitigation that keeps most of the win:</strong> keep the simulator and the developer-channel <em>filing</em> guard (perhaps 200 lines, one predicate consulted in one place), drop the <code>--force</code>/<code>NotForFiling</code> plumbing and the remaining freeze-path debugger machinery.</p>
+<p>Be clear-eyed about that last one, because it is <strong>not</strong> free the way the exit-path half was. A breakpoint stops Bloom's UI heartbeat, and after a minute that genuinely <em>is</em> a freeze as far as the detector can tell — there is no evidence-based dodge available, because the evidence looks identical to a real freeze. Dropping it means a developer who pauses in the debugger gets a freeze gathered every session. That is only acceptable if the Doctor is not running on developer machines at all, which is the premise of this whole option.</p>
 <p><strong>Verdict: do a version of this, but not the whole thing.</strong> Dropping the simulator would be trading the ability to find bugs for a smaller diff.</p>
 <hr>
 <h2>2. Reduce what Bloom sends to two kinds of information</h2>
@@ -120,7 +127,7 @@
 <p><strong>Capability cost, in order of pain:</strong></p>
 <ol>
 <li><strong>Long-operation suppression is load-bearing and I would fight for it.</strong> Without it, the freeze threshold is 60 seconds flat, and a legitimate two-minute BloomPUB build or video render looks exactly like a freeze. This does not merely lose information — it manufactures false cards, which is the failure mode most likely to make people stop trusting the tool. If you keep a third thing, keep this.</li>
-<li>Dropping the shutdown phase drops the clean-exit proof, which returns exit reporting to "only when something corroborates a crash". That is a real loss <em>unless</em> you take <strong>(E)</strong>, in which case it costs nothing.</li>
+<li>Dropping the shutdown phase drops the clean-exit proof. This now costs almost nothing: since (E), the proof is read only as an exemption — "Bloom said it shut down cleanly, so stay quiet" — and never as a trigger. Losing it means a clean shutdown is no longer <em>recognised</em> as clean in the log line, not that anything extra gets reported.</li>
 <li>Reports stop saying what Bloom was doing, which is most of a freeze card's diagnostic value. You would get "the UI thread's stack" and not "…while publishing to BloomPUB".</li>
 </ol>
 <p><strong>Verdict: strong, and the best value-per-line of the four — provided long operations survive.</strong></p>
@@ -171,6 +178,33 @@
 </ul>
 <p><strong>Honest accounting: this removed 33 lines of logic, not the ~1,000 I first estimated.</strong> That estimate was for deleting exit reporting outright; keeping the capability keeps the collector. The value here is not line count — it is that one decision axis and all the reasoning-from-absence are gone, from precisely the file that produced the most defects.</p>
 <p><strong>Verdict: done, and it is the pattern I would apply to the rest</strong> — separate <em>evidence to gather</em> from <em>evidence to reason from</em>, and never act on an absence. It targets the densest bug cluster and duplicates an existing capability.</p>
+<h3>What (E) already took with it — <strong>DONE</strong>, commit <code>ab72d5eb4</code></h3>
+<p>John's follow-up question: part of developer-build support existed to avoid false reports when a developer simply stopped Bloom in the debugger — so does reporting-on-evidence make some of it unnecessary?</p>
+<p>Yes, and it generalises past the debugger. Reporting on an absence required every innocent cause of an absence to be recognised and excused <strong>by name</strong>. There were two such exemptions, and neither has anything left to do:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Removed</th><th>Why it is now dead weight</th></tr></thead>
+<tbody>
+<tr><td><code>DebuggerCouldExplainIt</code> on the exit path</td><td>Stopping the debugger is a <code>TerminateProcess</code>, which produces no crash signal at all</td></tr>
+<tr><td><code>MachineWentDown</code> + <code>DidMachineGoDown</code> (46 lines)</td><td>A machine losing power leaves even less behind</td></tr>
+</tbody></table></div>
+<p><strong>Measured</strong> (2026-08-31) — a <code>TerminateProcess</code> kill, which is exactly what "Stop Debugging" and Task Manager both do:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Signal</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>exit code</td><td><code>-1</code> — not a crash code</td></tr>
+<tr><td><code>ProcessExit</code> handler ran</td><td>no</td></tr>
+<tr><td><code>Application Error</code> event</td><td>none</td></tr>
+<tr><td>WER report</td><td>none</td></tr>
+</tbody></table></div>
+<p>So a developer stopping the debugger, a user killing Bloom in Task Manager, and a machine losing power are all quiet for the same reason now: they leave nothing that says anything went wrong. Nothing needs to know their names.</p>
+<p>The <code>DidMachineGoDown</code> removal is worth more than its 46 lines: it scanned 200 System event-log entries and reasoned about boot-time slack, and that slack is where Devin's "startup crashes misread as a machine restart" came from. So this deleted a live defect, not just code.</p>
+<p><strong>What deliberately survives, and why the answer is "part of it" rather than "all of it":</strong></p>
+<ul>
+<li><strong>The debugger machinery on the freeze path.</strong> A breakpoint stops the UI heartbeat, and after a minute that is a freeze by every measure available. (E) cannot help here — unlike an exit, a paused Bloom and a wedged Bloom produce the same evidence. This is the main reason debugger awareness exists.</li>
+<li><strong><code>ZombieEnder</code>'s refusal to end a debugged process</strong> — the one destructive action in the system, where belt-and-braces is right.</li>
+<li><strong>The filing guard in <code>BloomTargetWatcher</code></strong> — what actually keeps a developer's session off the tracker.</li>
+</ul>
+<p><strong>One deliberate behaviour change.</strong> A Bloom with real crash evidence is now classified as crashed even if a debugger was around; the classifier no longer knows about debuggers. Its evidence is gathered to disk and filing is still blocked a level up. That is the right way round: a Bloom that genuinely called <code>FailFast</code> is worth looking at, and whoever is debugging it is best placed to.</p>
 <h3>(F) Detect and report zombies, but never end them</h3>
 <p><strong>What goes.</strong> <code>ZombieEnder</code>'s ending half (~150), the grace period, the work-in-progress check, the quit handshake, <code>RestartBlockers</code> (75), the single-instance-token protocol, and the "Restart Bloom" flow in <code>StatusForm</code> (~150) — around <strong>600 lines with its tests</strong>.</p>
 <p><strong>Risk:</strong> this is the only <em>destructive</em> thing the Doctor does. Every guard around it — grace period, "never kill a frozen Bloom", identity checks, work-in-progress — exists because killing the wrong process, or the right one at the wrong moment, is unrecoverable. Removing the action removes the entire class.</p>
@@ -180,7 +214,8 @@
 <p>Already true — it is a setting, off by default, toggled from the debug menu. Worth stating explicitly because it bounds the blast radius of everything above: no user gets this until someone turns it on. That is an argument for shipping a <em>slightly</em> larger thing that has been exercised, over a minimal thing that has not.</p>
 <hr>
 <h2>If you want a recommendation</h2>
-<p><strong>(E) is done.</strong> Of what remains, take <strong>4 + (F) + the trimmed version of 1</strong> — roughly <strong>1,800 lines</strong>, removing the multi-process bookkeeping that produced several bugs and the only irreversible action in the system, while leaving intact the thing the feature exists for: noticing that Bloom is frozen and getting evidence about it off the machine.</p>
+<p><strong>(E) is done, and it took part of 1 with it.</strong> Of what remains, take <strong>4 + (F) + the trimmed version of 1</strong> — roughly <strong>1,700 lines</strong>, removing the multi-process bookkeeping that produced several bugs and the only irreversible action in the system, while leaving intact the thing the feature exists for: noticing that Bloom is frozen and getting evidence about it off the machine.</p>
+<p>Note that the two done so far cost <strong>no capability at all</strong> — they removed reasoning that was never load-bearing. The remaining options all cost something real, so they are decisions rather than clean-ups.</p>
 <p>Then take <strong>2</strong>, keeping long operations as a third — about another <strong>1,300 lines out of Bloom</strong>, which is where the risk to users actually lives.</p>
 <p>I would leave <strong>3</strong> alone unless the credential dependency is the blocker, because it is the only one that changes what the feature does rather than how much code does it. If it must go, take the middle path — file once, no retry — rather than dropping filing entirely.</p>
 <p>Combined, that is on the order of <strong>half the diff</strong>, with the freeze-detection core, the evidence gatherer, and automatic filing untouched.</p>
