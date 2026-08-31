@@ -193,7 +193,7 @@
 <div class="wrap">
 
   <h1>Bloom Freeze Doctor — preflight</h1>
-  <p class="sub">The branch became two stacked pull requests this run, five defects were fixed, and a large body of new review feedback arrived that needs your direction before anyone spends time on it.</p>
+  <p class="sub">One PR again, on <code>Version6.5</code>, with the Doctor now watching a single Bloom. Nine defects fixed since the last report; three questions left, one of which is not a code question at all.</p>
 
   <p class="sub" style="margin-top:12px"><strong>Companion document:</strong> <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">Simplifying the Freeze Doctor — options and what each costs</a>, which the first decision below draws on.</p>
 
@@ -202,7 +202,7 @@
     <span class="chip good">Both mergeable</span>
     <span class="chip good">CI passing</span>
     <span class="chip good">C# <span class="numeral">3321</span> passing</span>
-    <span class="chip warn">4 items for you</span>
+    <span class="chip warn">2 questions + next step</span>
   </div>
 
   <div class="grid">
@@ -248,7 +248,7 @@
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Fixed six defects — four from a Fable review, one from Devin, one found while checking another; simplified exit classification to report on evidence rather than on its absence, after measuring that the case it exists for produces four independent signals; and rebased the whole branch onto <code>Version6.5</code>, collapsing the temporary two-PR split back into #8229. The <code>launch.json</code> simulator block was reverted, as it carried its own instruction not to commit it.</p>
+        <p>Rebased onto <code>Version6.5</code> and collapsed the temporary split back into #8229. Simplified exit classification to report on <em>evidence</em> rather than on its absence — measured first — which then made two whole exemptions redundant. Implemented simplification 4, so the Doctor watches one Bloom and five process-id-keyed collections became five booleans. Fixed nine defects between Fable's review and Devin's, and removed the code that handled Blooms with older versions of Doctor support, since nothing has shipped.</p>
         <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/commits" target="_blank" rel="noopener">Commits</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/files" target="_blank" rel="noopener">Files changed</a></p>
       </div>
 
@@ -260,7 +260,7 @@
           <tr>
             <td>Local review<br><span class="skip">Fable, whole change</span></td>
             <td class="pass">complete</td>
-            <td>12 findings. <strong>Four fixed:</strong> wait chains never crossed a process boundary, so the WebView2 case it exists for produced nothing; a collector that ignores its token could hang the Doctor for ever; minimising made the Doctor unable to exit; a Bloom started near midnight could not find its own log. <strong>Eight remain</strong> — see the decision opposite.</td>
+            <td><strong>Ten of twelve fixed.</strong> wait chains never crossed a process boundary, so the WebView2 case the collector exists for produced nothing; a collector ignoring its token could hang the Doctor for ever; minimising made it unable to exit; a Bloom started near midnight could not find its own log; the WebView2 collector could interrogate a stranger's browser; an exception after filing turned a success into a false recurrence; a non-JSON 200 escaped and killed <code>--drain</code>; the fingerprint could absorb another thread's frames; a cancelled CPU sample asserted a conclusion it had not measured; a balloon click could open the wrong thing. <strong>Two remain</strong>, both needing a decision rather than a fix — see opposite.</td>
           </tr>
           <tr>
             <td>Devin<br><span class="skip">on #8259, since closed</span></td>
@@ -270,7 +270,7 @@
           <tr>
             <td>Devin — #8229</td>
             <td class="pass">complete</td>
-            <td><strong>22 bugs (four severe) and 24 investigate flags</strong>, untriaged — see the decision opposite, including why the list cannot be taken at face value. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin</a></td>
+            <td>22 bugs, 24 investigate flags. The four marked severe are worked: one real and fixed, one narrowed and hardened, three already fixed in commits its list predates. That ratio is the measure of the caveat below. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin</a></td>
           </tr>
           <tr>
             <td>Greptile</td>
@@ -305,107 +305,66 @@
         <form id="decisions">
 
           <div class="item">
-            <h3>Simplifying the Doctor</h3>
-            <p>You asked for an analysis of four possible simplifications; it is <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">written up here</a>. In short, all four target areas that have genuinely produced bugs — and I would add two you did not list: <strong>report freezes only</strong>, dropping exit and crash classification (~1,000 lines, the densest bug cluster, and Bloom already reports crashes by other means), and <strong>detect zombies but never end them</strong> (~600 lines, removing the only irreversible action in the system).</p>
-            <p>This gates the two decisions below it, because much of the outstanding feedback sits in code these options would delete.</p>
-            <p><strong>One of them is already done.</strong> Your clarification — that Bloom normally reports its own crashes, and the Doctor only needs the ones that exit with no indication why — turned option (E) from "drop exit reporting" into "report on evidence, never on its absence". That is implemented in <code>51fc21523</code>, with the measurement behind it recorded in the code. So the choice below covers only what is left.</p>
+            <h3>What a failed attachment upload should do</h3>
+            <p>When a log or minidump is too large for a tracker attachment, the card gets a line saying so and where the file still is on the user's machine. When the attachment POST simply fails — a transient 5xx or a rate limit — nothing of the sort happens: the upload is skipped silently, and the bundle is cleared later, so that evidence is gone with no trace of it on the card. The card still describes the freeze; it just quietly has less behind it than it looks like it has.</p>
             <div class="opts">
               <div class="opt">
-                <input type="radio" name="q1" id="q1a" data-q="Simplification" value="Take the rest of the recommended set: one Bloom, never end it, trim developer-build support" checked>
-                <label for="q1a"><span class="rec">Recommended</span>Take the rest of the recommended set — watch one Bloom, never end a zombie, and trim developer-build support while keeping the simulator. Recommended because it removes the multi-process bookkeeping that produced several bugs and the only irreversible action in the system, while leaving freeze detection and automatic filing intact.
-                <span class="cost">~1,800 lines, almost all deletion, with the tests for each removed area going too</span></label>
+                <input type="radio" name="qa" id="qaa" data-q="Failed attachment" value="Note it on the card, like the too-big path" checked>
+                <label for="qaa"><span class="rec">Recommended</span>Note it on the card, exactly as the too-big path already does — "this attachment could not be uploaded; it is still on the user's machine at …". Recommended because the failure mode we most want to avoid is a card that looks complete and is not, and this is the same sentence in the same place for the same reason.
+                <span class="cost">small — reuses the wording and the code path that already exists for oversized files</span></label>
               </div>
               <div class="opt">
-                <input type="radio" name="q1" id="q1b" data-q="Simplification" value="Also reduce what Bloom sends to the essentials">
-                <label for="q1b">That, and also cut what Bloom itself sends to the heartbeat, the session file and long operations — the part that runs inside the shipping application.
-                <span class="cost">a further ~1,300 lines out of Bloom across 29 touched files; the largest risk reduction available, and the most rework</span></label>
+                <input type="radio" name="qa" id="qab" data-q="Failed attachment" value="Keep the bundle queued and retry the attachment">
+                <label for="qab">Keep the bundle queued so a later drain retries the attachment.
+                <span class="cost">moderate, and it needs care: the card is already filed, so a retry must attach without re-filing, which is a state the outbox does not currently have</span></label>
               </div>
               <div class="opt">
-                <input type="radio" name="q1" id="q1c" data-q="Simplification" value="Discuss the analysis before deciding">
-                <label for="q1c">Discuss the analysis together before committing to anything.
-                <span class="cost">no code change now</span></label>
+                <input type="radio" name="qa" id="qac" data-q="Failed attachment" value="Leave as is">
+                <label for="qac">Leave as is</label>
+                <span class="leaverow"><input type="checkbox" id="qalc" data-q="Failed attachment / leave comment"><label for="qalc">Leave comment</label></span>
               </div>
               <div class="opt">
-                <input type="radio" name="q1" id="q1d" data-q="Simplification" value="Leave as is">
-                <label for="q1d">Leave as is</label>
-                <span class="leaverow"><input type="checkbox" id="q1lc" data-q="Simplification / leave comment"><label for="q1lc">Leave comment</label></span>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q1" id="q1e" data-q="Simplification" value="Other">
-                <label for="q1e">Other:<input type="text" class="otherbox" data-q="Simplification / other" placeholder="…"></label>
+                <input type="radio" name="qa" id="qad" data-q="Failed attachment" value="Other">
+                <label for="qad">Other:<input type="text" class="otherbox" data-q="Failed attachment / other" placeholder="…"></label>
               </div>
             </div>
-            <textarea class="notes" data-q="Simplification / notes" placeholder="Notes…"></textarea>
+            <textarea class="notes" data-q="Failed attachment / notes" placeholder="Notes…"></textarea>
           </div>
 
           <div class="item">
-            <h3>Eight remaining findings from the Fable review</h3>
-            <p>Briefly: a post-mortem gather can connect to <strong>whatever owns CDP port 9222 at that moment</strong> — possibly a developer's own browser, whose page titles would then be quoted onto a Bloom card; an exception after a card is created turns a successful filing into a false "this happened again" and orphans the uploaded dump; a non-JSON 200 response, such as a captive portal page, escapes and strands a report while crashing <code>--drain</code>; a race can file a card about a Bloom the Doctor itself killed; the fingerprint can absorb other threads' frames and split one freeze across several cards; a cancelled CPU sample prints "rules out a spin loop" for a process that may be spinning; a failed attachment upload is dropped silently; and a balloon click can open the wrong card.</p>
-            <p>Five of the eight live in the outbox and evidence-gathering code that the simplification options would remove.</p>
+            <h3>The YouTrack token's permission scope</h3>
+            <p><strong>This one is not a code question, and nothing in this session can answer it.</strong> The Doctor files cards using the shared <code>auto_report_creator</code> permanent token, embedded as a literal. BloomDesktop already ships that token, so this adds no new exposure in kind — but it does now travel inside a second executable, one that a support person may be asked to switch on during a call, so it gets attention in a slightly wider set of circumstances.</p>
+            <p>The thing worth confirming is narrow: that the token can create and comment on issues in the intended projects and can do <em>nothing else</em> — in particular that it cannot read or modify issues outside them. Only somebody with YouTrack admin access can check that.</p>
             <div class="opts">
               <div class="opt">
-                <input type="radio" name="q2" id="q2a" data-q="Fable findings" value="Wait for the simplification decision, then fix only what survives" checked>
-                <label for="q2a"><span class="rec">Recommended</span>Wait for the simplification decision, then fix only what survives it. Recommended because five of the eight are in code you may be about to delete, and fixing those now is work thrown away.
-                <span class="cost">no work now; the survivors are individually small</span></label>
+                <input type="radio" name="qb" id="qba" data-q="Token scope" value="I will check the token's scope in YouTrack" checked>
+                <label for="qba"><span class="rec">Recommended</span>Check the scope in YouTrack before this ships, and say here what it turned out to be.
+                <span class="cost">no code — an admin check</span></label>
               </div>
               <div class="opt">
-                <input type="radio" name="q2" id="q2b" data-q="Fable findings" value="Fix the three that survive any simplification now">
-                <label for="q2b">Fix now only the three that survive whatever you choose — the port 9222 fallback, the kill-then-report race, and the false spin-loop conclusion.
-                <span class="cost">small and localized; roughly half a day with tests</span></label>
+                <input type="radio" name="qb" id="qbb" data-q="Token scope" value="Narrow the token or issue a Doctor-specific one">
+                <label for="qbb">Narrow it, or issue a separate token for the Doctor alone.
+                <span class="cost">no code here, but it changes a secret the build injects, so it touches the release pipeline</span></label>
               </div>
               <div class="opt">
-                <input type="radio" name="q2" id="q2c" data-q="Fable findings" value="Fix all eight now">
-                <label for="q2c">Fix all eight now regardless.
-                <span class="cost">moderate; touches the outbox's error paths, the fiddliest part of the system</span></label>
+                <input type="radio" name="qb" id="qbc" data-q="Token scope" value="Leave as is">
+                <label for="qbc">Leave as is</label>
+                <span class="leaverow"><input type="checkbox" id="qblc" data-q="Token scope / leave comment"><label for="qblc">Leave comment</label></span>
               </div>
               <div class="opt">
-                <input type="radio" name="q2" id="q2d" data-q="Fable findings" value="Leave as is">
-                <label for="q2d">Leave as is</label>
-                <span class="leaverow"><input type="checkbox" id="q2lc" data-q="Fable findings / leave comment"><label for="q2lc">Leave comment</label></span>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q2" id="q2e" data-q="Fable findings" value="Other">
-                <label for="q2e">Other:<input type="text" class="otherbox" data-q="Fable findings / other" placeholder="…"></label>
+                <input type="radio" name="qb" id="qbd" data-q="Token scope" value="Other">
+                <label for="qbd">Other:<input type="text" class="otherbox" data-q="Token scope / other" placeholder="…"></label>
               </div>
             </div>
-            <textarea class="notes" data-q="Fable findings / notes" placeholder="Notes…"></textarea>
-          </div>
-
-          <div class="item">
-            <h3>Devin's 46 findings on the Doctor PR</h3>
-            <p>Devin reports 22 bugs, four of them marked severe, and 24 investigate flags on #8229. The severe ones concern attachments that may not be access-restricted, queue pruning deleting an upload that is in progress, a drain gate that may not actually exclude a second drainer, and a crash dump that can be aborted part-written. But its list provably contains stale entries, so none of it can be trusted without checking each item against current code — and that checking is most of the work.</p>
-            <div class="opts">
-              <div class="opt">
-                <input type="radio" name="q3" id="q3a" data-q="Devin backlog" value="Triage after the simplification decision" checked>
-                <label for="q3a"><span class="rec">Recommended</span>Triage after the simplification decision, so the deleted areas are never triaged at all. Recommended because a large share of these sit in the outbox and exit-classification code, and establishing stale-or-real is the expensive part.
-                <span class="cost">no work now; the triage is a session of its own whenever it happens</span></label>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q3" id="q3b" data-q="Devin backlog" value="Triage the four severe ones now">
-                <label for="q3b">Triage just the four severe ones now and defer the rest.
-                <span class="cost">a couple of hours to verify, plus whatever the real ones cost to fix</span></label>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q3" id="q3c" data-q="Devin backlog" value="Triage all 46 now">
-                <label for="q3c">Work through all 46 now.
-                <span class="cost">large — a day or more, much of it spent establishing which are already fixed</span></label>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q3" id="q3d" data-q="Devin backlog" value="Leave as is">
-                <label for="q3d">Leave as is</label>
-                <span class="leaverow"><input type="checkbox" id="q3lc" data-q="Devin backlog / leave comment"><label for="q3lc">Leave comment</label></span>
-              </div>
-              <div class="opt">
-                <input type="radio" name="q3" id="q3e" data-q="Devin backlog" value="Other">
-                <label for="q3e">Other:<input type="text" class="otherbox" data-q="Devin backlog / other" placeholder="…"></label>
-              </div>
-            </div>
-            <textarea class="notes" data-q="Devin backlog / notes" placeholder="Notes…"></textarea>
+            <textarea class="notes" data-q="Token scope / notes" placeholder="Notes…"></textarea>
           </div>
 
           <div class="item">
             <h3>Settled since this report was written</h3>
-            <p>Two questions here have been answered and acted on, so they are no longer asked: the branch was <strong>rebased onto <code>Version6.5</code></strong>, and the <strong>temporary split was collapsed back into #8229</strong>, which keeps all the machine and human review history. #8259 is closed and its branch deleted.</p>
+            <p>The branch was <strong>rebased onto <code>Version6.5</code></strong> and the <strong>temporary split collapsed back into #8229</strong>; #8259 is closed and its branch deleted.</p>
+            <p><strong>Simplification.</strong> Simplification 4 is implemented — the Doctor watches one Bloom, and five collections keyed by process id became five booleans. The other simplifications were declined; (E) and the exemptions it retired were done earlier. See the <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">simplification analysis</a>.</p>
+            <p><strong>Review findings.</strong> Ten of Fable's twelve are fixed, and Devin's four severe ones are worked: one was real and is fixed (pruning could delete a bundle mid-upload), one was narrower than stated and has been hardened anyway, and three were already fixed in commits its list predates. Two of Fable's remain, and they are the two questions above.</p>
+            <p><strong>Three older answers arrived and needed no work.</strong> The <em>identity check before ending a Bloom by process id</em> was already implemented exactly as chosen — <code>ZombieEnder</code> verifies identity before signalling and again before killing, and the supervisor refuses an id it is not watching. The <em>boot-time comparison</em> no longer exists to be tested: <code>DidMachineGoDown</code> was deleted along with the other absence-explaining exemptions, and its boot-time slack was where Devin's "startup crashes misread as a machine restart" came from — making it testable would mean putting it back. And the <em><code>launch.json</code></em> block had already been reverted, as it had to be for the base merge and said "do not commit" on itself.</p>
             <p>The rebase dropped one thing deliberately — <code>f8444670d</code>, "Keep automation-launched Bloom windows off the user's active monitor", which is <code>master</code>-only work that came along when a branch was cut from <code>master</code>. The Doctor's own code is byte-identical after the rebase, and the full C# suite passes against <code>Version6.5</code>.</p>
           </div>
 
