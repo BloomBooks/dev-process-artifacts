@@ -87,19 +87,36 @@
 <h2>The premise, measured</h2>
 <div class="tablewrap"><table>
 <tbody>
-<tr><td>Diff against <code>master</code></td><td><strong>19,645 added lines, 90 files</strong></td></tr>
-<tr><td>Commits on the branch</td><td><strong>73</strong>, of which ~30 read as corrections</td></tr>
+<tr><td>Diff against <code>Version6.5</code></td><td><strong>19,800 added lines, 90 files</strong></td></tr>
+<tr><td>Commits on the branch</td><td><strong>~80</strong>, of which ~30 read as corrections</td></tr>
 <tr><td>Doctor projects</td><td>Protocol 1,536 · Core 9,345 · exe 1,137 · tests 4,589</td></tr>
-<tr><td>Changes inside Bloom</td><td><strong>2,784 lines across 29 files</strong></td></tr>
 </tbody></table></div>
-<p>So the worry is fair, and the number that should worry us most is not 19,645 — it is <strong>29 files inside Bloom</strong>. The Doctor is a separate process; if it is wrong, a card is wrong. Bloom's own 2,784 lines run inside the application we are trying to protect.</p>
+<p>The commit count is the honest signal here: this took a lot of correcting.</p>
+<p><strong>The line count is not, and an earlier version of this document made it say something it does not.</strong> It reported "2,784 lines across 29 files inside Bloom" as the figure that should worry us most. John pushed back — some of that is code that <em>moved</em> into the shared project, and some is the same one-line hook repeated in several places. He was right, and the real decomposition is:</p>
+<div class="tablewrap"><table>
+<thead><tr><th>Category</th><th>Lines</th><th>Risk to a user running Bloom</th></tr></thead>
+<tbody>
+<tr><td>New files, all under <code>src/BloomExe/FreezeDoctor/</code></td><td>1,686</td><td>Self-contained. Nothing existing calls into it except through the hooks below. 315 of it is the simulator, which does nothing unless an environment variable is set on a non-release channel.</td></tr>
+<tr><td>Tests (<code>src/BloomTests/FreezeDoctor/</code>)</td><td>829</td><td>None.</td></tr>
+<tr><td>Solution, project, build scripts, generated settings, notes</td><td>122</td><td>None at run time.</td></tr>
+<tr><td>The debug-menu entry (TypeScript)</td><td>24</td><td>Trivial, and behind a menu most users never open.</td></tr>
+<tr><td><strong>Edits to existing Bloom code paths</strong></td><td><strong>215 across 13 files</strong></td><td>This is the actual surface.</td></tr>
+</tbody></table></div>
+<p>And that 215 divides again:</p>
+<ul>
+<li><strong>64 lines are the same hook repeated</strong> at six slow operations — BloomPUB, ePUB, Reading App Builder, video, upload, download. Counting only actual statements rather than comments and <code>using</code> directives, those six sites come to <strong>15 lines of code between them</strong>: one, one, three, three, three and four. A representative site in full is <code>using var _longOperation = FreezeDoctorSupport.LongOperation("making an ePUB");</code>. Purely additive, exception-safe by construction, no existing control flow altered. Repetition is not risk here; it is the same one-line change six times, and the comments explaining <em>why each place was chosen</em> are most of the diff.</li>
+<li><strong>27 lines in <code>AccessKeys.cs</code> are a move, not new logic.</strong> Locating <code>connections.dll</code> and reading its lines moved into the shared project, and the bare indices <code>lines[0]</code>…<code>lines[3]</code> became named constants. Same behaviour, one definition where there were about to be two.</li>
+<li><strong>~124 lines across 6 files are genuinely new behaviour in existing paths</strong>: startup and shutdown wiring in <code>Program.cs</code> (33), the API activity hook in <code>BloomApiHandler.cs</code> (37), server thread counts in <code>BloomServer.cs</code> (18), the debug-menu setting in <code>AppApi.cs</code> (25), the crash-dump request in <code>FatalExceptionHandler.cs</code> (6), and the already-reported note in <code>ProblemReportApi.cs</code> (5).</li>
+</ul>
+<p><strong>So the sentence worth acting on is: about 124 lines of new behaviour in six existing files, and one of them is on a hot path.</strong> <code>BloomApiHandler</code> wraps <em>every</em> API request in an <code>ApiActivityTracker</code> scope, so that one file is where a mistake would be felt on every interaction rather than only during a freeze. It is also where two of the Bloom-side bugs were found. That file deserves the scrutiny; the six repeated one-liners do not.</p>
+<p>That reframing does not make option <strong>2</strong> less attractive, but it changes what it is for: the case is about removing <em>concepts</em> Bloom has to maintain — an activity string, in-flight request tracking, server counts — not about a line count.</p>
 <h2>Where the bugs actually were</h2>
 <p>This matters more than the sizes, because a simplification only reduces risk if it removes an area that has actually produced bugs. Grouping what testing, the bots, and your questions turned up:</p>
 <div class="tablewrap"><table>
 <thead><tr><th>Area</th><th>Examples</th><th>Simplification that removes it</th></tr></thead>
 <tbody>
 <tr><td>Exit / crash classification</td><td>two Devin findings on misjudged exits; <code>ForcedByDoctor</code> conflating two facts; boot-time gap</td><td><strong>(E) below — now done</strong></td></tr>
-<tr><td>Bloom-side instrumentation</td><td>managed-vs-OS thread id join; a late lock note resurrecting a finished request; video recording unannounced</td><td><strong>2</strong></td></tr>
+<tr><td>Bloom-side instrumentation (both in <code>ApiActivityTracker</code>, reached from <code>BloomApiHandler</code>)</td><td>managed-vs-OS thread id join; a late lock note resurrecting a finished request; video recording unannounced</td><td><strong>2</strong></td></tr>
 <tr><td>Developer-build handling</td><td><code>--automation</code> treated as headless; simulator channel rules; dev-channel filing</td><td><strong>1</strong> — the exit-path half now done</td></tr>
 <tr><td>Multiple Blooms</td><td>restart offering to kill a healthy Bloom; process-id reuse</td><td><strong>4</strong></td></tr>
 <tr><td>Outbox</td><td><code>GatedOut</code> naming; a drain flag nobody read</td><td><strong>3</strong></td></tr>
@@ -122,7 +139,7 @@
 <p><strong>Keep (a): the UI-thread heartbeat.</strong> Non-negotiable. The measured finding this whole feature rests on is that a WinForms UI thread blocked in a managed wait still dispatches sent messages, so <code>IsHungAppWindow</code> and <code>Process.Responding</code> report a wedged Bloom as healthy — nine minutes frozen, reported responsive. A timer-driven heartbeat in shared memory is the <em>only</em> detector that works. Everything else is evidence; this is detection.</p>
 <p><strong>Keep (b): the session file's identity facts</strong> — log path, ports, channel, version. Small, written once, and the log path cannot be derived from outside: Bloom recreates <code>Log.txt</code> each run and falls back to a random name only when another Bloom holds it, so from outside the newest log is the wrong answer <em>exactly</em> in the restart-after-a-freeze case. <code>BloomLogLocator</code> is 222 lines of approximating something Bloom can state in one.</p>
 <p><strong>What goes:</strong> the API activity tracker (309 + 159 tests + 37 in <code>BloomApiHandler</code>), server thread counts (~150), the activity string and long-operation scopes (~200 across six call sites in Publish/Epub/RAB/video/upload/download), the crash-dump handshake (~270 across both sides), the shutdown-phase protocol (~100), <code>BloomAlreadyReported</code> (~80).</p>
-<p><strong>Size: ~1,300 lines out of Bloom, ~400 out of the Doctor, plus tests.</strong> It also removes six touchpoints in unrelated Bloom subsystems, which is where "small, safe change" quietly stopped being true.</p>
+<p><strong>Size: ~1,300 lines out of Bloom, ~400 out of the Doctor, plus tests</strong> — but see the premise above before reading much into that figure. Most of it is the self-contained <code>src/BloomExe/FreezeDoctor/</code> files rather than edits to existing code. What it really buys is removing the API activity tracker, which is the one hook on a hot path and the source of two of the Bloom-side bugs, and six touchpoints in unrelated subsystems.</p>
 <p><strong>Risk:</strong> high reduction, and concentrated in the right place — most of the Bloom-side bugs were in the activity tracker.</p>
 <p><strong>Capability cost, in order of pain:</strong></p>
 <ol>
