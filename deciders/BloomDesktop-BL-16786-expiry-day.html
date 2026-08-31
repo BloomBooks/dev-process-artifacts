@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expiry Day Preflight</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F7F9;
+  --card:#FFFFFF;
+  --ink:#16202E;
+  --muted:#5C6878;
+  --rule:#DDE2E9;
+  --rule-soft:#EBEFF4;
+  --accent:#17818F;
+  --accent-soft:#E6F1F3;
+  --good:#2C7A57;
+  --good-soft:#E4F1EA;
+  --warn:#A8701A;
+  --warn-soft:#F7EEDF;
+  --crit:#A8443A;
+  --crit-soft:#F7E7E5;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+  --sans:"Source Sans 3",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:16px;line-height:1.55;
+}
+.wrap{max-width:1360px;margin:0 auto;padding:32px 28px 72px}
+
+/* ---------- header ---------- */
+header.top{border-bottom:1px solid var(--rule);padding-bottom:20px;margin-bottom:26px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h1{font-family:var(--serif);font-weight:600;font-size:34px;line-height:1.15;margin:0 0 8px;text-wrap:balance;letter-spacing:-.01em}
+.runline{margin:0 0 16px;color:var(--muted);max-width:70ch}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;
+  padding:4px 10px;border-radius:3px;border:1px solid var(--rule);
+  background:var(--card);color:var(--ink);white-space:nowrap;
+}
+.chip.good{background:var(--good-soft);border-color:#BFDCCD;color:var(--good)}
+.chip.warn{background:var(--warn-soft);border-color:#E4D0AC;color:var(--warn)}
+.chip.accent{background:var(--accent-soft);border-color:#B9D9DE;color:var(--accent)}
+
+/* ---------- layout ---------- */
+.cols{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(0,1fr);gap:28px;align-items:start}
+.cols>*{min-width:0}
+.col{display:flex;flex-direction:column;gap:20px}
+@media (max-width:940px){.cols{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border:1px solid var(--rule);border-radius:5px;padding:22px 24px}
+.card>h2{
+  font-family:var(--serif);font-weight:600;font-size:21px;line-height:1.2;
+  margin:0 0 14px;letter-spacing:-.005em;
+}
+.card>h2.lead{font-size:24px}
+.card h3{
+  font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);margin:20px 0 6px;font-weight:500;
+}
+.card h3:first-of-type{margin-top:0}
+.card p{margin:0 0 12px;max-width:66ch}
+.card p:last-child{margin-bottom:0}
+ul.tight{margin:0;padding-left:20px}
+ul.tight li{margin-bottom:8px;max-width:64ch}
+ul.tight li:last-child{margin-bottom:0}
+.numeral{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.9em}
+code{font-family:var(--mono);font-size:.86em;background:var(--rule-soft);padding:1px 5px;border-radius:3px}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+th{
+  font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;border-bottom-color:var(--rule);
+}
+tr:last-child td{border-bottom:none}
+td.who{white-space:nowrap;padding-right:18px;font-weight:600}
+.tag{
+  display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+  padding:2px 7px;border-radius:3px;white-space:nowrap;
+}
+.tag.pass{background:var(--good-soft);color:var(--good)}
+.tag.flake{background:var(--warn-soft);color:var(--warn)}
+.tag.na{background:var(--rule-soft);color:var(--muted)}
+
+/* ---------- decision items ---------- */
+.decision{border-left:3px solid var(--accent)}
+.decision.fyi{border-left-color:var(--rule)}
+.opts{display:flex;flex-direction:column;gap:2px;margin:14px 0 0}
+.opt{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:4px;
+  border:1px solid transparent;
+}
+.opt:hover{background:var(--rule-soft)}
+.opt input[type=radio]{margin:4px 0 0;flex:0 0 auto;accent-color:var(--accent)}
+.opt .body{flex:1 1 auto;min-width:0}
+.opt .label{font-weight:600}
+.opt .note{display:block;color:var(--muted);font-size:14px;margin-top:2px}
+.rec{
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--accent);background:var(--accent-soft);padding:2px 6px;border-radius:3px;margin-left:8px;
+  white-space:nowrap;
+}
+.leaverow{display:flex;align-items:flex-start;gap:12px}
+.leaverow .opt{flex:1 1 auto}
+.leavecomment{
+  display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);
+  padding:12px 2px 0 0;white-space:nowrap;
+}
+.leavecomment input{accent-color:var(--accent)}
+input[type=text]{
+  font-family:var(--sans);font-size:14.5px;color:var(--ink);
+  border:1px solid var(--rule);border-radius:3px;padding:5px 8px;width:100%;max-width:340px;background:var(--card);
+}
+.notes{margin-top:14px}
+.notes label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+textarea{
+  font-family:var(--sans);font-size:14.5px;color:var(--ink);width:100%;
+  border:1px solid var(--rule);border-radius:3px;padding:8px;background:var(--card);resize:vertical;
+}
+
+/* ---------- copy back ---------- */
+button{
+  font-family:var(--sans);font-size:15px;font-weight:600;
+  background:var(--accent);color:#fff;border:none;border-radius:4px;padding:9px 18px;cursor:pointer;
+}
+button:hover{background:#136A76}
+#payload{font-family:var(--mono);font-size:12.5px;margin-top:12px;min-height:150px;background:#FBFCFD}
+.copied{margin-left:12px;color:var(--good);font-size:14px;visibility:hidden}
+.copied.show{visibility:visible}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--rule);color:var(--muted);font-size:13.5px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Preflight report &middot; BloomDesktop &middot; BL-16786</p>
+  <h1>Subscriptions no longer expire a day early</h1>
+  <p class="runline">Branch <code>BL-16786-expiry-day</code> onto <code>Version6.4</code>, at <span class="numeral">4e3f90f</span>. The fix and its tests are in, every reviewer has finished, and both full test suites have run. One question is waiting on you, plus one small housekeeping choice.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &middot; clean</span>
+    <span class="chip good">Reviewers all terminal</span>
+    <span class="chip accent">2 items waiting on you</span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- ================= LEFT ================= -->
+<div class="col">
+
+  <section class="card">
+    <h2 class="lead">What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p>On the very day a subscription expires, Bloom contradicts itself. The <strong>Bloom Subscription</strong> tab of Collection Settings says the subscription is still good &mdash; green tick, tier, &ldquo;Expires: today&rdquo; &mdash; along with a yellow warning that it expires today. But subscription-gated features, the Canvas tool most visibly, are already switched off telling the user the subscription isn&rsquo;t valid. Confirmed in 6.4.</p>
+
+    <h3>Cause</h3>
+    <p>The two sides compare different things. The dialog compares whole dates, so a subscription is good <em>through the end of</em> its expiration day. The C# compared a date to a timestamp: the stored expiration date is midnight at the <em>start</em> of that day, so from 00:00 the code counted as expired and the tier dropped to Basic &mdash; and it is the tier that turns the tools off.</p>
+
+    <h3>What the PR does</h3>
+    <ul class="tight">
+      <li>A subscription is now valid through the end of its expiration date everywhere: the expiry check compares whole dates <a href="https://github.com/BloomBooks/BloomDesktop/blob/4e3f90fcd305966b2d97f3b1d60b3043197c87e3/src/BloomExe/SubscriptionAndFeatures/Subscription.cs#L212" target="_blank" rel="noopener">(Subscription.cs:212)</a>.</li>
+      <li>The tier calculation now calls that same check instead of repeating the comparison, so there is one definition of &ldquo;expired&rdquo; rather than two that can drift apart <a href="https://github.com/BloomBooks/BloomDesktop/blob/4e3f90fcd305966b2d97f3b1d60b3043197c87e3/src/BloomExe/SubscriptionAndFeatures/Subscription.cs#L397" target="_blank" rel="noopener">(Subscription.cs:397)</a>.</li>
+      <li>The Settings dialog and the collection-tab status banner worked out &ldquo;today&rdquo; in <strong>UTC</strong> while the C# used the computer&rsquo;s local clock &mdash; a smaller version of the same disagreement that shifts the boundary by up to a day for users far from UTC. Both now use a shared local-date helper <a href="https://github.com/BloomBooks/BloomDesktop/blob/4e3f90fcd305966b2d97f3b1d60b3043197c87e3/src/BloomBrowserUI/collection/subscriptionCodeControl.tsx#L216" target="_blank" rel="noopener">(subscriptionCodeControl.tsx:216)</a>.</li>
+      <li>New tests pin the day boundary &mdash; expires tomorrow, today, yesterday &mdash; asserting both the expiry answer and the resulting tier, so a later change can&rsquo;t quietly move the cutoff back <a href="https://github.com/BloomBooks/BloomDesktop/blob/4e3f90fcd305966b2d97f3b1d60b3043197c87e3/src/BloomTests/SubscriptionAndFeatures/SubscriptionTests.cs#L95" target="_blank" rel="noopener">(SubscriptionTests.cs:95)</a>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td class="who">C# build</td><td><span class="tag pass">pass</span></td><td><span class="numeral">0</span> errors</td></tr>
+        <tr><td class="who">TypeScript types</td><td><span class="tag pass">pass</span></td><td>No errors in the changed files. Repo-wide <code>tsc --noEmit</code> has many pre-existing errors unrelated to this branch; the gate the repo actually enforces is <code>yarn lint</code>.</td></tr>
+        <tr><td class="who">Lint (eslint)</td><td><span class="tag pass">pass</span></td><td><span class="numeral">0</span> errors (<span class="numeral">775</span> pre-existing warnings repo-wide)</td></tr>
+        <tr><td class="who">Formatting</td><td><span class="tag pass">pass</span></td><td>Prettier clean on the changed files; CSharpier ran in the pre-commit hook</td></tr>
+        <tr><td class="who">Base merge</td><td><span class="tag pass">pass</span></td><td><code>origin/Version6.4</code> merged with no conflicts; GitHub reports mergeable / clean</td></tr>
+        <tr><td class="who">C# tests</td><td><span class="tag flake">1 flake</span></td><td><span class="numeral">2874 passed &middot; 1 failed &middot; 14 skipped</span> of <span class="numeral">2889</span>. The failure is <code>ExportEpubTests.ConflictingIds_AreNotConfused</code> &mdash; see &ldquo;Worth knowing&rdquo;. It passes on its own, and the same suite was fully green one commit earlier.</td></tr>
+        <tr><td class="who">TypeScript tests</td><td><span class="tag pass">pass</span></td><td><span class="numeral">532 passed &middot; 5 skipped</span> across <span class="numeral">49</span> files (vitest)</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>This run took the fix from a working-tree change to a reviewed PR: it committed the fix and its tests, merged <code>Version6.4</code> in, opened the draft PR, and then made one follow-up commit hardening the new boundary test against running across midnight, which both Greptile and Devin flagged.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8267/commits" target="_blank" rel="noopener">All three commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267/files" target="_blank" rel="noopener">Files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267" target="_blank" rel="noopener">PR #8267</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="who">Local review</td><td><span class="tag pass">complete</span></td>
+          <td>Light pass, run inline rather than in a sub-agent (this session is configured not to spawn agents unasked). Clean &mdash; no findings. It did check the one other caller of the expiry test, where the default-bookshelf and expired-bookshelf branches still flip on the same day as each other.</td>
+        </tr>
+        <tr>
+          <td class="who">Devin</td><td><span class="tag pass">complete</span></td>
+          <td><span class="numeral">1</span> Bug, <span class="numeral">2</span> Investigate, <span class="numeral">0</span> Informational, all mirrored as threads.
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267#discussion_r3898068889" target="_blank" rel="noopener">Whitespace check</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267#discussion_r3898070144" target="_blank" rel="noopener">midnight-flaky test</a> were answered and resolved. The <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267#discussion_r3898066945" target="_blank" rel="noopener">Bug</a> is left open &mdash; it&rsquo;s the question on the right.
+            <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8267" target="_blank" rel="noopener">Review page</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267#issuecomment-5484083018" target="_blank" rel="noopener">consultation log</a></td>
+        </tr>
+        <tr>
+          <td class="who">Greptile</td><td><span class="tag flake">partial</span></td>
+          <td>Reviewed the first push of this run and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267#issuecomment-5484001933" target="_blank" rel="noopener">posted a summary</a>; its one substantive point (the midnight-flaky test) was fixed in <span class="numeral">4e3f90f</span>. It did not run again for the current head &mdash; the free tier is exhausted. That review did cover all of the substantive code; the only change since is the fix it asked for.</td>
+        </tr>
+        <tr>
+          <td class="who">CodeRabbit</td><td><span class="tag na">n/a</span></td>
+          <td>Turned off for this repo in <code>.coderabbit.yml</code> (<code>auto_review.enabled: false</code>), and absent from recent PRs. Not waited on.</td>
+        </tr>
+        <tr>
+          <td class="who">CI</td><td><span class="tag pass">pass</span></td>
+          <td><code>pr-automation</code> green for the current head. It is the only required check on this repo.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul class="tight">
+      <li><strong>The one red test is a documented flake, not this change.</strong> <code>ExportEpubTests.ConflictingIds_AreNotConfused</code> died on &ldquo;Failure to completely load visibility document&rdquo;. The repo&rsquo;s own <code>MakeEpubWithRetries</code> helper documents exactly that message as the known failure mode and notes that &ldquo;two tries were needed at least once per run on average&rdquo;. It passes when run alone, the full suite was green one commit earlier, and nothing in the diff touches ePUB export.</li>
+      <li><strong>Nothing here has been exercised by hand.</strong> Seeing the bug or the fix needs a subscription code that expires on a chosen date, or the machine clock moved. The QA notes on the card spell out how; the time-zone cases in particular are unlikely to get covered by accident.</li>
+      <li><strong>A time-zone behavior change rides along.</strong> Switching the two status displays from UTC to the local date is correct and is what makes the fix hold everywhere, but it changes what those displays do for users far from UTC &mdash; a slightly wider blast radius than the headline fix.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- ================= RIGHT ================= -->
+<div class="col">
+
+  <section class="card decision">
+    <h2>Leaving Bloom open across midnight</h2>
+    <p>Devin raised this, and it is real. Bloom works out which subscription tier you have once, at the moment it opens the collection, and every feature gate reads that stored answer. So if someone leaves Bloom running overnight on the day their subscription runs out, the paid tools keep working past midnight until they restart or reopen the collection.</p>
+    <p>The important qualifier: <strong>this PR does not introduce it.</strong> The tier has always been computed once at construction, so a session spanning the old cutoff behaved exactly the same way. This change moves <em>which</em> midnight matters by one day; it does not make the staleness better or worse. Fixing it properly means making the expiration-sensitive checks re-read the clock, or adding something that invalidates the subscription at midnight &mdash; either of which reaches every consumer of the tier.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" value="Fix it in this PR: make the tier recompute instead of being worked out once">
+        <label class="body" for="q1a"><span class="label">Fix it in this PR</span><span class="note">Make the expiration-sensitive checks recompute rather than read a stored tier. (Large / architectural &mdash; it reaches every consumer of the subscription tier, on a maintenance branch, to fix something that is not a regression.)</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" value="File a separate YouTrack card for it and leave this PR alone" checked>
+        <label class="body" for="q1b"><span class="label">File a separate card for it<span class="rec">Recommended</span></span><span class="note">Leave the code alone here and raise it on its own card so it isn&rsquo;t lost. (No code &mdash; just a new card. Recommended because it is pre-existing rather than a regression, the architectural fix is out of proportion to this bug fix and to a 6.4 maintenance branch, and a card keeps it visible instead of quietly closing the thread.)</span></label>
+      </div>
+      <div class="leaverow">
+        <div class="opt">
+          <input type="radio" name="q1" id="q1c" value="Leave as is">
+          <label class="body" for="q1c"><span class="label">Leave as is</span></label>
+        </div>
+        <label class="leavecomment"><input type="checkbox" data-q="q1-leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" value="Other">
+        <label class="body" for="q1d"><span class="label">Other:</span><input type="text" data-q="q1-other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="q1-notes" rows="2"></textarea></div>
+  </section>
+
+  <section class="card decision fyi">
+    <h2>An uncommitted papercut note</h2>
+    <p>The repo&rsquo;s <code>AGENTS.md</code> says that when the front-end test suite wedges, re-running it with <code>--no-file-parallelism</code> gets it through. On this machine that still wedged &mdash; it stopped dead after 11 test files and was still stuck 19 minutes later. Adding <code>--pool=threads</code> ran the whole suite in about three and a half minutes.</p>
+    <p>That is logged as an entry at the top of <code>PAPERCUTS.md</code>. It is currently the only uncommitted file in the working tree: it was deliberately kept out of this PR, whose diff is otherwise four files all about subscription expiry.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" value="Commit the papercut note onto this branch">
+        <label class="body" for="q2a"><span class="label">Commit it onto this branch</span><span class="note">Simplest, and nothing is left dangling. (Docs only, no risk &mdash; but it puts an unrelated file into this PR&rsquo;s diff.)</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" value="Move the papercut note to its own commit or branch" checked>
+        <label class="body" for="q2b"><span class="label">Put it on its own commit or branch<span class="rec">Recommended</span></span><span class="note">Keeps this PR to the four subscription files a reviewer expects. (No code &mdash; just where the commit lands. Recommended because a clean single-purpose diff is worth more to the reviewer than saving one commit.)</span></label>
+      </div>
+      <div class="leaverow">
+        <div class="opt">
+          <input type="radio" name="q2" id="q2c" value="Leave as is">
+          <label class="body" for="q2c"><span class="label">Leave as is</span><span class="note">The note stays uncommitted in the working tree for you to deal with later.</span></label>
+        </div>
+        <label class="leavecomment"><input type="checkbox" data-q="q2-leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2d" value="Other">
+        <label class="body" for="q2d"><span class="label">Other:</span><input type="text" data-q="q2-other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="q2-notes" rows="2"></textarea></div>
+  </section>
+
+  <section class="card decision fyi">
+    <h2>Next step</h2>
+    <p>The PR is left as a draft and no teammate has been asked to review it &mdash; that promotion is yours to make once you&rsquo;ve read the change yourself.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q3" id="q3a" value="Go ahead and act on the answers above" checked>
+        <label class="body" for="q3a"><span class="label">Act on the answers above<span class="rec">Recommended</span></span><span class="note">Carry out whatever is chosen, then stop. (Recommended because both choices above are small and self-contained.)</span></label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3b" value="Discuss first before changing anything">
+        <label class="body" for="q3b"><span class="label">Discuss first</span><span class="note">Talk it through before anything else is touched. (No code.)</span></label>
+      </div>
+      <div class="leaverow">
+        <div class="opt">
+          <input type="radio" name="q3" id="q3c" value="Leave as is">
+          <label class="body" for="q3c"><span class="label">Leave as is</span></label>
+        </div>
+        <label class="leavecomment"><input type="checkbox" data-q="q3-leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3d" value="Other">
+        <label class="body" for="q3d"><span class="label">Other:</span><input type="text" data-q="q3-other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" data-q="q3-notes" rows="2"></textarea></div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the Claude Code session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+    <textarea id="payload" readonly rows="9"></textarea>
+  </section>
+
+</div>
+</div>
+
+<footer>
+  Preflight for <a href="https://github.com/BloomBooks/BloomDesktop/pull/8267" target="_blank" rel="noopener">BloomDesktop PR #8267</a>
+  &middot; <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16786" target="_blank" rel="noopener">BL-16786</a>
+  &middot; head <span class="numeral">4e3f90fcd305966b2d97f3b1d60b3043197c87e3</span>
+</footer>
+
+</div>
+
+<script>
+(function () {
+    const QUESTIONS = [
+        { name: "q1", title: "Leaving Bloom open across midnight" },
+        { name: "q2", title: "An uncommitted papercut note" },
+        { name: "q3", title: "Next step" },
+    ];
+
+    function valueOf(selector) {
+        const el = document.querySelector(selector);
+        return el ? el.value.trim() : "";
+    }
+
+    function serialize() {
+        const lines = ["Preflight answers — BloomDesktop PR #8267 (BL-16786)", ""];
+        QUESTIONS.forEach(function (q) {
+            const picked = document.querySelector('input[name="' + q.name + '"]:checked');
+            let answer = picked ? picked.value : "(no answer)";
+            if (answer === "Other") {
+                const other = valueOf('input[data-q="' + q.name + '-other"]');
+                answer = "Other: " + (other || "(blank)");
+            }
+            lines.push(q.title + ": " + answer);
+
+            const leave = document.querySelector('input[data-q="' + q.name + '-leave-comment"]');
+            if (leave && leave.checked) {
+                lines.push("  Leave comment: record this decision as a code comment in the repo");
+            }
+            const notes = valueOf('textarea[data-q="' + q.name + '-notes"]');
+            if (notes) lines.push("  Notes: " + notes);
+            lines.push("");
+        });
+        return lines.join("\n").trimEnd() + "\n";
+    }
+
+    const payload = document.getElementById("payload");
+    function refresh() {
+        payload.value = serialize();
+    }
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    document.getElementById("copybtn").addEventListener("click", function () {
+        refresh();
+        const done = function () {
+            const flag = document.getElementById("copied");
+            flag.classList.add("show");
+            setTimeout(function () {
+                flag.classList.remove("show");
+            }, 2000);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload.value).then(done, function () {
+                payload.select();
+                document.execCommand("copy");
+                done();
+            });
+        } else {
+            payload.select();
+            document.execCommand("copy");
+            done();
+        }
+    });
+})();
+</script>
+</body>
+</html>
