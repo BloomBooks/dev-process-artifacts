@@ -193,16 +193,17 @@
 <div class="wrap">
 
   <h1>Bloom Freeze Doctor — preflight</h1>
-  <p class="sub">One PR again, on <code>Version6.5</code>, with the Doctor watching a single Bloom. Every question from this report is answered, twelve defects are fixed, and it is ready for your own read.</p>
+  <p class="sub">All eight simulated failure modes have now been run end to end, with Bloom launching its own Doctor, and each report read for whether it would actually help. That found and fixed four more defects, and the adoption delay that had defeated five earlier attempts is explained and gone.</p>
 
-  <p class="sub" style="margin-top:12px"><strong>Companion document:</strong> <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">Simplifying the Freeze Doctor — options and what each costs</a>, which the first decision below draws on.</p>
+  <p class="sub" style="margin-top:12px"><strong>Companion document:</strong> <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">Simplifying the Freeze Doctor — options and what each costs</a>.</p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
-    <span class="chip good">Both mergeable</span>
+    <span class="chip good">Mergeable</span>
     <span class="chip good">CI passing</span>
-    <span class="chip good">C# <span class="numeral">3321</span> passing</span>
-    <span class="chip good">Nothing waiting on you</span>
+    <span class="chip good">C# <span class="numeral">3600</span> passing</span>
+    <span class="chip good">TS <span class="numeral">781</span> passing</span>
+    <span class="chip warn">2 questions + next step</span>
   </div>
 
   <div class="grid">
@@ -222,13 +223,14 @@
         <ul class="bullets">
           <li><strong>Bloom publishes its health</strong> — a UI-thread timer heartbeat in shared memory, which is the only signal that detects the freeze described above; plus which log file this run is writing to, what Bloom believes it is doing, and how far shutdown got.</li>
           <li><strong>Bloom marks its deliberately slow work</strong> — publishing, video, upload, download — so a legitimate five-minute job is not reported as a freeze.</li>
-          <li><strong>A companion process watches</strong>, and at the moment of failure gathers stacks, wait chains, WebView2 state and the Event Log, then files a YouTrack card by itself, folding recurrences onto one card.</li>
-          <li><strong>It stays quiet</strong> for developer builds, simulated failures, debugged processes, and problems Bloom has already reported itself.</li>
+          <li><strong>Bloom announces itself as it starts</strong>, in the first moments of <code>Main</code>, so a Doctor already running adopts it at once rather than at its next sweep. Everything before that announcement is time in which a hang or a crash cannot be doctored at all, because Bloom only asks for a dump when a Doctor is already watching.</li>
+          <li><strong>A companion process watches one Bloom</strong>, and at the moment of failure gathers stacks, wait chains, WebView2 state and the Event Log, then files a YouTrack card by itself. The report leads with what a reader needs first — where the UI thread is stuck, or what was thrown. Recurrences fold onto one card: a freeze identified by the UI thread's frames, a crash by the faulting thread's exception, the UI thread being no use for a crash since it sits in its message loop throughout.</li>
+          <li><strong>It stays quiet</strong> for developer builds, simulated failures, debugged processes, and problems Bloom has already reported itself — with a <strong>"Send it anyway"</strong> button for the developer who decides one of those reports should go after all.</li>
         </ul>
         <p>It ships inside Bloom's installer and is <strong>off by default</strong>, switched on from the debug menu.</p>
 
         <h3 class="kicker">One PR, on Version6.5</h3>
-        <p>All of it is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">#8229</a> — <span class="numeral">90</span> files, <span class="numeral">19,800</span> lines — now targeting <code>Version6.5</code> per the transition rule in <code>AGENTS.md</code>. It was briefly split in two to give the automated reviewers a smaller diff; that served its purpose (Devin found one real bug in the Bloom-side half) and the split has been undone, with #8259 closed.</p>
+        <p>All of it is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">#8229</a>, targeting <code>Version6.5</code> per the transition rule in <code>AGENTS.md</code>.</p>
       </div>
 
       <div class="card">
@@ -236,19 +238,19 @@
         <div class="tablewrap">
         <table>
           <tr><th>Check</th><th>Result</th><th>Notes</th></tr>
-          <tr><td>Typecheck</td><td class="pass">pass</td><td>via the pre-commit gate on both branches</td></tr>
-          <tr><td>Lint (eslint)</td><td class="pass">pass</td><td>one <code>.tsx</code> file in the diff</td></tr>
-          <tr><td>C# tests — Bloom</td><td class="pass">pass</td><td><span class="numeral">3321</span> passed, <span class="numeral">13</span> skipped, re-run against <code>Version6.5</code> after the rebase</td></tr>
-          <tr><td>C# tests — Doctor</td><td class="pass">pass</td><td><span class="numeral">193</span> passed on #8229's branch</td></tr>
-          <tr><td>TypeScript tests</td><td class="pass">pass</td><td><span class="numeral">775</span> passed, <span class="numeral">5</span> skipped (vitest, serial)</td></tr>
-          <tr><td>Merge cleanliness</td><td class="pass">pass</td><td><code>master</code> integrated; both PRs mergeable</td></tr>
+          <tr><td>Typecheck</td><td class="pass">pass</td><td>no errors, re-run after the base merge</td></tr>
+          <tr><td>Lint (eslint)</td><td class="pass">pass</td><td>no errors; the <span class="numeral">764</span> warnings are pre-existing and none is in the changed files</td></tr>
+          <tr><td>C# tests — Bloom</td><td class="pass">pass</td><td><span class="numeral">3338</span> passed, <span class="numeral">13</span> skipped — the first completed run of this suite on the branch</td></tr>
+          <tr><td>C# tests — Doctor</td><td class="pass">pass</td><td><span class="numeral">262</span> passed</td></tr>
+          <tr><td>TypeScript tests</td><td class="pass">pass</td><td><span class="numeral">781</span> passed, <span class="numeral">5</span> skipped, <span class="numeral">69</span> files (vitest, parallel, no hang)</td></tr>
+          <tr><td>Merge cleanliness</td><td class="pass">pass</td><td><code>Version6.5</code> integrated; two conflicts, both where base and this branch added to the same place; mergeable</td></tr>
         </table>
         </div>
       </div>
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Rebased onto <code>Version6.5</code> and collapsed the temporary split back into #8229. Simplified exit classification to report on <em>evidence</em> rather than on its absence — measured first — which then made two whole exemptions redundant. Implemented simplification 4, so the Doctor watches one Bloom and five process-id-keyed collections became five booleans. Fixed nine defects between Fable's review and Devin's, and removed the code that handled Blooms with older versions of Doctor support, since nothing has shipped.</p>
+        <p>Ran each of the eight simulated failure modes end to end with Bloom launching its own Doctor, and read every report for whether it would actually help — which found four defects that only show up that way, all fixed. Found and fixed the adoption delay that five earlier attempts had failed to explain. Added the "Send it anyway" button, taught <code>go.sh</code> to stop a running Doctor before building and to accept <code>--nowatch</code>, and merged <code>Version6.5</code>.</p>
         <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/commits" target="_blank" rel="noopener">Commits</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8229/files" target="_blank" rel="noopener">Files changed</a></p>
       </div>
 
@@ -258,29 +260,29 @@
         <table>
           <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
           <tr>
-            <td>Local review<br><span class="skip">Fable, whole change</span></td>
+            <td>Local review<br><span class="skip">light pass, done inline</span></td>
             <td class="pass">complete</td>
-            <td><strong>Ten of twelve fixed.</strong> wait chains never crossed a process boundary, so the WebView2 case the collector exists for produced nothing; a collector ignoring its token could hang the Doctor for ever; minimising made it unable to exit; a Bloom started near midnight could not find its own log; the WebView2 collector could interrogate a stranger's browser; an exception after filing turned a success into a false recurrence; a non-JSON 200 escaped and killed <code>--drain</code>; the fingerprint could absorb another thread's frames; a cancelled CPU sample asserted a conclusion it had not measured; a balloon click could open the wrong thing. <strong>Two remain</strong>, both needing a decision rather than a fix — see opposite.</td>
+            <td><strong>One finding, fixed.</strong> The new "Bloom's own error handling recorded…" headline was not restricted to crash reports, and the log tail it reads is a couple of hundred lines of a real session — so an unrelated handled exception could have been offered at the top of a <em>freeze</em> report as though it explained the freeze. Now only on crash reports. Done inline rather than by sub-agent.</td>
           </tr>
           <tr>
-            <td>Devin<br><span class="skip">on #8259, since closed</span></td>
-            <td class="pass">complete</td>
-            <td>One bug, fixed: overlapping long operations put finished work back on display. Two investigate flags, both assessed with no change needed. Four informational. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8259#issuecomment-5466957296" target="_blank" rel="noopener">Record</a> · <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8259" target="_blank" rel="noopener">Devin</a></td>
-          </tr>
-          <tr>
-            <td>Devin — #8229</td>
-            <td class="pass">complete</td>
-            <td>22 bugs, 24 investigate flags. The four marked severe are worked: one real and fixed, one narrowed and hardened, three already fixed in commits its list predates. That ratio is the measure of the caveat below. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin</a></td>
+            <td>Devin</td>
+            <td class="warn">timed out after <span class="numeral">25</span> min</td>
+            <td><strong>No findings pass, for the sixth time on this PR.</strong> Triggered twice for this commit — the push and a deliberate re-run, both of which reported success — and no job for this sha ever appeared. Its earlier <em>completed</em> jobs on this PR carry <code>lifeguard_status: pending</code> and a null result, so the findings stage never ran on any of them. Its accumulated list from before remains worked. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8229" target="_blank" rel="noopener">Devin</a></td>
           </tr>
           <tr>
             <td>Greptile</td>
             <td class="pass">complete</td>
-            <td>Passed on #8259 (since closed). It is answering again after a long silence.</td>
+            <td>Quiet on this commit. Its five earlier comments on the PR are all resolved.</td>
+          </tr>
+          <tr>
+            <td>Human review threads</td>
+            <td class="pass">complete</td>
+            <td>All resolved. The last one open was Devin's zombie-kill finding, whose chosen fix had been implemented but never recorded — <code>ZombieEnder</code> checks identity on entry and again immediately before the kill, and the supervisor refuses an id it is not watching. Replied and resolved.</td>
           </tr>
           <tr>
             <td>CI</td>
             <td class="pass">complete</td>
-            <td><code>pr-automation</code> green on both PRs.</td>
+            <td><code>pr-automation</code> green. <code>code-review/reviewable</code> shows "pending / 28 discussions left", which is Reviewable's own record of what you have marked reviewed in its UI — not an unresolved-thread count.</td>
           </tr>
         </table>
         </div>
@@ -289,11 +291,11 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul class="bullets">
-          <li><strong>Devin accumulates findings rather than re-deriving them.</strong> Its bug count on #8229 ran 20 → 21 → 22 across three successive commits, and it still reports two defects at the exact commit that fixes them. Its list is therefore not "what is wrong now", and every item needs checking against current code before anyone acts.</li>
-          <li><strong>Devin's earlier failure to review was not caused by PR size.</strong> I had recorded that its analysis never completed on the combined PR. It has since completed on the pre-split commit too, so those failures were transient at Devin's end. The split earns its place on other grounds, but not that one.</li>
-          <li><strong>Your <code>launch.json</code> simulator block is gone from the working tree.</strong> It had to go for the merge, and it carried its own "do not commit". To re-arm, add <code>"env": { "BLOOM_SIMULATE_FREEZE": "crashthread:120" }</code> to the Bloom launch config; kinds are <code>sleep, stawait, spin, failfast, throw, crashthread, zombie, mutexchain</code>, with an optional <code>:seconds</code>.</li>
-          <li><strong>Your shell still exports <code>BLOOM_SIMULATE_FREEZE=zombie</code></strong>, so any Bloom launched from it hides its window and is ended by a running Doctor about 75 seconds later.</li>
-          <li><strong>The wait-chain fix has not been seen against a real frozen Bloom.</strong> It changes what Windows returns, and only the same-process rehearsal exercises it; the tests cover the code, not the behaviour.</li>
+          <li><strong><code>go.sh</code> now stops any running Freeze Doctor before it builds.</strong> A Doctor holds the DLLs the build must replace, so a running one made Bloom fail to build at all — it cost a whole test run before the cause was found. If you want a Doctor watching after launching from source, let Bloom start it (the menu toggle) or start one by hand once Bloom is up.</li>
+          <li><strong><code>--nowatch</code> is worth less than we hoped.</strong> Measured twice on a warm build: <span class="numeral">35</span> s to a running Bloom with <code>dotnet watch</code>, <span class="numeral">27</span> s without. Most of the wall clock is Vite and Bloom itself, not the watcher.</li>
+          <li><strong><code>RunFreezeDoctor</code> is now switched on in your settings</strong>, because testing the Bloom-launches-its-own-Doctor path needed it. Turn it off from the same debug menu if you would rather it were off.</li>
+          <li><strong>A <code>spin</code> freeze cannot report where it is spinning.</strong> A stack walk of a thread running flat out yields nothing above the message loop, so the report says so and names which thread to open in the attached dump. That is the honest answer rather than a gap, but it does mean a spin needs the dump to diagnose.</li>
+          <li><strong>The wait-chain behaviour still has not been seen against a real frozen Bloom.</strong> Only the same-process rehearsal exercises it; the tests cover the code, not what Windows returns.</li>
         </ul>
       </div>
 
@@ -305,21 +307,67 @@
         <form id="decisions">
 
           <div class="item">
-            <h3>Settled since this report was written</h3>
-            <p>The branch was <strong>rebased onto <code>Version6.5</code></strong> and the <strong>temporary split collapsed back into #8229</strong>; #8259 is closed and its branch deleted.</p>
-            <p><strong>Both remaining questions are answered.</strong> A failed attachment now says so on the card, the way the too-large path does — and the question about that exposed the too-large path's own wording as misleading, since "still on the user's machine" read as permanent when the folder is kept about 30 days, or less under volume. Both paths now name the date and warn about the volume limit. The <strong>YouTrack token stays as it is</strong>: no new risk, the key was already exposed by Bloom, and this code uses it as intended — recorded as the first line of the comment on <code>TokenPiece</code> and resolved on its review thread, so it stops recurring.</p>
-            <p><strong>Simplification.</strong> Simplification 4 is implemented — the Doctor watches one Bloom, and five collections keyed by process id became five booleans. The other simplifications were declined; (E) and the exemptions it retired were done earlier. See the <a href="./bloomdesktop-BL-16719-simplification.html" target="_blank" rel="noopener">simplification analysis</a>.</p>
-            <p><strong>Review findings.</strong> Ten of Fable's twelve are fixed, and Devin's four severe ones are worked: one was real and is fixed (pruning could delete a bundle mid-upload), one was narrower than stated and has been hardened anyway, and three were already fixed in commits its list predates. Two of Fable's remain, and they are the two questions above.</p>
-            <p><strong>Three older answers arrived and needed no work.</strong> The <em>identity check before ending a Bloom by process id</em> was already implemented exactly as chosen — <code>ZombieEnder</code> verifies identity before signalling and again before killing, and the supervisor refuses an id it is not watching. The <em>boot-time comparison</em> no longer exists to be tested: <code>DidMachineGoDown</code> was deleted along with the other absence-explaining exemptions, and its boot-time slack was where Devin's "startup crashes misread as a machine restart" came from — making it testable would mean putting it back. And the <em><code>launch.json</code></em> block had already been reverted, as it had to be for the base merge and said "do not commit" on itself.</p>
-            <p>The rebase dropped one thing deliberately — <code>f8444670d</code>, "Keep automation-launched Bloom windows off the user's active monitor", which is <code>master</code>-only work that came along when a branch was cut from <code>master</code>. The Doctor's own code is byte-identical after the rebase, and the full C# suite passes against <code>Version6.5</code>.</p>
+            <h3>A Doctor that Bloom started will adopt a different Bloom later</h3>
+            <p>When Bloom starts a Doctor, it does not tell it to watch only Bloom-the-executable of that channel — so the Doctor looks for any installed Bloom name. That is what you want when you restart Bloom after a freeze: the same Doctor picks the new one up. But it also means that after the Bloom that started it has gone, the Doctor will adopt <em>any</em> Bloom it finds. Observed during this session: a Doctor started by a development Bloom outlived it and adopted the <code>BloomBetaInternal</code> install that happened to be running.</p>
+            <p>Why it matters rather than being merely untidy: BetaInternal is not a developer channel, so a genuine freeze or crash in it <strong>would be filed as a real card</strong> — a report about work you were doing in a different Bloom entirely, from a Doctor you never pointed at it. Nothing incorrect would be in the card; it is the surprise, and the fact that the user never asked that Bloom to be watched, that is the problem.</p>
+            <div class="opts">
+              <div class="opt">
+                <input type="radio" name="qa" id="qaa" data-q="Doctor adopting another Bloom" value="Restrict it to the same executable it was started for" checked>
+                <label for="qaa"><span class="rec">Recommended</span>Restrict a Bloom-started Doctor to the same executable path it was started for, so it still picks up a restart of <em>that</em> Bloom but never strays to another install. Recommended because it keeps the behaviour that matters — watching the Bloom you restart — and removes only the surprising half.
+                <span class="cost">small — the Doctor already knows the path it was given; it becomes a filter on what the sweep will adopt</span></label>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qa" id="qab" data-q="Doctor adopting another Bloom" value="Watch only the process it was told to watch, and exit when it goes">
+                <label for="qab">Have a Bloom-started Doctor watch only the process id it was given, and exit when that Bloom goes.
+                <span class="cost">small, but it loses the restart case: after a freeze the Doctor would quit instead of watching the Bloom you start next, which is when trouble often repeats</span></label>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qa" id="qac" data-q="Doctor adopting another Bloom" value="Leave as is">
+                <label for="qac">Leave as is</label>
+                <span class="leaverow"><input type="checkbox" id="qalc" data-q="Doctor adopting another Bloom / leave comment"><label for="qalc">Leave comment</label></span>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qa" id="qad" data-q="Doctor adopting another Bloom" value="Other">
+                <label for="qad">Other:<input type="text" class="otherbox" data-q="Doctor adopting another Bloom / other" placeholder="…"></label>
+              </div>
+            </div>
+            <textarea class="notes" data-q="Doctor adopting another Bloom / notes" placeholder="Notes…"></textarea>
+          </div>
+
+          <div class="item">
+            <h3>This PR has never had a third-party bot review</h3>
+            <p>Devin has now been triggered on this PR at least six times across several days and different commits. Every time, the job either never appears or completes with its findings stage still marked pending and no result — the stage that produces the bugs and flags simply does not run here. Its accumulated list from earlier attempts has been worked through, but nothing has reviewed the code as it now stands, including everything added in the last two rounds.</p>
+            <p>What that leaves: the local review (which found one real defect this round), Greptile's five earlier comments, your own <span class="numeral">44</span> review comments, and the eight failure modes exercised by hand. The most likely cause is the size of the diff — the one job result that can be read is 3.2 MB — so the practical question is whether that is worth doing anything about now.</p>
+            <div class="opts">
+              <div class="opt">
+                <input type="radio" name="qb" id="qba" data-q="No third-party review" value="Leave as is" checked>
+                <label for="qba"><span class="rec">Recommended</span>Leave as is</label>
+                <span class="leaverow"><input type="checkbox" id="qblc" data-q="No third-party review / leave comment"><label for="qblc">Leave comment</label></span>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qb" id="qbb" data-q="No third-party review" value="Ask for a human review instead, treating the bots as unavailable">
+                <label for="qbb">Treat the bots as unavailable for this PR and rely on a human reviewer, saying so when you hand it over.
+                <span class="cost">no code — sets the reviewer's expectation, which matters for a change this size</span></label>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qb" id="qbc" data-q="No third-party review" value="Split the PR again so a reviewer can run">
+                <label for="qbc">Split the PR so the diff is small enough for Devin to review.
+                <span class="cost">large, and previously tried: the split was made and undone once already, and Devin completed on the pre-split commit too, so it is not certain to help</span></label>
+              </div>
+              <div class="opt">
+                <input type="radio" name="qb" id="qbd" data-q="No third-party review" value="Other">
+                <label for="qbd">Other:<input type="text" class="otherbox" data-q="No third-party review / other" placeholder="…"></label>
+              </div>
+            </div>
+            <textarea class="notes" data-q="No third-party review / notes" placeholder="Notes…"></textarea>
           </div>
 
           <div class="item">
             <h3>Next step</h3>
             <div class="opts">
               <div class="opt">
-                <input type="radio" name="q6" id="q6a" data-q="Next step" value="Discuss the simplification analysis first" checked>
-                <label for="q6a"><span class="rec">Recommended</span>Discuss the simplification analysis before more code is written, since it determines how much of the outstanding feedback is worth acting on at all.</label>
+                <input type="radio" name="q6" id="q6a" data-q="Next step" value="Ready for your own read" checked>
+                <label for="q6a"><span class="rec">Recommended</span>Nothing is blocking: read it yourself, then hand it to a colleague. The two questions above can be answered either before or after that read.</label>
               </div>
               <div class="opt">
                 <input type="radio" name="q6" id="q6b" data-q="Next step" value="Implement the answers above">
