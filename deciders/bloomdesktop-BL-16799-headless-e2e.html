@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Off-Screen End-to-End Runs</title>
+<style>
+:root {
+  --paper: #f2f5f4;
+  --card: #ffffff;
+  --ink: #17211f;
+  --muted: #5b6a67;
+  --faint: #8c9a97;
+  --rule: #d7e0dd;
+  --accent: #1c6a58;
+  --accent-soft: #e3efeb;
+  --pass: #22694c;
+  --fail: #a63428;
+  --hold: #8a5c0c;
+  --hold-soft: #f6eede;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: "Cascadia Mono", ui-monospace, "SF Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1360px; margin: 0 auto; padding: 40px 28px 72px; }
+
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 30px; line-height: 1.2; letter-spacing: -0.01em; }
+h2 { font-size: 20px; line-height: 1.28; }
+h3 { font-size: 16px; line-height: 1.35; }
+p { margin: 0; }
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.94em; }
+code { font-family: var(--mono); font-size: 0.9em; background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
+
+/* Header */
+header { border-bottom: 1px solid var(--rule); padding-bottom: 22px; margin-bottom: 28px; }
+.eyebrow { font-size: 11px; letter-spacing: 0.13em; text-transform: uppercase; color: var(--faint); margin-bottom: 8px; }
+.subtitle { color: var(--muted); margin-top: 10px; max-width: 62ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.chip {
+  font-size: 12px; padding: 4px 11px; border-radius: 999px;
+  border: 1px solid var(--rule); background: var(--card); color: var(--muted);
+  white-space: nowrap;
+}
+.chip.good { color: var(--pass); border-color: #b6d6c6; background: #eef6f1; }
+.chip.hold { color: var(--hold); border-color: #e3cfa4; background: var(--hold-soft); }
+
+/* Layout */
+.cols { display: grid; grid-template-columns: 1.55fr 1fr; gap: 30px; align-items: start; }
+.cols > * { min-width: 0; }
+.stack { display: flex; flex-direction: column; gap: 22px; }
+@media (max-width: 940px) { .cols { grid-template-columns: 1fr; } }
+
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 22px 24px; }
+.card > * + * { margin-top: 14px; }
+.card h2 + p, .card h3 + p { margin-top: 8px; }
+
+/* The narrative card is the one lifted element */
+.narrative { border-left: 3px solid var(--accent); }
+.narrative h3 { color: var(--accent); font-size: 13px; font-family: var(--sans); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; }
+.narrative ul { margin: 8px 0 0; padding-left: 20px; }
+.narrative li + li { margin-top: 7px; }
+.reading { max-width: 66ch; }
+
+/* Table */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+tr:last-child td { border-bottom: none; }
+td.verdict { white-space: nowrap; font-weight: 600; }
+td.verdict.pass { color: var(--pass); }
+td.verdict.skip { color: var(--faint); font-weight: 500; }
+
+/* Reviewer rows */
+.rev { display: flex; flex-direction: column; gap: 16px; }
+.rev-row { display: grid; grid-template-columns: 150px 1fr; gap: 4px 18px; }
+.rev-row > .who { font-weight: 600; }
+.rev-row > .what { color: var(--muted); }
+@media (max-width: 620px) { .rev-row { grid-template-columns: 1fr; } }
+
+ul.plain { margin: 0; padding-left: 20px; color: var(--muted); }
+ul.plain li + li { margin-top: 8px; }
+
+/* Decisions */
+.q { border-top: 3px solid var(--hold); }
+.q .prompt { color: var(--muted); }
+.q .prompt + .prompt { margin-top: 12px; }
+.q legend + .prompt { margin-top: 10px; }
+fieldset { border: 0; margin: 0; padding: 0; }
+legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 0; }
+.opts { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+.opt {
+  display: grid; grid-template-columns: 18px 1fr auto; gap: 4px 10px;
+  align-items: start; padding: 9px 10px; border-radius: 4px;
+}
+.opt:hover { background: var(--paper); }
+.opt input[type=radio] { margin: 4px 0 0; }
+.opt .label { font-size: 14px; }
+.opt .rec { display: inline-block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid #b6d6c6; background: #eef6f1;
+  border-radius: 3px; padding: 1px 5px; margin-left: 7px; vertical-align: 1px; }
+.opt .cost { display: block; color: var(--faint); font-size: 12.5px; margin-top: 3px; }
+.leavec { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); white-space: nowrap; }
+.opt input[type=text] { width: 100%; font: inherit; font-size: 14px; padding: 5px 8px;
+  border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); margin-top: 5px; }
+.notes { margin-top: 12px; }
+.notes label { display: block; font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 5px; }
+.notes textarea { width: 100%; font: inherit; font-size: 14px; padding: 7px 9px; min-height: 52px;
+  border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); resize: vertical; }
+
+/* Copy back */
+.copy button {
+  font: inherit; font-weight: 600; font-size: 14px; cursor: pointer;
+  background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 9px 18px;
+}
+.copy button:hover { background: #17594a; }
+.copy textarea {
+  width: 100%; font-family: var(--mono); font-size: 12px; line-height: 1.55;
+  min-height: 180px; margin-top: 12px; padding: 10px;
+  border: 1px solid var(--rule); border-radius: 4px; background: var(--paper); color: var(--ink);
+}
+.copyrow { display: flex; align-items: center; gap: 12px; }
+.said { color: var(--pass); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Preflight report &middot; BloomDesktop</div>
+  <h1>Bloom&rsquo;s end-to-end tests now run off-screen</h1>
+  <p class="subtitle">Branch <code>BL-16799-headless-e2e</code>, at
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/ef5542833bd17f37e8292b6370128cde1023b948" target="_blank" rel="noopener"><span class="numeral">ef5542833b</span></a>.
+    Four commits, every gate green, two questions for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &middot; clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip hold">2 items waiting on you</span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276" target="_blank" rel="noopener">PR 8276</a></span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276/files" target="_blank" rel="noopener">Files changed</a></span>
+    <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16799" target="_blank" rel="noopener">BL-16799</a></span>
+  </div>
+</header>
+
+<div class="cols">
+
+<!-- LEFT -->
+<div class="stack">
+
+  <section class="card narrative">
+    <h2>What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p class="reading">Every run of the <code>src/BloomE2E</code> suite took over the developer&rsquo;s desktop:
+      Bloom opened a real window, maximized, in the taskbar. That alone makes the suite unusable while
+      working. Worse, a test could pass while Bloom was driving a document the test never looked at, so
+      <code>publish-text-languages.spec.ts</code> failed roughly one run in three for no visible reason. A
+      handful of workarounds in the test library existed only because Bloom was hard to drive.</p>
+
+    <h3>Cause</h3>
+    <p class="reading">Two of those had one cause. A run gave every WebView2 environment the same
+      remote-debugging port number, so only the first browser process to start could listen on it, and which
+      process that was depended on startup timing; the fixture then attached to whichever document the
+      debugging protocol listed first. Separately, <code>editView/jumpToPage</code> replied
+      &ldquo;succeeded&rdquo; to a jump the Edit tab silently dropped while it was loading a page.</p>
+
+    <h3>What the PR does</h3>
+    <ul class="reading">
+      <li><strong>The suite runs off-screen.</strong> A new <code>--headless</code> flag puts the shell and
+        the splash screen far to the left of every monitor, out of the taskbar, without touching the saved
+        window placement. Off-screen rather than minimized, because WebView2 stops painting a minimized
+        window and screenshots come back blank. <code>BLOOM_E2E_HEADED=1</code>, or Playwright&rsquo;s
+        <code>--debug</code>, shows the window.</li>
+      <li><strong>A test attaches to the document Bloom drives.</strong> Browsers built on the UI thread
+        share one WebView2 environment under <code>--e2e</code>, so a run has one browser process and one
+        debugging listener, and a new <code>e2e/shellUrl</code> hook names the document Bloom drives for the
+        fixture to confirm.</li>
+      <li><strong>A run can test the working tree.</strong> <code>BLOOM_E2E_VITE_PORT=&lt;n&gt;</code> passes
+        <code>--vite-port</code>, so a front-end edit reaches the suite without the full front-end build.</li>
+      <li><strong>Bloom is easier to drive</strong>, each change removing a workaround:
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/ef5542833bd17f37e8292b6370128cde1023b948/src/BloomExe/Edit/EditingModel.cs#L1722" target="_blank" rel="noopener"><code>JumpToPage</code></a>
+        queues a jump that arrives while the Edit tab is busy and reports a failure when it can do neither; a
+        new <code>e2e/setCollectionLanguages</code> hook does the work of the Collection Settings dialog&rsquo;s
+        OK button, so no test composes <code>.bloomCollection</code> XML; the workspace tabs carry
+        <code>data-testid</code> attributes, so the suite works in any UI language; and typing inserts a whole
+        string in one call instead of one key press per character.</li>
+      <li><strong>Other automation debt paid.</strong> A visual-regression case collects every failed image
+        comparison and fails once at the end. Toolbox tool registration is a side-effect-free
+        <code>registerAllToolboxTools()</code> that both the bootstrap and the test harness call. The
+        component-tester Playwright suites have a nightly job. The <code>bloom-automation</code> scripts
+        answer <code>--help</code> without killing anything, reject an unknown flag, and reject a malformed
+        process id.</li>
+      <li><strong>The <code>add-e2e-test</code> skill states how the suite stays maintainable</strong> as it
+        grows toward a few thousand tests: every step of a test is a helper call, and
+        <code>src/BloomE2E/helpers/</code> is the one place that knows how to drive Bloom.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Front-end typecheck</td><td class="verdict pass">Pass</td><td>Clean.</td></tr>
+          <tr><td>End-to-end typecheck</td><td class="verdict pass">Pass</td><td>Clean at the final commit.</td></tr>
+          <tr><td>Lint</td><td class="verdict pass">Pass</td><td><span class="numeral">0</span> errors. <span class="numeral">764</span> warnings, all of them already on master.</td></tr>
+          <tr><td>Merge cleanliness</td><td class="verdict pass">Pass</td><td>Mergeable into master, no conflicts.</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="verdict pass">Pass</td><td><span class="numeral">781</span> passed, <span class="numeral">5</span> skipped. No front-end source changed after this ran.</td></tr>
+          <tr><td>C# tests (dotnet)</td><td class="verdict pass">Pass</td><td><span class="numeral">3313</span> passed, <span class="numeral">0</span> failed, <span class="numeral">13</span> skipped, <span class="numeral">4m16s</span>, on the tree merged with master. No C# changed after this ran.</td></tr>
+          <tr><td>End-to-end tests (Playwright)</td><td class="verdict pass">Pass</td><td><span class="numeral">9</span> passed in <span class="numeral">2.4</span> minutes at the final commit, off-screen, against a freshly built Bloom. Includes the spec that used to fail one run in three.</td></tr>
+          <tr><td>Visual regression tests</td><td class="verdict skip">Not run</td><td>Its baseline images are stale on master for reasons this branch neither causes nor fixes. The change here only makes a failing case report every bad image instead of the first.</td></tr>
+          <tr><td>CI (<code>pr-automation</code>)</td><td class="verdict pass">Pass</td><td>Green at the final commit.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p class="reading">The branch arrived with the headless work and the debt fixes already committed. This run
+      merged master, then fixed the four things a local review found in the page-jump queueing and the
+      collection-languages hook, then fixed the two things Devin found in the automation scripts and the
+      screenshot helper. It also ran the end-to-end suite against a freshly built Bloom for the first time
+      since those C# fixes.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276/commits" target="_blank" rel="noopener">The four commits</a>
+      &mdash;
+      <a href="https://github.com/BloomBooks/BloomDesktop/commit/cd2d58050d04cc13094378e1813448bdf9ea56c9" target="_blank" rel="noopener"><span class="numeral">cd2d58050d</span></a>
+      rejects a malformed process id;
+      <a href="https://github.com/BloomBooks/BloomDesktop/commit/ef5542833bd17f37e8292b6370128cde1023b948" target="_blank" rel="noopener"><span class="numeral">ef5542833b</span></a>
+      fails a test whose screenshot cannot put the window back.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="rev">
+      <div class="rev-row">
+        <div class="who">Local review</div>
+        <div class="what">Light pass by one sub-agent, complete. Five findings, all confirmed by reading the
+          source, all fixed: a queued page jump survived a navigation that ended with no page; queued work ran
+          before the page-load handler&rsquo;s own work; a declined jump raised a problem report from two real
+          Bloom screens; a displaced language kept the name of the language it replaced; and a screenshot that
+          could not restore the window size said nothing.</div>
+      </div>
+      <div class="rev-row">
+        <div class="who">Devin</div>
+        <div class="what">Complete, three rounds, one per commit.
+          <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8276" target="_blank" rel="noopener">Review page</a>.
+          One severe bug, now
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914730434" target="_blank" rel="noopener">fixed and resolved</a>;
+          one flag about the screenshot helper, also
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914806639" target="_blank" rel="noopener">fixed and resolved</a>;
+          one
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914737286" target="_blank" rel="noopener">open thread</a>
+          about the enlarged waits, which is the first question opposite. Four informational notes read as
+          confirmations of the design and are not mirrored.</div>
+      </div>
+      <div class="rev-row">
+        <div class="who">Greptile</div>
+        <div class="what">Timed out after 6 minutes on the final commit. It reviewed the merge commit and
+          raised one substantive point, the same one Devin raised about the enlarged waits, plus a third place
+          neither I nor Devin had listed. It has not spoken about the two later commits, which are the fixes it
+          did not see.</div>
+      </div>
+      <div class="rev-row">
+        <div class="who">CodeRabbit</div>
+        <div class="what">Not run, and never will be here: <code>.coderabbit.yml</code> in this repository sets
+          <code>auto_review.enabled: false</code>.</div>
+      </div>
+      <div class="rev-row">
+        <div class="who">CI</div>
+        <div class="what">Complete and green. <code>pr-automation</code> is the only required check.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul class="plain">
+      <li><strong>Nothing here was tried by hand in Bloom.</strong> The page-jump queueing and the toolbox
+        registration list are the two changes a user could notice, and both are covered only by the automated
+        suites. The test ideas on
+        <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16799" target="_blank" rel="noopener">BL-16799</a>
+        say what to click.</li>
+      <li><strong>Which front end an end-to-end run tests depends on what else is running.</strong> A run
+        without <code>BLOOM_E2E_VITE_PORT</code> serves <code>output/browser</code>, which can be any age, and
+        Bloom auto-detects a dev server already on port <span class="numeral">5173</span>. So the same run can
+        test different code on two machines. It is written down in
+        <code>src/BloomE2E/AUTOMATION-DEBT.md</code> and left for later.</li>
+      <li><strong>One test&rsquo;s tab is the next test&rsquo;s starting state.</strong> The suite shares one
+        Bloom per worker, and nothing makes a test put the workspace back. The new capture test leaves the Edit
+        tab and had to be taught to switch back. Also in <code>AUTOMATION-DEBT.md</code>.</li>
+    </ul>
+  </section>
+
+</div>
+
+<!-- RIGHT -->
+<div class="stack">
+
+  <section class="card q">
+    <fieldset>
+      <legend>Three test waits were enlarged. Do you approve them?</legend>
+      <p class="prompt">
+        <code>src/BloomBrowserUI/AGENTS.md</code> says: &ldquo;Don&rsquo;t use timeouts in tests, that slows
+        things down and is fragile. If a timeout is justified, get my approval and add a comment explaining
+        it.&rdquo; Three places on this branch enlarge a wait and explain why in a comment, but none of them
+        has your approval, which is the other half of that rule. Devin and Greptile both stopped on it.
+      </p>
+      <p class="prompt">
+        The three: an error message wait in the link-target-chooser tests raised from
+        <span class="numeral">1</span> second to <span class="numeral">10</span>
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ef5542833bd17f37e8292b6370128cde1023b948/src/BloomBrowserUI/react_components/LinkTargetChooser/component-tests/error-handling.uitest.ts#L14" target="_blank" rel="noopener">error-handling.uitest.ts:14</a>);
+        the registration opt-out button wait raised from <span class="numeral">2</span> seconds of buffer to
+        <span class="numeral">8</span>
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ef5542833bd17f37e8292b6370128cde1023b948/src/BloomBrowserUI/react_components/registration/component-tests/test-helpers.ts#L19" target="_blank" rel="noopener">test-helpers.ts:19</a>);
+        and a <span class="numeral">120</span>-second per-test limit on the new nightly component-tester job
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ef5542833bd17f37e8292b6370128cde1023b948/.github/workflows/nightly.yml#L422" target="_blank" rel="noopener">nightly.yml:422</a>).
+        Each was failing about once per full-suite run and passing when run alone.
+      </p>
+      <p class="prompt">
+        All three are waits for something to appear, not sleeps, so a passing run finishes exactly as fast as
+        before; only a failing one now takes longer to give up. That is what the rule is guarding against
+        (slow, fragile) and it is why I think they are the right kind of wait to enlarge.
+      </p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q1" value="Approve all three as they are" checked>
+          <span class="label">Approve all three as they are<span class="rec">Recommended</span>
+            <span class="cost">No code change. Recommended because none of them slows a passing run, and the
+              alternative is living with a suite that fails at random.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Approve the two component-test waits, but find another way for the nightly 120-second limit">
+          <span class="label">Approve the two component-test waits, but not the nightly limit
+            <span class="cost">Small, in CI config only. The nightly job would need a different way to cope
+              with a slow runner, and until then it may fail on its first slow night.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Put them back and fix the flakiness another way">
+          <span class="label">Put them back and fix the flakiness another way
+            <span class="cost">Moderate. It means finding out why the last worker to start is a second behind,
+              which is probably machine load, and is not obviously fixable in the tests.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Leave as is">
+          <span class="label">Leave as is</span>
+          <span class="leavec"><input type="checkbox" data-q="q1-leave-comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q1" value="Other">
+          <span class="label">Other:
+            <input type="text" data-q="q1-other" placeholder="your answer"></span>
+          <span></span>
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n1">Notes</label>
+        <textarea id="n1" data-q="q1-notes"></textarea>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="card q">
+    <fieldset>
+      <legend>A test now expects &ldquo;Spanish&rdquo; where it expected &ldquo;espa&ntilde;ol&rdquo;. Is that the right answer?</legend>
+      <p class="prompt">
+        One case in the Text Languages publish list (Notion Test Case ID <span class="numeral">169</span>)
+        checks what happens to a language after you remove it from the collection while a book still uses it.
+        The publish list keeps showing it, so the book&rsquo;s text is not silently dropped.
+      </p>
+      <p class="prompt">
+        The old test made the language disappear by rewriting the collection file behind Bloom&rsquo;s back, and
+        the list then showed the language&rsquo;s own name for itself, &ldquo;espa&ntilde;ol&rdquo;. The new test
+        removes it the way a person does, through the code behind the Collection Settings dialog&rsquo;s OK
+        button, and the list shows the name the collection remembers, &ldquo;Spanish&rdquo;. So the test now
+        expects &ldquo;Spanish&rdquo;
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/ef5542833bd17f37e8292b6370128cde1023b948/src/BloomE2E/tests/publish-text-languages.spec.ts#L181" target="_blank" rel="noopener">publish-text-languages.spec.ts:181</a>).
+      </p>
+      <p class="prompt">
+        I believe &ldquo;Spanish&rdquo; is what a real user sees, because the new route is the one a real user
+        takes. But this is a claim about what Bloom shows a person, so it should be your call rather than mine,
+        and it may mean the Notion test case&rsquo;s own wording needs updating too.
+      </p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q2" value="Spanish is right; I will update the Notion test case wording to match" checked>
+          <span class="label">&ldquo;Spanish&rdquo; is right, and the Notion case should say so
+            <span class="rec">Recommended</span>
+            <span class="cost">No code change. Recommended because the test now reaches the state by the route a
+              person uses, so what it sees is what a person sees.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" value="Spanish is wrong: Bloom should show the language's own name, so this is a bug to file">
+          <span class="label">&ldquo;Spanish&rdquo; is wrong &mdash; Bloom should show the language&rsquo;s own
+            name here, so this is a bug
+            <span class="cost">The test change stands either way, but a new card and a fix in the publish list
+              would follow. Moderate, and it changes what a user sees.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" value="Have the test cover both names, from both routes">
+          <span class="label">Have the test cover both names, from both routes
+            <span class="cost">About twenty lines of test, plus a second way to displace a language. It doubles
+              the case to describe behavior we may not want to promise.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" value="Leave as is">
+          <span class="label">Leave as is</span>
+          <span class="leavec"><input type="checkbox" data-q="q2-leave-comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q2" value="Other">
+          <span class="label">Other:
+            <input type="text" data-q="q2-other" placeholder="your answer"></span>
+          <span></span>
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n2">Notes</label>
+        <textarea id="n2" data-q="q2-notes"></textarea>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="card q">
+    <fieldset>
+      <legend>What next?</legend>
+      <p class="prompt">The PR is a draft, and stays one until you say otherwise.</p>
+      <div class="opts">
+        <label class="opt">
+          <input type="radio" name="q3" value="Act on my answers above, then stop" checked>
+          <span class="label">Act on my answers above, then stop<span class="rec">Recommended</span>
+            <span class="cost">If both answers are the recommended ones, that is one reply on each review thread
+              and nothing else.</span></span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Discuss first, before changing anything">
+          <span class="label">Discuss first, before changing anything</span>
+          <span></span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Leave as is">
+          <span class="label">Leave as is</span>
+          <span class="leavec"><input type="checkbox" data-q="q3-leave-comment"> Leave comment</span>
+        </label>
+        <label class="opt">
+          <input type="radio" name="q3" value="Other">
+          <span class="label">Other:
+            <input type="text" data-q="q3-other" placeholder="your answer"></span>
+          <span></span>
+        </label>
+      </div>
+      <div class="notes">
+        <label for="n3">Notes</label>
+        <textarea id="n3" data-q="q3-notes"></textarea>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="card copy">
+    <h2>Send your answers back</h2>
+    <p class="prompt">Copy this and paste it into the session.</p>
+    <div class="copyrow">
+      <button id="copybtn" type="button">Copy answers</button>
+      <span class="said" id="said" hidden>Copied.</span>
+    </div>
+    <textarea id="payload" readonly></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+    var QUESTIONS = [
+        { name: "q1", title: "Three test waits were enlarged. Do you approve them?" },
+        { name: "q2", title: "A test now expects “Spanish” where it expected “español”. Is that the right answer?" },
+        { name: "q3", title: "What next?" }
+    ];
+
+    function valueOf(selector) {
+        var el = document.querySelector(selector);
+        return el ? el.value.trim() : "";
+    }
+
+    function build() {
+        var lines = [
+            "Preflight answers - BloomDesktop PR 8276 (BL-16799), commit ef5542833b",
+            ""
+        ];
+        QUESTIONS.forEach(function (q) {
+            var picked = document.querySelector('input[name="' + q.name + '"]:checked');
+            var answer = picked ? picked.value : "(nothing chosen)";
+            if (answer === "Other") {
+                var other = valueOf('input[data-q="' + q.name + '-other"]');
+                answer = other ? "Other: " + other : "Other: (nothing typed)";
+            }
+            lines.push(q.title);
+            lines.push("  -> " + answer);
+            var leave = document.querySelector('input[data-q="' + q.name + '-leave-comment"]');
+            if (leave && leave.checked) {
+                lines.push("  Leave comment: record this decision as a code comment near the code.");
+            }
+            var notes = valueOf('textarea[data-q="' + q.name + '-notes"]');
+            if (notes) {
+                lines.push("  Notes: " + notes);
+            }
+            lines.push("");
+        });
+        return lines.join("\n");
+    }
+
+    var payload = document.getElementById("payload");
+    var said = document.getElementById("said");
+
+    function refresh() {
+        payload.value = build();
+        said.hidden = true;
+    }
+
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    refresh();
+
+    document.getElementById("copybtn").addEventListener("click", function () {
+        payload.value = build();
+        function fallback() {
+            payload.focus();
+            payload.select();
+            try { document.execCommand("copy"); } catch (e) { /* the textarea is there to copy by hand */ }
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload.value).then(function () {
+                said.hidden = false;
+            }, fallback);
+        } else {
+            fallback();
+            said.hidden = false;
+        }
+    });
+})();
+</script>
+</body>
+</html>
