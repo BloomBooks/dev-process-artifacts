@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who Obeys BLOOM_AUTOMATION_MONITOR</title>
+<style>
+  :root {
+    --ground: #f3f2ef;
+    --card: #ffffff;
+    --ink: #1e1c19;
+    --muted: #5d5850;
+    --faint: #857f75;
+    --hair: #ddd8cf;
+    --hair-soft: #eae6de;
+    --accent: #7a4419;
+    --accent-soft: #f4ece4;
+    --pass: #2c6135;
+    --warn: #8a5a08;
+    --warn-soft: #fbf4e8;
+    --warn-hair: #e3d2ad;
+    --fail: #8c2318;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  code, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 0.88em; background: var(--accent-soft); padding: 0.1em 0.34em; border-radius: 3px; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 34px 26px 60px; }
+  header.top { border-bottom: 1px solid var(--hair); padding-bottom: 20px; margin-bottom: 26px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0 0 8px; text-wrap: balance; }
+  .runline { color: var(--muted); margin: 0 0 14px; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hair); background: var(--card); color: var(--muted); white-space: nowrap; }
+  .chip.ok { color: var(--pass); border-color: #bcd4bf; background: #f1f7f1; }
+  .chip.attn { color: var(--warn); border-color: var(--warn-hair); background: var(--warn-soft); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+
+  section.card { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 20px 22px; margin-bottom: 22px; }
+  section.card > :first-child { margin-top: 0; }
+  section.card > :last-child { margin-bottom: 0; }
+  h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0 0 14px; }
+  h3 { font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); margin: 18px 0 6px; font-weight: 600; }
+  p { margin: 0 0 11px; max-width: 66ch; }
+  ul { margin: 0 0 11px; padding-left: 20px; }
+  li { margin-bottom: 5px; max-width: 64ch; }
+  .lede { font-size: 15.5px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--hair-soft); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.verdict { white-space: nowrap; font-weight: 600; }
+  td.verdict.pass { color: var(--pass); }
+  td.verdict.na { color: var(--faint); font-weight: 500; }
+  td.verdict.warn { color: var(--warn); }
+  .tablewrap { overflow-x: auto; }
+
+  /* The two-environment split IS the bug, so show it as one object. */
+  .split { border: 1px solid var(--hair); border-left: 3px solid var(--fail); border-radius: 4px; background: #fdfcfb; padding: 4px 14px 12px; margin: 0 0 14px; }
+  .split table { font-size: 14px; }
+  .split td.name { font-family: var(--mono); font-size: 15px; }
+  .split td.name.a { color: var(--fail); }
+  .split td.name.b { color: var(--warn); }
+  .split .gloss { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); max-width: 62ch; }
+
+  .reviewer { border-bottom: 1px solid var(--hair-soft); padding-bottom: 12px; margin-bottom: 12px; }
+  .reviewer:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+  .reviewer .who { font-weight: 600; }
+  .reviewer .state { font-size: 12.5px; color: var(--pass); font-weight: 600; margin-left: 8px; }
+  .reviewer .state.off { color: var(--faint); }
+  .reviewer .state.timeout { color: var(--warn); }
+  .reviewer p { margin: 3px 0 0; font-size: 14px; color: var(--muted); }
+
+  .q { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 18px 20px; margin-bottom: 18px; }
+  .q.lead { border-left: 3px solid var(--warn); }
+  .q > h2 { font-size: 17px; margin-bottom: 10px; }
+  .q p { font-size: 14px; }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin: 12px 0 0; }
+  .opt { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border-radius: 4px; }
+  .opt:hover { background: #faf8f5; }
+  .opt input[type="radio"], .opt input[type="checkbox"] { margin: 3px 0 0; flex: none; }
+  .opt .lbl { font-size: 14px; }
+  .opt .rec { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; margin-left: 6px; }
+  .opt .fc { display: block; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+  .leaverow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .leaverow > label:first-child { flex: 1 1 auto; }
+  .leavecomment { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); white-space: nowrap; flex: none; padding-top: 9px; }
+  input[type="text"], textarea {
+    font-family: var(--sans); font-size: 14px; color: var(--ink);
+    border: 1px solid var(--hair); border-radius: 4px; padding: 6px 8px; background: #fdfdfc; width: 100%;
+  }
+  .otherrow { display: flex; gap: 9px; align-items: center; padding: 8px 10px; }
+  .otherrow input[type="text"] { flex: 1 1 auto; min-width: 0; }
+  .notes { margin-top: 11px; }
+  .notes label { display: block; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 4px; }
+  .notes textarea { min-height: 52px; resize: vertical; }
+
+  #copyback button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent);
+    border: none; border-radius: 4px; padding: 9px 18px; cursor: pointer;
+  }
+  #copyback button:hover { background: #63360f; }
+  #copyback .done { font-size: 13px; color: var(--pass); margin-left: 10px; font-weight: 600; }
+  #payload { min-height: 160px; margin-top: 12px; font-family: var(--mono); font-size: 12.5px; resize: vertical; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+</style><style>
+  /* The copy-back can report a failure to copy, which must not read as success. */
+  #copyback .done.ok { color: var(--pass); }
+  #copyback .done.warn {
+    display: block;
+    margin-left: 0;
+    margin-top: 10px;
+    color: var(--hold, #8a5c0c);
+    font-weight: 500;
+    line-height: 1.45;
+  }
+  header.top h1 { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Who obeys BLOOM_AUTOMATION_MONITOR</h1>
+  <p class="runline">BloomDesktop, <code>D:\add-e2e-test-skill</code>, branch
+    <code>BL-16804-headless</code> (draft PR 8285). Written 2026-09-03. Found by reading the code,
+    not by running it.</p>
+</header>
+
+<div class="cols">
+<div>
+
+  <section class="card">
+    <h2>The situation</h2>
+
+    <p class="lede">The environment variable <code>BLOOM_AUTOMATION_MONITOR</code> was added so an
+      automated test run could put its Bloom window somewhere other than the middle of the
+      developer's desktop. It takes a monitor number counted left to right, or
+      <code>headless</code> (or <code>0</code>), which puts every window far outside every monitor
+      and out of the task bar.</p>
+
+    <p><strong>It also applies to the Bloom the developer starts themselves.</strong> The variable
+      is honoured by any Bloom started with the <code>--automation</code> flag, and
+      <code>./go.sh</code> passes that flag. The chain is
+      <code>go.sh</code> → <code>src/BloomBrowserUI/scripts/go.mjs</code> →
+      <code>scripts/watchBloomExe.mjs</code>, which puts <code>--automation</code> in the argument
+      list at line 140. The launcher does not clear the variable, and a child process inherits its
+      parent's environment, so the value in the developer's shell reaches Bloom.</p>
+
+    <h3>What the developer would see</h3>
+    <ul>
+      <li>With a monitor number set, their own Bloom opens on that monitor, maximized. Easy to
+        miss, or to blame on Windows having moved a window.</li>
+      <li>With <code>headless</code> or <code>0</code> set, their own Bloom opens off every monitor
+        and not in the task bar. <strong>It looks exactly like Bloom failing to start</strong>: the
+        launcher reports success, the HTTP server answers, and there is no window anywhere.</li>
+    </ul>
+
+    <h3>Why this was missed</h3>
+    <p>The class comment in <code>src/BloomExe/AutomationWindowPlacement.cs:16</code> states the
+      opposite, in as many words: "A developer who leaves it set in their shell therefore still
+      gets an ordinary, visible Bloom when they start one themselves; only a run that already
+      declared itself automation obeys it." The second half is true. The first half assumed that a
+      developer's own Bloom is not an <code>--automation</code> run, and it is one.</p>
+    <p>Whichever option is chosen below, that comment gets corrected to match. That is not one of
+      the questions.</p>
+
+    <h3>There is already a flag that separates the two</h3>
+    <p>Three places pass <code>--automation</code>, and the two test suites pass a second flag,
+      <code>--e2e</code>, that the launcher does not:</p>
+    <div class="tablewrap">
+    <table>
+      <tr><th>What starts Bloom</th><th>Flags</th><th>Should it obey the variable?</th></tr>
+      <tr><td><code>scripts/watchBloomExe.mjs:140</code> — the developer's own Bloom, via <code>./go.sh</code></td><td><code>--automation</code></td><td>this is the question</td></tr>
+      <tr><td><code>src/BloomE2E/fixtures/launchBloom.ts:387</code> — the end-to-end suite</td><td><code>--e2e --automation</code></td><td>yes, this is what it is for</td></tr>
+      <tr><td><code>src/BloomVisualRegressionTests/index.spec.ts:897</code> — the visual-regression suite</td><td><code>--e2e --automation</code></td><td>yes</td></tr>
+    </table>
+    </div>
+    <p><code>Program.RunningE2eTests</code> is the property behind <code>--e2e</code>. So the
+      distinction the variable needs already exists in the code; nothing new has to be invented to
+      draw it.</p>
+  </section>
+
+  <section class="card">
+    <h2>The second half: what an agent is told</h2>
+    <p>The <code>bloom-automation</code> skill is what an AI reads when it attaches to a running
+      Bloom to debug or check something ad hoc. <code>.github/skills/bloom-automation/</code>
+      contains <strong>no mention</strong> of <code>BLOOM_AUTOMATION_MONITOR</code>, of
+      <code>headless</code>, or of a monitor.</p>
+    <p>The variable is documented in three places, none of which that agent reads:
+      <code>.github/skills/add-e2e-test/SKILL.md</code>, <code>src/BloomE2E/README.md</code>, and
+      <code>.github/workflows/nightly.yml</code>.</p>
+    <p>So an agent that finds no Bloom window, or a screenshot that does not look like the monitor
+      it expected, has nothing telling it to suspect this variable or to read the line Bloom writes
+      to <code>%TEMP%\SIL\Bloom\Log.txt</code> on every automation start. That line names the
+      value, the monitor chosen, and every monitor the process can see.</p>
+  </section>
+
+</div>
+<div>
+
+  <div class="q lead">
+    <h2>1. Which runs should obey the variable</h2>
+    <p>The choice is whether a developer's own Bloom is a thing this variable is allowed to move,
+      and if so how far.</p>
+    <div class="opts" data-q="1. Which runs obey BLOOM_AUTOMATION_MONITOR">
+      <label class="opt"><input type="radio" name="q1" value="Gate the variable on --e2e instead of --automation" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, make BLOOM_AUTOMATION_MONITOR apply only to a test run: in src/BloomExe/AutomationWindowPlacement.cs, change GetChoice() and GetChosenMonitor() to test Program.RunningE2eTests (the --e2e flag) instead of Program.StartupAutomation, so a Bloom started by ./go.sh (which passes --automation but not --e2e) always places its windows normally. Correct the class comment at the top of that file, which currently claims a developer's own Bloom is unaffected, and update the paragraph in src/BloomE2E/README.md and in .github/skills/add-e2e-test/SKILL.md that says the variable applies under --automation. Keep the 24 tests in src/BloomTests/AutomationWindowPlacementTests.cs passing." checked>
+        <span class="lbl">Gate it on <code>--e2e</code> rather than <code>--automation</code><span class="rec">recommended</span>
+        <span class="fc">Two call sites in <code>AutomationWindowPlacement.cs</code>, plus three doc paragraphs. Recommended because the variable exists to place a <em>test</em> window, both test suites already pass <code>--e2e</code>, and <code>./go.sh</code> does not, so the line lands exactly where the meaning is. Low risk: nothing else reads the variable.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Honour a monitor number for go.sh, but never hide it" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, keep BLOOM_AUTOMATION_MONITOR working for a developer's own Bloom when it names a monitor, but never let it hide one: in src/BloomExe/AutomationWindowPlacement.cs, treat the headless / 0 setting as AsBloomNormallyWould unless Program.RunningE2eTests is true (the --e2e flag), while still honouring a monitor number under --automation. Correct the class comment at the top of that file, which currently claims a developer's own Bloom is unaffected, and say in src/BloomE2E/README.md which half applies to ./go.sh. Add tests to src/BloomTests/AutomationWindowPlacementTests.cs for the new split.">
+        <span class="lbl">Honour a monitor <em>number</em> for <code>./go.sh</code>, but never hide it off-screen
+        <span class="fc">A little more code than the first option and one more rule to remember, in exchange for being able to park your own Bloom on a chosen monitor. Only the invisible outcome is taken away.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Clear the variable in the launcher" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, make ./go.sh ignore BLOOM_AUTOMATION_MONITOR: in scripts/watchBloomExe.mjs, where it spawns dotnet with --automation (around line 140), pass a child environment with BLOOM_AUTOMATION_MONITOR set to empty, and say in a comment why. Leave src/BloomExe/AutomationWindowPlacement.cs reading the variable under --automation, but correct its class comment, which currently claims a developer's own Bloom is unaffected.">
+        <span class="lbl">Clear the variable in the launcher instead
+        <span class="fc">About three lines in <code>watchBloomExe.mjs</code>, and no C# change. It leaves the rule "any <code>--automation</code> run obeys the variable" in place, so the next thing that passes that flag inherits the same surprise.</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q1" value="Leave as is" data-instruction="Leave as is - take no action on: BLOOM_AUTOMATION_MONITOR also moves a developer's own Bloom, because ./go.sh passes --automation, so a headless setting left in a shell makes their own Bloom open off-screen and out of the task bar.">
+          <span class="lbl">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="1. Leave comment"> Leave comment</label>
+      </div>
+      <div class="otherrow"><input type="radio" name="q1" value="__other__" id="q1o">
+        <label for="q1o" class="lbl">Other:</label>
+        <input type="text" data-q="1. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="1. Notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h2>2. What the <code>bloom-automation</code> skill says about it</h2>
+    <p>This one stands whatever the answer above is. Even with the variable confined to test runs,
+      an agent can still meet an off-screen Bloom: it may be asked to run the suite, or to look at
+      a Bloom a test run started.</p>
+    <div class="opts" data-q="2. Documenting the variable for ad-hoc automation">
+      <label class="opt"><input type="radio" name="q2" value="Add a short section to the bloom-automation skill" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, add a short section to .github/skills/bloom-automation/SKILL.md about BLOOM_AUTOMATION_MONITOR: say that a Bloom started for a test can have its window off every monitor and out of the task bar, that this looks like Bloom having failed to start, that Bloom writes the value it read and every monitor it can see to %TEMP%\SIL\Bloom\Log.txt on every automation start, and that screenshots and CDP work normally on such a window. Keep it to a paragraph or two and point at src/BloomE2E/README.md for the full account." checked>
+        <span class="lbl">Add a short section to the skill<span class="rec">recommended</span>
+        <span class="fc">No code, a paragraph or two of documentation. Recommended because the failure it prevents (an agent concluding Bloom did not start) costs a whole debugging session, and the log line that settles it is already written.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="One cross-reference line only" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, add a single cross-reference line to .github/skills/bloom-automation/SKILL.md pointing at the BLOOM_AUTOMATION_MONITOR section of src/BloomE2E/README.md, without repeating its content.">
+        <span class="lbl">One cross-reference line, no explanation
+        <span class="fc">One line. Keeps the skill short, at the cost of an agent having to follow a link to find out why there is no window.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Leave as is" data-instruction="Leave as is - take no action on: the bloom-automation skill says nothing about BLOOM_AUTOMATION_MONITOR, so an agent doing ad-hoc debugging is not told a Bloom window may be off every monitor."><span class="lbl">Leave as is</span></label>
+      <div class="otherrow"><input type="radio" name="q2" value="__other__" id="q2o">
+        <label for="q2o" class="lbl">Other:</label>
+        <input type="text" data-q="2. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="2. Notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h2>3. Where the change goes</h2>
+    <p>PR 8285 (<code>BL-16804-headless</code>) is a draft that introduced this variable's current
+      behaviour, so it can absorb a correction to it. It has three decisions of its own waiting,
+      and its own report at
+      <a href="https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-BL-16804-headless.html" target="_blank" rel="noopener">bloomdesktop-BL-16804-headless.html</a>.</p>
+    <div class="opts" data-q="3. Where the change goes">
+      <label class="opt"><input type="radio" name="q3" value="Put it on BL-16804-headless, in PR 8285" data-instruction="Implement the answers above on the existing branch BL-16804-headless in D:\add-e2e-test-skill and push to its draft PR 8285, since that PR introduced the behaviour being corrected. Do not mark the PR ready for review." checked>
+        <span class="lbl">On <code>BL-16804-headless</code>, in draft PR 8285<span class="rec">recommended</span>
+        <span class="fc">The PR is a draft and this is a correction to the change it makes, so a reviewer sees one coherent story instead of a fix chasing a bug through two PRs.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Its own card and branch" data-instruction="Create a YouTrack card in project BL for the BLOOM_AUTOMATION_MONITOR fix chosen above, then create a branch named <the new card id>-automation-monitor off master in D:\add-e2e-test-skill, implement the answers there, and open a draft PR based on master. Do not mark it ready for review.">
+        <span class="lbl">Its own card and branch off <code>master</code>
+        <span class="fc">More process: a card, a branch, a PR, and a second review cycle. Right if PR 8285 should merge without waiting on this.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Discuss before implementing" data-instruction="Do not implement the answers above yet. Explain the trade-offs of the chosen options in the session first and wait for confirmation.">
+        <span class="lbl">Discuss it first, implement nothing yet</span></label>
+      <div class="otherrow"><input type="radio" name="q3" value="__other__" id="q3o">
+        <label for="q3o" class="lbl">Other:</label>
+        <input type="text" data-q="3. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" data-q="3. Notes"></textarea></div>
+  </div>
+
+  <div class="q" id="copyback">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the session, or into a new one.</p>
+    <button type="button" id="copybtn">Copy answers</button><span class="done" id="copied" hidden></span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var PAGE_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-go-sh-automation-monitor.html";
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var lines = [
+      "Decisions from a decider form.",
+      "Project: BloomDesktop, repo D:\\add-e2e-test-skill, branch BL-16804-headless (draft PR 8285).",
+      "Subject: BLOOM_AUTOMATION_MONITOR also moves a developer's own Bloom, because ./go.sh passes --automation.",
+      "Date: 2026-09-03",
+      "Full report: " + PAGE_URL,
+      ""
+    ];
+    var groups = document.querySelectorAll(".opts[data-q]");
+    Array.prototype.forEach.call(groups, function (g) {
+      var chosen = g.querySelector("input[type=radio]:checked");
+      var answer = "(no answer)";
+      if (chosen) {
+        if (chosen.value === "__other__") {
+          var otherBox = g.querySelector(".otherrow input[type=text]");
+          var typed = otherBox && otherBox.value.trim();
+          answer = "Other: " + (typed ? typed : "(nothing typed)");
+        } else {
+          answer = chosen.getAttribute("data-instruction") || chosen.value;
+        }
+      }
+      lines.push(g.getAttribute("data-q"));
+      lines.push("  -> " + answer);
+      var lc = g.querySelector(".leavecomment input[type=checkbox]");
+      if (lc && lc.checked) {
+        lines.push("  -> Also record this decision as a comment in the code it applies to, next to the placement logic in src/BloomExe/AutomationWindowPlacement.cs.");
+      }
+      var card = g.closest(".q");
+      var notes = card && card.querySelector(".notes textarea");
+      if (notes && notes.value.trim()) lines.push("  -> Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    payload.value = lines.join("\n");
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = document.getElementById("copied");
+    function show(text, ok) {
+      done.textContent = text;
+      done.className = ok ? "done ok" : "done warn";
+      done.hidden = false;
+      if (ok) setTimeout(function () { done.hidden = true; }, 2400);
+    }
+    function manual() {
+      show("Couldn't copy automatically - the text is selected below; press Ctrl+C (Cmd+C on Mac).", false);
+    }
+    try {
+      payload.focus();
+      payload.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload.value).then(
+          function () { show("Copied", true); },
+          function () {
+            try {
+              if (document.execCommand("copy")) { show("Copied", true); } else { manual(); }
+            } catch (e) { manual(); }
+          }
+        );
+        return;
+      }
+      if (document.execCommand("copy")) { show("Copied", true); } else { manual(); }
+    } catch (e) {
+      manual();
+    }
+  });
+})();
+</script>
+</body>
+</html>
