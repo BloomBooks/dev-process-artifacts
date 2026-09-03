@@ -141,98 +141,110 @@
 <header class="top">
   <h1>Who obeys BLOOM_AUTOMATION_MONITOR</h1>
   <p class="runline">BloomDesktop, <code>D:\add-e2e-test-skill</code>, branch
-    <code>BL-16804-headless</code> (draft PR 8285). Written 2026-09-03. Found by reading the code,
-    not by running it.</p>
+    <code>BL-16804-headless</code> (draft PR 8285). Written 2026-09-03, and rewritten the same day:
+    an earlier version of this page recommended confining the variable to end-to-end test runs.
+    That was wrong. The variable already does what it is wanted for, and the questions below are
+    the ones that are actually open.</p>
 </header>
 
 <div class="cols">
 <div>
 
   <section class="card">
-    <h2>The situation</h2>
+    <h2>What the variable does today</h2>
 
-    <p class="lede">The environment variable <code>BLOOM_AUTOMATION_MONITOR</code> was added so an
-      automated test run could put its Bloom window somewhere other than the middle of the
-      developer's desktop. It takes a monitor number counted left to right, or
-      <code>headless</code> (or <code>0</code>), which puts every window far outside every monitor
-      and out of the task bar.</p>
+    <p class="lede">Every Bloom started with the <code>--automation</code> flag obeys
+      <code>BLOOM_AUTOMATION_MONITOR</code>. Set it to a monitor number, counted left to right, and
+      every window that run opens goes on that monitor. Set it to <code>headless</code> (or
+      <code>0</code>) and every window goes far outside every monitor, and out of the task bar
+      too.</p>
 
-    <p><strong>It also applies to the Bloom the developer starts themselves.</strong> The variable
-      is honoured by any Bloom started with the <code>--automation</code> flag, and
-      <code>./go.sh</code> passes that flag. The chain is
-      <code>go.sh</code> → <code>src/BloomBrowserUI/scripts/go.mjs</code> →
-      <code>scripts/watchBloomExe.mjs</code>, which puts <code>--automation</code> in the argument
-      list at line 140. The launcher does not clear the variable, and a child process inherits its
-      parent's environment, so the value in the developer's shell reaches Bloom.</p>
+    <p><strong>Three things pass <code>--automation</code>, and that includes the launcher.</strong>
+      So a Bloom an agent starts to look at something, a Bloom the developer starts to watch their
+      changes live, and a Bloom a test suite starts are all moved by this variable.</p>
 
-    <h3>What the developer would see</h3>
-    <ul>
-      <li>With a monitor number set, their own Bloom opens on that monitor, maximized. Easy to
-        miss, or to blame on Windows having moved a window.</li>
-      <li>With <code>headless</code> or <code>0</code> set, their own Bloom opens off every monitor
-        and not in the task bar. <strong>It looks exactly like Bloom failing to start</strong>: the
-        launcher reports success, the HTTP server answers, and there is no window anywhere.</li>
-    </ul>
-
-    <h3>Why this was missed</h3>
-    <p>The class comment in <code>src/BloomExe/AutomationWindowPlacement.cs:16</code> states the
-      opposite, in as many words: "A developer who leaves it set in their shell therefore still
-      gets an ordinary, visible Bloom when they start one themselves; only a run that already
-      declared itself automation obeys it." The second half is true. The first half assumed that a
-      developer's own Bloom is not an <code>--automation</code> run, and it is one.</p>
-    <p>Whichever option is chosen below, that comment gets corrected to match. That is not one of
-      the questions.</p>
-
-    <h3>There is already a flag that separates the two</h3>
-    <p>Three places pass <code>--automation</code>, and the two test suites pass a second flag,
-      <code>--e2e</code>, that the launcher does not:</p>
     <div class="tablewrap">
     <table>
-      <tr><th>What starts Bloom</th><th>Flags</th><th>Should it obey the variable?</th></tr>
-      <tr><td><code>scripts/watchBloomExe.mjs:140</code> — the developer's own Bloom, via <code>./go.sh</code></td><td><code>--automation</code></td><td>this is the question</td></tr>
-      <tr><td><code>src/BloomE2E/fixtures/launchBloom.ts:387</code> — the end-to-end suite</td><td><code>--e2e --automation</code></td><td>yes, this is what it is for</td></tr>
+      <tr><th>What starts Bloom</th><th>Flags it passes</th><th>Obeys the variable</th></tr>
+      <tr><td><code>scripts/watchBloomExe.mjs:140</code> — every <code>./go.sh</code>, whoever or whatever runs it</td><td><code>--automation</code></td><td>yes</td></tr>
+      <tr><td><code>src/BloomE2E/fixtures/launchBloom.ts:387</code> — the end-to-end suite</td><td><code>--e2e --automation</code></td><td>yes</td></tr>
       <tr><td><code>src/BloomVisualRegressionTests/index.spec.ts:897</code> — the visual-regression suite</td><td><code>--e2e --automation</code></td><td>yes</td></tr>
     </table>
     </div>
-    <p><code>Program.RunningE2eTests</code> is the property behind <code>--e2e</code>. So the
-      distinction the variable needs already exists in the code; nothing new has to be invented to
-      draw it.</p>
+
+    <p>This is the wanted behaviour: agent work goes on a side monitor and stays out of the way, and
+      the variable's name says exactly that. Nothing in the questions below proposes taking it
+      away.</p>
+
+    <h3>Two things are wrong, and neither is the behaviour</h3>
+    <ul>
+      <li><strong>The code says the opposite of what it does.</strong> The class comment at
+        <code>src/BloomExe/AutomationWindowPlacement.cs:16</code> reads: "A developer who leaves it
+        set in their shell therefore still gets an ordinary, visible Bloom when they start one
+        themselves; only a run that already declared itself automation obeys it." The second half is
+        true. The first half is false, because <code>./go.sh</code> is an <code>--automation</code>
+        run. <strong>This gets corrected whichever way the questions below are answered</strong>, so
+        it is not one of them.</li>
+      <li><strong>The one hazard is <code>headless</code>, not a monitor number.</strong> A monitor
+        number moves a window somewhere the developer can look. <code>headless</code> and
+        <code>0</code> make it invisible and keep it out of the task bar, so a
+        <code>./go.sh</code> the developer runs themselves, in a shell where that value is set, looks
+        exactly like Bloom having failed to start: the launcher reports success, the HTTP server
+        answers, and no window exists anywhere. Question 1 is about that case alone.</li>
+    </ul>
   </section>
 
   <section class="card">
-    <h2>The second half: what an agent is told</h2>
-    <p>The <code>bloom-automation</code> skill is what an AI reads when it attaches to a running
-      Bloom to debug or check something ad hoc. <code>.github/skills/bloom-automation/</code>
-      contains <strong>no mention</strong> of <code>BLOOM_AUTOMATION_MONITOR</code>, of
-      <code>headless</code>, or of a monitor.</p>
-    <p>The variable is documented in three places, none of which that agent reads:
-      <code>.github/skills/add-e2e-test/SKILL.md</code>, <code>src/BloomE2E/README.md</code>, and
-      <code>.github/workflows/nightly.yml</code>.</p>
-    <p>So an agent that finds no Bloom window, or a screenshot that does not look like the monitor
-      it expected, has nothing telling it to suspect this variable or to read the line Bloom writes
-      to <code>%TEMP%\SIL\Bloom\Log.txt</code> on every automation start. That line names the
-      value, the monitor chosen, and every monitor the process can see.</p>
+    <h2>What an agent is told about it</h2>
+    <p>The <code>bloom-automation</code> skill is what an AI reads when it drives a running Bloom.
+      <code>.github/skills/bloom-automation/</code> contains <strong>no mention</strong> of
+      <code>BLOOM_AUTOMATION_MONITOR</code>, of <code>headless</code>, or of a monitor. The variable
+      is documented in <code>.github/skills/add-e2e-test/SKILL.md</code>,
+      <code>src/BloomE2E/README.md</code> and <code>.github/workflows/nightly.yml</code>, and an
+      agent doing ad-hoc work reads none of those.</p>
+    <p>Two costs follow. An agent that finds no window may report that Bloom failed to start. And an
+      agent that has not been told the variable is deliberate may <em>clear or override it</em> to
+      get a window it can see, which puts Bloom back in the developer's face. Question 2 is about
+      that.</p>
+    <p>Bloom already writes one line to <code>%TEMP%\SIL\Bloom\Log.txt</code> on every automation
+      start, naming the value it read, the monitor it chose, and every monitor the process can see.
+      Nothing points an agent at it.</p>
+  </section>
+
+  <section class="card">
+    <h2>Telling your Bloom from an agent's</h2>
+    <p>Question 1 needs a way to know who ran <code>./go.sh</code>, so here is what is available. An
+      agent's shell carries <code>CLAUDECODE=1</code> in its environment, along with several other
+      <code>CLAUDE_CODE_*</code> variables; a terminal the developer opens themselves carries none of
+      them. So the signal exists and is free to read.</p>
+    <p>The cost is that it ties Bloom's launcher to one particular agent tool by name. If that tool
+      changes the variable, or another agent is used, the launcher quietly reverts to treating every
+      run the same way. That failure is silent, which is the argument against leaning on it.</p>
   </section>
 
 </div>
 <div>
 
   <div class="q lead">
-    <h2>1. Which runs should obey the variable</h2>
-    <p>The choice is whether a developer's own Bloom is a thing this variable is allowed to move,
-      and if so how far.</p>
-    <div class="opts" data-q="1. Which runs obey BLOOM_AUTOMATION_MONITOR">
-      <label class="opt"><input type="radio" name="q1" value="Gate the variable on --e2e instead of --automation" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, make BLOOM_AUTOMATION_MONITOR apply only to a test run: in src/BloomExe/AutomationWindowPlacement.cs, change GetChoice() and GetChosenMonitor() to test Program.RunningE2eTests (the --e2e flag) instead of Program.StartupAutomation, so a Bloom started by ./go.sh (which passes --automation but not --e2e) always places its windows normally. Correct the class comment at the top of that file, which currently claims a developer's own Bloom is unaffected, and update the paragraph in src/BloomE2E/README.md and in .github/skills/add-e2e-test/SKILL.md that says the variable applies under --automation. Keep the 24 tests in src/BloomTests/AutomationWindowPlacementTests.cs passing." checked>
-        <span class="lbl">Gate it on <code>--e2e</code> rather than <code>--automation</code><span class="rec">recommended</span>
-        <span class="fc">Two call sites in <code>AutomationWindowPlacement.cs</code>, plus three doc paragraphs. Recommended because the variable exists to place a <em>test</em> window, both test suites already pass <code>--e2e</code>, and <code>./go.sh</code> does not, so the line lands exactly where the meaning is. Low risk: nothing else reads the variable.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" value="Honour a monitor number for go.sh, but never hide it" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, keep BLOOM_AUTOMATION_MONITOR working for a developer's own Bloom when it names a monitor, but never let it hide one: in src/BloomExe/AutomationWindowPlacement.cs, treat the headless / 0 setting as AsBloomNormallyWould unless Program.RunningE2eTests is true (the --e2e flag), while still honouring a monitor number under --automation. Correct the class comment at the top of that file, which currently claims a developer's own Bloom is unaffected, and say in src/BloomE2E/README.md which half applies to ./go.sh. Add tests to src/BloomTests/AutomationWindowPlacementTests.cs for the new split.">
-        <span class="lbl">Honour a monitor <em>number</em> for <code>./go.sh</code>, but never hide it off-screen
-        <span class="fc">A little more code than the first option and one more rule to remember, in exchange for being able to park your own Bloom on a chosen monitor. Only the invisible outcome is taken away.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" value="Clear the variable in the launcher" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, make ./go.sh ignore BLOOM_AUTOMATION_MONITOR: in scripts/watchBloomExe.mjs, where it spawns dotnet with --automation (around line 140), pass a child environment with BLOOM_AUTOMATION_MONITOR set to empty, and say in a comment why. Leave src/BloomExe/AutomationWindowPlacement.cs reading the variable under --automation, but correct its class comment, which currently claims a developer's own Bloom is unaffected.">
-        <span class="lbl">Clear the variable in the launcher instead
-        <span class="fc">About three lines in <code>watchBloomExe.mjs</code>, and no C# change. It leaves the rule "any <code>--automation</code> run obeys the variable" in place, so the next thing that passes that flag inherits the same surprise.</span></span></label>
+    <h2>1. When you run <code>./go.sh</code> yourself and <code>headless</code> is set</h2>
+    <p>A monitor number is not in question: your own Bloom going to a side monitor is fine, and
+      arguably what you want anyway. This is only about the invisible case, where the value in your
+      shell is <code>headless</code> or <code>0</code> and the Bloom you started to look at
+      something never appears.</p>
+    <p><strong><code>Leave as is</code> is the recommendation here</strong>, and it is pre-selected.
+      You set the value, so you are the one person who can tell why a window is missing, and the log
+      line names it. Both alternatives buy a small convenience with a rule the code has to carry
+      forever, and the second one makes Bloom's launcher name an agent tool. Take one only if you
+      expect to leave <code>headless</code> set in your own shell as a habit.</p>
+    <div class="opts" data-q="1. A headless setting and your own ./go.sh">
+      <label class="opt"><input type="radio" name="q1" value="Never hide a go.sh Bloom; headless applies only to a test run" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, keep BLOOM_AUTOMATION_MONITOR fully in force for a monitor number under --automation, but make the headless / 0 setting apply only to a test run: in src/BloomExe/AutomationWindowPlacement.cs, return Choice.OffEveryMonitor for headless or 0 only when Program.RunningE2eTests is true (the --e2e flag, which both test suites pass and ./go.sh does not), and otherwise fall back to AsBloomNormallyWould. A monitor number must keep working for every --automation run, including ./go.sh. Correct the class comment at the top of that file, which currently claims a developer's own Bloom is unaffected by the variable, and record the new split in src/BloomE2E/README.md and .github/skills/add-e2e-test/SKILL.md. Add tests to src/BloomTests/AutomationWindowPlacementTests.cs covering headless with and without --e2e.">
+        <span class="lbl">A <code>./go.sh</code> Bloom is never hidden; <code>headless</code> applies only to a test run
+        <span class="fc">About ten lines in <code>AutomationWindowPlacement.cs</code> plus tests and three doc paragraphs. Removes the looks-like-a-crash outcome for any <code>./go.sh</code>, an agent's included, so an agent's Bloom would then sit on a side monitor rather than nowhere.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Hide an agent's go.sh Bloom but never the developer's, using CLAUDECODE" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, make a headless setting apply to an agent's ./go.sh but never to one the developer runs themselves: in scripts/watchBloomExe.mjs, where it spawns dotnet with --automation (around line 140), clear BLOOM_AUTOMATION_MONITOR in the child environment when its value is headless or 0 AND the CLAUDECODE environment variable is absent, which is how a developer's own terminal differs from an agent's shell. Explain in a comment why the check is there and that it fails soft: if the marker ever disappears, the developer sees a window rather than nothing. Leave a monitor number untouched in every case, and correct the class comment at the top of src/BloomExe/AutomationWindowPlacement.cs, which currently claims a developer's own Bloom is unaffected by the variable.">
+        <span class="lbl">Hide an agent's <code>./go.sh</code>, never yours, by reading <code>CLAUDECODE</code>
+        <span class="fc">About five lines in <code>watchBloomExe.mjs</code> and no C# change. Gives each case what it wants, at the cost of Bloom's launcher naming one agent tool and going quiet if that name ever changes.</span></span></label>
       <div class="leaverow">
-        <label class="opt"><input type="radio" name="q1" value="Leave as is" data-instruction="Leave as is - take no action on: BLOOM_AUTOMATION_MONITOR also moves a developer's own Bloom, because ./go.sh passes --automation, so a headless setting left in a shell makes their own Bloom open off-screen and out of the task bar.">
+        <label class="opt"><input type="radio" name="q1" value="Leave as is" data-instruction="Leave as is - take no action on: when the developer runs ./go.sh themselves in a shell where BLOOM_AUTOMATION_MONITOR is headless or 0, their own Bloom opens off every monitor and out of the task bar, looking as though Bloom failed to start. The behaviour is kept because the developer sets the value and can change it." checked>
           <span class="lbl">Leave as is</span></label>
         <label class="leavecomment"><input type="checkbox" data-q="1. Leave comment"> Leave comment</label>
       </div>
@@ -245,17 +257,16 @@
 
   <div class="q">
     <h2>2. What the <code>bloom-automation</code> skill says about it</h2>
-    <p>This one stands whatever the answer above is. Even with the variable confined to test runs,
-      an agent can still meet an off-screen Bloom: it may be asked to run the suite, or to look at
-      a Bloom a test run started.</p>
-    <div class="opts" data-q="2. Documenting the variable for ad-hoc automation">
-      <label class="opt"><input type="radio" name="q2" value="Add a short section to the bloom-automation skill" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, add a short section to .github/skills/bloom-automation/SKILL.md about BLOOM_AUTOMATION_MONITOR: say that a Bloom started for a test can have its window off every monitor and out of the task bar, that this looks like Bloom having failed to start, that Bloom writes the value it read and every monitor it can see to %TEMP%\SIL\Bloom\Log.txt on every automation start, and that screenshots and CDP work normally on such a window. Keep it to a paragraph or two and point at src/BloomE2E/README.md for the full account." checked>
-        <span class="lbl">Add a short section to the skill<span class="rec">recommended</span>
-        <span class="fc">No code, a paragraph or two of documentation. Recommended because the failure it prevents (an agent concluding Bloom did not start) costs a whole debugging session, and the log line that settles it is already written.</span></span></label>
+    <p>This is the question that most directly serves keeping agent work out of your face: an agent
+      that does not know the variable is deliberate is an agent that may work around it.</p>
+    <div class="opts" data-q="2. Documenting the variable for ad-hoc agent automation">
+      <label class="opt"><input type="radio" name="q2" value="Add a section telling an agent to leave the variable alone" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, add a short section to .github/skills/bloom-automation/SKILL.md about BLOOM_AUTOMATION_MONITOR. It must say: the developer sets this variable to keep automation windows off the monitor they are working on; every Bloom started with --automation obeys it, which includes any Bloom started by ./go.sh; an agent must never clear it, override it, or ask the developer to unset it in order to get a visible window; a value of headless or 0 means the window is off every monitor and out of the task bar, so no window is NOT evidence that Bloom failed to start; screenshots and CDP work normally on such a window; and Bloom writes the value it read, the monitor it chose and every monitor it can see to %TEMP%\SIL\Bloom\Log.txt on every automation start, which is how to check. Keep it to a paragraph or two and point at src/BloomE2E/README.md for the full account." checked>
+        <span class="lbl">Add a section, and tell an agent not to work around it<span class="rec">recommended</span>
+        <span class="fc">No code, a paragraph or two. Recommended because it is the cheapest item here and it protects the outcome you want: an agent that is told the variable is deliberate stops trying to get its window back on your screen.</span></span></label>
       <label class="opt"><input type="radio" name="q2" value="One cross-reference line only" data-instruction="In the BloomDesktop repo at D:\add-e2e-test-skill, add a single cross-reference line to .github/skills/bloom-automation/SKILL.md pointing at the BLOOM_AUTOMATION_MONITOR section of src/BloomE2E/README.md, without repeating its content.">
         <span class="lbl">One cross-reference line, no explanation
-        <span class="fc">One line. Keeps the skill short, at the cost of an agent having to follow a link to find out why there is no window.</span></span></label>
-      <label class="opt"><input type="radio" name="q2" value="Leave as is" data-instruction="Leave as is - take no action on: the bloom-automation skill says nothing about BLOOM_AUTOMATION_MONITOR, so an agent doing ad-hoc debugging is not told a Bloom window may be off every monitor."><span class="lbl">Leave as is</span></label>
+        <span class="fc">One line. Keeps the skill short, and leaves an agent to follow a link before it understands why there is no window.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Leave as is" data-instruction="Leave as is - take no action on: the bloom-automation skill says nothing about BLOOM_AUTOMATION_MONITOR, so an agent doing ad-hoc work is not told that a missing window is deliberate, nor that it must not clear the variable."><span class="lbl">Leave as is</span></label>
       <div class="otherrow"><input type="radio" name="q2" value="__other__" id="q2o">
         <label for="q2o" class="lbl">Other:</label>
         <input type="text" data-q="2. Other" placeholder="your answer"></div>
@@ -266,16 +277,16 @@
   <div class="q">
     <h2>3. Where the change goes</h2>
     <p>PR 8285 (<code>BL-16804-headless</code>) is a draft that introduced this variable's current
-      behaviour, so it can absorb a correction to it. It has three decisions of its own waiting,
-      and its own report at
+      behaviour, so it can carry a correction to it. It has three decisions of its own waiting, in
+      its own report at
       <a href="https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-BL-16804-headless.html" target="_blank" rel="noopener">bloomdesktop-BL-16804-headless.html</a>.</p>
     <div class="opts" data-q="3. Where the change goes">
-      <label class="opt"><input type="radio" name="q3" value="Put it on BL-16804-headless, in PR 8285" data-instruction="Implement the answers above on the existing branch BL-16804-headless in D:\add-e2e-test-skill and push to its draft PR 8285, since that PR introduced the behaviour being corrected. Do not mark the PR ready for review." checked>
+      <label class="opt"><input type="radio" name="q3" value="Put it on BL-16804-headless, in draft PR 8285" data-instruction="Implement the answers above on the existing branch BL-16804-headless in D:\add-e2e-test-skill and push to its draft PR 8285, since that PR introduced the behaviour being corrected. Do not mark the PR ready for review." checked>
         <span class="lbl">On <code>BL-16804-headless</code>, in draft PR 8285<span class="rec">recommended</span>
-        <span class="fc">The PR is a draft and this is a correction to the change it makes, so a reviewer sees one coherent story instead of a fix chasing a bug through two PRs.</span></span></label>
-      <label class="opt"><input type="radio" name="q3" value="Its own card and branch" data-instruction="Create a YouTrack card in project BL for the BLOOM_AUTOMATION_MONITOR fix chosen above, then create a branch named <the new card id>-automation-monitor off master in D:\add-e2e-test-skill, implement the answers there, and open a draft PR based on master. Do not mark it ready for review.">
+        <span class="fc">The PR is still a draft and this corrects the change it makes, so a reviewer reads one story instead of a fix chasing a bug across two PRs.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Its own card and branch off master" data-instruction="Create a YouTrack card in project BL for the BLOOM_AUTOMATION_MONITOR work chosen above, then create a branch named <the new card id>-automation-monitor off master in D:\add-e2e-test-skill, implement the answers there, and open a draft PR based on master. Do not mark it ready for review.">
         <span class="lbl">Its own card and branch off <code>master</code>
-        <span class="fc">More process: a card, a branch, a PR, and a second review cycle. Right if PR 8285 should merge without waiting on this.</span></span></label>
+        <span class="fc">A card, a branch, a PR and a second review cycle. Right if PR 8285 should merge without waiting on this.</span></span></label>
       <label class="opt"><input type="radio" name="q3" value="Discuss before implementing" data-instruction="Do not implement the answers above yet. Explain the trade-offs of the chosen options in the session first and wait for confirmation.">
         <span class="lbl">Discuss it first, implement nothing yet</span></label>
       <div class="otherrow"><input type="radio" name="q3" value="__other__" id="q3o">
@@ -306,7 +317,8 @@
     var lines = [
       "Decisions from a decider form.",
       "Project: BloomDesktop, repo D:\\add-e2e-test-skill, branch BL-16804-headless (draft PR 8285).",
-      "Subject: BLOOM_AUTOMATION_MONITOR also moves a developer's own Bloom, because ./go.sh passes --automation.",
+      "Subject: BLOOM_AUTOMATION_MONITOR moves every --automation Bloom, ./go.sh included. That is wanted; these are the loose ends.",
+      "Standing decision, not a question: the class comment at the top of src/BloomExe/AutomationWindowPlacement.cs claims a developer's own Bloom is unaffected by the variable. It is false, because ./go.sh passes --automation. Correct it whatever else is done.",
       "Date: 2026-09-03",
       "Full report: " + PAGE_URL,
       ""
@@ -328,7 +340,7 @@
       lines.push("  -> " + answer);
       var lc = g.querySelector(".leavecomment input[type=checkbox]");
       if (lc && lc.checked) {
-        lines.push("  -> Also record this decision as a comment in the code it applies to, next to the placement logic in src/BloomExe/AutomationWindowPlacement.cs.");
+        lines.push("  -> Also record this decision as a comment in the code it applies to: next to the placement logic in src/BloomExe/AutomationWindowPlacement.cs, and where scripts/watchBloomExe.mjs passes --automation if the answer touches the launcher.");
       }
       var card = g.closest(".q");
       var notes = card && card.querySelector(".notes textarea");
