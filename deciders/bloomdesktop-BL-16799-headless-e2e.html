@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Off-Screen End-to-End Runs</title>
+<title>The E2E Suite Split</title>
 <style>
 :root {
   --paper: #f2f5f4;
@@ -86,6 +86,7 @@ tr:last-child td { border-bottom: none; }
 td.verdict { white-space: nowrap; font-weight: 600; }
 td.verdict.pass { color: var(--pass); }
 td.verdict.skip { color: var(--faint); font-weight: 500; }
+td.verdict.fail { color: var(--fail); white-space: normal; }
 
 /* Reviewer rows */
 .rev { display: flex; flex-direction: column; gap: 16px; }
@@ -146,18 +147,22 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
 
 <header>
   <div class="eyebrow">Preflight report &middot; BloomDesktop</div>
-  <h1>Bloom&rsquo;s end-to-end tests now run off-screen</h1>
-  <p class="subtitle">Branch <code>BL-16799-headless-e2e</code>, at
-    <a href="https://github.com/BloomBooks/BloomDesktop/commit/f48c62a488" target="_blank" rel="noopener"><span class="numeral">f48c62a488</span></a>.
-    Five commits, every gate green, three questions for you.</p>
+  <h1>The end-to-end suite, split into two pull requests</h1>
+  <p class="subtitle">Two branches off <code>master</code>, neither depending on the other:
+    <code>BL-16799-headless-e2e</code> at
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/7bee9a6444" target="_blank" rel="noopener"><span class="numeral">7bee9a6444</span></a>
+    carries the automation debt, and <code>BL-16804-headless</code> at
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/a07b973b13" target="_blank" rel="noopener"><span class="numeral">a07b973b13</span></a>
+    carries the off-screen window. Every gate green on PR 8276. On PR 8285 two end-to-end tests fail, and they fail on <code>master</code> too. Four questions for you.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Both PRs draft</span><!-- pr-state:end -->
     <span class="chip good">Mergeable &middot; clean</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip hold">3 items waiting on you</span>
-    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276" target="_blank" rel="noopener">PR 8276</a></span>
-    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276/files" target="_blank" rel="noopener">Files changed</a></span>
+    <span class="chip hold">4 items waiting on you</span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276" target="_blank" rel="noopener">PR 8276 &middot; debt</a></span>
+    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8285" target="_blank" rel="noopener">PR 8285 &middot; off-screen</a></span>
     <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16799" target="_blank" rel="noopener">BL-16799</a></span>
+    <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16804" target="_blank" rel="noopener">BL-16804</a></span>
   </div>
 </header>
 
@@ -167,49 +172,63 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
 <div class="stack">
 
   <section class="card narrative">
-    <h2>What this PR is about</h2>
+    <h2>What these two PRs are about</h2>
 
     <h3>Problem</h3>
     <p class="reading">Every run of the <code>src/BloomE2E</code> suite took over the developer&rsquo;s desktop:
-      Bloom opened a real window, maximized, in the taskbar. That alone makes the suite unusable while
+      Bloom opened a real window, in the task bar, once per test. That alone makes the suite unusable while
       working. Worse, a test could pass while Bloom was driving a document the test never looked at, so
-      <code>publish-text-languages.spec.ts</code> failed roughly one run in three for no visible reason. A
-      handful of workarounds in the test library existed only because Bloom was hard to drive.</p>
+      <code>publish-text-languages.spec.ts</code> failed roughly one run in three for no visible reason. A row
+      of workarounds in the test library existed only because Bloom was hard to drive.</p>
 
     <h3>Cause</h3>
     <p class="reading">Two of those had one cause. A run gave every WebView2 environment the same
       remote-debugging port number, so only the first browser process to start could listen on it, and which
       process that was depended on startup timing; the fixture then attached to whichever document the
       debugging protocol listed first. Separately, <code>editView/jumpToPage</code> replied
-      &ldquo;succeeded&rdquo; to a jump the Edit tab silently dropped while it was loading a page, so
-      the caller waited a minute for a page that was never coming.</p>
+      &ldquo;succeeded&rdquo; to a jump the Edit tab silently dropped while it was loading a page, so the
+      caller waited a minute for a page that was never coming.</p>
 
-    <h3>What the PR does</h3>
+    <h3>What PR 8285 does: the window leaves the screen</h3>
     <ul class="reading">
-      <li><strong>The suite runs off-screen.</strong> A new <code>--headless</code> flag puts the shell and
-        the splash screen far to the left of every monitor, out of the taskbar, without touching the saved
-        window placement. Off-screen rather than minimized, because WebView2 stops painting a minimized
-        window and screenshots come back blank. <code>BLOOM_E2E_HEADED=1</code>, or Playwright&rsquo;s
-        <code>--debug</code>, shows the window.</li>
-      <li><strong>A test attaches to the document Bloom drives.</strong> Browsers built on the UI thread
-        share one WebView2 environment under <code>--e2e</code>, so a run has one browser process and one
-        debugging listener, and a new <code>e2e/shellUrl</code> hook names the document Bloom drives for the
-        fixture to confirm.</li>
+      <li>A new <code>--headless</code> flag puts the shell and the splash screen far to the left of every
+        monitor and out of the task bar, without touching the saved window placement. Off-screen rather than
+        minimized, because WebView2 stops painting a minimized window and screenshots come back blank.
+        <code>BLOOM_E2E_HEADED=1</code>, or Playwright&rsquo;s <code>--debug</code>, shows the window.</li>
+      <li>Windows calls a far-off-screen window occluded and Chromium then stops rendering it, so a headless
+        run disables <code>CalculateNativeWinOcclusion</code> and passes
+        <code>--disable-backgrounding-occluded-windows</code>.</li>
+      <li>The window leaves the task bar from the <code>Shell</code> constructor, before the window handle
+        exists. This is the root cause of a failure that cost most of this run to find: assigning
+        <code>ShowInTaskbar</code> on a form that is already showing makes Windows Forms recreate the form
+        handle and every child handle with it, the WebView2 host included. The Edit tab then held a browser
+        that no longer answered a jump to another page, so every test that moves between pages hung.</li>
+    </ul>
+
+    <h3>What PR 8276 does: the debt is paid</h3>
+    <ul class="reading">
+      <li><strong>A test attaches to the document Bloom drives.</strong> Browsers built on the UI thread share
+        one WebView2 environment under <code>--e2e</code>, so a run has one browser process and one debugging
+        listener, and a new <code>e2e/shellUrl</code> hook names the document Bloom drives for the fixture to
+        confirm.</li>
       <li><strong>A run can test the working tree.</strong> <code>BLOOM_E2E_VITE_PORT=&lt;n&gt;</code> passes
         <code>--vite-port</code>, so a front-end edit reaches the suite without the full front-end build.</li>
-      <li><strong>Bloom is easier to drive</strong>, each change removing a workaround:
-        <a href="https://github.com/BloomBooks/BloomDesktop/blob/f48c62a488/src/BloomExe/Edit/EditingModel.cs#L1722" target="_blank" rel="noopener"><code>JumpToPage</code></a>
-        either shows the page at once or refuses and says so, instead of dropping the jump and reporting
-        success; a new <code>e2e/setCollectionLanguages</code> hook does the work of the Collection Settings dialog&rsquo;s
-        OK button, so no test composes <code>.bloomCollection</code> XML; the workspace tabs carry
-        <code>data-testid</code> attributes, so the suite works in any UI language; and typing inserts a whole
+      <li><strong>A page change is no longer lost.</strong>
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/7bee9a6444/src/BloomExe/Edit/EditingModel.cs#L1755" target="_blank" rel="noopener"><code>JumpToPage</code></a>
+        shows the page, or refuses and says so. A jump asked for while the Edit tab is not showing is
+        remembered and shown when that tab opens, which is what the Book Settings style links do from the
+        Collection tab; before, Bloom showed the last edited page instead.</li>
+      <li><strong>No test composes collection XML.</strong> A new <code>e2e/setCollectionLanguages</code> hook
+        does the work of the Collection Settings dialog&rsquo;s OK button.</li>
+      <li><strong>The suite works in any UI language.</strong> The workspace tabs carry
+        <code>data-testid</code> attributes, so no test matches a localized label. Typing inserts a whole
         string in one call instead of one key press per character.</li>
-      <li><strong>Other automation debt paid.</strong> A visual-regression case collects every failed image
-        comparison and fails once at the end. Toolbox tool registration is a side-effect-free
-        <code>registerAllToolboxTools()</code> that both the bootstrap and the test harness call. The
-        component-tester Playwright suites have a nightly job. The <code>bloom-automation</code> scripts
-        answer <code>--help</code> without killing anything, reject an unknown flag, and reject a malformed
-        process id.</li>
+      <li><strong>Other debt paid.</strong> A visual-regression case collects every failed image comparison
+        and fails once at the end. Toolbox tool registration is a single
+        <code>registerAllToolboxTools()</code> that both the bootstrap and the test harness call, and that
+        skips a tool the toolbox already has. The component-tester Playwright suites have a nightly job. The
+        <code>bloom-automation</code> scripts answer <code>--help</code> without killing anything, reject an
+        unknown flag, and reject a malformed process id.</li>
       <li><strong>The <code>add-e2e-test</code> skill states how the suite stays maintainable</strong> as it
         grows toward a few thousand tests: every step of a test is a helper call, and
         <code>src/BloomE2E/helpers/</code> is the one place that knows how to drive Bloom.</li>
@@ -220,34 +239,53 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
     <h2>Quality gate</h2>
     <div class="tablewrap">
       <table>
-        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <thead><tr><th>Check</th><th>PR 8276 &middot; debt</th><th>PR 8285 &middot; off-screen</th></tr></thead>
         <tbody>
-          <tr><td>Front-end typecheck</td><td class="verdict pass">Pass</td><td>Clean.</td></tr>
-          <tr><td>End-to-end typecheck</td><td class="verdict pass">Pass</td><td>Clean at the final commit.</td></tr>
-          <tr><td>Lint</td><td class="verdict pass">Pass</td><td><span class="numeral">0</span> errors. <span class="numeral">764</span> warnings, all of them already on master.</td></tr>
-          <tr><td>Merge cleanliness</td><td class="verdict pass">Pass</td><td>Mergeable into master, no conflicts.</td></tr>
-          <tr><td>TypeScript tests (vitest)</td><td class="verdict pass">Pass</td><td><span class="numeral">781</span> passed, <span class="numeral">5</span> skipped. No front-end source changed after this ran.</td></tr>
-          <tr><td>C# tests (dotnet)</td><td class="verdict pass">Pass</td><td><span class="numeral">3313</span> passed, <span class="numeral">0</span> failed, <span class="numeral">13</span> skipped, <span class="numeral">4m58s</span>, at the final commit.</td></tr>
-          <tr><td>End-to-end tests (Playwright)</td><td class="verdict pass">Pass</td><td><span class="numeral">15</span> passed in <span class="numeral">4.5</span> minutes at the final commit, off-screen, against a freshly built Bloom and the working tree's front end. Includes the spec that used to fail one run in three.</td></tr>
-          <tr><td>Visual regression tests</td><td class="verdict skip">Not run</td><td>Its baseline images are stale on master for reasons this branch neither causes nor fixes. The change here only makes a failing case report every bad image instead of the first.</td></tr>
-          <tr><td>CI (<code>pr-automation</code>)</td><td class="verdict pass">Pass</td><td>Green at the final commit.</td></tr>
+          <tr><td>Front-end typecheck</td><td class="verdict pass">Pass</td><td class="verdict skip">No front-end code</td></tr>
+          <tr><td>End-to-end typecheck</td><td class="verdict pass">Pass</td><td class="verdict pass">Pass</td></tr>
+          <tr><td>Lint</td><td class="verdict pass">Pass</td><td class="verdict skip">No front-end code</td></tr>
+          <tr><td>Merge cleanliness</td><td class="verdict pass">Pass</td><td class="verdict pass">Pass</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td>Pass, <span class="numeral">781</span> passed and <span class="numeral">5</span> skipped</td><td class="verdict skip">No front-end code</td></tr>
+          <tr><td>C# tests (dotnet)</td><td>Pass, <span class="numeral">3314</span> passed and <span class="numeral">13</span> skipped in <span class="numeral">3m46s</span></td><td>Pass, <span class="numeral">3316</span> passed and <span class="numeral">13</span> skipped in <span class="numeral">3m52s</span></td></tr>
+          <tr><td>End-to-end tests (Playwright)</td><td>Pass, <span class="numeral">29</span> passed in <span class="numeral">7.8</span> minutes</td><td class="verdict fail">Fail, <span class="numeral">18</span> passed, <span class="numeral">2</span> failed and <span class="numeral">8</span> did not run in <span class="numeral">5.1</span> minutes, off-screen. Both failures also fail on <code>master</code>.</td></tr>
+          <tr><td>Visual regression tests</td><td class="verdict skip">Not run</td><td class="verdict skip">Not touched</td></tr>
+          <tr><td>CI (<code>pr-automation</code>)</td><td class="verdict pass">Pass</td><td class="verdict pass">Pass</td></tr>
         </tbody>
       </table>
     </div>
+    <p class="reading">Both end-to-end runs used a freshly built Bloom, and a dev server on the working tree.
+      The visual-regression baseline images are stale on <code>master</code> for reasons neither branch causes
+      or fixes; the change in PR 8276 only makes a failing case report every bad image instead of the first.</p>
+    <p class="reading">The two failures on PR 8285 are inherited, not caused. Both are in
+      <code>duplicate-page.spec.ts</code>, and the test cannot find the Duplicate button. I ran the same test
+      three ways to place the cause: it fails on PR 8285 off-screen, it fails on PR 8285 on-screen, it fails on
+      <code>master</code>, and it passes on PR 8276. The button&rsquo;s test id is in the source on all three
+      branches, but the bundle in <code>output/browser</code> is a day older than the source and does not carry
+      it. PR 8276 is what makes the test read the document Bloom actually drives, through its new
+      <code>e2e/shellUrl</code> hook and its single WebView2 environment. So this is one more reason to merge
+      PR 8276 first; PR 8285 alone leaves those two tests red.</p>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p class="reading">The branch arrived with the headless work and the debt fixes already committed. This run
-      merged master, made every helper that changes a page wait until the Edit tab has settled, and then
-      removed the page-jump queue that this branch had added, because Devin showed it could leave a person
-      unable to change pages at all. It also corrected the dev-server port that
-      <code>src/BloomE2E/README.md</code> and the <code>add-e2e-test</code> skill both recommended, which
-      cannot work.</p>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276/commits" target="_blank" rel="noopener">The five commits</a>
-      &mdash; the last of them,
-      <a href="https://github.com/BloomBooks/BloomDesktop/commit/f48c62a488" target="_blank" rel="noopener"><span class="numeral">f48c62a488</span></a>,
-      is the one that removes the queue.</p>
+    <p class="reading">The run began with everything on one branch, and you asked for it to be split. The
+      off-screen change now has its own card and PR; each branch is off <code>master</code> and carries only
+      its own files, so they can merge in either order. Whichever merges second may need a small textual
+      merge, because both touch <code>launchBloom.ts</code>, <code>WebView2Browser.cs</code>,
+      <code>src/BloomE2E/README.md</code> and the <code>add-e2e-test</code> skill in different places.</p>
+    <p class="reading">Between the split and this report, the run also found why the off-screen suite failed
+      where the on-screen one passed, which was the <code>ShowInTaskbar</code> handle recreation described
+      above; fixed a splash screen that went off-screen but kept its task bar button; and fixed a duplicate
+      toolbox tool that corrupted the tool it replaced, because the Canvas and Games constructors each assign
+      themselves to a static field.</p>
+    <p class="reading">You then asked for both branches to carry the latest <code>master</code>. Each has taken
+      it twice since, the second time for Andrew&rsquo;s correction to the account of the language-name
+      difference described under &ldquo;Worth knowing&rdquo;. Both merges were text only, no code, so the C#
+      and end-to-end results above still describe the current heads. Both branches merge cleanly into
+      <code>master</code> now.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8276/commits" target="_blank" rel="noopener">PR 8276 commits</a>
+      &middot;
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8285/commits" target="_blank" rel="noopener">PR 8285 commits</a></p>
   </section>
 
   <section class="card">
@@ -256,26 +294,38 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
       <div class="rev-row">
         <div class="who">Local review</div>
         <div class="what">Light pass by one sub-agent, complete. Five findings, all confirmed by reading the
-          source and all fixed. Two of them were about the page-jump queue, which has since been removed
+          source and all fixed. Two of them were about a page-jump queue that has since been removed
           altogether, so they no longer describe any code.</div>
       </div>
       <div class="rev-row">
-        <div class="who">Devin</div>
-        <div class="what">Complete on every commit.
+        <div class="who">Devin &middot; PR 8276</div>
+        <div class="what">Complete on all nine commits, the current head included.
           <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8276" target="_blank" rel="noopener">Review page</a>.
-          Two severe bugs across the run, both
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914730434" target="_blank" rel="noopener">fixed</a>;
-          the second is the page-jump queue, and finding it is the reason that queue is gone. Three flags to
-          investigate: two assessed as safe and answered on their threads, and
-          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914737286" target="_blank" rel="noopener">one still open</a>
-          about the enlarged waits, which is the first question opposite. Four informational notes read as
-          confirmations of the design and are not mirrored.</div>
+          At the current commit Devin marks all six of its bugs resolved, and raises the same six Investigate
+          flags it raised on the previous head. Five are answered on their threads and resolved; one is
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3914737286" target="_blank" rel="noopener">still open</a>
+          about the enlarged waits, which is the first question opposite. Among the resolved five are one about
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3917974883" target="_blank" rel="noopener">page settling</a>
+          and one about the
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8276#discussion_r3915838596" target="_blank" rel="noopener">edit-state reply</a>.
+          Nine informational notes read as confirmations of the design and are not mirrored.</div>
+      </div>
+      <div class="rev-row">
+        <div class="who">Devin &middot; PR 8285</div>
+        <div class="what">Complete on all five commits, the current head included.
+          <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8285" target="_blank" rel="noopener">Review page</a>.
+          One bug, the splash screen&rsquo;s task bar button,
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8285#discussion_r3919315013" target="_blank" rel="noopener">fixed</a>.
+          One flag about C# indentation,
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8285#discussion_r3919315107" target="_blank" rel="noopener">answered</a>
+          as not a defect: <code>.editorconfig</code> has no <code>[*.cs]</code> section, and csharpier
+          produced those lines. No thread left open.</div>
       </div>
       <div class="rev-row">
         <div class="who">Greptile</div>
-        <div class="what">Timed out. It last spoke about a commit two commits behind the branch, and raised one
-          substantive point there, the same one Devin raised about the enlarged waits. It has said nothing
-          about the merge with master or the removal of the queue. Running preflight again folds in anything
+        <div class="what">Timed out. It last spoke about <span class="numeral">726db74635</span>, several
+          commits behind PR 8276, and raised one substantive point there, the same one Devin raised about the
+          enlarged waits. It has said nothing about PR 8285 at all. Running preflight again folds in anything
           it says later.</div>
       </div>
       <div class="rev-row">
@@ -285,7 +335,8 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
       </div>
       <div class="rev-row">
         <div class="who">CI</div>
-        <div class="what">Complete and green. <code>pr-automation</code> is the only required check.</div>
+        <div class="what">Complete and green on both. <code>pr-automation</code> is the only required
+          check.</div>
       </div>
     </div>
   </section>
@@ -293,24 +344,33 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul class="plain">
-      <li><strong>Nothing here was tried by hand in Bloom.</strong> The page-jump queueing and the toolbox
-        registration list are the two changes a user could notice, and both are covered only by the automated
-        suites. The test ideas on
+      <li><strong>Nothing here was tried by hand in Bloom.</strong> Three changes in PR 8276 are ones a person
+        could notice: the remembered page jump, the refused page jump, and the toolbox tool list. All three are
+        covered only by the automated suites. The test ideas on
         <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16799" target="_blank" rel="noopener">BL-16799</a>
-        say what to click.</li>
+        say what to click, and the note on
+        <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16804" target="_blank" rel="noopener">BL-16804</a>
+        says why there is almost nothing to click there.</li>
       <li><strong>Which front end an end-to-end run tests depends on what else is running.</strong> A run
         without <code>BLOOM_E2E_VITE_PORT</code> serves <code>output/browser</code>, which can be any age, and
         Bloom auto-detects a dev server already on port <span class="numeral">5173</span>. So the same run can
         test different code on two machines. It is written down in
         <code>src/BloomE2E/AUTOMATION-DEBT.md</code> and left for later.</li>
       <li><strong>One test&rsquo;s tab is the next test&rsquo;s starting state.</strong> The suite shares one
-        Bloom per worker, and nothing makes a test put the workspace back. The new capture test leaves the Edit
-        tab and had to be taught to switch back. Also in <code>AUTOMATION-DEBT.md</code>.</li>
+        Bloom per worker, and nothing makes a test put the workspace back. Also in
+        <code>AUTOMATION-DEBT.md</code>.</li>
+      <li><strong>A dropped language is named differently on CI and on your machine.</strong> Master&rsquo;s
+        version of the publish test expected <code>espa&ntilde;ol</code>; CI answers <code>espagnol</code>,
+        French for Spanish, every time. Andrew traced it on <code>master</code> while this run was going: Bloom
+        asks LibPalaso for the name of the language <em>in</em> the collection&rsquo;s metadata language, and
+        LibPalaso honors that only where it can find a native ICU library. Bloom ships icu.net without
+        <code>icuuc.dll</code>, so the answer tracks the machine, not the run. BL-16806 is the card.
+        No test on PR 8276 reaches that lookup any more, so the coverage loss is recorded in
+        <code>AUTOMATION-DEBT.md</code>.</li>
     </ul>
   </section>
 
 </div>
-
 <!-- RIGHT -->
 <div class="stack">
 
@@ -320,18 +380,18 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
       <p class="prompt">
         <code>src/BloomBrowserUI/AGENTS.md</code> says: &ldquo;Don&rsquo;t use timeouts in tests, that slows
         things down and is fragile. If a timeout is justified, get my approval and add a comment explaining
-        it.&rdquo; Three places on this branch enlarge a wait and explain why in a comment, but none of them
-        has your approval, which is the other half of that rule. Devin and Greptile both stopped on it.
+        it.&rdquo; Three places in PR 8276 enlarge a wait and explain why in a comment, but none of them has
+        your approval, which is the other half of that rule. Devin and Greptile both stopped on it.
       </p>
       <p class="prompt">
         The three: an error message wait in the link-target-chooser tests raised from
         <span class="numeral">1</span> second to <span class="numeral">10</span>
-        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f48c62a488/src/BloomBrowserUI/react_components/LinkTargetChooser/component-tests/error-handling.uitest.ts#L14" target="_blank" rel="noopener">error-handling.uitest.ts:14</a>);
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/7bee9a6444/src/BloomBrowserUI/react_components/LinkTargetChooser/component-tests/error-handling.uitest.ts#L14" target="_blank" rel="noopener">error-handling.uitest.ts:14</a>);
         the registration opt-out button wait raised from <span class="numeral">2</span> seconds of buffer to
         <span class="numeral">8</span>
-        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f48c62a488/src/BloomBrowserUI/react_components/registration/component-tests/test-helpers.ts#L19" target="_blank" rel="noopener">test-helpers.ts:19</a>);
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/7bee9a6444/src/BloomBrowserUI/react_components/registration/component-tests/test-helpers.ts" target="_blank" rel="noopener">test-helpers.ts</a>);
         and a <span class="numeral">120</span>-second per-test limit on the new nightly component-tester job
-        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f48c62a488/.github/workflows/nightly.yml#L422" target="_blank" rel="noopener">nightly.yml:422</a>).
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/7bee9a6444/.github/workflows/nightly.yml" target="_blank" rel="noopener">nightly.yml</a>).
         Each was failing about once per full-suite run and passing when run alone.
       </p>
       <p class="prompt">
@@ -394,7 +454,7 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
         removes it the way a person does, through the code behind the Collection Settings dialog&rsquo;s OK
         button, and the list shows the name the collection remembers, &ldquo;Spanish&rdquo;. So the test now
         expects &ldquo;Spanish&rdquo;
-        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f48c62a488/src/BloomE2E/tests/publish-text-languages.spec.ts#L181" target="_blank" rel="noopener">publish-text-languages.spec.ts:181</a>).
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/7bee9a6444/src/BloomE2E/tests/publish-text-languages.spec.ts#L351" target="_blank" rel="noopener">publish-text-languages.spec.ts:351</a>).
       </p>
       <p class="prompt">
         I believe &ldquo;Spanish&rdquo; is what a real user sees, because the new route is the one a real user
@@ -448,18 +508,21 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
     <fieldset>
       <legend>The Edit tab can still be wedged. Which fix do you want?</legend>
       <p class="prompt">
-        Any request that changes the page, arriving between two announcements that one page&rsquo;s DOM has
-        loaded, leaves the Edit tab in <code>SavePending</code> and refusing every later page change until
-        you leave the tab. A person meets it by clicking a page thumbnail at exactly the wrong moment. It is
-        older than this suite, and this PR neither causes it nor fixes it; the suite works around it by
-        waiting until the page has stopped announcing itself.
+        A request that changes the page, arriving between two announcements that one page&rsquo;s DOM has
+        loaded, leaves the Edit tab in <code>SavePending</code> and refusing every later page change until you
+        leave the tab. A person meets it by clicking a page thumbnail at exactly the wrong moment. It is older
+        than this suite, and neither PR causes it or fixes it.
+      </p>
+      <p class="prompt">
+        What PR 8276 does is stop the suite from meeting it: <code>jumpToPage</code> now refuses a jump that
+        would arrive at that moment, and the helpers wait until the page has stopped announcing itself. The
+        page list a person clicks does not go through that endpoint, so the defect is still reachable by hand.
       </p>
       <p class="prompt">
         The mechanism, from Bloom&rsquo;s own log: the first announcement moves the tab to
         <code>Editing</code>; the page change then asks the browser for the page content so it can save the
-        page being left; the second announcement is refused because a save is in flight; and the browser
-        never answers the save request. Written up in
-        <code>src/BloomE2E/AUTOMATION-DEBT.md</code>.
+        page being left; the second announcement is refused because a save is in flight; and the browser never
+        answers the save request. Written up in <code>src/BloomE2E/AUTOMATION-DEBT.md</code>.
       </p>
       <p class="prompt">
         Both fixes change how Bloom saves, which is why this is your call and not mine.
@@ -509,13 +572,14 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
   <section class="card q">
     <fieldset>
       <legend>What next?</legend>
-      <p class="prompt">The PR is a draft, and stays one until you say otherwise.</p>
+      <p class="prompt">Both PRs are drafts, and stay drafts until you say otherwise. Neither has been offered
+        to a teammate for review.</p>
       <div class="opts">
         <label class="opt">
           <input type="radio" name="q3" value="Act on my answers above, then stop" checked>
           <span class="label">Act on my answers above, then stop<span class="rec">Recommended</span>
-            <span class="cost">If both answers are the recommended ones, that is one reply on each review thread
-              and nothing else.</span></span>
+            <span class="cost">If every answer is the recommended one, that is one reply on the open review
+              thread and nothing else.</span></span>
           <span></span>
         </label>
         <label class="opt">
@@ -572,7 +636,7 @@ legend { font-family: var(--serif); font-size: 16px; font-weight: 600; padding: 
 
     function build() {
         var lines = [
-            "Preflight answers - BloomDesktop PR 8276 (BL-16799), commit f48c62a488",
+            "Preflight answers - BloomDesktop PRs 8276 (BL-16799) and 8285 (BL-16804)",
             ""
         ];
         QUESTIONS.forEach(function (q) {
