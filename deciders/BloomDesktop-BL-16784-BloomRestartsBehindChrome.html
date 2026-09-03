@@ -3,470 +3,504 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight — BL-16784 · BloomDesktop #8268</title>
+<title>Preflight — BL-16784 (Bloom opens behind Chrome)</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html { -webkit-text-size-adjust: 100%; }
-  body, h1, h2, h3, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
+  body, h1, h2, h3, h4, p, ul, ol, li, figure, table, dl, dd { margin: 0; padding: 0; }
   ul, ol { list-style: none; }
-  fieldset { border: 0; }
+  table { border-collapse: collapse; }
+  button, input, textarea, select { font: inherit; color: inherit; }
 
   :root {
-    --ground: #f6f7f4;
-    --card: #ffffff;
-    --border: #e0e3dd;
-    --border-strong: #c8cec6;
-    --ink: #1d2422;
-    --muted: #5f6a65;
-    --accent: #2c6459;
-    --accent-soft: #e8f0ed;
-    --pass: #2c6e46;
-    --fail: #a52a1e;
-    --skip: #7b6a3c;
-    --skip-soft: #f5f0e2;
+    --ground:   #f7f5f1;
+    --card:     #ffffff;
+    --rule:     #e2ddd4;
+    --rule-firm:#cfc8bc;
+    --ink:      #23201b;
+    --ink-soft: #635c50;
+    --ink-faint:#8b8375;
+    --accent:   #2f5d8c;
+    --accent-dp:#1f4468;
+    --wash:     #eef1f5;
+    --ok:       #1f6f45;
+    --bad:      #a52a1e;
+    --hold:     #8a6318;
+    --off:      #6f6858;
+
     --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+
+    --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   }
 
   body {
     background: var(--ground);
     color: var(--ink);
     font-family: var(--sans);
-    font-size: 16px;
-    line-height: 1.55;
+    font-size: 15px;
+    line-height: 1.6;
   }
 
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 40px 28px 72px; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--wash); padding: 1px 5px; border-radius: 3px; }
 
-  header.masthead { border-bottom: 1px solid var(--border-strong); padding-bottom: 22px; margin-bottom: 30px; }
-  .kicker { font-size: 13px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
-  h1 { font-family: var(--serif); font-size: 33px; line-height: 1.2; font-weight: 600; text-wrap: balance; margin: 8px 0 12px; }
-  .masthead-links { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14.5px; }
-  .masthead-meta { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14.5px; color: var(--muted); margin-top: 10px; }
-
-  a { color: var(--accent); text-underline-offset: 2px; }
+  a { color: var(--accent-dp); text-decoration-color: var(--rule-firm); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: var(--accent); }
   a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
     outline: 2px solid var(--accent); outline-offset: 2px;
   }
 
-  .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 30px; align-items: start; }
-  .cols > * { min-width: 0; }
-  .stack { display: flex; flex-direction: column; gap: 22px; }
+  .shell { max-width: 1360px; margin: 0 auto; padding: var(--s6) var(--s5) var(--s7); }
 
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 22px 24px; }
-  .card > h2 { font-family: var(--serif); font-size: 21px; font-weight: 600; margin-bottom: 4px; }
-  .card > .sub { color: var(--muted); font-size: 14.5px; margin-bottom: 16px; }
+  /* ---- masthead: the one flourish, a stacked-window glyph ---- */
+  header.masthead { display: flex; gap: var(--s5); align-items: flex-start; padding-bottom: var(--s5); border-bottom: 1px solid var(--rule-firm); }
+  .zstack { flex: 0 0 auto; width: 46px; height: 40px; position: relative; margin-top: 6px; }
+  .zstack i { position: absolute; display: block; border: 1.5px solid var(--rule-firm); border-radius: 2px; background: var(--card); }
+  .zstack i:nth-child(1) { left: 0;  top: 12px; width: 32px; height: 26px; }
+  .zstack i:nth-child(2) { left: 7px; top: 6px;  width: 32px; height: 26px; }
+  .zstack i:nth-child(3) { left: 14px; top: 0;   width: 32px; height: 26px; border-color: var(--accent); box-shadow: 0 1px 0 rgba(47,93,140,.18); }
+  .zstack i:nth-child(3)::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 6px; background: var(--accent); opacity: .82; border-radius: 1px 1px 0 0; }
 
-  .table-scroll { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: 15px; }
-  th, td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
-  th { font-size: 12.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-  tr:last-child td { border-bottom: 0; }
-  td.detail { color: var(--muted); }
+  .masthead h1 { font-family: var(--serif); font-size: 30px; line-height: 1.2; font-weight: 600; text-wrap: balance; letter-spacing: -0.01em; }
+  .masthead .sub { color: var(--ink-soft); margin-top: var(--s2); max-width: 62ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin-top: var(--s4); font-size: 13.5px; color: var(--ink-soft); }
+  .facts span strong { color: var(--ink); font-weight: 600; }
 
-  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13.5px; }
+  /* ---- two-column frame ---- */
+  .frame { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--s6); margin-top: var(--s6); align-items: start; }
+  .frame > * { min-width: 0; }              /* REQUIRED: else a table cell scrolls the page sideways */
+  @media (max-width: 940px) { .frame { grid-template-columns: minmax(0, 1fr); gap: var(--s5); } }
 
-  .pill { display: inline-block; font-size: 12.5px; font-weight: 600; letter-spacing: 0.03em; padding: 2px 9px; border-radius: 11px; white-space: nowrap; }
-  .pill.pass { background: #e6f1ea; color: var(--pass); }
-  .pill.fail { background: #fbe9e7; color: var(--fail); }
-  .pill.skip { background: var(--skip-soft); color: var(--skip); }
-  .pill.clean { background: var(--accent-soft); color: var(--accent); }
+  section + section { margin-top: var(--s6); }
+  h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: -0.005em; margin-bottom: var(--s3); }
+  h2 .n { font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--ink-faint); margin-left: var(--s2); vertical-align: 2px; }
 
-  .commits li { padding: 11px 0; border-bottom: 1px solid var(--border); }
-  .commits li:last-child { border-bottom: 0; }
-  .commits .msg { font-weight: 600; }
-  .commits .note { color: var(--muted); font-size: 14.5px; margin-top: 2px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 5px; }
+  .card + .card { margin-top: var(--s4); }
 
-  .notes p { margin-bottom: 12px; }
-  .notes p:last-child { margin-bottom: 0; }
-  .notes code { font-family: var(--mono); font-size: 13.5px; background: #f1f3ef; padding: 1px 5px; border-radius: 3px; }
+  /* ---- tables ---- */
+  .tw { overflow-x: auto; }
+  table { width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 9px var(--s4); border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; background: #fbfaf7; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 500; white-space: nowrap; }
+  td.note { color: var(--ink-soft); }
 
-  .item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 20px 22px; }
-  .item h3 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin-bottom: 8px; text-wrap: balance; }
-  .item .desc { font-size: 15px; margin-bottom: 14px; }
-  .item .desc p + p { margin-top: 10px; }
-  .tag { display: inline-block; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--border-strong); border-radius: 10px; padding: 1px 8px; margin-bottom: 10px; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; white-space: nowrap; }
+  .pill.ok   { color: var(--ok);   background: #e8f2ea; }
+  .pill.bad  { color: var(--bad);  background: #f8e9e6; }
+  .pill.hold { color: var(--hold); background: #f7efdd; }
+  .pill.off  { color: var(--off);  background: #efece5; }
 
-  .opts { display: flex; flex-direction: column; gap: 2px; }
-  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 9px 8px; border-radius: 4px; }
-  .opt:hover { background: #f7f8f5; }
-  .opt input[type=radio] { margin-top: 4px; }
-  .opt .label { font-size: 15px; }
-  .opt .foot { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
-  .rec { font-size: 11.5px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-left: 6px; }
-  .leave-comment { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); white-space: nowrap; padding-top: 3px; }
-  .other-input, .notes-input {
-    width: 100%; font: inherit; font-size: 14.5px; padding: 7px 9px;
-    border: 1px solid var(--border-strong); border-radius: 4px; background: #fcfdfb; color: var(--ink);
-  }
-  .other-input { margin-top: 6px; }
-  .notes-label { display: block; font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 5px; }
+  /* ---- lists ---- */
+  .rows > li { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--rule); }
+  .rows > li:last-child { border-bottom: none; }
+  .rows .head { display: flex; gap: var(--s3); align-items: baseline; flex-wrap: wrap; }
+  .rows .who { font-weight: 600; }
+  .rows .detail { color: var(--ink-soft); font-size: 14px; margin-top: var(--s1); }
+  .commit { display: grid; grid-template-columns: auto 1fr; gap: var(--s1) var(--s3); }
+  .commit dt { font-family: var(--mono); font-size: 12.5px; }
+  .commit dd { color: var(--ink-soft); }
 
-  .copyback textarea { width: 100%; min-height: 220px; font-family: var(--mono); font-size: 13px; line-height: 1.5; margin-top: 12px; }
-  button.copy {
-    font: inherit; font-weight: 600; font-size: 15px; cursor: pointer;
-    background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 10px 18px;
-  }
-  button.copy:hover { background: #24544b; }
-  .copied { margin-left: 10px; font-size: 14px; color: var(--pass); opacity: 0; transition: opacity .15s; }
-  .copied.show { opacity: 1; }
+  /* ---- decisions ---- */
+  .decision { padding: var(--s4) var(--s4) var(--s3); }
+  .decision > h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; margin-bottom: var(--s2); text-wrap: balance; }
+  .kind { font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: var(--s1); }
+  .decision p { color: var(--ink-soft); font-size: 14px; }
+  .decision p + p { margin-top: var(--s2); }
+  .opts { margin-top: var(--s3); border-top: 1px solid var(--rule); }
+  .opt { display: flex; gap: var(--s3); align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--rule); }
+  .opt:last-child { border-bottom: none; }
+  .opt input[type=radio] { margin-top: 4px; flex: 0 0 auto; accent-color: var(--accent); }
+  .opt .body { flex: 1 1 auto; min-width: 0; }
+  .opt .lab { font-weight: 500; font-size: 14px; }
+  .opt .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); background: var(--wash); padding: 1px 6px; border-radius: 3px; margin-left: 6px; white-space: nowrap; }
+  .opt .cost { display: block; font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+  .opt .leavec { flex: 0 0 auto; display: flex; gap: 5px; align-items: center; font-size: 12px; color: var(--ink-faint); white-space: nowrap; }
+  .opt .leavec input { accent-color: var(--accent); }
+  .oth { margin-top: var(--s1); }
+  .oth input { width: 100%; padding: 5px 8px; border: 1px solid var(--rule-firm); border-radius: 3px; background: #fdfcfa; font-size: 13.5px; }
+  .notes { margin-top: var(--s3); }
+  .notes label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; margin-bottom: var(--s1); }
+  .notes textarea { width: 100%; min-height: 52px; padding: var(--s2); border: 1px solid var(--rule-firm); border-radius: 3px; background: #fdfcfa; font-size: 13.5px; resize: vertical; }
 
-  footer.foot { margin-top: 36px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13.5px; }
+  /* ---- recorded outcome (replaces the live controls once answered) ---- */
+  .outcome { margin-top: var(--s3); border-top: 1px solid var(--rule); padding-top: var(--s3); }
+  .outcome dl { display: grid; grid-template-columns: auto 1fr; gap: var(--s2) var(--s3); font-size: 13.5px; }
+  .outcome dt { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; padding-top: 3px; white-space: nowrap; }
+  .outcome dd { color: var(--ink); }
+  .outcome dd.said { font-weight: 500; }
+  .outcome dd.did { color: var(--ink-soft); }
+  .outcome dd.quote { color: var(--ink-soft); font-style: italic; }
 
-  @media (max-width: 900px) {
-    .cols { grid-template-columns: minmax(0, 1fr); }
-    .wrap { padding: 28px 18px 56px; }
-    h1 { font-size: 27px; }
-    .opt { grid-template-columns: auto minmax(0, 1fr); }
-    .leave-comment { grid-column: 2; padding-top: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  /* ---- copy-back ---- */
+  #copyback { padding: var(--s4); }
+  #copyback h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+  #copyback p { color: var(--ink-soft); font-size: 14px; margin-top: var(--s1); }
+  .cbrow { display: flex; gap: var(--s3); align-items: center; margin-top: var(--s3); }
+  #copybtn { background: var(--accent); color: #fff; border: 1px solid var(--accent-dp); border-radius: 4px; padding: 7px 15px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  #copybtn:hover { background: var(--accent-dp); }
+  #done { font-size: 13px; color: var(--ok); font-weight: 600; opacity: 0; transition: opacity .18s; }
+  #done.on { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #done { transition: none; } }
+  #payload { width: 100%; min-height: 190px; margin-top: var(--s3); padding: var(--s3); border: 1px solid var(--rule-firm); border-radius: 3px; background: #fbfaf7; font-family: var(--mono); font-size: 12px; line-height: 1.55; resize: vertical; }
+
+  footer { margin-top: var(--s6); padding-top: var(--s4); border-top: 1px solid var(--rule-firm); font-size: 13px; color: var(--ink-faint); }
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="shell">
 
-<header class="masthead">
-  <div class="kicker">Preflight report · 31 August 2026</div>
-  <h1>Bring the main window to the front when reopening a collection</h1>
-  <div class="masthead-links">
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">Pull request #8268 (ready for review)</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268/files" target="_blank" rel="noopener">Files changed</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268/commits" target="_blank" rel="noopener">Commits</a>
-    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16784" target="_blank" rel="noopener">BL-16784 on YouTrack</a>
-    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">Devin review</a>
+  <header class="masthead">
+    <div class="zstack" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div>
+      <h1>Preflight — Bloom opens behind Chrome after changing collections</h1>
+      <p class="sub">The fix is unchanged in substance since John's review; what this run did was
+        get the answer to his two comments onto GitHub, fold in the base branch, and put every
+        reviewer back through the gauntlet.</p>
+      <p class="facts">
+        <span><strong>BL-16784</strong></span>
+        <span>PR <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">#8268</a>
+          (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8268/files" target="_blank" rel="noopener">files</a> ·
+           <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268/commits" target="_blank" rel="noopener">commits</a>)</span>
+        <span>base <strong>Version6.5</strong></span>
+        <span>HEAD <span class="numeral">85185f62</span></span>
+        <span>3 Sep 2026, 17:50 UTC</span>
+      </p>
+    </div>
+  </header>
+
+  <div class="frame">
+
+    <!-- ================= LEFT: the report ================= -->
+    <div>
+
+      <section>
+        <h2>Quality gate</h2>
+        <div class="card tw">
+          <table>
+            <thead>
+              <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="what">C# build</td>
+                <td><span class="pill ok">pass</span></td>
+                <td class="note">Built twice — before and after the base merge — through <code>build/agent-dotnet.sh</code>.</td>
+              </tr>
+              <tr>
+                <td class="what">C# tests <span class="numeral">(NUnit)</span></td>
+                <td><span class="pill ok">pass</span></td>
+                <td class="note"><span class="numeral">3313 passed · 0 failed · 13 skipped</span> — the whole <code>BloomTests</code> suite, run twice: at <span class="numeral">b148a5da</span> (<span class="numeral">3m24s</span>) and again at final HEAD <span class="numeral">85185f62</span> (<span class="numeral">3m04s</span>). Includes the two new <code>StartupScreenManagerTests</code> cases.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript tests <span class="numeral">(vitest)</span></td>
+                <td><span class="pill off">not run</span></td>
+                <td class="note">No front-end in the diff. The six changed files are all C#; nothing the vitest suite reads, builds or asserts on is touched.</td>
+              </tr>
+              <tr>
+                <td class="what">TypeScript typecheck</td>
+                <td><span class="pill off">not run</span></td>
+                <td class="note">Same reason — no <code>.ts</code>, <code>.tsx</code> or <code>.less</code> in the diff for it to check.</td>
+              </tr>
+              <tr>
+                <td class="what">ESLint</td>
+                <td><span class="pill off">not run</span></td>
+                <td class="note">Same reason.</td>
+              </tr>
+              <tr>
+                <td class="what">Base merge</td>
+                <td><span class="pill ok">clean</span></td>
+                <td class="note"><code>origin/Version6.5</code> merged with no conflicts — eight commits, 23 files, mostly the AI Image Editor work. Re-gated afterwards.</td>
+              </tr>
+              <tr>
+                <td class="what">Mergeable</td>
+                <td><span class="pill ok">yes</span></td>
+                <td class="note">GitHub reports <code>MERGEABLE</code>; the branch is now level with its base.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>What changed this run</h2>
+        <div class="card">
+          <ul class="rows">
+            <li>
+              <div class="head"><span class="who">The push itself was the substantive act</span></div>
+              <p class="detail">Commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/b2c563348b771bcf215910d66cbf682fd42e526d" target="_blank" rel="noopener"><span class="numeral">b2c5633</span></a>
+                — the comment rewording answering John's two review comments — existed only on your machine.
+                Your "Done. I changed the comment." replies were already on both Reviewable threads, so John
+                was being asked to re-review wording that GitHub did not yet have. It is now pushed.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Base folded in</span></div>
+              <p class="detail">Commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/b148a5dab8a77667b33db7c5209946dbb4ca28e5" target="_blank" rel="noopener"><span class="numeral">b148a5da</span></a>
+                merges <code>origin/Version6.5</code>, which the branch was eight commits behind. Clean merge; the
+                full C# suite is green on the merged result.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">QA test notes corrected on the card</span></div>
+              <p class="detail">The existing <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16784" target="_blank" rel="noopener">BL-16784</a>
+                test-ideas comment told the tester that Linux was unaffected. That was wrong, and it has been
+                rewritten in place — see the Linux decision opposite. Nothing else in those notes needed changing;
+                every other claim still matches the code.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Two review decisions written into the source</span></div>
+              <p class="detail">Commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/85185f62b9067c78dda6dec4b5e8855b3e4edeb6" target="_blank" rel="noopener"><span class="numeral">85185f62</span></a>
+                is the "leave comment" half of the answers that came back: why the topmost hold is
+                cross-platform on purpose, and why <code>ReallyComeToFront</code> is not inlined. Comments
+                only — no behavior change, and the gate and full suite were re-run on it.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">No behavior was changed by preflight</span></div>
+              <p class="detail">The one code finding this run produced was deferred rather than applied, at
+                your direction — see the decisions opposite.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Reviewer outcomes</h2>
+        <div class="card">
+          <ul class="rows">
+            <li>
+              <div class="head"><span class="who">Local review</span> <span class="pill ok">clean</span></div>
+              <p class="detail">Light pass, done inline over the working diff. No correctness findings.
+                Two things were checked closely and both hold: <code>ReallyComeToFront</code> now sets
+                <code>_finishedLoading</code> from a second place, but that call sits after
+                <a href="https://github.com/BloomBooks/BloomDesktop/blob/b148a5dab8a77667b33db7c5209946dbb4ca28e5/src/BloomExe/Program.cs#L1911" target="_blank" rel="noopener"><code>ProjectWindow.Show()</code></a>,
+                so <code>Shell_Load</code> has already restored the saved bounds and the BL-1036 guard still
+                works; and the widening of the static <code>Shell.ComeToFront()</code> reaches only the two
+                Bloom Library handlers in <code>ExternalApi</code>, where the user has just clicked something
+                expecting Bloom to surface.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Devin</span> <span class="pill hold">complete — 1 finding, recorded</span></div>
+              <p class="detail">Ran twice, once per push, and reached a terminal result both times. It raised
+                one non-severe bug about overlapping raise timers on <span class="numeral">b148a5da</span>, and
+                the same one again on <span class="numeral">85185f62</span> — correctly, since the decision was
+                to defer the fix, so that code is unchanged. It is mirrored once as
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#discussion_r3927024555" target="_blank" rel="noopener">a review thread</a>,
+                now <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#discussion_r3927118919" target="_blank" rel="noopener">answered and resolved</a>
+                with the deferral. No Investigate flags, no Informational items, no duplicate thread on the
+                second run.
+                <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">Devin's review page</a>.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Greptile</span> <span class="pill hold">timed out after 30 min</span></div>
+              <p class="detail">Greptile reviewed the PR when it was opened on 31 Aug
+                (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#issuecomment-5484129003" target="_blank" rel="noopener">summary, no findings</a>)
+                but produced neither a check run nor a comment for <em>either</em> of this run's two pushes
+                inside the 30-minute cap, so its verdict still covers the 31 August code rather than what is on
+                GitHub now. Recorded as a timeout, not a pass. Its trigger is configured in the Greptile app
+                rather than in this repo, so there is nothing branch-side to change.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">CI — <code>pr-automation</code></span> <span class="pill ok">pass</span></div>
+              <p class="detail">Green for both pushes — <span class="numeral">31s</span> on
+                <span class="numeral">b148a5da</span>, and again on <span class="numeral">85185f62</span>.
+                It is also what triggers Devin each time.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Reviewable — <code>code-review/reviewable</code></span> <span class="pill hold">human gate</span></div>
+              <p class="detail">Shows pending with two discussions waiting on
+                <a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8268" target="_blank" rel="noopener">John</a>.
+                This is a person's review, not a bot to wait out: both threads already have your replies, and the
+                push is what lets him see the code behind them. Left alone by preflight.</p>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2>Session notes</h2>
+        <div class="card">
+          <ul class="rows">
+            <li>
+              <div class="head"><span class="who">The answers arrived mid-run, so this page is a record</span></div>
+              <p class="detail">Steve returned the decision block while the reviewer wait was still running,
+                rather than after the report was published. So the right-hand column shows outcomes instead of
+                controls, and the two "leave comment" answers are already in the source. The one cost is that
+                the PR's head sha moved after John's queue was populated — he will be looking at
+                <span class="numeral">85185f62</span>, whose only difference from
+                <span class="numeral">b148a5da</span> is comment text.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">The PR was left ready-for-review, deliberately</span></div>
+              <p class="detail">Preflight's rule is to push a ready PR back to draft. You chose to leave it
+                ready, because John's re-review is queued and pushing <span class="numeral">b2c5633</span> is
+                exactly what unblocks it — converting to draft would have parked him. Recorded as a deviation.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Tracker links were already in place</span></div>
+              <p class="detail">A previous run had posted the PR link and this report's URL to BL-16784, so
+                neither was duplicated. The report URL is stable per branch, so this page replaces the old one
+                at the same address.</p>
+            </li>
+            <li>
+              <div class="head"><span class="who">Commits on the branch</span></div>
+              <dl class="commit">
+                <dt><a href="https://github.com/BloomBooks/BloomDesktop/commit/85185f62b9067c78dda6dec4b5e8855b3e4edeb6" target="_blank" rel="noopener">85185f62</a></dt><dd>Record two review decisions as code comments (this run)</dd>
+                <dt><a href="https://github.com/BloomBooks/BloomDesktop/commit/b148a5dab8a77667b33db7c5209946dbb4ca28e5" target="_blank" rel="noopener">b148a5da</a></dt><dd>Merge <code>origin/Version6.5</code> (this run)</dd>
+                <dt><a href="https://github.com/BloomBooks/BloomDesktop/commit/b2c563348b771bcf215910d66cbf682fd42e526d" target="_blank" rel="noopener">b2c5633</a></dt><dd>Fix comments as suggested by code review</dd>
+                <dt><a href="https://github.com/BloomBooks/BloomDesktop/commit/1afdf537e077e08d34fbb46563d188250fb5dd65" target="_blank" rel="noopener">1afdf537</a></dt><dd>Merge <code>origin/Version6.5</code></dd>
+                <dt><a href="https://github.com/BloomBooks/BloomDesktop/commit/346cb57b15b805c74a5730ad9c777e5960f1fd18" target="_blank" rel="noopener">346cb57b</a></dt><dd>Bring the main window to the front when reopening a collection</dd>
+              </dl>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT: decisions ================= -->
+    <div>
+      <h2>Decisions — answered <span class="n">nothing outstanding</span></h2>
+
+      <div class="card decision">
+        <span class="kind">Status</span>
+        <h3>All five were answered and acted on</h3>
+        <p>Steve returned the answers below during the run, so this page is a record rather than a
+          form. Each item shows what was decided and what was done about it. The two "leave comment"
+          ticks became real comments in the source, in commit
+          <a href="https://github.com/BloomBooks/BloomDesktop/commit/85185f62b9067c78dda6dec4b5e8855b3e4edeb6" target="_blank" rel="noopener"><span class="numeral">85185f62</span></a>
+          — comments only, no behavior change.</p>
+      </div>
+
+      <div class="card decision" data-item="timers">
+        <span class="kind">Decision · from Devin</span>
+        <h3>Two raises close together can cut each other's protection short</h3>
+        <p>When Bloom brings its window to the front, it pins the window "always on top" for a second and a
+          half and then releases it. That brief pin is what wins the race against whatever application grabbed
+          the foreground while Bloom had no window — it is the heart of this fix.</p>
+        <p>Each raise starts its <em>own</em> release timer, and none of them know about the others. So if
+          Bloom raises the window twice inside that second and a half, the first timer comes due and releases
+          the pin early — while the second raise still thought it was protected. Raise at zero and again at one
+          second, and the pin drops half a second into the second raise instead of a second and a half. A
+          foreground change arriving in that gap can put Bloom back behind another window, which is the exact
+          symptom this card is about.</p>
+        <p>Devin rates it non-severe, and it takes two raises of the same window spaced far enough apart to
+          matter. The realistic routes are two Bloom Library downloads in quick succession (both handlers call
+          <code>Shell.ComeToFront()</code>) or a dialog shown, hidden and re-shown inside a second and a half.
+          It is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#discussion_r3927024555" target="_blank" rel="noopener">mirrored as an open thread</a>
+          on <a href="https://github.com/BloomBooks/BloomDesktop/blob/b148a5dab8a77667b33db7c5209946dbb4ca28e5/src/BloomExe/Extensions.cs#L105-L112" target="_blank" rel="noopener"><code>Extensions.cs:105-112</code></a>.</p>
+        <div class="outcome">
+          <dl>
+            <dt>Decided</dt><dd class="said">Leave as is</dd>
+            <dt>Steve's note</dt><dd class="quote">"do it in 6.6, not 6.5"</dd>
+            <dt>Done</dt><dd class="did">Devin's thread has the decision and the reasoning recorded on it and is
+              <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#discussion_r3927118919" target="_blank" rel="noopener">resolved</a>
+              — deferred to 6.6 deliberately, not overlooked. No code change. The QA notes on the card now
+              flag this as a known, deferred issue and ask the tester to try two quick raises, so that if it
+              does happen in practice 6.6 gets a real reproduction to work from.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card decision" data-item="linux">
+        <span class="kind">Decision · found by preflight</span>
+        <h3>Linux now gets the second-and-a-half "always on top" hold too</h3>
+        <p>Two separate things happen when Bloom comes to the front. It pins the window above the others for a
+          second and a half, and — separately — it takes the keyboard focus by force. Only the second of those
+          is guarded by a Windows check. The pin runs everywhere.</p>
+        <p>That matters because the old code in <code>ReallyComeToFront</code> flipped "always on top" on and
+          straight back off, with no hold at all. So on Linux, switching collections now leaves Bloom sitting
+          above other windows for a second and a half where it previously did not. Nothing in the PR's comments
+          mentions Linux, so this looks more like a side effect of reusing the helper than a decision anyone
+          made. Whether it is harmless depends on the window manager: the visible risk is a dialog Bloom itself
+          opens right afterwards — the Team Collection sync progress dialog is the one to think about — being
+          held under the main window for that moment.</p>
+        <div class="outcome">
+          <dl>
+            <dt>Decided</dt><dd class="said">Leave as is</dd>
+            <dt>Steve's note</dt><dd class="quote">"We don't current[ly] build/test on Linux."</dd>
+            <dt>Done</dt><dd class="did">Recorded as a code comment on
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/85185f62b9067c78dda6dec4b5e8855b3e4edeb6/src/BloomExe/Extensions.cs#L84" target="_blank" rel="noopener"><code>BringToFrontNow</code></a>:
+              the hold is cross-platform on purpose, only the foreground grab is Windows-only, and it is
+              unverified on Linux because we do not build or test there.</dd>
+            <dt>Also</dt><dd class="did">That note changed the QA side of this. My first pass had added a
+              Linux section to the test notes asking a tester to check exactly this — which would have sent
+              someone to do work that cannot happen. It has been rewritten to ask for <em>no</em> Linux
+              testing and simply record what would need looking at if Linux testing ever resumes.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card decision" data-item="john">
+        <span class="kind">FYI · no action needed from preflight</span>
+        <h3>John's second comment is still open, and that is correct</h3>
+        <p>John asked whether <code>ReallyComeToFront</code> still earns its keep, since the class now has two
+          similarly-named methods, and suggested inlining it. You answered that it also sets an internal flag
+          and has three callers, so it cannot simply be inlined. That is a disagreement with a human reviewer,
+          which preflight does not settle on its own — the thread stays open for John, and the push is what
+          finally shows him the code your reply describes.</p>
+        <p>Worth knowing: the flag in question, <code>_finishedLoading</code>, is what lets Bloom save the
+          window size and position on Linux, and the fact that the reopen path never used to set it is why
+          Bloom stopped remembering its geometry after a collection switch. That is a concrete second job for
+          the method, if it helps the discussion.</p>
+        <div class="outcome">
+          <dl>
+            <dt>Decided</dt><dd class="said">Leave as is</dd>
+            <dt>Done</dt><dd class="did">Recorded as a code comment on
+              <a href="https://github.com/BloomBooks/BloomDesktop/blob/85185f62b9067c78dda6dec4b5e8855b3e4edeb6/src/BloomExe/Shell.cs#L396" target="_blank" rel="noopener"><code>ReallyComeToFront</code></a>
+              — that review asked about inlining it, and it stays because it also sets the flag that allows
+              the window size and location to be saved, and has three callers. The next reader gets the
+              answer without having to reconstruct it.</dd>
+            <dt>Not done</dt><dd class="did">Nothing was posted to John's thread and it was not resolved. It
+              is his discussion to close, and preflight does not argue with a human reviewer on your behalf.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card decision" data-item="greptile">
+        <span class="kind">FYI</span>
+        <h3>Greptile never picked up this push</h3>
+        <p>Greptile reviewed the PR when it was opened and found nothing. For this push it produced no check
+          and no comment inside the wait, so its verdict covers the 31 August code rather than what is on
+          GitHub now. Since the only code difference between those two states is comment wording plus a base
+          merge, that gap is not worth much — but it is a gap, and it is not something this branch can fix:
+          the trigger lives in the Greptile app's settings, not in the repo.</p>
+        <div class="outcome">
+          <dl>
+            <dt>Decided</dt><dd class="said">Leave as is</dd>
+            <dt>Done</dt><dd class="did">Nothing — recorded here so the gap is visible rather than mistaken
+              for a clean pass.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card decision" data-item="next">
+        <span class="kind">Next step</span>
+        <h3>Where should this go from here?</h3>
+        <p>Nothing is blocking. The branch is green, integrated and mergeable, and the PR is sitting in John's
+          queue with the code behind your replies now visible to him.</p>
+        <div class="outcome">
+          <dl>
+            <dt>Decided</dt><dd class="said">Nothing more from me — it's John's turn</dd>
+            <dt>Note</dt><dd class="did">The two "leave comment" ticks did mean one more commit
+              (<span class="numeral">85185f62</span>, comments only), so the PR's head sha moved after the
+              answers came back. John will be reviewing that sha rather than
+              <span class="numeral">b148a5da</span>; the code it contains is identical.</dd>
+          </dl>
+        </div>
+      </div>
+
+    </div>
   </div>
-  <div class="masthead-meta">
-    <span>Branch <span class="numeral">BL-16784-BloomRestartsBehindChrome</span></span>
-    <span>Base <span class="numeral">Version6.5</span></span>
-    <span>Head <span class="numeral">1afdf537</span></span>
-    <span>Mergeable, no conflicts</span>
-  </div>
-</header>
 
-<div class="cols">
-
-  <!-- ================= LEFT: the report ================= -->
-  <div class="stack">
-
-    <section class="card">
-      <h2>Quality gate</h2>
-      <p class="sub">Run against the final head commit, after the base branch was merged in.</p>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>C# build</td>
-              <td><span class="pill pass">pass</span></td>
-              <td class="detail">The .NET equivalent of a typecheck: <span class="numeral">BloomExe.csproj</span> builds with no errors.</td>
-            </tr>
-            <tr>
-              <td>Lint — CSharpier</td>
-              <td><span class="pill pass">pass</span></td>
-              <td class="detail">Format check clean across <span class="numeral">567</span> files; the pre-commit hook also reformatted nothing.</td>
-            </tr>
-            <tr>
-              <td>C# tests</td>
-              <td><span class="pill pass">pass</span></td>
-              <td class="detail">Full suite: <span class="numeral">3297 passed · 13 skipped · 0 failed</span> in 3 m 28 s.</td>
-            </tr>
-            <tr>
-              <td>Front-end tests (Vitest)</td>
-              <td><span class="pill skip">not run</span></td>
-              <td class="detail">No TypeScript, TSX or LESS in the diff — every changed file is C#, and nothing the front-end suite reads was touched.</td>
-            </tr>
-            <tr>
-              <td>Base integration</td>
-              <td><span class="pill pass">clean</span></td>
-              <td class="detail">Merged <span class="numeral">origin/Version6.5</span> before pushing; the only incoming change was <span class="numeral">build/Bloom.proj</span>, no conflicts.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>What changed this run</h2>
-      <p class="sub">The branch had no commits before this run — all of the work below was committed here.</p>
-      <ul class="commits">
-        <li>
-          <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/346cb57b1" target="_blank" rel="noopener">346cb57b1</a> — Bring the main window to the front when reopening a collection</div>
-          <div class="note">
-            The fix itself. Switching collections closes Bloom's window and opens a new one in the same process, and nothing brought that new window forward, so Windows left it behind whatever had taken the foreground. The gate now lives in
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/1afdf537e077e08d34fbb46563d188250fb5dd65/src/BloomExe/Program.cs#L1911" target="_blank" rel="noopener">Program.cs:1911</a>,
-            reading the new predicate at
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/1afdf537e077e08d34fbb46563d188250fb5dd65/src/BloomExe/MiscUI/StartupScreenManager.cs#L187" target="_blank" rel="noopener">StartupScreenManager.cs:187</a>;
-            the shared raise-the-window helper is
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/1afdf537e077e08d34fbb46563d188250fb5dd65/src/BloomExe/Extensions.cs#L98" target="_blank" rel="noopener">Extensions.cs:98</a>,
-            the foreground grab is
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/1afdf537e077e08d34fbb46563d188250fb5dd65/src/BloomExe/ToPalaso/ProcessExtra.cs#L57" target="_blank" rel="noopener">ProcessExtra.cs:57</a>,
-            and
-            <a href="https://github.com/BloomBooks/BloomDesktop/blob/1afdf537e077e08d34fbb46563d188250fb5dd65/src/BloomExe/Shell.cs#L400" target="_blank" rel="noopener">Shell.cs:400</a>
-            now uses both.
-          </div>
-        </li>
-        <li>
-          <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/1afdf537e" target="_blank" rel="noopener">1afdf537e</a> — Merge origin/Version6.5 into the branch</div>
-          <div class="note">Routine integration of the base branch before publishing, so the pushed state is the one that will actually merge.</div>
-        </li>
-      </ul>
-    </section>
-
-    <section class="card">
-      <h2>Reviewer outcomes</h2>
-      <p class="sub">Every reviewer reached a terminal state for head commit <span class="numeral">1afdf537</span>.</p>
-      <div class="table-scroll">
-        <table>
-          <thead>
-            <tr><th>Reviewer</th><th>State</th><th>Findings</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Local review<br><span class="numeral">light sub-agent pass</span></td>
-              <td><span class="pill clean">clean</span></td>
-              <td class="detail">No findings. It traced every route into the changed code, checked the timer's lifetime and thread, the thread-attach cleanup, and whether the new test setup could disturb other fixtures.</td>
-            </tr>
-            <tr>
-              <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">Devin</a></td>
-              <td><span class="pill clean">complete</span></td>
-              <td class="detail">Finished in about 2½ minutes for this exact commit with nothing to report: no bugs, no Investigate flags, no Informational items. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#issuecomment-5484139418" target="_blank" rel="noopener">Consultation logged on the PR</a>.</td>
-            </tr>
-            <tr>
-              <td>Greptile</td>
-              <td><span class="pill clean">complete</span></td>
-              <td class="detail">Posted <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268#issuecomment-5484129003" target="_blank" rel="noopener">a summary of the change</a> and raised no findings — no inline comments at all.</td>
-            </tr>
-            <tr>
-              <td>CI</td>
-              <td><span class="pill pass">pass</span></td>
-              <td class="detail">Both checks green: <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/33435969938" target="_blank" rel="noopener">pr-automation</a> and the Greptile review check. Nothing was left pending.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card notes">
-      <h2>Session notes</h2>
-      <p>The bug was verified and the fix measured on the real thing, on this machine's two-monitor setup, with Bloom and Chrome both maximized on the secondary monitor — the exact arrangement in the report. Before the fix, after a collection switch Bloom's window was not even in the top twelve of the window stacking order, with Chrome still in front. After it, Chrome held the foreground going in, and Bloom came out on top and focused.</p>
-      <p>An intermediate measurement is worth knowing about, because it shaped the fix: making the window merely &ldquo;always on top&rdquo; for a moment was <em>not</em> enough on its own. Bloom landed directly behind Chrome, because Windows refuses to hand the foreground to an application that does not already have it, so the raised window was never the active one and slipped back under Chrome the moment the pin was released. That is why the change also takes the keyboard focus outright.</p>
-      <p>The one interaction this change could plausibly disturb — switching <em>into</em> a Team Collection, where the syncing progress dialog appears in the same second-and-a-half that Bloom is pinned on top — was checked by hand by the developer after this run: <strong>the dialog stayed on top</strong>. It stays in the tester notes on the card so it is also exercised in a second environment.</p>
-      <p>Also fixed as a side effect: <code>_finishedLoading</code> is set only by the come-to-front code, and Bloom refuses to save its window size and position until that flag is set — so before this change, a collection switch quietly stopped Bloom remembering its window geometry for the rest of the session.</p>
-    </section>
-
-  </div>
-
-  <!-- ================= RIGHT: decisions ================= -->
-  <div class="stack">
-
-    <section class="card notes">
-      <h2>All four answered</h2>
-      <p>The developer answered every item on 31 August 2026, choosing the recommended option in each case — so the selections shown below are a record of what was decided, not an open question. The base stayed <span class="numeral">Version6.5</span>, the window-geometry fix ships with this change and no code comment was requested, the Team Collection dialog was checked by hand and behaved correctly, and the pull request has since been reviewed by the developer and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8268" target="_blank" rel="noopener">promoted out of draft to peer review</a>. The tracker card is in <span class="numeral">Ready For Code Review</span>.</p>
-    </section>
-
-    <section class="item">
-      <span class="tag">For your confirmation</span>
-      <h3>The pull request targets Version6.5, not master</h3>
-      <div class="desc">
-        <p>Bloom's own contributor notes say that when a card's summary starts with a version in square brackets, the fix belongs on that version's branch. This card is titled &ldquo;[6.5 regression] After changing collections, Bloom is invisible (behind) Chrome browser&rdquo;, and the branch was cut from the tip of <span class="numeral">Version6.5</span> — so the pull request was opened against <span class="numeral">Version6.5</span> rather than the usual <span class="numeral">master</span>.</p>
-        <p>Both readings of the title are possible: it could name the target branch, or it could simply mean &ldquo;this is a regression that appeared in 6.5&rdquo;. Because the two signals agreed, the run did not stop to ask — but retargeting a draft pull request is a single click, so it is cheap to change if the intent was different.</p>
-      </div>
-      <div class="opts">
-        <label class="opt">
-          <input type="radio" name="q-base" data-q="PR base branch" value="Keep the base as Version6.5" checked>
-          <span class="label">Keep the base as <span class="numeral">Version6.5</span><span class="rec">recommended</span>
-            <span class="foot">No work — the pull request is already pointed there. Recommended because the card's title and the branch's starting point agree, and a 6.5 regression normally ships from the 6.5 branch.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-base" data-q="PR base branch" value="Retarget the PR at master">
-          <span class="label">Retarget it at <span class="numeral">master</span>
-            <span class="foot">One command, no code change; but it would then need a separate merge forward if 6.5 is meant to get the fix.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-base" data-q="PR base branch" value="Leave as is">
-          <span class="label">Leave as is</span>
-          <span class="leave-comment"><input type="checkbox" data-q="PR base branch — leave comment"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-base" data-q="PR base branch" value="Other">
-          <span class="label">Other:
-            <input type="text" class="other-input" data-q="PR base branch — other" placeholder="Type your answer">
-          </span>
-        </label>
-      </div>
-      <label class="notes-label" for="n-base">Notes</label>
-      <textarea id="n-base" class="notes-input" rows="2" data-q="PR base branch — notes" placeholder="Anything to add"></textarea>
-    </section>
-
-    <section class="item">
-      <span class="tag">Answered — checked, and it passed</span>
-      <h3>The Team Collection syncing dialog was not tested by hand</h3>
-      <div class="desc">
-        <p><strong>Outcome:</strong> the developer chose to check it by hand and did so — switching into a Team Collection, the syncing progress dialog stayed on top of Bloom's main window. Nothing further is needed; the original write-up follows.</p>
-        <p>When Bloom brings its window forward it pins it above every other window for about a second and a half, then releases it. Switching <em>into</em> a Team Collection puts the syncing progress dialog on screen inside exactly that window of time. The dialog is opened with Bloom's main window as its owner, which normally keeps it above that window even while the window is pinned — so this is expected to be fine, but expected is not the same as seen.</p>
-        <p>It is the single most plausible way this change could make something worse, so it is written up first in the tester notes on the card. The question is only whether you want it confirmed before this goes to a colleague, or left to the tester.</p>
-      </div>
-      <div class="opts">
-        <label class="opt">
-          <input type="radio" name="q-tc" data-q="Team Collection dialog check" value="Check it by hand before human review" checked>
-          <span class="label">Check it by hand before handing this to a colleague<span class="rec">recommended</span>
-            <span class="foot">No code — a two-minute manual check: switch into a Team Collection with work to sync and watch the progress dialog. Recommended because it is the one interaction the change could plausibly break, and it is far cheaper to catch now than in review.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-tc" data-q="Team Collection dialog check" value="Shorten or remove the topmost pin instead">
-          <span class="label">Sidestep it by shortening the always-on-top moment
-            <span class="foot">~1 line, low risk, but it weakens the part of the fix that wins the race against the other application — not worth doing speculatively.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-tc" data-q="Team Collection dialog check" value="Leave as is">
-          <span class="label">Leave as is — let the tester find it if it is wrong</span>
-          <span class="leave-comment"><input type="checkbox" data-q="Team Collection dialog check — leave comment"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-tc" data-q="Team Collection dialog check" value="Other">
-          <span class="label">Other:
-            <input type="text" class="other-input" data-q="Team Collection dialog check — other" placeholder="Type your answer">
-          </span>
-        </label>
-      </div>
-      <label class="notes-label" for="n-tc">Notes</label>
-      <textarea id="n-tc" class="notes-input" rows="2" data-q="Team Collection dialog check — notes" placeholder="Anything to add"></textarea>
-    </section>
-
-    <section class="item">
-      <span class="tag">FYI</span>
-      <h3>A second bug got fixed along the way</h3>
-      <div class="desc">
-        <p>Bloom only starts saving its window size and position once an internal &ldquo;finished loading&rdquo; flag is set, and the only code that set that flag was the same come-to-front code that was never running after a collection switch. So on the current 6.5, once you switch collections, Bloom silently stops remembering where you put its window — for the rest of that session.</p>
-        <p>The fix makes that code run again, so the flag gets set and the geometry is saved. It is a real user-visible improvement that this card did not ask for, and it is included here because it is the same one-line cause, not a separate change. It is called out in the tester notes so someone actually exercises it.</p>
-      </div>
-      <div class="opts">
-        <label class="opt">
-          <input type="radio" name="q-bounds" data-q="Window-geometry side fix" value="Leave as is" checked>
-          <span class="label">Leave as is — ship it with this fix<span class="rec">recommended</span></span>
-          <span class="leave-comment"><input type="checkbox" data-q="Window-geometry side fix — leave comment"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-bounds" data-q="Window-geometry side fix" value="File a separate card for it">
-          <span class="label">File a separate card so it is tracked and released on its own
-            <span class="foot">No code — one new YouTrack card; useful if you want the release notes to mention it separately.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-bounds" data-q="Window-geometry side fix" value="Other">
-          <span class="label">Other:
-            <input type="text" class="other-input" data-q="Window-geometry side fix — other" placeholder="Type your answer">
-          </span>
-        </label>
-      </div>
-      <label class="notes-label" for="n-bounds">Notes</label>
-      <textarea id="n-bounds" class="notes-input" rows="2" data-q="Window-geometry side fix — notes" placeholder="Anything to add"></textarea>
-    </section>
-
-    <section class="item">
-      <span class="tag">Next step</span>
-      <h3>Where should this go from here?</h3>
-      <div class="desc">
-        <p>Nothing is blocking. The pull request is a draft, every reviewer came back clean, and the full C# suite passes. The remaining step in the normal sequence is your own read of the change, after which <span class="numeral">/pr-ready-for-human</span> promotes it to a colleague's review.</p>
-      </div>
-      <div class="opts">
-        <label class="opt">
-          <input type="radio" name="q-next" data-q="Next step" value="I will review it myself, then run pr-ready-for-human" checked>
-          <span class="label">You review it yourself next, then run <span class="numeral">/pr-ready-for-human</span><span class="rec">recommended</span>
-            <span class="foot">No further work from me. Recommended because the automated part of the sequence is finished and clean; the next step in the process is deliberately yours.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-next" data-q="Next step" value="Discuss the approach before going further">
-          <span class="label">Talk through the approach before going further
-            <span class="foot">No code yet — worth choosing if the foreground-grab technique deserves a conversation before a colleague sees it.</span>
-          </span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-next" data-q="Next step" value="Leave as is">
-          <span class="label">Leave as is — park it for now</span>
-          <span class="leave-comment"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q-next" data-q="Next step" value="Other">
-          <span class="label">Other:
-            <input type="text" class="other-input" data-q="Next step — other" placeholder="Type your answer">
-          </span>
-        </label>
-      </div>
-      <label class="notes-label" for="n-next">Notes</label>
-      <textarea id="n-next" class="notes-input" rows="2" data-q="Next step — notes" placeholder="Anything to add"></textarea>
-    </section>
-
-    <section class="item copyback">
-      <h3>Send your answers back</h3>
-      <div class="desc"><p>Copy this and paste it into the session; it carries every choice, note and typed answer above.</p></div>
-      <button class="copy" id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg">Copied</span>
-      <textarea id="payload" readonly rows="12"></textarea>
-    </section>
-
-  </div>
+  <footer>
+    Preflight on <code>BL-16784-BloomRestartsBehindChrome</code> at <span class="numeral">85185f62</span> ·
+    left ready-for-review rather than converted to draft, deliberately · this report regenerates at the same URL on each run.
+  </footer>
 </div>
 
-<footer class="foot">
-  Preflight run 31 August 2026 · BloomDesktop pull request #8268 · head <span class="numeral">1afdf537e077e08d34fbb46563d188250fb5dd65</span> · report regenerated at this same address on each preflight of this branch.
-</footer>
 
-</div>
-
-<script>
-(function () {
-  var payload = document.getElementById('payload');
-
-  function serialize() {
-    var lines = ['Preflight answers — BL-16784 / BloomDesktop PR 8268', ''];
-    var groups = {};
-    document.querySelectorAll('input[type=radio]').forEach(function (r) {
-      if (!groups[r.name]) groups[r.name] = r.getAttribute('data-q');
-    });
-    Object.keys(groups).forEach(function (name) {
-      var q = groups[name];
-      var chosen = document.querySelector('input[name="' + name + '"]:checked');
-      var value = chosen ? chosen.value : '(no answer)';
-      if (value === 'Other') {
-        var other = document.querySelector('input.other-input[data-q="' + q + ' — other"]');
-        var typed = other && other.value.trim();
-        value = typed ? 'Other: ' + typed : 'Other: (nothing typed)';
-      }
-      lines.push(q + ': ' + value);
-      var lc = document.querySelector('input[type=checkbox][data-q="' + q + ' — leave comment"]');
-      if (lc && lc.checked) lines.push('  Leave comment: yes — record this decision as a code comment near the relevant code');
-      var notes = document.querySelector('textarea[data-q="' + q + ' — notes"]');
-      if (notes && notes.value.trim()) lines.push('  Notes: ' + notes.value.trim());
-      lines.push('');
-    });
-    payload.value = lines.join('\n').replace(/\n+$/, '\n');
-  }
-
-  document.addEventListener('input', serialize);
-  document.addEventListener('change', serialize);
-  serialize();
-
-  document.getElementById('copyBtn').addEventListener('click', function () {
-    var msg = document.getElementById('copiedMsg');
-    function done() { msg.classList.add('show'); setTimeout(function () { msg.classList.remove('show'); }, 1600); }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, function () {
-        payload.select(); document.execCommand('copy'); done();
-      });
-    } else {
-      payload.select(); document.execCommand('copy'); done();
-    }
-  });
-})();
-</script>
 </body>
 </html>
