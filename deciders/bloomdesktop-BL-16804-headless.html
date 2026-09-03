@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Off-Screen E2E Window</title>
+<style>
+  :root {
+    --ground: #f3f2ef;
+    --card: #ffffff;
+    --ink: #1e1c19;
+    --muted: #5d5850;
+    --faint: #857f75;
+    --hair: #ddd8cf;
+    --hair-soft: #eae6de;
+    --accent: #7a4419;
+    --accent-soft: #f4ece4;
+    --pass: #2c6135;
+    --warn: #8a5a08;
+    --warn-soft: #fbf4e8;
+    --warn-hair: #e3d2ad;
+    --fail: #8c2318;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font-family: var(--sans);
+    font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+  code, .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  code { font-size: 0.88em; background: var(--accent-soft); padding: 0.1em 0.34em; border-radius: 3px; }
+
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 34px 26px 60px; }
+  header.top { border-bottom: 1px solid var(--hair); padding-bottom: 20px; margin-bottom: 26px; }
+  .eyebrow { font-size: 12px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); margin: 0 0 6px; }
+  h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0 0 8px; text-wrap: balance; }
+  .runline { color: var(--muted); margin: 0 0 14px; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { font-size: 12.5px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--hair); background: var(--card); color: var(--muted); white-space: nowrap; }
+  .chip.ok { color: var(--pass); border-color: #bcd4bf; background: #f1f7f1; }
+  .chip.attn { color: var(--warn); border-color: var(--warn-hair); background: var(--warn-soft); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+
+  section.card { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 20px 22px; margin-bottom: 22px; }
+  section.card > :first-child { margin-top: 0; }
+  section.card > :last-child { margin-bottom: 0; }
+  h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; margin: 0 0 14px; }
+  h3 { font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); margin: 18px 0 6px; font-weight: 600; }
+  p { margin: 0 0 11px; max-width: 66ch; }
+  ul { margin: 0 0 11px; padding-left: 20px; }
+  li { margin-bottom: 5px; max-width: 64ch; }
+  .lede { font-size: 15.5px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--hair-soft); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.verdict { white-space: nowrap; font-weight: 600; }
+  td.verdict.pass { color: var(--pass); }
+  td.verdict.na { color: var(--faint); font-weight: 500; }
+  td.verdict.warn { color: var(--warn); }
+  .tablewrap { overflow-x: auto; }
+
+  /* The two-environment split IS the bug, so show it as one object. */
+  .split { border: 1px solid var(--hair); border-left: 3px solid var(--fail); border-radius: 4px; background: #fdfcfb; padding: 4px 14px 12px; margin: 0 0 14px; }
+  .split table { font-size: 14px; }
+  .split td.name { font-family: var(--mono); font-size: 15px; }
+  .split td.name.a { color: var(--fail); }
+  .split td.name.b { color: var(--warn); }
+  .split .gloss { margin: 8px 0 0; font-size: 13.5px; color: var(--muted); max-width: 62ch; }
+
+  .reviewer { border-bottom: 1px solid var(--hair-soft); padding-bottom: 12px; margin-bottom: 12px; }
+  .reviewer:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+  .reviewer .who { font-weight: 600; }
+  .reviewer .state { font-size: 12.5px; color: var(--pass); font-weight: 600; margin-left: 8px; }
+  .reviewer .state.off { color: var(--faint); }
+  .reviewer .state.timeout { color: var(--warn); }
+  .reviewer p { margin: 3px 0 0; font-size: 14px; color: var(--muted); }
+
+  .q { background: var(--card); border: 1px solid var(--hair); border-radius: 5px; padding: 18px 20px; margin-bottom: 18px; }
+  .q.lead { border-left: 3px solid var(--warn); }
+  .q > h2 { font-size: 17px; margin-bottom: 10px; }
+  .q p { font-size: 14px; }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin: 12px 0 0; }
+  .opt { display: flex; gap: 9px; align-items: flex-start; padding: 8px 10px; border-radius: 4px; }
+  .opt:hover { background: #faf8f5; }
+  .opt input[type="radio"], .opt input[type="checkbox"] { margin: 3px 0 0; flex: none; }
+  .opt .lbl { font-size: 14px; }
+  .opt .rec { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); font-weight: 700; margin-left: 6px; }
+  .opt .fc { display: block; font-size: 12.5px; color: var(--faint); margin-top: 2px; }
+  .leaverow { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .leaverow > label:first-child { flex: 1 1 auto; }
+  .leavecomment { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); white-space: nowrap; flex: none; padding-top: 9px; }
+  input[type="text"], textarea {
+    font-family: var(--sans); font-size: 14px; color: var(--ink);
+    border: 1px solid var(--hair); border-radius: 4px; padding: 6px 8px; background: #fdfdfc; width: 100%;
+  }
+  .otherrow { display: flex; gap: 9px; align-items: center; padding: 8px 10px; }
+  .otherrow input[type="text"] { flex: 1 1 auto; min-width: 0; }
+  .notes { margin-top: 11px; }
+  .notes label { display: block; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--faint); font-weight: 600; margin-bottom: 4px; }
+  .notes textarea { min-height: 52px; resize: vertical; }
+
+  #copyback button {
+    font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff; background: var(--accent);
+    border: none; border-radius: 4px; padding: 9px 18px; cursor: pointer;
+  }
+  #copyback button:hover { background: #63360f; }
+  #copyback .done { font-size: 13px; color: var(--pass); margin-left: 10px; font-weight: 600; }
+  #payload { min-height: 160px; margin-top: 12px; font-family: var(--mono); font-size: 12.5px; resize: vertical; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  :root:not([data-theme="light"]) { color-scheme: light; }
+</style></head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Preflight · BloomDesktop · BL-16804</p>
+  <h1>One variable decides where an e2e run's windows go</h1>
+  <p class="runline">Branch <code>BL-16804-headless</code> → <code>master</code>, at
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/6f2a42d2445a47090e0aa193ebde2852d5d416fd" target="_blank" rel="noopener"><code>6f2a42d</code></a>.
+    Split out of BL-16799 so this change can be reviewed on its own. Verified against a real Bloom,
+    not only unit tests.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">CI pass</span>
+    <span class="chip ok">Devin terminal</span>
+    <span class="chip attn">Greptile out of credits</span>
+    <span class="chip attn">3 items for you</span>
+  </div>
+</header>
+
+<div class="cols">
+<div>
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+
+    <h3>Problem</h3>
+    <p class="lede">Every run of the <code>src/BloomE2E</code> suite opened a real Bloom window on
+      the developer's desktop, which makes the suite unusable while working. Three separate controls
+      decided where that window went, and none of them was discoverable: an environment variable
+      <code>BLOOM_AUTOMATION_MONITOR</code> that only the main window read, a silent fallback to the
+      primary monitor, and a <code>BLOOM_E2E_HEADED</code> variable in the Playwright fixture.</p>
+
+    <h3>What the PR does</h3>
+    <p><code>BLOOM_AUTOMATION_MONITOR</code> becomes the one control, and every window an automation
+      run opens obeys it, the splash screen included.</p>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Value</th><th>What happens</th></tr>
+      <tr><td><code>headless</code>, or <code>0</code></td><td>Every window opens far outside every monitor. You see nothing, so a run can go on while you work.</td></tr>
+      <tr><td>a monitor number, counted left to right</td><td>Every window opens on that monitor. Monitor 1 is the leftmost.</td></tr>
+      <tr><td>unset, or anything Bloom cannot use</td><td>Bloom places its windows as it always does, so a typo shows you a window rather than hiding one.</td></tr>
+    </table>
+    </div>
+    <p>The variable applies only under <code>--automation</code>, so a Bloom you start yourself is
+      unaffected however it is set. <code>--debug</code> clears an off-screen setting, because
+      stepping through a test whose window you cannot see is pointless. The nightly workflow now
+      asks for <code>headless</code> explicitly. The old <code>Shell.GetAutomationScreen()</code>,
+      the <code>--headless</code> flag and <code>BLOOM_E2E_HEADED</code> are gone.</p>
+
+    <h3>Four things that are not obvious</h3>
+    <p>Each of these has a code comment where it matters, because each was found the hard way.</p>
+    <ul>
+      <li>The window moves <strong>off every monitor rather than minimizing or hiding</strong>.
+        WebView2 stops painting a minimized window, so every screenshot would come back blank.
+        Windows then reports a far-off-screen window as occluded, so Chromium also needs
+        <code>CalculateNativeWinOcclusion</code> disabled and
+        <code>--disable-backgrounding-occluded-windows</code>.</li>
+      <li><code>ShowInTaskbar</code> is set <strong>in the constructor</strong>. Assigning it to a
+        form that is already showing makes WinForms recreate every handle, the WebView2 host
+        included, which breaks navigation.</li>
+      <li>The off-screen window goes <strong>straight down from the primary monitor</strong>, and
+        leaves four window heights of clearance. Both numbers are about DPI, not about space.
+        Windows gives a window the scale factor of the monitor <em>nearest</em> to it, and this
+        process asks for a size in the primary monitor's own scaled pixels; going sideways makes
+        another monitor nearest, so the window is reinterpreted at its scale. Going down keeps the
+        primary nearest on an ordinary side-by-side layout. Four heights, because Windows scales a
+        monitor by at most 400%. Every unit test passed over both bugs this caused, because they
+        compare in the test process's own coordinates; only real window rectangles showed them.</li>
+      <li>An automation run <strong>never writes the saved window placement</strong>, because every
+        Bloom of one build shares one <code>user.config</code>.</li>
+    </ul>
+    <p>Two pieces of work this raised are written up in
+      <code>src/BloomE2E/AUTOMATION-DEBT.md</code> rather than done here, at your instruction: the
+      ability to run the suite at a chosen resolution and scale factor, and giving every run a
+      small 1024x586 window by default. The second one has a measured cost, below.</p>
+  </section>
+
+  <section class="card">
+    <h2>The monitor number is not the one Windows Settings shows</h2>
+    <p>You asked whether Bloom could use the numbers Windows Settings prints beside each display.
+      <strong>Nothing can reproduce them.</strong> I measured the API that is supposed to give them,
+      <code>QueryDisplayConfig(QDC_ONLY_ACTIVE_PATHS)</code>, and its path order is identical to
+      <code>Screen.AllScreens</code>. The <code>\\.\DISPLAY&lt;n&gt;</code> device names do not match
+      either, and Microsoft documents no rule for the Settings labels.</p>
+    <div class="split">
+      <table>
+        <tr><th>Monitor</th><th>Windows Settings</th><th>Both APIs</th><th>Left to right (now)</th></tr>
+        <tr><td>primary, centre, at 0,0</td><td class="name a">1</td><td class="name b">3</td><td>2</td></tr>
+        <tr><td>right, at 3840,432</td><td class="name a">2</td><td class="name b">1</td><td>3</td></tr>
+        <tr><td>left, at -1920,601</td><td class="name a">3</td><td class="name b">2</td><td>1</td></tr>
+      </table>
+      <p class="gloss">Measured on this machine. Any rule fitted to one of these columns from the
+        others would be a guess, and would break when a cable moves.</p>
+    </div>
+    <p>So the number now counts <strong>left to right</strong>, which you chose: it follows the
+      arrangement picture in Windows Settings, which a developer can read, even though it is not the
+      numbers printed on it. Bloom also writes the whole mapping to
+      <code>%TEMP%\SIL\Bloom\Log.txt</code> on every automation start:</p>
+    <pre><code>BLOOM_AUTOMATION_MONITOR='2': every window goes on the monitor at {X=0,Y=0,Width=3840,Height=2160}.
+The monitors this process sees, numbered left to right as this variable numbers them (which is NOT
+how Windows Settings numbers them): 1=(-1920,601) 1920x1200, 2=(0,0) 3840x2160 primary,
+3=(3840,432) 1920x1200.</code></pre>
+    <p><strong>This changes what an existing variable means.</strong> Master indexed
+      <code>Screen.AllScreens</code>, the order of the display drivers. Anyone who already has the
+      variable set gets a different monitor after this merges. That is the first item for you
+      below.</p>
+  </section>
+
+  <section class="card">
+    <h2>Gates</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Gate</th><th>Verdict</th><th>Detail</th></tr>
+      <tr><td>C# suite</td><td class="verdict pass">pass</td><td>3338 passed, 0 failed, 13 skipped, through <code>build/agent-dotnet.sh</code>.</td></tr>
+      <tr><td>Placement unit tests</td><td class="verdict pass">pass</td><td>24 tests over every value the variable takes, the left-to-right ordering, and the off-every-monitor bounds.</td></tr>
+      <tr><td>BloomE2E typecheck</td><td class="verdict pass">pass</td><td><code>tsc --noEmit</code> clean.</td></tr>
+      <tr><td>BloomE2E suite</td><td class="verdict warn">2 pre-existing failures</td><td>23 passed, 2 failed, 10 did not run, in 6.4 minutes with <code>headless</code>. Both failures are pre-existing and neither is this branch: Test Case ID 349 is BL-16807, and Test Case ID 606 times out waiting for the publish-to-web steps. The suite is serial per file, so those 2 failures are what stop the 10.</td></tr>
+      <tr><td>Real-Bloom check</td><td class="verdict pass">pass</td><td><code>BLOOM_AUTOMATION_MONITOR=2</code> opened on the primary monitor; <code>0</code> opened off every monitor. The tab test passed both times, and the log line was correct both times.</td></tr>
+      <tr><td>CI (<code>pr-automation</code>)</td><td class="verdict pass">pass</td><td>Run 33763600052, 27 seconds.</td></tr>
+      <tr><td>Mergeable</td><td class="verdict pass">pass</td><td>No conflict with <code>master</code>.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+
+    <div class="reviewer">
+      <span class="who">Local review</span><span class="state">complete, clean</span>
+      <p>Light review over the whole diff, run as a sub-agent. It went idle for about 40 minutes
+        without reporting, so the pass was also done inline; the sub-agent then reported, and both
+        found <strong>no correctness problems</strong>. It ruled out eleven candidates with reasons,
+        among them that <code>PrintWindow</code> does not need the window on a monitor, so the
+        problem-report screenshot still works off-screen; that <code>featuresToDisable</code> is
+        joined into <code>--disable-features</code> after the addition; and that nothing anywhere
+        still reads <code>--headless</code>, <code>Program.StartupHeadless</code>,
+        <code>BLOOM_E2E_HEADED</code> or <code>Shell.GetAutomationScreen</code>. It reviewed the diff
+        at <code>55a6623</code>, before the left-to-right numbering.</p>
+    </div>
+
+    <div class="reviewer">
+      <span class="who">Devin</span><span class="state">complete at <code>6f2a42d</code></span>
+      <p>One non-severe Bug for this commit, "Normal fallback ignores saved placement": with no
+        usable monitor setting an automation run maximizes at the default location instead of
+        following the developer's saved placement. <strong>Assessed as not an issue and
+        resolved</strong> on its own thread, for two reasons. A test needs the same window every
+        time, and the saved placement is whatever size the developer last left their own Bloom at;
+        and master did not honour the saved placement under <code>--automation</code> either, so the
+        PR takes nothing away. Everything else Devin lists is a carried-over finding from an earlier
+        commit that it now marks resolved, plus two informational notes.</p>
+    </div>
+
+    <div class="reviewer">
+      <span class="who">Greptile</span><span class="state off">unavailable</span>
+      <p>Out of free credits until 2026-09-24, by its own comment on the PR. Not a timeout: it will
+        not review this branch at all before that date.</p>
+    </div>
+
+    <div class="reviewer">
+      <span class="who">CI</span><span class="state">pass</span>
+      <p><code>pr-automation</code> green at <code>6f2a42d</code>.</p>
+    </div>
+  </section>
+
+</div>
+<div>
+
+  <div class="q lead">
+    <h2>1. Your shell says <code>3</code>, which is now the monitor on the right</h2>
+    <p>You have <code>BLOOM_AUTOMATION_MONITOR=3</code> set. Under the old numbering that was the
+      primary monitor in the centre; under left to right it is the monitor on the right. The task
+      file for the BL-16807 agent, <code>D:\BL-16807-failing-e2e-tests\TASK-BL-16807.md</code>, also
+      says <code>3</code>, so its runs will move to the right-hand monitor once it merges this
+      branch.</p>
+    <div class="opts" data-q="1. The stale 3 setting">
+      <label class="opt"><input type="radio" name="q1" value="Change the BL-16807 task file to 2, and I will change my shell myself" checked>
+        <span class="lbl">Change the BL-16807 task file to <code>2</code>, the primary, and you change your own shell<span class="rec">recommended</span>
+        <span class="fc">One edit, and that agent's runs stay on the primary monitor as before.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Change the BL-16807 task file to headless">
+        <span class="lbl">Change it to <code>headless</code> instead
+        <span class="fc">That agent's runs then take no monitor at all, which is probably what a background agent wants.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Leave both alone; the right-hand monitor is fine">
+        <span class="lbl">Leave both alone; the right-hand monitor is fine</span></label>
+      <div class="otherrow"><input type="radio" name="q1" value="__other__" id="q1o">
+        <label for="q1o" class="lbl">Other:</label>
+        <input type="text" data-q="1. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="1. Notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h2>2. A monitor stacked <em>below</em> the primary would still get the wrong size</h2>
+    <p>Devin raised this on the below-primary fix, and it is right. The off-screen window goes
+      straight down because Windows applies the scale factor of the <strong>nearest</strong>
+      monitor, and on a side-by-side layout the primary stays nearest. Put a monitor
+      <em>underneath</em> the primary, overlapping it horizontally, and that lower monitor becomes
+      nearest instead; if its scale factor differs, the window comes out the wrong size, which is
+      the same bug in a new layout.</p>
+    <p>Nobody on the team has such a layout. Fixing it for every layout means asking Windows for
+      the nearest monitor's scale factor and scaling the requested size by the ratio, which needs
+      per-monitor DPI calls Microsoft does not document. So <code>6f2a42d244</code> states the limit
+      in the code comment and in the automation-debt entry, rather than claiming more than the code
+      does. The thread on the PR stays open for your answer:
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8285#discussion_r3925622620" target="_blank" rel="noopener">discussion_r3925622620</a>.</p>
+    <div class="opts" data-q="2. The monitor-below-primary DPI limit">
+      <label class="opt"><input type="radio" name="q2b" value="Take the recorded limit; it is in the debt file" checked>
+        <span class="lbl">Take the recorded limit<span class="rec">recommended</span>
+        <span class="fc">The layout does not exist on any machine we have, and the debt entry names the fix for when it does.</span></span></label>
+      <label class="opt"><input type="radio" name="q2b" value="Spend the per-monitor DPI work now">
+        <span class="lbl">Spend the per-monitor DPI work now
+        <span class="fc">Ask Windows for the nearest monitor's scale factor and scale the size by the ratio. Correct for every layout, and untestable on this machine.</span></span></label>
+      <label class="opt"><input type="radio" name="q2b" value="Refuse to run rather than guess: fail if a monitor sits below the primary">
+        <span class="lbl">Make the run refuse instead
+        <span class="fc">Detect the layout at startup and stop with a clear message, rather than producing a window of the wrong size.</span></span></label>
+      <div class="otherrow"><input type="radio" name="q2b" value="__other__" id="q2bo">
+        <label for="q2bo" class="lbl">Other:</label>
+        <input type="text" data-q="2. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q2bn">Notes</label><textarea id="q2bn" data-q="2. Notes"></textarea></div>
+  </div>
+
+  <div class="q">
+    <h2>3. Next step</h2>
+    <p>The PR is a clean, mergeable draft off <code>master</code>, and can merge in any order
+      relative to PR 8276 (BL-16799). BL-16807, the two pre-existing e2e failures, is stacked on
+      this branch and its PR bases on <code>BL-16804-headless</code>.</p>
+    <div class="opts" data-q="3. Next step">
+      <label class="opt"><input type="radio" name="q2" value="I will review it myself, then run pr-ready-for-human" checked>
+        <span class="lbl">You review it, then run <code>pr-ready-for-human</code><span class="rec">recommended</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Wait for Greptile">
+        <span class="lbl">Hold it until Greptile has credits again, 2026-09-24</span></label>
+      <label class="opt"><input type="radio" name="q2" value="Implement my answer above first, then re-preflight">
+        <span class="lbl">Implement my answer above first, then re-preflight</span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q2" value="Leave as is">
+          <span class="lbl">Leave as is</span></label>
+        <label class="leavecomment"><input type="checkbox" data-q="3. Leave comment"> Leave comment</label>
+      </div>
+      <div class="otherrow"><input type="radio" name="q2" value="__other__" id="q2o">
+        <label for="q2o" class="lbl">Other:</label>
+        <input type="text" data-q="3. Other" placeholder="your answer"></div>
+    </div>
+    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="3. Notes"></textarea></div>
+  </div>
+
+  <div class="q" id="copyback">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the session.</p>
+    <button type="button" id="copybtn">Copy answers</button><span class="done" id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var lines = ["Preflight answers - BL-16804 (PR 8285)", ""];
+    var groups = document.querySelectorAll(".opts[data-q]");
+    Array.prototype.forEach.call(groups, function (g) {
+      var q = g.getAttribute("data-q");
+      var chosen = g.querySelector("input[type=radio]:checked");
+      var answer = "(no answer)";
+      if (chosen) {
+        if (chosen.value === "__other__") {
+          var otherBox = g.querySelector(".otherrow input[type=text]");
+          var typed = otherBox && otherBox.value.trim();
+          answer = "Other: " + (typed ? typed : "(nothing typed)");
+        } else {
+          answer = chosen.value;
+        }
+      }
+      lines.push(q);
+      lines.push("  -> " + answer);
+      var lc = g.querySelector(".leavecomment input[type=checkbox]");
+      if (lc && lc.checked) lines.push("  -> Leave comment: record this decision as a code comment");
+      var card = g.closest(".q");
+      var notes = card && card.querySelector(".notes textarea");
+      if (notes && notes.value.trim()) lines.push("  -> Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    payload.value = lines.join("\n");
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = document.getElementById("copied");
+    function ok() { done.hidden = false; setTimeout(function () { done.hidden = true; }, 2200); }
+    function fallback() {
+      payload.focus();
+      payload.select();
+      try { document.execCommand("copy"); ok(); } catch (e) { /* the textarea is there for Ctrl+C */ }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(ok, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
