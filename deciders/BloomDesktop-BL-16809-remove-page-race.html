@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remove Page Race Preflight</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f6f8;
+    --card: #ffffff;
+    --line: #d9dde3;
+    --ink: #1c2330;
+    --muted: #5d6675;
+    --accent: #2f7f7c;
+    --accent-ink: #1f5a58;
+    --accent-soft: #e3f1f0;
+    --good: #2e7d32;
+    --good-soft: #e6f3e7;
+    --warn: #a86500;
+    --warn-soft: #fbf0dc;
+    --bad: #b3261e;
+    --bad-soft: #fbe6e4;
+    --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--ground); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .page { max-width: 1320px; margin: 0 auto; padding: 32px 28px 64px; }
+  header.top { display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+  header.top h1 { font-family: var(--serif); font-weight: 600; font-size: 30px; line-height: 1.15; margin: 0; text-wrap: balance; }
+  header.top .sub { color: var(--muted); margin: 0; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 11px; font-size: 13px; color: var(--ink); }
+  .chip b { font-weight: 600; }
+  .chip.good { background: var(--good-soft); border-color: #bfdcc2; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: #ead7ac; color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); border-color: #eac0bd; color: var(--bad); }
+  .chip.accent { background: var(--accent-soft); border-color: #bcdcda; color: var(--accent-ink); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 920px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 20px 22px; }
+  .card h2 { font-family: var(--serif); font-weight: 600; font-size: 21px; margin: 0 0 12px; line-height: 1.2; text-wrap: balance; }
+  .card h3 { font-family: var(--sans); font-weight: 600; font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px; }
+  .card h3:first-of-type { margin-top: 4px; }
+  .card p { margin: 0 0 10px; max-width: 72ch; }
+  .card ul { margin: 0 0 10px; padding-left: 20px; max-width: 72ch; }
+  .card li { margin: 0 0 6px; }
+  .narrative { border-left: 4px solid var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .state { display: inline-block; font-weight: 600; font-size: 12px; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+  .state.good { background: var(--good-soft); color: var(--good); }
+  .state.warn { background: var(--warn-soft); color: var(--warn); }
+  .state.bad { background: var(--bad-soft); color: var(--bad); }
+  .state.neutral { background: #eceef2; color: var(--muted); }
+  code { font-family: var(--mono); font-size: 0.92em; background: #f0f2f5; padding: 1px 5px; border-radius: 3px; }
+  .reviewer { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 8px 14px; align-items: start; }
+  .reviewer > dt { font-weight: 600; margin: 0; }
+  .reviewer > dd { margin: 0 0 6px; }
+  @media (max-width: 560px) { .reviewer { grid-template-columns: minmax(0, 1fr); } .reviewer > dd { margin-bottom: 12px; } }
+  .decision { border-top: 3px solid var(--accent); }
+  .decision p.lead { color: var(--ink); }
+  .opts { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; background: #fbfbfc; }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .tag { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); margin-left: 6px; }
+  .opt .foot { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .opt label.lc { justify-self: end; font-size: 13px; color: var(--muted); display: inline-flex; gap: 5px; align-items: center; white-space: nowrap; }
+  .opt input[type=text] { width: 100%; margin-top: 4px; font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; }
+  textarea { width: 100%; font: inherit; font-size: 14px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; min-height: 60px; resize: vertical; }
+  .notes label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  button.copy { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 9px 16px; cursor: pointer; }
+  button.copy:hover { background: var(--accent-ink); }
+  .copied { margin-left: 10px; color: var(--good); font-weight: 600; opacity: 0; transition: opacity .2s; }
+  .copied.show { opacity: 1; }
+  #payload { margin-top: 12px; min-height: 140px; font-family: var(--mono); font-size: 12.5px; background: #f7f8fa; }
+  @media (prefers-reduced-motion: reduce) { .copied { transition: none; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1>Preflight: Remove Page sometimes prevented by race condition (BL-16809)</h1>
+    <p class="sub">Run summary: gauntlet complete against <a href="https://github.com/BloomBooks/BloomDesktop/commit/66e587ed888a11029e4a2dce060fbfcd4f8cfe17" target="_blank" rel="noopener">66e587e</a> on <a href="https://github.com/BloomBooks/BloomDesktop/pull/8309" target="_blank" rel="noopener">PR #8309</a> → Version6.5. Every gate green, every reviewer terminal, no decisions outstanding.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><b>Draft PR</b> #8309</span><!-- pr-state:end -->
+      <span class="chip good"><b>Mergeable</b> into Version6.5</span>
+      <span class="chip good"><b>Bots quiet</b> Devin clean; CodeRabbit and Greptile never reviewed</span>
+      <span class="chip accent"><b>0 decisions</b> waiting on you</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card narrative">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>In the 6.5 betas, removing a page often does nothing. The context-menu command is enabled, the "Really Remove Page?" dialog appears, but after clicking Remove the page stays. It happens on any page in any book and survives a restart (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16809" target="_blank" rel="noopener">BL-16809</a>).</p>
+        <h3>Cause</h3>
+        <p>Since BL-16421 the confirmation is a browser dialog. Like the other edit-tab dialogs it tells C# when it opens and closes, and C# used that flag to disable the page list as well as to lock the workspace tabs. Clicking Remove sends the remove command and the "dialog closed" notice as two concurrent HTTP requests. Whenever the command is handled first (it runs on a deliberate short delay), the page list is still disabled and the command is refused silently. Captured live in 6.5.3018: the unlock was processed about 350 ms after the command had already been dropped.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li>The modal-state flag now only locks the tabs. Disabling the page list dates from when it lived in its own browser and a dialog's backdrop could not cover it; a dialog shown from the workspace root now has a backdrop that already blocks the page list.</li>
+          <li>The C# gate is removed: the page list's <code>Enabled</code> flag and its checks on page clicks and context-menu commands (<a href="https://github.com/BloomBooks/BloomDesktop/blob/66e587ed888a11029e4a2dce060fbfcd4f8cfe17/src/BloomExe/Edit/EditingView.cs#L1548" target="_blank" rel="noopener">EditingView.cs:1548</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/66e587ed888a11029e4a2dce060fbfcd4f8cfe17/src/BloomExe/Edit/PageThumbnailList.cs#L204" target="_blank" rel="noopener">PageThumbnailList.cs:204</a>). The same lag could also swallow a page click made right after a dialog closed.</li>
+          <li>Two dialogs that were still launched from code in the page iframe, Choose Link Target and Book Grid Setup, are now shown through the workspace bundle like the copyright dialog, so their backdrop covers the whole workspace rather than only the book pane (<a href="https://github.com/BloomBooks/BloomDesktop/blob/66e587ed888a11029e4a2dce060fbfcd4f8cfe17/src/BloomBrowserUI/bookEdit/workspaceRoot.ts#L86" target="_blank" rel="noopener">workspaceRoot.ts:86</a>).</li>
+          <li>The comments on the dialogs that post the flag now say what it does, and a papercut records the dev launcher timing out while a direct <code>dotnet watch run</code> works.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>Typecheck (TypeScript)</td><td><span class="state good">pass</span></td><td><code>pnpm typecheck</code></td></tr>
+            <tr><td>Lint (eslint, changed files)</td><td><span class="state good">pass</span></td><td><span class="numeral">0 errors · 8 pre-existing warnings</span></td></tr>
+            <tr><td>Merge with Version6.5</td><td><span class="state good">clean</span></td><td>Already at the base tip; nothing to merge.</td></tr>
+            <tr><td>C# tests (dotnet test, full suite)</td><td><span class="state good">pass</span></td><td><span class="numeral">3319 passed · 0 failed · 13 skipped</span> at 4668a41; the later commit touched only TypeScript, which the C# suite neither builds nor reads, so it was not re-run.</td></tr>
+            <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="state good">pass</span></td><td><span class="numeral">784 passed · 5 skipped · 69 files</span> at the final HEAD.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>First run on this branch: the one fix commit was already on it; this run pushed it, opened the draft PR and ran the gauntlet. The local review found two dialogs (Choose Link Target, Book Grid Setup) still launched from the page iframe, so a second commit routes them through the workspace root; Devin's one finding on that commit was assessed as a false positive and resolved on its thread. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8309/commits" target="_blank" rel="noopener">commit list</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8309/files" target="_blank" rel="noopener">files changed</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <dl class="reviewer">
+          <dt>Local review</dt><dd>Light sub-agent pass, complete. One finding, fixed: two dialogs were still drawn only over the book pane, so removing the C# gate would have left the page list clickable while they were open (commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/66e587ed888a11029e4a2dce060fbfcd4f8cfe17" target="_blank" rel="noopener">66e587e</a>). Also confirmed no dangling references to the removed members and that the tab lock is unchanged.</dd>
+          <dt>Devin</dt><dd>Complete for the current HEAD. First commit: clean. Second commit: one bug, "Modal backdrops still miss page list", assessed as not an issue (a MUI dialog portals into the body of the window running the code, which is now the root) and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8309#discussion_r3937757458" target="_blank" rel="noopener">resolved on its thread</a>. No investigate or informational flags. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8309" target="_blank" rel="noopener">Devin review page</a>.</dd>
+          <dt>CodeRabbit</dt><dd>Never posted a review for either commit; configured on the repo (<code>.coderabbit.yml</code>) but timed out after 30 min from the last push. A re-run of preflight folds in a late review.</dd>
+          <dt>Greptile</dt><dd>Never posted a review for either commit; timed out after 30 min from the last push.</dd>
+          <dt>CI</dt><dd>Complete: <code>pr-automation</code> passed for both commits (<a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/33917203876" target="_blank" rel="noopener">run</a>). It is the only GitHub check this repo runs on PRs.</dd>
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Nothing now blocks page-list clicks or commands while a dialog is open except the dialog's own backdrop. If any Edit-tab dialog is ever drawn only over the book pane again (a direct import of <code>ShowEditViewDialog</code> from page-iframe code does this), the page list becomes clickable behind it. The test ideas on the card ask QA to look for exactly that.</li>
+          <li>The two relocated dialogs were verified by reasoning and MUI's source, not by hand: the dev launcher would not start Bloom in this worktree and a direct dotnet watch run serves the stale pre-built bundle. Their behavior is covered in the test ideas.</li>
+          <li>The BetaInternal's page-list API briefly reported the page as already gone with the previous page selected, then reverted, with nothing in its log. It did not recur and is not explained by this fix.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="col">
+      
+
+      <section class="card decision">
+        <h2>Next step</h2>
+        <p class="lead">What should happen once you have looked this over?</p>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="q-next" value="Proceed to my own final review, then pr-ready-for-human" data-q="Next step" checked><span>Proceed: I review the PR myself, then run pr-ready-for-human <span class="tag">recommended</span><span class="foot">Nothing is blocking. Recommended because every reviewer is terminal and the change is small and verified live.</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q-next" value="Discuss first" data-q="Next step"><span>Discuss first<span class="foot">You have questions about the approach before it goes to a colleague (no code).</span></span><span></span></label>
+          <label class="opt"><input type="radio" name="q-next" value="Leave as is" data-q="Next step"><span>Leave as is</span><label class="lc"><input type="checkbox" data-q="Next step" data-lc="1"> Leave comment</label></label>
+          <label class="opt"><input type="radio" name="q-next" value="Other" data-q="Next step"><span>Other:<input type="text" data-q="Next step" data-other="1" placeholder="Your answer"></span><span></span></label>
+        </div>
+        <div class="notes"><label for="n-next">Notes</label><textarea id="n-next" data-q="Next step" data-notes="1"></textarea></div>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p>Copy the block and paste it into the Claude session.</p>
+        <button class="copy" id="copyBtn" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+        <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  const payload = document.getElementById('payload');
+  function serialize() {
+    const lines = ['Preflight decisions for BloomDesktop BL-16809-remove-page-race (PR #8309)', 'Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16809-remove-page-race.html', ''];
+    const groups = new Map();
+    document.querySelectorAll('[data-q]').forEach(el => {
+      const q = el.getAttribute('data-q');
+      if (!groups.has(q)) groups.set(q, { choice: '', other: '', lc: false, notes: '' });
+      const g = groups.get(q);
+      if (el.type === 'radio' && el.checked) g.choice = el.value;
+      else if (el.hasAttribute('data-other')) g.other = el.value.trim();
+      else if (el.hasAttribute('data-lc')) g.lc = el.checked;
+      else if (el.hasAttribute('data-notes')) g.notes = el.value.trim();
+    });
+    groups.forEach((g, q) => {
+      let choice = g.choice;
+      if (choice === 'Other') choice = 'Other: ' + (g.other || '(no text entered)');
+      lines.push(q + ': ' + (choice || '(no selection)'));
+      if (g.lc) lines.push('  Leave comment: yes, record this decision as a code comment');
+      if (g.notes) lines.push('  Notes: ' + g.notes);
+    });
+    payload.value = lines.join('\n');
+  }
+  document.addEventListener('input', serialize);
+  document.addEventListener('change', serialize);
+  serialize();
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    serialize();
+    const show = () => { const c = document.getElementById('copied'); c.classList.add('show'); setTimeout(() => c.classList.remove('show'), 1800); };
+    try { await navigator.clipboard.writeText(payload.value); show(); }
+    catch (e) { payload.focus(); payload.select(); try { document.execCommand('copy'); show(); } catch (e2) {} }
+  });
+})();
+</script>
+</body>
+</html>
