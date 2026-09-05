@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloom Tables preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    margin: 0; background: #f6f3ee; color: #23211d;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: #1f5f8b; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 .4em; text-wrap: balance; }
+  h1 { font-size: 1.7rem; }
+  h2 { font-size: 1.2rem; }
+  h3 { font-size: 1.02rem; margin-top: 1em; }
+  p { margin: .35em 0 .7em; }
+  ul { margin: .3em 0 .7em 1.2em; padding: 0; }
+  li { margin: .2em 0; }
+  header { padding: 28px 28px 10px; max-width: 1360px; margin: 0 auto; }
+  .sub { color: #5b564d; margin-top: .2em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px; }
+  .chip {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .85rem;
+    background: #fff; border: 1px solid #d9d2c5; color: #3b372f;
+  }
+  .chip.ok { border-color: #8fbf9a; background: #eef7f0; color: #1f5a2c; }
+  .chip.warn { border-color: #e0b96a; background: #fbf3e2; color: #6b4b00; }
+  .chip.att { border-color: #c98a7a; background: #fbeeea; color: #7a2a1a; }
+  .links a { text-decoration: none; }
+  .links a:hover { text-decoration: underline; }
+  main {
+    display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px;
+    padding: 10px 28px 48px; max-width: 1360px; margin: 0 auto;
+  }
+  main > div { min-width: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: #fff; border: 1px solid #e2dccf; border-radius: 8px; padding: 18px 20px; margin-bottom: 18px;
+  }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ece7dd; vertical-align: top; }
+  th { color: #5b564d; font-weight: 600; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: .9em; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; background: #f2eee6; padding: 0 4px; border-radius: 3px; }
+  .pass { color: #1f5a2c; font-weight: 600; }
+  .fail { color: #7a2a1a; font-weight: 600; }
+  .q { border-top: 1px solid #ece7dd; padding-top: 12px; margin-top: 12px; }
+  .q:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .opt { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
+  .opt input[type=radio], .opt input[type=checkbox] { margin-top: 5px; flex: none; }
+  .opt label { flex: 1 1 auto; }
+  .opt .lc { margin-left: auto; white-space: nowrap; font-size: .85rem; color: #5b564d; display: flex; align-items: center; gap: 4px; }
+  .rec { display: inline-block; font-size: .75rem; padding: 1px 6px; border-radius: 4px; background: #e6f0e8; color: #1f5a2c; margin-left: 6px; vertical-align: middle; }
+  .fn { color: #5b564d; font-size: .9em; }
+  .other input[type=text], textarea {
+    width: 100%; font: inherit; padding: 6px 8px; border: 1px solid #d9d2c5; border-radius: 6px; background: #fbfaf7;
+  }
+  .other input[type=text] { margin-top: 4px; }
+  textarea { min-height: 54px; resize: vertical; margin-top: 6px; }
+  textarea.notes { min-height: 44px; }
+  button {
+    font: inherit; padding: 8px 14px; border-radius: 6px; border: 1px solid #1f5f8b; background: #1f5f8b; color: #fff; cursor: pointer;
+  }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid #1f5f8b; outline-offset: 2px; }
+  #copied { margin-left: 10px; color: #1f5a2c; }
+  #payload { min-height: 160px; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bloom Tables preflight</h1>
+  <p class="sub">BloomDesktop branch <code>BL-16818-tables</code> against <code>master</code>. Run of 2026-09-05; the whole quality gate is green, Devin's two confirmed bugs are fixed, and six questions wait for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Gate green</span>
+    <span class="chip warn">CI cannot build until bloom-table is on npm</span>
+    <span class="chip att">6 decisions waiting</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8315" target="_blank" rel="noopener">PR #8315</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8315/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8315/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16818" target="_blank" rel="noopener">BL-16818</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8315" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<main>
+<div>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom has no way to lay content out in a grid. Authors who want an alphabet chart, a vocabulary list with pictures, or a simple timetable have had to fake it with positioned text boxes, which do not stay aligned and cannot be translated as one unit. Tables are a Pro-tier feature, and the people who reuse Pro books, above all to translate them, often have no subscription, so a table must stay translatable and publishable in their hands while they are kept from building new ones.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><strong>Tables as content.</strong> A Table item in the Canvas tool palette, a Table section type in Change Layout, and a ready-made Alphabet Book page in Basic Book. Cells hold text (an ordinary Bloom text box with language tags and format gear), a picture, a video, or a nested table. Rows and columns are added, moved, resized and deleted through the editing chrome the <code>bloom-table</code> library supplies; whole tables are canvas elements and duplicate, move and delete as such.</li>
+      <li><strong>Gating.</strong> Tables need Pro and the <code>tables</code> experimental setting. Below Pro, or with the setting off, an existing table is frozen: its text and pictures stay editable and its cells get the ordinary text and picture menus, but nothing can restructure it, the palette icon and Add Page entries are absent, and Change Layout's Table link shows the subscription dialog. An original book with a table cannot be published below Pro; a derivative publishes untouched, the same rule canvas elements follow.</li>
+      <li><strong>Spreadsheet round trip.</strong> Export writes one <code>[table]</code> row and one <code>[table cell]</code> row per cell with the table's attributes verbatim in the hidden <code>[details]</code> column; import rebuilds the table from them, with C# unit tests.</li>
+      <li><strong>E2E coverage.</strong> Three Playwright specs (tables-core, tables-extended, tables-gating; 29 tests, 8 of them <code>fixme</code> for suspected product bugs), a step caption at the bottom of the Bloom window during <code>--e2e</code> runs showing each step and its timing, a slow-step reporter, and helpers for canvas elements, keyboard, video import and relaunching Bloom under a different tier.</li>
+    </ul>
+    <p>Not yet: <code>bloom-table</code> is a local <code>pnpm link</code>, not an npm dependency, so CI cannot build this branch until it is published. Spreadsheet round trip as an E2E test waits on BL-16813.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>TypeScript typecheck (BloomBrowserUI and BloomE2E)</td><td class="pass">pass</td></tr>
+      <tr><td>Lint (eslint, prettier)</td><td class="pass">pass, 0 errors</td></tr>
+      <tr><td>Merge with <code>origin/master</code></td><td class="pass">clean after resolving two conflicts (publish helper, E2E testing API); pushed</td></tr>
+      <tr><td>TypeScript tests (vitest, related files)</td><td class="pass">pass <span class="numeral">25 passed</span> in the table editing and canvas element folders after the last commit; <span class="numeral">62 passed</span> across canvas element, toolbox and table editing earlier in the run</td></tr>
+      <tr><td>C# tests (<code>dotnet test</code> through the agent wrapper)</td><td class="pass">pass: full suite <span class="numeral">3388 passed · 7 skipped · 0 failed</span> before the three spreadsheet import commits; every spreadsheet fixture <span class="numeral">427 passed</span> after them</td></tr>
+      <tr><td>E2E (Playwright against a real Bloom): tables-core and tables-gating</td><td class="pass">pass <span class="numeral">16 passed</span> after the last commit. One failure in that run is not this branch's: another session had un-<code>fixme</code>'d the BloomPUB duplicated-picture test (decision 4) in its uncommitted copy of the spec, and it fails as expected. Both files were green three times earlier in the run.</td></tr>
+      <tr><td>Production bundle (<code>build/agent-vite</code>)</td><td>not run: the bundle needs <code>bloom-table</code> from npm, which is the known blocker below</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Merged <code>origin/master</code>, committed the gating spec and the right-click fix that were in the working tree, and fixed the three bugs Devin confirmed: a duplicated table now takes its own commands; a table holding a video is treated as a table, so Duplicate stays gated below Pro; and spreadsheet import leaves a book's table alone when the table row's hidden details cell is blank or malformed, instead of replacing it with an empty table, while still counting that table as used so later tables land in the right place, and without adding a page for a row it cannot use. From the local review: a cell is no longer wired twice when a canvas element is added, the table feature status is fetched once per page load, and only the main mouse button starts a row or column resize. Two E2E tests that were <code>fixme</code> for the first two now run and pass. The card's test-ideas comment and E2E test list were written.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8315/commits" target="_blank" rel="noopener">Commit list</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/71c586746e33382eb76e3b0442270463281b34c4" target="_blank" rel="noopener">the first two Devin fixes</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/3edfae30583c505becaebeb8ecca9dfc058cff78" target="_blank" rel="noopener">the spreadsheet import fix</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/2dee5e1cb226d3d7c74b2b050e6a7146c3d368b2" target="_blank" rel="noopener">the local review fixes</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/d012728dc617c8174be6e60da8c513866373fa1b" target="_blank" rel="noopener">no page for an unreadable row</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Reviewer</th><th>State</th></tr>
+      <tr><td>Local review (light read-only sub-agent pass)</td><td id="local-review-row">Complete (light: read-only sub-agent, two passes). Six findings. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/2dee5e1cb226d3d7c74b2b050e6a7146c3d368b2" target="_blank" rel="noopener">2dee5e1c</a>: a cell was wired twice whenever a canvas element was added, and a right-click near a row or column boundary started a resize and swallowed the menu. Folded into decisions 1 and 2: nested tables two levels deep, and Undo preferring the table. Already known: <code>bloom-table</code> is not a declared dependency. Not an issue: the language for new text cells is read once per page load, and a page load is the life of that code. Subscription gating checked and cleared.</td></tr>
+      <tr><td>Devin</td><td>Complete for the final commit, after five passes (one per push). Seven bugs and six investigate flags, every one mirrored as a PR thread with an outcome. Fixed: a duplicated table took no commands; a table holding a video escaped the Pro gate; three spreadsheet import cases where a spoiled table row erased the book's table, shifted later tables, or added a page. Not an issue: a one-frame gap before pictures refit; a failed feature-status request not retrying. Already tracked: the ignored first click (BL-16815). Documented: <code>bloom-table</code> not on npm. To you: decisions 1, 2, 3 and 7. The branch-target flag was answered on the PR. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8315" target="_blank" rel="noopener">Devin's page</a></td></tr>
+      <tr><td>Greptile</td><td>Complete: declined to review, the PR has 104 files and Greptile stops at 100. Nothing to fold in.</td></tr>
+      <tr><td>CodeRabbit</td><td>Not active on this repo: a config file exists but it has posted on none of the recent PRs, and not on this one.</td></tr>
+      <tr><td>CI</td><td>Only the <code>pr-automation</code> check runs on this repo's PRs; it passed for every push. The TeamCity build cannot succeed until <code>bloom-table</code> is on npm.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Another Claude session is working in this same worktree. At the end of this run it had uncommitted edits to <code>CanvasElementSelectionUi.ts</code> (moving the element toolbar clear of the table's bottom <strong>+</strong> button, which bears on decision 3), to the tables-core and tables-extended specs, and a new <code>zz-diag.spec.ts</code>. This run committed none of them; whoever commits next should sort out whose they are.</li>
+      <li>The non-subscriber checks the new skill rule asks for are only partly automated: typing, picture replacement and the text menu are covered; audio recording in a cell, ePUB and PDF output, and the per-cell language tag and format gear are still to add. The test-ideas comment on the card asks a human tester for them.</li>
+      <li>Two planned E2E cases are not written: pasting a copied table element, and Change Layout tables whose rows hug their content. The spreadsheet E2E waits on BL-16813.</li>
+      <li>Two edits to skills in <code>bloom-team-skills</code> (add-test-ideas dimension 9, write-manual-test step 4) are made but not committed; they need your word to commit and push.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="card">
+    <h2>Decisions</h2>
+
+    <div class="q" data-q="1. Nested tables two levels deep and the spreadsheet">
+      <h3>1. Nested tables two levels deep and the spreadsheet</h3>
+      <p>A cell can hold a table, and a cell of that inner table can hold another one. Spreadsheet export follows that to any depth, but import keeps track of only one level: it reads the inner-inner table's row and column and looks them up in the top-level table, so on import that table lands in the wrong cell, without a warning. Devin raised this (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r3942105530" target="_blank" rel="noopener">thread</a>; <a href="https://github.com/BloomBooks/BloomDesktop/blob/71c586746e33382eb76e3b0442270463281b34c4/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L1829" target="_blank" rel="noopener">the lookup</a>). Nobody has asked for tables nested that deep, but silently misplacing content is worse than refusing it.</p>
+      <div class="opt"><input type="radio" name="q1" id="q1a" value="Stop export at one level and warn" checked><label for="q1a">Make export stop at one level of nesting and write a warning row, so import can never misplace anything <span class="rec">recommended</span><br><span class="fn">~25 lines of C# in the exporter plus a unit test, low risk; recommended because it matches what import can do and the round trip stays honest.</span></label></div>
+      <div class="opt"><input type="radio" name="q1" id="q1b" value="Record the full path so any depth round-trips"><label for="q1b">Record each nested table's full path of cells in the details column, so any depth round-trips<br><span class="fn">Moderate: changes the saved JSON shape on both sides and the tests that read it.</span></label></div>
+      <div class="opt"><input type="radio" name="q1" id="q1c" value="Leave as is"><label for="q1c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q1lc"><label for="q1lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q1" id="q1o" value="Other"><label for="q1o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="2. Undo after a table structure change forgets the typing before it">
+      <h3>2. Undo prefers the table once a row or column has been added</h3>
+      <p>Undo asks the table library first and CKEditor second. The table's history stays non-empty for the rest of the page session after any structural change, so two things go wrong. Add a row, type in a cell, press Undo: the row goes, not the typing, and the typing can no longer be undone at all (the local review's finding). Type, add a row, press Undo twice: the first removes the row, the second does nothing, because rebuilding the cells discarded their typing history (Devin's <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r3942105567" target="_blank" rel="noopener">thread</a>; the tables-extended spec has a <code>fixme</code> test). The first symptom is the worse one: Undo does something other than what the user just did. The code is at <a href="https://github.com/BloomBooks/BloomDesktop/blob/2dee5e1cb226d3d7c74b2b050e6a7146c3d368b2/src/BloomBrowserUI/bookEdit/workspaceRoot.ts#L104" target="_blank" rel="noopener">handleUndo</a>.</p>
+      <div class="opt"><input type="radio" name="q2" id="q2a" value="Route Undo to whichever changed most recently, in this PR" checked><label for="q2a">In this PR, send Undo to whichever of the table and CKEditor changed most recently <span class="rec">recommended</span><br><span class="fn">Moderate, Bloom-side only: time-stamp the table's history events (Bloom already listens for them) and CKEditor's change events, and compare. Cures the first symptom; the second stays as a follow-up.</span></label></div>
+      <div class="opt"><input type="radio" name="q2" id="q2b" value="Open a follow-up card"><label for="q2b">Open a follow-up card for both symptoms and ship this PR with the fixme test documenting them<br><span class="fn">No code now.</span></label></div>
+      <div class="opt"><input type="radio" name="q2" id="q2c" value="Leave as is"><label for="q2c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q2lc"><label for="q2lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q2" id="q2o" value="Other"><label for="q2o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="3. A table's height cannot be changed by hand">
+      <h3>3. A table's height cannot be changed by hand</h3>
+      <p>A new table falls under the selection rules Bloom uses for text elements, which hide the corner handles. A person can drag a table wider or narrower, but not taller or shorter. Devin flagged it (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r3942105655" target="_blank" rel="noopener">thread</a>; <a href="https://github.com/BloomBooks/BloomDesktop/blob/71c586746e33382eb76e3b0442270463281b34c4/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementFactories.ts#L895" target="_blank" rel="noopener">where the table is created</a>), and the tables-extended spec has a <code>fixme</code> test for corner resizing. Rows do grow with their text in a Change Layout table, so height matters most for tables on picture pages.</p>
+      <div class="opt"><input type="radio" name="q3" id="q3a" value="Show corner handles for tables in this PR" checked><label for="q3a">Show corner handles for tables in this PR <span class="rec">recommended</span><br><span class="fn">Moderate: one rule in the selection logic plus re-running the corner-resize E2E test; recommended because a table you cannot make taller is a visible gap on day one.</span></label></div>
+      <div class="opt"><input type="radio" name="q3" id="q3b" value="Open a follow-up card"><label for="q3b">Open a follow-up card<br><span class="fn">No code now.</span></label></div>
+      <div class="opt"><input type="radio" name="q3" id="q3c" value="Leave as is"><label for="q3c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q3lc"><label for="q3lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q3" id="q3o" value="Other"><label for="q3o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="4. A duplicated table's picture is missing from the BloomPUB">
+      <h3>4. A duplicated table's picture is missing from the BloomPUB</h3>
+      <p>Duplicate a table that has a picture cell and publish. The original's picture shows in the reader; the copy's cell is empty. The copy's cell says it holds a picture but its image box has nothing in it, and the publishing step that turns a cell's picture into a background image never fires for it. Wiring the copy up properly (this run's fix) did not cure it, so the cause is elsewhere. It stays a <code>fixme</code> test in tables-core.</p>
+      <div class="opt"><input type="radio" name="q4" id="q4a" value="Investigate in this PR"><label for="q4a">Investigate and fix in this PR<br><span class="fn">Unknown size until the cause is found; likely the duplicate step's image handling.</span></label></div>
+      <div class="opt"><input type="radio" name="q4" id="q4b" value="Open a follow-up card" checked><label for="q4b">Open a follow-up card <span class="rec">recommended</span><br><span class="fn">No code now; recommended because it needs a proper look and this PR is already large.</span></label></div>
+      <div class="opt"><input type="radio" name="q4" id="q4c" value="Leave as is"><label for="q4c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q4lc"><label for="q4lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q4" id="q4o" value="Other"><label for="q4o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="5. Two ways for a test to hand Bloom a file to choose">
+      <h3>5. Two ways for a test to hand Bloom a file to choose</h3>
+      <p>This branch added an E2E-only route that tells the Sign Language tool which video file to pick instead of opening a file dialog. Master has since added a general route that does the same for any file dialog, and Bloom's file-chooser code on master uses it. The two live side by side after the merge. The Sign Language tool on master still opens its dialog directly, so it cannot use the general route without a small change of its own.</p>
+      <div class="opt"><input type="radio" name="q5" id="q5a" value="Unify onto the general route in this PR" checked><label for="q5a">Route the Sign Language tool's file dialog through the general chooser and drop the video-only route <span class="rec">recommended</span><br><span class="fn">~30 lines of C# plus the E2E video helper; low risk; recommended because two routes for one job will drift apart.</span></label></div>
+      <div class="opt"><input type="radio" name="q5" id="q5b" value="Leave as is"><label for="q5b">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q5lc"><label for="q5lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q5" id="q5o" value="Other"><label for="q5o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="6. Right-clicking a video cell shows nothing">
+      <h3>6. Right-clicking a video cell shows nothing</h3>
+      <p>At every tier, right-clicking a video cell opens no menu at all: not the Cell menu, not a video menu. Text cells get the Cell menu (or, below Pro, Bloom's text menu) and picture cells get the picture menu. The gating spec notes it and leaves it alone.</p>
+      <div class="opt"><input type="radio" name="q6" id="q6a" value="Give video cells the Cell menu in this PR"><label for="q6a">Give video cells the Cell menu in this PR<br><span class="fn">Moderate: the library's right-click hook has to accept the video container the way it accepts a picture's.</span></label></div>
+      <div class="opt"><input type="radio" name="q6" id="q6b" value="Open a follow-up card" checked><label for="q6b">Open a follow-up card <span class="rec">recommended</span><br><span class="fn">No code now; recommended because video cells are rare and the Sign Language tool already covers what a person does with one.</span></label></div>
+      <div class="opt"><input type="radio" name="q6" id="q6c" value="Leave as is"><label for="q6c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q6lc"><label for="q6lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q6" id="q6o" value="Other"><label for="q6o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="7. A spoiled spreadsheet table row can still insert a page">
+      <h3>7. A spoiled spreadsheet table row can still insert a page</h3>
+      <p>Import now leaves a book's table alone when a table row's hidden details cell is blank or malformed, keeps later tables aligned, and does not copy a page for such a row. One case is left: if that spoiled row also names a page type different from the page it should land on, import can still insert a template page of that type before skipping the row. Devin's <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r3942214483" target="_blank" rel="noopener">thread</a>. Closing it means separating "move to the next existing table" from "add a page" inside the importer's page-advancing code, which every row type shares.</p>
+      <div class="opt"><input type="radio" name="q7" id="q7a" value="Leave as is" checked><label for="q7a">Leave as is <span class="rec">recommended</span><br><span class="fn">A spreadsheet has to be damaged by hand in two ways at once, import warns, and the extra page is a plain deletion.</span></label></div>
+      <div class="opt"><input type="radio" name="q7" id="q7b" value="Restructure the advance in this PR"><label for="q7b">Restructure the page-advancing code in this PR so a row Bloom cannot use never adds a page<br><span class="fn">Moderate, and it touches the path every imported row takes.</span></label></div>
+      <div class="opt"><input type="radio" name="q7" id="q7c" value="Open a follow-up card"><label for="q7c">Open a follow-up card</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q7lc"><label for="q7lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q7" id="q7o" value="Other"><label for="q7o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="FYI: bloom-table must be on npm before this can merge">
+      <h3>FYI: bloom-table must be on npm before this can merge</h3>
+      <p>The branch depends on the <code>bloom-table</code> library through a local <code>pnpm link</code>. CI cannot install it, so the TeamCity build cannot pass and the production bundle check was not run. Publishing the library and pinning its version in <code>package.json</code> is the last step before merge; nothing in this repo can do it.</p>
+      <div class="opt"><input type="radio" name="q7" id="q7a" value="Publish bloom-table and pin it before merge" checked><label for="q7a">Publish bloom-table and pin it, then re-run preflight so CI and the bundle check speak <span class="rec">recommended</span><br><span class="fn">Work in the bloom-table repo plus a one-line dependency change here.</span></label></div>
+      <div class="opt"><input type="radio" name="q7" id="q7b" value="Leave as is"><label for="q7b">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q7lc"><label for="q7lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q7" id="q7o" value="Other"><label for="q7o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q" data-q="Next step">
+      <h3>Next step</h3>
+      <div class="opt"><input type="radio" name="q8" id="q8a" value="Implement the recommended options" checked><label for="q8a">Implement the recommended options above and re-run preflight</label></div>
+      <div class="opt"><input type="radio" name="q8" id="q8b" value="Discuss first"><label for="q8b">Discuss first</label></div>
+      <div class="opt"><input type="radio" name="q8" id="q8c" value="Leave as is"><label for="q8c">Leave as is</label><span class="lc"><input type="checkbox" data-q="Leave comment" id="q8lc"><label for="q8lc">Leave comment</label></span></div>
+      <div class="opt other"><input type="radio" name="q8" id="q8o" value="Other"><label for="q8o">Other:<input type="text" data-q="Other" placeholder="your answer"></label></div>
+      <textarea class="notes" data-q="Notes" placeholder="Notes"></textarea>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy the block and paste it into the session.</p>
+    <button id="copy" type="button">Copy answers</button><span id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Your answers as text"></textarea>
+  </section>
+</div>
+</main>
+
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16818-tables.html";
+  function serialize() {
+    var out = ["Preflight decisions for BloomDesktop PR 8315 (BL-16818-tables)", "Report: " + REPORT_URL, ""];
+    document.querySelectorAll(".q").forEach(function (q) {
+      out.push(q.getAttribute("data-q"));
+      var picked = q.querySelector("input[type=radio]:checked");
+      var choice = picked ? picked.value : "(no choice)";
+      if (picked && picked.value === "Other") {
+        var t = q.querySelector(".other input[type=text]");
+        choice = "Other: " + (t && t.value ? t.value : "(blank)");
+      }
+      out.push("  Choice: " + choice);
+      var lc = q.querySelector("input[type=checkbox][data-q='Leave comment']");
+      if (lc && lc.checked) out.push("  Leave comment: yes, record the decision as a code comment near the relevant code");
+      var notes = q.querySelector("textarea.notes");
+      if (notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim());
+      out.push("");
+    });
+    return out.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.querySelectorAll("input, textarea").forEach(function (el) {
+    if (el === payload) return;
+    el.addEventListener("input", refresh);
+    el.addEventListener("change", refresh);
+  });
+  refresh();
+  document.getElementById("copy").addEventListener("click", function () {
+    refresh();
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      setTimeout(function () { c.hidden = true; }, 2500);
+    };
+    var fallback = function () {
+      payload.focus(); payload.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      done();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else {
+      fallback();
+    }
+  });
+})();
+</script>
+</body>
+</html>
