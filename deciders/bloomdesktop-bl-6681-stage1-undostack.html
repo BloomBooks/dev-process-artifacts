@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One Undo Stack, Stage 1</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f5f6f4;
+    --card: #ffffff;
+    --ink: #1f2a2e;
+    --muted: #5b6a6f;
+    --line: #d9e1e2;
+    --accent: #1d94a4;
+    --accent-ink: #146d79;
+    --accent-soft: #e6f3f5;
+    --pass: #2f7d4f;
+    --pass-soft: #e7f3ec;
+    --fail: #b3362b;
+    --fail-soft: #f9e9e6;
+    --note: #8a6d1f;
+    --note-soft: #f8f1dc;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  }
+  html { color-scheme: light; }
+  body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.2; margin: 0; text-wrap: balance; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16px; margin: 14px 0 6px; }
+  p { margin: 0 0 10px; max-width: 70ch; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin: 4px 0; }
+  code { font-family: var(--mono); font-size: 13px; background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
+  .page { max-width: 1360px; margin: 0 auto; padding: 28px 24px 48px; }
+  header.run { display: grid; gap: 12px; margin-bottom: 22px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px; }
+  .chip.good { border-color: var(--pass); color: var(--pass); background: var(--pass-soft); }
+  .chip.bad { border-color: var(--fail); color: var(--fail); background: var(--fail-soft); }
+  .chip.note { border-color: var(--note); color: var(--note); background: var(--note-soft); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .links a { display: inline-block; padding: 5px 11px; border: 1px solid var(--accent); border-radius: 6px; background: var(--card); text-decoration: none; font-size: 13px; }
+  .links a:first-child { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cols { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .state { font-weight: 600; }
+  .state.pass { color: var(--pass); }
+  .state.fail { color: var(--fail); }
+  .state.skip { color: var(--muted); }
+  .decision { border-top: 3px solid var(--accent); }
+  .decision h2 { font-size: 18px; }
+  .options { display: grid; gap: 8px; margin: 10px 0; }
+  .opt { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .opt.rec { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; }
+  .tag { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin-left: 6px; }
+  .fn { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .leavecomment { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .otherline { display: flex; gap: 8px; align-items: center; }
+  .otherline input[type=text] { flex: 1; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+  textarea { width: 100%; min-height: 64px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; font-size: 14px; resize: vertical; }
+  label.notes { display: block; font-size: 13px; color: var(--muted); margin-top: 8px; }
+  button.copy { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button.copy:hover { background: var(--accent-ink); }
+  #payload { margin-top: 10px; min-height: 160px; font-family: var(--mono); font-size: 12px; }
+  .copied { margin-left: 10px; color: var(--pass); font-size: 13px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+<header class="run">
+  <div class="eyebrow">Preflight report · BloomDesktop · BL-6681 · 2026-09-07</div>
+  <h1>One Undo Stack, Stage 1</h1>
+  <p>Stage 1 of retiring CKEditor is on a draft PR into the project's integration branch. The gate, the full front-end suite and every reviewer are done for the current head; the review found and fixed one real architectural bug (two copies of the "one" stack). Three decisions wait on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable into BL-6681-ckeditor</span>
+    <span class="chip good" id="chip-bots">Bots quiet at the final head</span>
+    <span class="chip note">3 decisions waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8317" target="_blank" rel="noopener">PR #8317</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8317/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8317/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-6681" target="_blank" rel="noopener">BL-6681</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8317" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="cols">
+<main>
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom has five separate undo mechanisms with no shared record of what happened in which order: origami's layout stack, the reader tools' per-box text undo, the image-operation undo, CKEditor's per-editable undo manager, and the browser's own. The Undo button arbitrated between four of them with a hand-written if-chain that also had to remember the BL-16558 rule (repaint the reader highlights after any undo that rewrites a text box), and no new kind of undoable operation — deleting a page, deleting a canvas element — could be added without growing that chain. This is Stage 1 of the plan to retire CKEditor and unify Undo; its whole point is to change no user-visible behaviour.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Adds the one undo stack (<code>bookEdit/undo/</code>): index-based with truncate-on-push, O(1) <code>canUndo</code>/<code>canRedo</code> because C# polls it on a timer, page scoping, lazy redo capture, and <code>runUndoable</code> so one gesture produces one entry however many layers record. Entries are data, not page-frame closures, because the page iframe dies on every navigation.</li>
+      <li>Wraps the four existing mechanisms as legacy providers in the old order, including the BL-16558 markup update; <code>handleUndo</code> and <code>canUndo</code> become one-line delegations. The Undo button — which C# drives through the <em>page</em> frame — now reaches the workspace frame's stack explicitly, rather than a second copy of the module bundled into the page frame.</li>
+      <li>Tells the stack about every page-frame navigation from the one place C# performs it (<code>switchContentPage</code>), using the page element's <code>id</code> as identity.</li>
+      <li>Binds Ctrl+Y in the page frame as a last resort: it acts only when nothing earlier claimed the key, the page is not in Change Layout mode, and the stack has something to redo — so origami's and the reader tools' own redo and CKEditor's keep winning until they are converted. No Redo button, no C# involvement.</li>
+      <li>Adapts the Stage 0 seam in <code>toolbox.ts</code> to master's BL-16717 (bookmarks only when something can rewrite the box), and adds CDP live-check harnesses under <code>docs/retire-ckeditor/liveChecks/</code> that attribute each undo gesture to the mechanism that actually ran.</li>
+    </ul>
+    <p>Verified on a freshly launched Bloom through the real Undo button entry point: the reader-tools undo, CKEditor's undo, origami's undo and the image undo each run exactly once, and Ctrl+Y never double-fires.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td class="state pass">pass</td><td>no errors</td></tr>
+        <tr><td>Lint (eslint)</td><td class="state pass">pass</td><td>0 errors on the changed files; 5 pre-existing <code>no-explicit-any</code> warnings in <code>editablePage.ts</code></td></tr>
+        <tr><td>Merge cleanliness</td><td class="state pass">pass</td><td>already up to date with <code>origin/BL-6681-ckeditor</code>, which carries master <code>f0d9f1472</code></td></tr>
+        <tr><td>TypeScript tests (vitest)</td><td class="state pass" id="ts-suite-state">pass</td><td id="ts-suite-detail"><span class="numeral">857 passed · 5 skipped · 76 files</span> at the final head</td></tr>
+        <tr><td>C# tests (dotnet test)</td><td class="state skip">not run</td><td>no C# in the diff; the .NET suite neither reads nor builds any of it</td></tr>
+        <tr><td>Live checks (running Bloom)</td><td class="state pass">pass</td><td>reader tools 4/4, CKEditor 7/7, origami 6/6, image 4/4 on a fresh launch, through the page-frame button entry point</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Opened the draft PR and fixed everything the reviewers raised over two rounds: the Undo button's page-frame entry point now reaches the workspace frame's stack (the two-stacks bug), <code>UndoStack</code> moves its index transactionally and rolls back by entry identity so a page change during an in-flight undo cannot leave a dangling index, <code>runUndoable</code> keeps the outer gesture's own entry and drops held pushes when their page is left, the Ctrl+Y binding stands down in Change Layout mode, and a once-only load listener records the page id when the 1500 ms fallback ran first. Base already integrated. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8317/commits" target="_blank" rel="noopener">commit list</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review (light, read-only sub-agent)</td><td class="state pass">complete</td><td>3 findings, all fixed: the two-stacks bug (its own find), the never-re-run page-id fallback, and the non-transactional index (the last two overlapping Devin's).</td></tr>
+        <tr><td>Devin</td><td class="state pass" id="devin-state">complete</td><td id="devin-outcome">Four rounds, one per push. Eight distinct findings (six bugs, two investigate flags), every one fixed or answered on its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8317/files" target="_blank" rel="noopener">review thread</a> and resolved; round four listed only already-resolved items, so the final head is clean. One informational note needed no change. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8317" target="_blank" rel="noopener">Devin's page</a>.</td></tr>
+        <tr><td>CodeRabbit</td><td class="state skip" id="cr-state">no activity</td><td id="cr-outcome">Configured (<code>.coderabbit.yml</code>) but posted nothing for either head within the wait; it has been out of allowance on this repo before.</td></tr>
+        <tr><td>CI (pr-automation)</td><td class="state pass">pass</td><td>green on both heads.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li><strong>The PR targets <code>BL-6681-ckeditor</code>, not master</strong>, per the project's no-merge-until-6.5 branch strategy. <code>Version6.5</code> was cut on 2026-09-04, so that constraint's trigger has happened — the first decision below.</li>
+      <li><strong>Five pre-existing bugs were found while verifying and are not changed here</strong> (recorded in <code>docs/retire-ckeditor/PROGRESS.md</code>): a paste-filter bypass whenever pasted HTML contains a styled span (tables, iframes, images and divs with ids get into the book), Ctrl+Z running both the reader-tools and CKEditor undos, stale CKEditor bookmark spans left by the reader-tools undo, edit key handlers accumulating on every <code>SetupElements</code> re-run, and a dead <code>data-page-id</code> check in <code>ImageUndoManager</code>.</li>
+      <li><strong>Not exercised by hand:</strong> the async markup path (Talking Book tool) with the seam — inventory row G2 stays open; the tool did not mark up the test box on typing and that needs its own investigation.</li>
+      <li>The master-sync merge on the integration branch carries three master files reformatted by the pre-commit hook (<code>crowdin.yml</code>, a test, a branding <code>.less</code>) — noise, not ours; decision below.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card decision" data-item="target">
+    <h2>Where should this project land now that Version6.5 exists?</h2>
+    <p>The plan's rule was "nothing merges to master until a <code>Version6.5</code> branch is cut", so every stage goes to a long-lived integration branch, <code>BL-6681-ckeditor</code>, which merges master in weekly. That branch was cut on 2026-09-04 (master is 160 commits past it), and master's <code>AGENTS.md</code> now says ordinary new work targets <code>Version6.5</code> during the transition. This project is 6.6 work, so master is presumably its right target again — which would also let stage PRs go straight to master, cheaper than the integration branch and its weekly syncs. Nothing has been retargeted.</p>
+    <div class="options">
+      <label class="opt rec"><input type="radio" name="target" value="Retarget: PR #8317 to master, retire the integration branch" data-q="target" checked><span>Retarget PR #8317 to <code>master</code>, land Stage 0's PR #8153 first (merge commit, not squash), and retire the integration branch <span class="tag">recommended</span><span class="fn">~30 min, no code; recommended because the constraint's trigger has happened and each stage then lands and gets nightly coverage on its own, instead of the branch accumulating months of unmerged work.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="target" value="Keep the integration branch until 6.5 ships" data-q="target"><span>Keep the integration branch until 6.5 actually ships<span class="fn">no work now; keeps the weekly sync and manual nightly chore going.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="target" value="Leave as is" data-q="target"><span>Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="target" data-leavecomment="1"> Leave comment</span></label>
+      <label class="opt otherline"><input type="radio" name="target" value="Other" data-q="target"><span>Other:</span><input type="text" data-q="target" data-other="1" aria-label="Other answer"></label>
+    </div>
+    <label class="notes">Notes<textarea data-q="target" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="bugs">
+    <h2>File the bugs found during verification?</h2>
+    <p>Verifying Stage 1 exposed problems in code this PR does not touch. In priority order: <strong>(1)</strong> pasting or dropping HTML that contains any <code>&lt;span style=…&gt;</code> makes Bloom's BL-12357 handler treat the paste as internal (CKEditor stamps every transfer with a <code>cke/id</code>) and restore the <em>unfiltered</em> clipboard HTML, so tables, iframes, images and divs with duplicate ids reach the book — a one-condition fix, but captured with synthetic events, so worth one real-clipboard confirmation first; <strong>(2)</strong> Ctrl+Z with a reader tool active runs two undos and breaks Ctrl+Y; <strong>(3)</strong> the reader-tools undo restores stale bookmark spans; <strong>(4)</strong> edit key handlers accumulate on every <code>SetupElements</code> re-run (F6 double-wraps); <strong>(5)</strong> the dead <code>data-page-id</code> check. Repros for 1, 2, 3 and 4 are committed under <code>liveChecks/</code>.</p>
+    <div class="options">
+      <label class="opt rec"><input type="radio" name="bugs" value="File 1-4 now; 1 after a real-clipboard check" data-q="bugs" checked><span>File cards for 1–4 now (1 after a quick real-clipboard confirmation); fold 5 into this project <span class="tag">recommended</span><span class="fn">~20 min of card writing; recommended because (1) is a live data-integrity hole and (2) is user-visible today, and both are independent of this project's timeline.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="bugs" value="File only the paste-filter bypass" data-q="bugs"><span>File only the paste-filter bypass; let Stage 3 absorb the rest<span class="fn">~5 min; the reader-tools items disappear when Stage 3 replaces both mechanisms.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="bugs" value="Leave as is" data-q="bugs"><span>Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="bugs" data-leavecomment="1"> Leave comment</span></label>
+      <label class="opt otherline"><input type="radio" name="bugs" value="Other" data-q="bugs"><span>Other:</span><input type="text" data-q="bugs" data-other="1" aria-label="Other answer"></label>
+    </div>
+    <label class="notes">Notes<textarea data-q="bugs" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="reformat">
+    <h2>Restore the three master files the hook reformatted?</h2>
+    <p>When master was merged into the integration branch, the pre-commit hook ran prettier over everything staged and reformatted three of master's own files (<code>crowdin.yml</code>, <code>aiImageEditorOverlay.test.ts</code>, <code>SIL-Niger/branding.less</code>) whose master copies don't satisfy this repo's prettier. They now show as diffs against master and could conflict on a future sync. Restoring master's bytes needs one commit made with <code>--no-verify</code>, which I did not do without asking.</p>
+    <div class="options">
+      <label class="opt rec"><input type="radio" name="reformat" value="Restore with one --no-verify commit" data-q="reformat" checked><span>Restore master's bytes with one <code>--no-verify</code> commit on the integration branch <span class="tag">recommended</span><span class="fn">~2 min, no risk; recommended because it removes noise from the eventual master PR and a conflict source from every sync.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="reformat" value="Leave as is" data-q="reformat"><span>Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="reformat" data-leavecomment="1"> Leave comment</span></label>
+      <label class="opt otherline"><input type="radio" name="reformat" value="Other" data-q="reformat"><span>Other:</span><input type="text" data-q="reformat" data-other="1" aria-label="Other answer"></label>
+    </div>
+    <label class="notes">Notes<textarea data-q="reformat" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="next">
+    <h2>Next step</h2>
+    <p>You already said to proceed to the next stage; Stage 2b (undo for deleting a canvas element) is being built on a branch stacked on this one and will be rebased onto whatever this PR merges into.</p>
+    <div class="options">
+      <label class="opt rec"><input type="radio" name="next" value="Carry on with Stage 2b as planned" data-q="next" checked><span>Carry on with Stage 2b as planned <span class="tag">recommended</span><span class="fn">no extra work; this PR stays draft for your own review.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="next" value="Discuss first" data-q="next"><span>Discuss first<span class="fn">pause Stage 2b until we've talked.</span></span><span></span></label>
+      <label class="opt"><input type="radio" name="next" value="Leave as is" data-q="next"><span>Leave as is</span><span class="leavecomment"><input type="checkbox" data-q="next" data-leavecomment="1"> Leave comment</span></label>
+      <label class="opt otherline"><input type="radio" name="next" value="Other" data-q="next"><span>Other:</span><input type="text" data-q="next" data-other="1" aria-label="Other answer"></label>
+    </div>
+    <label class="notes">Notes<textarea data-q="next" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card" id="copyback">
+    <h2>Send your answers back</h2>
+    <p>Copy the block and paste it into the Claude session.</p>
+    <button class="copy" id="copyBtn" type="button">Copy answers</button><span class="copied" id="copiedMsg" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+  </section>
+</aside>
+</div>
+</div>
+<script>
+(function () {
+  const items = Array.from(document.querySelectorAll('.decision'));
+  function serialize() {
+    const lines = ['Preflight decisions — BloomDesktop PR #8317 (BL-6681, Stage 1)', ''];
+    for (const item of items) {
+      const q = item.dataset.item;
+      const title = item.querySelector('h2').textContent.trim();
+      const chosen = item.querySelector('input[type=radio]:checked');
+      let answer = chosen ? chosen.value : '(no answer)';
+      if (chosen && chosen.value === 'Other') {
+        const other = item.querySelector('input[data-other]');
+        answer = 'Other: ' + (other.value.trim() || '(blank)');
+      }
+      lines.push(`## ${title}`);
+      lines.push(`Answer: ${answer}`);
+      const lc = item.querySelector('input[data-leavecomment]');
+      if (lc && lc.checked) lines.push('Leave comment: record this decision as a code comment near the relevant code');
+      const notes = item.querySelector('textarea[data-notes]').value.trim();
+      if (notes) lines.push(`Notes: ${notes}`);
+      lines.push('');
+    }
+    return lines.join('\n');
+  }
+  const payload = document.getElementById('payload');
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+  refresh();
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    refresh();
+    const msg = document.getElementById('copiedMsg');
+    try { await navigator.clipboard.writeText(payload.value); }
+    catch (e) { payload.select(); document.execCommand('copy'); }
+    msg.hidden = false; setTimeout(() => { msg.hidden = true; }, 2000);
+  });
+})();
+</script>
+</body>
+</html>
