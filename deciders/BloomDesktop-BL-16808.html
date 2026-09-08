@@ -7,19 +7,9 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   :root {
-    --ground: #f6f4ef;
-    --card: #ffffff;
-    --line: #dcd7cc;
-    --ink: #1f1d1a;
-    --ink-2: #5a564e;
-    --accent: #1f5f6b;
-    --accent-soft: #e3eef0;
-    --ok: #2f7a3e;
-    --ok-soft: #e4f1e6;
-    --warn: #9a6a12;
-    --warn-soft: #f7ecd4;
-    --serif: Georgia, "Times New Roman", serif;
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --ground: #f6f4ef; --card: #ffffff; --line: #dcd7cc; --ink: #1f1d1a; --ink-2: #5a564e;
+    --accent: #1f5f6b; --accent-soft: #e3eef0; --ok: #2f7a3e; --ok-soft: #e4f1e6; --warn: #9a6a12; --warn-soft: #f7ecd4;
+    --serif: Georgia, "Times New Roman", serif; --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mono: ui-monospace, Consolas, "SFMono-Regular", Menlo, monospace;
   }
   html { color-scheme: light; }
@@ -33,7 +23,6 @@
   .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12.5px; letter-spacing: .02em; border: 1px solid var(--line); background: var(--card); color: var(--ink-2); }
   .chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
   .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
-  .chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
   .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 24px; margin-top: 24px; }
   .grid > * { min-width: 0; }
   @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
@@ -54,7 +43,6 @@
   code { font-family: var(--mono); font-size: 13px; background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; }
   .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
   .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.na { background: var(--line); }
-  /* decisions */
   .decision { border-left: 3px solid var(--accent); }
   .decision p.q { font-weight: 600; }
   .opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
@@ -77,7 +65,7 @@
 <div class="wrap">
   <header>
     <h1>BL-16808 follow-up: the stray zero-width space in titles</h1>
-    <p class="sub">Preflight run of 2026-09-08 on branch <code>BL-16808</code> against <code>Version6.4</code>. Every gate is green and both Devin findings are answered on their threads. Two questions wait on you.</p>
+    <p class="sub">Second preflight run, 2026-09-08, on branch <code>BL-16808</code> against <code>Version6.4</code>. The fix was verified in a running Bloom and widened to cover what that test found. Every gate is green; Devin's two findings are answered on their threads. Two questions wait on you.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip ok">Mergeable, clean</span>
@@ -92,14 +80,15 @@
       <section class="card">
         <h2>What this PR is about</h2>
         <h3>Problem</h3>
-        <p>After <a href="https://github.com/BloomBooks/BloomDesktop/pull/8305" target="_blank" rel="noopener">#8305</a> put a line break between the paragraphs of a title, a tester found a case on 6.4 where the title still reaches the Publish tab and bloomlibrary.org as "OneTwo": type "One Two", put the cursor at the start of "Two", press Enter or Shift+Enter. Show Hidden Characters reveals a zero-width space at the start of the second line. 6.5 does not have the problem.</p>
+        <p>Follow-up to <a href="https://github.com/BloomBooks/BloomDesktop/pull/8305" target="_blank" rel="noopener">#8305</a>. A tester found that on 6.4 a title typed as "One Two" with Enter or Shift+Enter pressed at the start of "Two" still reaches the Publish tab and bloomlibrary.org as "OneTwo", even though #8305 now puts a line break between the two lines. Show Hidden Characters reveals a zero-width space at the start of the second line. 6.5 does not have the problem.</p>
         <h3>Cause</h3>
-        <p>CKEditor places a zero-width "filling char" (U+200B) at the caret after a split so the caret stays navigable, and removes it later by holding a reference to that text node. About half a second after every keystroke, <code>cleanUpNbsps</code> assigned the box's <code>innerHTML</code> whether or not it had changed anything. That rebuilds every node, so CKEditor's reference points at a detached node and the character is never removed. It is saved with the title, and Chromium renders a newline adjacent to U+200B as nothing at all, so the line break becomes invisible. Master fixed the rewrite in BL-16558, which is why 6.5 is clean.</p>
+        <p>CKEditor plants a zero-width "filling char" (U+200B) at the caret whenever it re-selects a caret that sits next to an inline element, such as the line-break span Shift+Enter inserts, and removes it later by holding a reference to that text node. Bloom's half-second tidy-up after every keystroke took a CKEditor bookmark and restored it, which is such a re-select, and it also assigned the box's <code>innerHTML</code> whether or not anything had changed. Each rewrite detached the node CKEditor was tracking, so the character stayed as ordinary text, a fresh one was planted on the next pause, and the result was saved. Chromium renders a newline adjacent to U+200B as nothing at all, so the line break became invisible. Reproduced in a running 6.4 build over CDP; master fixed both halves in BL-16558 and BL-16717, which is why 6.5 is clean.</p>
         <h3>What the PR does</h3>
         <ul>
-          <li><code>cleanUpNbsps</code> assigns <code>innerHTML</code> only when it actually converted a non-breaking space (<a href="https://github.com/BloomBooks/BloomDesktop/blob/3037a63ac8cbd7f7cfb4710a69395e110c53c22a/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1638" target="_blank" rel="noopener">toolbox.ts:1638</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/3037a63ac8cbd7f7cfb4710a69395e110c53c22a/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1690" target="_blank" rel="noopener">:1690</a>). Same code as master's BL-16558 change.</li>
-          <li>Three new tests check node identity, since the existing tests compare serialized HTML and cannot tell "left alone" from "rebuilt identically" (<a href="https://github.com/BloomBooks/BloomDesktop/blob/3037a63ac8cbd7f7cfb4710a69395e110c53c22a/src/BloomBrowserUI/bookEdit/toolbox/toolboxSpec.ts#L132" target="_blank" rel="noopener">toolboxSpec.ts:132</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/3037a63ac8cbd7f7cfb4710a69395e110c53c22a/src/BloomBrowserUI/bookEdit/toolbox/toolboxSpec.ts#L145" target="_blank" rel="noopener">:145</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/3037a63ac8cbd7f7cfb4710a69395e110c53c22a/src/BloomBrowserUI/bookEdit/toolbox/toolboxSpec.ts#L160" target="_blank" rel="noopener">:160</a>).</li>
-          <li>It does not clean books that already carry an orphaned zero-width space. The blanket strip master has (BL-16490) was judged too risky for 6.4 because Khmer, Thai and Myanmar text uses U+200B legitimately.</li>
+          <li><code>cleanUpNbsps</code> assigns <code>innerHTML</code> only when it actually converted a non-breaking space (<a href="https://github.com/BloomBooks/BloomDesktop/blob/32b5e5e168d186fff43dc0da72277472ee520a6c/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1714" target="_blank" rel="noopener">toolbox.ts:1714</a>).</li>
+          <li>The tidy-up takes a CKEditor bookmark only when a tool is active or the box holds a comment or an nbsp, the only cases in which anything rewrites it (<a href="https://github.com/BloomBooks/BloomDesktop/blob/32b5e5e168d186fff43dc0da72277472ee520a6c/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1528" target="_blank" rel="noopener">toolbox.ts:1528</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/32b5e5e168d186fff43dc0da72277472ee520a6c/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L1747" target="_blank" rel="noopener">editableMightBeRewritten</a>). Ordinary typing never plants the character in the first place.</li>
+          <li>Five new tests check node identity and the gate (<a href="https://github.com/BloomBooks/BloomDesktop/blob/32b5e5e168d186fff43dc0da72277472ee520a6c/src/BloomBrowserUI/bookEdit/toolbox/toolboxSpec.ts#L9" target="_blank" rel="noopener">toolboxSpec.ts</a>).</li>
+          <li>Not done: cleaning books that already carry a stray zero-width space, and stripping one that CKEditor plants on its own and Show Hidden Characters then orphans (see Worth knowing). Master strips those at save (BL-16490), judged too risky for 6.4 because Khmer, Thai and Myanmar text uses U+200B legitimately.</li>
         </ul>
       </section>
 
@@ -109,11 +98,12 @@
         <table>
           <thead><tr><th>Check</th><th>State</th><th>Detail</th></tr></thead>
           <tbody>
-            <tr><td>Typecheck</td><td class="state"><span class="dot na"></span>n/a</td><td>The front-end has no typecheck script. A raw <code>tsc --noEmit</code> reports <span class="numeral">1107</span> pre-existing errors in unrelated files (jquery typings, vite types) and none in the two touched files.</td></tr>
-            <tr><td>Lint</td><td class="state"><span class="dot ok"></span>pass</td><td>eslint and prettier clean on both touched files; the pre-commit hook ran and passed.</td></tr>
-            <tr><td>Merge cleanliness</td><td class="state"><span class="dot ok"></span>clean</td><td>Branch sits directly on <code>origin/Version6.4</code>; GitHub reports mergeable, clean.</td></tr>
-            <tr><td>TypeScript tests (vitest)</td><td class="state"><span class="dot ok"></span>pass</td><td>Full suite with <code>--no-file-parallelism</code>: <span class="numeral">538 passed · 5 skipped</span> across <span class="numeral">48</span> files (1 skipped). The bookmark test added afterwards ran separately in its file, <span class="numeral">8 / 8</span>.</td></tr>
-            <tr><td>C# tests</td><td class="state"><span class="dot na"></span>not run</td><td>No C# in the diff and nothing on the .NET side reads these two files.</td></tr>
+            <tr><td>Typecheck</td><td class="state"><span class="dot ok"></span>pass for touched files</td><td>The front-end has no typecheck script and a raw <code>tsc --noEmit</code> carries <span class="numeral">1107</span> pre-existing errors in unrelated files. The two touched files report none; a narrowing error this run introduced was caught by the local review and fixed before push.</td></tr>
+            <tr><td>Lint</td><td class="state"><span class="dot ok"></span>pass</td><td>eslint and prettier clean on both touched files; the pre-commit hook ran and passed on every commit.</td></tr>
+            <tr><td>Merge cleanliness</td><td class="state"><span class="dot ok"></span>clean</td><td>Branch sits directly on <code>origin/Version6.4</code>; GitHub reports mergeable.</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="state"><span class="dot ok"></span>pass</td><td>Full suite with <code>--no-file-parallelism</code> at the final head: <span class="numeral">540 passed · 5 skipped across 48 files (1 skipped)</span>.</td></tr>
+            <tr><td>C# tests</td><td class="state"><span class="dot na"></span>not run</td><td>No C# in the diff and nothing on the .NET side reads these files.</td></tr>
+            <tr><td>Live verification</td><td class="state"><span class="dot ok"></span>done</td><td>Bloom launched from this branch and driven over CDP in a throwaway collection, with no OS pointer or keyboard use. Old tidy-up code: Shift+Enter, pause, keystroke, pause gave two U+200B in the title and Show Hidden Characters orphaned them; they were saved. Fixed code: Enter and Shift+Enter clean at every step, saved title <code>One \nTwo</code>.</td></tr>
           </tbody>
         </table>
         </div>
@@ -121,7 +111,7 @@
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>Made the <code>cleanUpNbsps</code> rewrite conditional with two node-identity tests, then added a third test for the bookmark refill after the local review pointed out that gap. Two commits: <a href="https://github.com/BloomBooks/BloomDesktop/commit/3ef20f0411f08ec3d96648a7d74bd0a7645b01a4" target="_blank" rel="noopener">3ef20f0</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/3037a63ac8cbd7f7cfb4710a69395e110c53c22a" target="_blank" rel="noopener">3037a63</a>. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332/commits" target="_blank" rel="noopener">Commits</a>.</p>
+        <p>Replayed the tester's sequence in a running 6.4 build, which showed the conditional rewrite alone still let the half-second tidy-up plant the character; ported master's bookmark gate to close that, with tests; fixed a type-narrowing miss the local review caught. Two code commits this run: <a href="https://github.com/BloomBooks/BloomDesktop/commit/26dd6856b846179e2a508ffe3e9079f4eee7f63f" target="_blank" rel="noopener">26dd685</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/32b5e5e168d186fff43dc0da72277472ee520a6c" target="_blank" rel="noopener">32b5e5e</a>. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332/commits" target="_blank" rel="noopener">Commits</a>.</p>
       </section>
 
       <section class="card">
@@ -130,10 +120,10 @@
         <table>
           <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
           <tbody>
-            <tr><td>Local review</td><td class="state"><span class="dot ok"></span>complete</td><td>Light read-only sub-agent pass. No correctness findings. It named one test gap (no bookmark span in the new tests), which was closed with the third test.</td></tr>
-            <tr><td>Devin</td><td class="state"><span class="dot ok"></span>complete</td><td>One non-severe bug and one Investigate flag, both about the same accepted limit: the box is still rebuilt on the rare pause where a non-breaking space is converted. Both replied to and resolved: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332#discussion_r3961965944" target="_blank" rel="noopener">bug thread</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332#discussion_r3961966505" target="_blank" rel="noopener">flag thread</a>. No informational items. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8332" target="_blank" rel="noopener">Devin review page</a>.</td></tr>
+            <tr><td>Local review</td><td class="state"><span class="dot ok"></span>complete</td><td>Light read-only sub-agent pass on each code commit. First pass clean with one test gap, closed. Second pass found one real problem, a <code>currentTool</code> reference no longer type-narrowed inside the gated block; fixed in 32b5e5e.</td></tr>
+            <tr><td>Devin</td><td class="state"><span class="dot ok"></span>complete</td><td>Reviewed all three commits pushed this run, the last for the final head. Each re-review repeated the same non-severe bug and Investigate flag about the accepted limit (the box is still rebuilt on the rare pause where a non-breaking space is converted); both answered and resolved, nothing new. No informational items. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332#discussion_r3961965944" target="_blank" rel="noopener">bug thread</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8332#discussion_r3961966505" target="_blank" rel="noopener">flag thread</a>, <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8332" target="_blank" rel="noopener">Devin review page</a>.</td></tr>
             <tr><td>CodeRabbit</td><td class="state"><span class="dot na"></span>off</td><td>Configured with auto-review disabled in this repo; nothing to wait for.</td></tr>
-            <tr><td>CI</td><td class="state"><span class="dot ok"></span>pass</td><td>The one check, <code>pr-automation</code>, passed for the current head.</td></tr>
+            <tr><td>CI</td><td class="state"><span class="dot ok"></span>pass</td><td>The one check, <code>pr-automation</code>, passed for the final head.</td></tr>
           </tbody>
         </table>
         </div>
@@ -142,28 +132,29 @@
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>The fix has not been exercised by hand in a running Bloom. The reasoning rests on code reading plus a browser check that Chromium drops a newline next to U+200B; the tester's exact keystroke sequence has not been replayed on this build. See the first question.</li>
-          <li>Show Hidden Characters itself rewrites the box's HTML, so it can orphan a filling char that is still present when it is toggled. The tester saw no character in 6.5 with the same Show Hidden Characters code, which is the evidence that the keystroke-pause rewrite was the route that mattered.</li>
-          <li>Books saved by earlier 6.4 builds keep any zero-width space they already have. The round-2 test ideas on the card say so, so the tester will not file it.</li>
+          <li>One route to a saved stray character remains, found during verification: press Backspace right after a Shift+Enter line break, so the caret ends up next to the span. CKEditor itself then plants a tracked filling char. If Show Hidden Characters is held while it is there, that feature's own HTML rewrite orphans it and it is saved, folder name included. Without Show Hidden Characters it is removed normally at save. 6.5 has the same live behavior and cleans it at save. The round-2 test ideas describe it so the tester does not file it. See the first question.</li>
+          <li>With synthetic CDP input the Enter variant never produced the character even on the old code; only Shift+Enter did. The tester saw it with Enter using real input, so the Enter route was not directly reproduced here, but the mechanism and the fix are the same for both.</li>
+          <li>Books saved by earlier 6.4 builds keep any zero-width space they already have.</li>
+          <li>Your own launcher from 1:08 PM was still running its watcher in this worktree; my file edits made it rebuild and relaunch Bloom automatically. I stopped that auto-relaunched Bloom because it held my test collection open, and left your watcher running.</li>
         </ul>
       </section>
     </div>
 
     <div class="col">
       <section class="card decision">
-        <h2>Verify in a running Bloom before review?</h2>
-        <p class="q">The change mirrors what master does and the tests pin the DOM behavior, but nobody has replayed the tester's sequence on this build. Should that happen before a human reviews the PR?</p>
-        <p>The tester's route to the bug has two rewrites in it that could orphan the character: the half-second tidy-up after a keystroke, which this PR fixes, and Show Hidden Characters, which this PR does not touch. The tester's 6.5 observation says the first one is the culprit, and the code agrees, but a replay on a 6.4 build with this change is the only direct proof.</p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" data-q="Verify in running Bloom" value="Replay the tester's sequence on a dev build now" checked><label for="q1a">Replay the tester's sequence on a dev build now <span class="tag">recommended</span><span class="foot">No code change. Roughly 30 to 45 minutes to build and drive Bloom over CDP. Recommended because the fix was chosen for being narrow, so confirming it covers the reported route is the one thing a reviewer cannot judge from the diff.</span></label><span></span></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b" data-q="Verify in running Bloom" value="Leave as is"><label for="q1b">Leave as is</label><label class="leavecomment"><input type="checkbox" data-q="Verify in running Bloom" data-leave-comment="1"> Leave comment</label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1c" data-q="Verify in running Bloom" value="Other"><label for="q1c">Other:</label><input type="text" data-q="Verify in running Bloom" data-other="1" placeholder="your answer"></div>
-        <div class="notes"><span>Notes</span><textarea data-q="Verify in running Bloom" data-notes="1"></textarea></div>
+        <h2>Close the Show Hidden Characters route too?</h2>
+        <p class="q">When CKEditor's own filling char is present and Show Hidden Characters is held, the feature's HTML rewrite orphans it and it gets saved. Should this PR also handle that?</p>
+        <p>It takes a specific sequence: a Backspace that leaves the caret right next to a line-break span, then Ctrl+Shift+Space held before anything else moves the caret. Show Hidden Characters is a debugging aid, and 6.5 behaves the same way live, cleaning up only at save. Leaving it is reasonable for a release branch; the option below is small if you would rather not ship any known route.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" data-q="Show Hidden Characters route" value="Remove CKEditor's tracked filling char before Show Hidden Characters rewrites the box"><label for="q1a">Remove CKEditor's tracked filling char before Show Hidden Characters rewrites the box<span class="foot">About 10 lines in showInvisibles.ts, reading CKEditor's <code>cke-fillingChar</code> custom data the way master already does; low risk, but it leans on a CKEditor internal.</span></label><span></span></div>
+        <div class="opt"><input type="radio" name="q1" id="q1b" data-q="Show Hidden Characters route" value="Leave as is" checked><label for="q1b">Leave as is <span class="tag">recommended</span></label><label class="leavecomment"><input type="checkbox" data-q="Show Hidden Characters route" data-leave-comment="1"> Leave comment</label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1c" data-q="Show Hidden Characters route" value="Other"><label for="q1c">Other:</label><input type="text" data-q="Show Hidden Characters route" data-other="1" placeholder="your answer"></div>
+        <div class="notes"><span>Notes</span><textarea data-q="Show Hidden Characters route" data-notes="1"></textarea></div>
       </section>
 
       <section class="card decision">
         <h2>Next step</h2>
-        <p class="q">Once the question above is answered, what should happen with this PR?</p>
-        <div class="opt"><input type="radio" name="q2" id="q2a" data-q="Next step" value="Act on the answers above, then re-run preflight" checked><label for="q2a">Act on the answers above, then re-run preflight <span class="tag">recommended</span><span class="foot">Recommended because the branch is otherwise clean and small; the only open item is the verification above.</span></label><span></span></div>
+        <p class="q">What should happen with this PR now?</p>
+        <div class="opt"><input type="radio" name="q2" id="q2a" data-q="Next step" value="Act on the answer above, then re-run preflight if anything changed" checked><label for="q2a">Act on the answer above, then re-run preflight if anything changed <span class="tag">recommended</span><span class="foot">Recommended because the branch is clean, verified live, and small; with "Leave as is" above there is nothing left to do but your own review.</span></label><span></span></div>
         <div class="opt"><input type="radio" name="q2" id="q2b" data-q="Next step" value="Discuss first"><label for="q2b">Discuss first<span class="foot">No action until we talk it through.</span></label><span></span></div>
         <div class="opt"><input type="radio" name="q2" id="q2c" data-q="Next step" value="Leave as is"><label for="q2c">Leave as is</label><label class="leavecomment"><input type="checkbox" data-q="Next step" data-leave-comment="1"> Leave comment</label></div>
         <div class="opt"><input type="radio" name="q2" id="q2d" data-q="Next step" value="Other"><label for="q2d">Other:</label><input type="text" data-q="Next step" data-other="1" placeholder="your answer"></div>
@@ -181,9 +172,9 @@
 </div>
 <script>
 (function () {
-  var qs = ["Verify in running Bloom", "Next step"];
+  var qs = ["Show Hidden Characters route", "Next step"];
   function serialize() {
-    var out = ["Preflight decisions for BloomDesktop PR #8332 (BL-16808)", "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16808.html", ""];
+    var out = ["Preflight decisions for BloomDesktop PR #8332 (BL-16808), run 2", "Report: https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16808.html", ""];
     qs.forEach(function (q) {
       var sel = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
       var choice = sel ? sel.value : "(no selection)";
@@ -191,8 +182,7 @@
         var other = document.querySelector('input[type=text][data-q="' + q + '"][data-other]');
         choice = "Other: " + (other && other.value.trim() ? other.value.trim() : "(blank)");
       }
-      out.push("## " + q);
-      out.push("Choice: " + choice);
+      out.push("## " + q); out.push("Choice: " + choice);
       var lc = document.querySelector('input[type=checkbox][data-q="' + q + '"][data-leave-comment]');
       if (lc && lc.checked) out.push("Leave comment: record this decision as a code comment near the relevant code");
       var notes = document.querySelector('textarea[data-q="' + q + '"][data-notes]');
@@ -203,15 +193,12 @@
   }
   var payload = document.getElementById("payload");
   function refresh() { payload.value = serialize(); }
-  document.addEventListener("input", refresh);
-  document.addEventListener("change", refresh);
-  refresh();
+  document.addEventListener("input", refresh); document.addEventListener("change", refresh); refresh();
   document.getElementById("copy").addEventListener("click", function () {
     refresh();
     var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, function () { payload.select(); document.execCommand("copy"); done(); });
-    } else { payload.select(); document.execCommand("copy"); done(); }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(payload.value).then(done, function () { payload.select(); document.execCommand("copy"); done(); });
+    else { payload.select(); document.execCommand("copy"); done(); }
   });
 })();
 </script>
