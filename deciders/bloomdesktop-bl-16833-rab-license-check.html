@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16833 Apps License Check</title>
+<style>
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --line: #d9dcd6;
+    --ink: #1f2624;
+    --ink-2: #55605c;
+    --accent: #1f6f78;
+    --accent-soft: #e3eff0;
+    --ok: #2e7d4f;
+    --ok-soft: #e4f2e9;
+    --warn: #9a6a12;
+    --warn-soft: #f7edd6;
+    --mute-soft: #eceeea;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  h2 { font-size: 1.15rem; margin-bottom: .6rem; }
+  h3 { font-family: inherit; font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); margin: .9rem 0 .25rem; }
+  p { margin: 0 0 .7rem; max-width: 68ch; }
+  ul { margin: 0 0 .7rem; padding-left: 1.2rem; }
+  li { margin-bottom: .3rem; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 28px 24px 60px; }
+  header { margin-bottom: 22px; }
+  .kicker { color: var(--ink-2); margin-bottom: .3rem; font-size: .9rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .8rem; font-weight: 600; background: var(--mute-soft); color: var(--ink-2); }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 22px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--ink-2); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+  td.state { white-space: nowrap; font-weight: 600; }
+  .pass { color: var(--ok); }
+  .na { color: var(--ink-2); }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: .9em; }
+  .reviewer { display: grid; grid-template-columns: 9rem minmax(0, 1fr); gap: 4px 14px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .reviewer:last-child { border-bottom: 0; }
+  .reviewer .who { font-weight: 600; }
+  .reviewer .what p { margin-bottom: .3rem; }
+  fieldset { border: 0; padding: 0; margin: 0 0 .8rem; }
+  legend { font-weight: 600; margin-bottom: .4rem; padding: 0; }
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; margin-bottom: 6px; background: var(--card); }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; flex: 0 0 auto; }
+  .opt .txt { flex: 1 1 auto; min-width: 0; }
+  .opt .rec { display: inline-block; margin-left: 6px; font-size: .72rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .05em; }
+  .opt .foot { display: block; color: var(--ink-2); font-size: .85rem; }
+  .opt .side { flex: 0 0 auto; font-size: .85rem; color: var(--ink-2); display: flex; align-items: center; gap: 5px; }
+  .opt input[type=text], textarea { font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; width: 100%; background: var(--card); color: var(--ink); }
+  textarea { min-height: 64px; resize: vertical; }
+  label.notes { display: block; font-size: .85rem; color: var(--ink-2); margin-top: 6px; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 9px 16px; cursor: pointer; }
+  button:hover { filter: brightness(1.08); }
+  #payload { margin-top: 10px; min-height: 140px; font-family: ui-monospace, Consolas, monospace; font-size: .82rem; }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } .reviewer { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">Preflight report · <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16833" target="_blank" rel="noopener">BL-16833</a> · branch <span class="numeral">BL-16833-rab-license-check</span> · base <span class="numeral">Version6.4</span> · run of 2026-09-09</div>
+  <h1>Publish &gt; Apps now refuses unlicensed languages</h1>
+  <p>One commit, pushed and opened as PR #8335. Every gate is green and every reviewer has finished with nothing to raise. Nothing is waiting on you except deciding when to do your own review.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable · up to date with Version6.4</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip">0 decisions waiting</span>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Publish &gt; Apps (the Reading App Builder screen) would happily build a content-licensed book, such as a Super Bible title, into an Android app in a language the copyright holder has not permitted, English in the Super Bible case. Every other publish path (BloomPUB, ePUB, PDF, upload to Bloom Library) stops with a licensing message. This one showed nothing and produced the app.</p>
+    <h3>Cause</h3>
+    <p>The Reading App Builder workflow never consulted the license checker. It exported a BloomPUB for each book straight from the book's publish settings and handed them to Reading App Builder.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Before Prepare or Build exports any BloomPUB, every book headed into the app is checked against the languages its BloomPUB would include, using the same license checker the other paths use. Books whose BloomPUB would merely be reused are checked too, and the check runs before the Reading App Builder workspace is touched.</li>
+      <li>A restricted language makes the step fail with the familiar licensing message in the Apps screen log ("Prepare failed: The copyright holder of this book has not licensed it for publishing in English…"). With several problem books, each line names its book.</li>
+      <li>Four unit tests cover a forbidden language, a permitted language, an unrestricted book, and several problem books, reusing the offline license fixture from the existing LicenseChecker tests.</li>
+    </ul>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8335" target="_blank" rel="noopener">PR #8335</a> · <a href="https://github.com/BloomBooks/BloomDesktop/pull/8335/files" target="_blank" rel="noopener">Files changed</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/aec0a05f6ec59070adc36dc5b43442150e13d13f/src/BloomExe/Publish/Rab/RabProjectService.cs#L1191" target="_blank" rel="noopener">the check at its call site</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/aec0a05f6ec59070adc36dc5b43442150e13d13f/src/BloomExe/Publish/Rab/RabProjectService.cs#L1295" target="_blank" rel="noopener">the check itself</a> · <a href="https://github.com/BloomBooks/BloomDesktop/blob/aec0a05f6ec59070adc36dc5b43442150e13d13f/src/BloomTests/Publish/Rab/RabLicenseCheckTests.cs#L15" target="_blank" rel="noopener">the tests</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Gate</th><th>Result</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript typecheck</td><td class="state na">not run</td><td>The diff contains no front-end code.</td></tr>
+        <tr><td>Lint (front-end)</td><td class="state na">not run</td><td>Same reason. C# was formatted by CSharpier in the pre-commit hook.</td></tr>
+        <tr><td>Merge with Version6.4</td><td class="state pass">clean</td><td>The branch sits directly on the tip of Version6.4.</td></tr>
+        <tr><td>C# targeted tests</td><td class="state pass">pass</td><td><span class="numeral">90 passed · 0 failed</span> across the new RAB license tests, LicenseCheckerTests and RabAppProjectTests.</td></tr>
+        <tr><td>C# full suite</td><td class="state pass">pass</td><td><span class="numeral">2896 passed · 0 failed · 14 skipped</span> in about 10 minutes. The skipped tests are the usual environment-gated ones.</td></tr>
+        <tr><td>Front-end tests (vitest)</td><td class="state na">not run</td><td>No TypeScript, CSS or content in the diff; nothing the web UI suite reads changed.</td></tr>
+        <tr><td>Real Reading App Builder build (opt-in)</td><td class="state na">not run</td><td>Fails on this machine before it reaches Bloom's code ("buildapp.bat is not recognized"), a known local toolchain problem. It also bypasses the export path this PR changes.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Wrote and committed the fix and its tests as one commit, pushed the branch, and opened the draft PR against Version6.4. No changes were needed in response to reviewers.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8335/commits" target="_blank" rel="noopener">Commit list</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/aec0a05f6ec59070adc36dc5b43442150e13d13f" target="_blank" rel="noopener">aec0a05</a> Fix BL-16833</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="reviewer"><div class="who">Local review</div><div class="what"><p>Light read-only sub-agent pass: clean, no findings. It asked one question, whether the settings lookup could write a book's meta.json for books whose BloomPUB is reused; checked, and it cannot, because such a book was exported by this same code earlier, so its settings are already initialized.</p></div></div>
+    <div class="reviewer"><div class="who">Devin</div><div class="what"><p>Complete for the current commit: 0 bugs, 0 investigate flags, 0 informational notes. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8335" target="_blank" rel="noopener">Devin review page</a>.</p></div></div>
+    <div class="reviewer"><div class="who">CodeRabbit</div><div class="what"><p>Not a reviewer here: the repo's <span class="numeral">.coderabbit.yml</span> has automatic review switched off, so it does not run on pushes.</p></div></div>
+    <div class="reviewer"><div class="who">CI</div><div class="what"><p>Complete: the only GitHub check on this PR, pr-automation, passed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8335/checks" target="_blank" rel="noopener">Checks</a>.</p></div></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The fix has not been exercised by hand in a running Bloom with Reading App Builder; it rests on the unit tests and on reading the two entry points (Prepare and Build) that both pass through the checked export. A tester with a Super Bible book is the real confirmation; the test ideas on the card say what to try.</li>
+      <li>The Prepare and Build buttons stay enabled for a restricted book; the message appears only after the click. The BloomPUB and ePUB screens grey out their button instead. This was chosen deliberately to avoid a license-server lookup for every tracked book on every status refresh, and the test ideas tell testers not to report it.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col">
+
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>No reviewer raised anything that needs your judgment. One question about what happens next.</p>
+    <fieldset data-q="Next step">
+      <legend>Next step</legend>
+      <label class="opt"><input type="radio" name="q1" value="Review it myself now, then promote to human review" checked><span class="txt">Review it myself now, then promote to human review<span class="rec">Recommended</span><span class="foot">Everything is green and quiet; the PR is ready for your own read before a colleague sees it. (no code)</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Leave as is"><span class="txt">Leave as is</span><span class="side"><input type="checkbox" data-q="Next step / Leave comment"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q1" value="Other"><span class="txt">Other: <input type="text" data-q="Next step / Other" placeholder="your answer"></span></label>
+      <label class="notes">Notes<textarea data-q="Next step / Notes"></textarea></label>
+    </fieldset>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copies a plain-text block to paste into the Claude Code session.</p>
+    <button id="copy" type="button">Copy answers</button><span id="copied" class="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Answers"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var header = "Preflight decisions for BloomDesktop BL-16833-rab-license-check (PR #8335)\nReport: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16833-rab-license-check.html\n";
+  function serialize() {
+    var out = [header];
+    document.querySelectorAll("fieldset[data-q]").forEach(function (fs) {
+      var q = fs.getAttribute("data-q");
+      var picked = fs.querySelector("input[type=radio]:checked");
+      var line = q + ": " + (picked ? picked.value : "(no selection)");
+      if (picked && picked.value === "Other") {
+        var other = fs.querySelector("input[type=text][data-q]");
+        line = q + ": Other: " + (other && other.value ? other.value : "");
+      }
+      out.push(line);
+      var lc = fs.querySelector("input[type=checkbox][data-q]");
+      if (lc && lc.checked) out.push("  Leave comment: record this decision as a code comment near the relevant code");
+      var notes = fs.querySelector("textarea[data-q]");
+      if (notes && notes.value.trim()) out.push("  Notes: " + notes.value.trim());
+    });
+    return out.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copy").addEventListener("click", function () {
+    refresh();
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
+    var fallback = function () { payload.focus(); payload.select(); try { document.execCommand("copy"); } catch (e) {} done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
