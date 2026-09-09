@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — BL-16793 Omit target images (BloomDesktop #8337)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, ul, ol, li, figure, table, fieldset, legend { margin: 0; padding: 0; }
+  ul, ol { list-style: none; }
+  table { border-collapse: collapse; }
+  button, input, textarea { font: inherit; color: inherit; }
+
+  :root {
+    --ground: #FAF8F5;
+    --card: #FFFFFF;
+    --rule: #E3DED5;
+    --rule-soft: #EFEBE4;
+    --ink: #241F1A;
+    --ink-soft: #665E55;
+    --ink-faint: #8C837A;
+    --accent: #1C5747;
+    --accent-soft: #E8F0ED;
+    --pass: #2C6A4F;
+    --warn: #8A6512;
+    --skip: #6E6A64;
+    --fail: #9B2C2C;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding: 32px 24px 72px;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; }
+
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  code { font-family: var(--mono); font-size: 0.88em; background: #F3F0EA; border: 1px solid var(--rule-soft); border-radius: 3px; padding: 0.05em 0.32em; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 2px;
+  }
+
+  /* ---- masthead ---- */
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .masthead h1 {
+    font-family: var(--serif); font-size: clamp(1.7rem, 3.4vw, 2.5rem);
+    line-height: 1.15; font-weight: 600; text-wrap: balance; letter-spacing: -0.01em;
+  }
+  .masthead .sub { color: var(--ink-soft); margin-top: 8px; font-size: 0.98rem; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 16px; font-size: 0.86rem; color: var(--ink-soft); }
+  .facts div { min-width: 0; }
+  .facts span.k { display: block; text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.7rem; color: var(--ink-faint); }
+
+  /* ---- layout ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 940px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 5px; padding: 20px 22px; margin-bottom: 20px; }
+  .card > h2 { font-family: var(--serif); font-size: 1.2rem; font-weight: 600; margin-bottom: 4px; }
+  .card > .lede { color: var(--ink-soft); font-size: 0.9rem; margin-bottom: 14px; }
+
+  /* ---- tables ---- */
+  .tblwrap { overflow-x: auto; }
+  table { width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); font-weight: 600; border-bottom: 1px solid var(--rule); }
+  tr:last-child td { border-bottom: none; }
+  td.what { font-weight: 500; }
+
+  .pill {
+    display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; padding: 2px 8px; border-radius: 100px; white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+  .pill.pass { color: var(--pass); background: #EAF3EE; }
+  .pill.na   { color: var(--skip); background: #F1EFEC; }
+  .pill.info { color: var(--warn); background: #FAF3E3; }
+  .pill.fail { color: var(--fail); background: #FBEDED; }
+
+  /* ---- commits / notes ---- */
+  .commits li { padding: 11px 0; border-bottom: 1px solid var(--rule-soft); }
+  .commits li:last-child { border-bottom: none; }
+  .commits .msg { font-weight: 500; }
+  .commits .meta { color: var(--ink-soft); font-size: 0.85rem; margin-top: 2px; }
+
+  .notes li { padding: 7px 0 7px 15px; position: relative; color: var(--ink-soft); font-size: 0.91rem; border-bottom: 1px solid var(--rule-soft); }
+  .notes li:last-child { border-bottom: none; }
+  .notes li::before { content: ""; position: absolute; left: 0; top: 1.05em; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+  .notes strong { color: var(--ink); font-weight: 600; }
+
+  .linkrow { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.88rem; }
+
+  /* ---- decisions ---- */
+  .item { background: var(--card); border: 1px solid var(--rule); border-radius: 5px; padding: 18px 20px; margin-bottom: 18px; }
+  .item > h3 { font-family: var(--serif); font-size: 1.06rem; font-weight: 600; margin-bottom: 8px; text-wrap: balance; }
+  .item .kind { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); background: var(--accent-soft); border-radius: 100px; padding: 2px 9px; display: inline-block; margin-bottom: 8px; }
+  .item p { font-size: 0.91rem; color: var(--ink-soft); margin-bottom: 10px; }
+  .item p:last-of-type { margin-bottom: 14px; }
+
+  .opts { display: flex; flex-direction: column; gap: 2px; }
+  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; padding: 9px 10px; border-radius: 4px; align-items: start; }
+  .opt:hover { background: #FBFAF8; }
+  .opt > input { margin-top: 4px; }
+  .opt .lbl { min-width: 0; font-size: 0.91rem; }
+  .opt .rec { font-size: 0.63rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--pass); border: 1px solid var(--pass); background: #EAF3EE; border-radius: 100px; padding: 1px 7px; margin-left: 6px; vertical-align: 1px; white-space: nowrap; }
+  .opt .fn { display: block; color: var(--ink-faint); font-size: 0.81rem; margin-top: 2px; }
+  .opt.leave { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .leavecomment { display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--ink-faint); white-space: nowrap; padding-top: 2px; }
+  .otherbox { width: 100%; margin-top: 5px; padding: 5px 8px; border: 1px solid var(--rule); border-radius: 3px; background: #FCFBF9; }
+  .noteslot { margin-top: 12px; }
+  .noteslot label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-faint); margin-bottom: 4px; }
+  .noteslot textarea { width: 100%; min-height: 52px; padding: 7px 9px; border: 1px solid var(--rule); border-radius: 3px; background: #FCFBF9; resize: vertical; font-size: 0.88rem; }
+
+  #copyback textarea { width: 100%; min-height: 190px; padding: 10px; border: 1px solid var(--rule); border-radius: 3px; background: #FCFBF9; font-family: var(--mono); font-size: 0.78rem; resize: vertical; margin-top: 12px; }
+  #copybtn { background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 9px 18px; font-weight: 600; font-size: 0.9rem; cursor: pointer; }
+  #copybtn:hover { background: #164638; }
+  #copied { margin-left: 10px; font-size: 0.85rem; color: var(--pass); font-weight: 600; opacity: 0; transition: opacity 0.18s; }
+  #copied.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Bloom Games target images no longer go to the AI image editor</h1>
+    <p class="sub">Preflight report — everything below ran automatically; the right-hand column is what needs you.</p>
+    <div class="facts">
+      <div><span class="k">Ticket</span><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16793" target="_blank" rel="noopener">BL-16793</a></div>
+      <div><span class="k">Pull request</span><a href="https://github.com/BloomBooks/BloomDesktop/pull/8337" target="_blank" rel="noopener">BloomDesktop #8337</a> — draft</div>
+      <div><span class="k">Branch → base</span><span class="numeral">BL-16793-OmitTargetImages → Version6.5</span></div>
+      <div><span class="k">Head commit</span><a href="https://github.com/BloomBooks/BloomDesktop/commit/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4" target="_blank" rel="noopener"><span class="numeral">fb741ea0</span></a></div>
+      <div><span class="k">Waiting on you</span>4 items, none blocking</div>
+    </div>
+  </header>
+
+  <div class="cols">
+
+    <!-- ================= LEFT: the report ================= -->
+    <div>
+
+      <section class="card">
+        <h2>Quality gates</h2>
+        <p class="lede">Every check that ran, and every one that deliberately did not.</p>
+        <div class="tblwrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="what">Typecheck (TypeScript)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td>No type errors.</td>
+            </tr>
+            <tr>
+              <td class="what">Lint (ESLint)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td><span class="numeral">0</span> errors. The <span class="numeral">764</span> warnings are pre-existing repo-wide; none is in a changed file.</td>
+            </tr>
+            <tr>
+              <td class="what">Base integration</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td>Merged <code>origin/Version6.5</code> (<span class="numeral">113</span> commits, almost all the new BloomFreezeDoctor project) with no conflicts, then re-ran the gate on the merged tree. Nothing incoming touches this change's code.</td>
+            </tr>
+            <tr>
+              <td class="what">Front-end tests (vitest)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td><span class="numeral">785 passed · 5 skipped</span> across <span class="numeral">70</span> files. Run on the second commit; the review fix that followed is C# only, and the front-end tree is byte-identical between the two, so it was not re-run.</td>
+            </tr>
+            <tr>
+              <td class="what">C# tests (BloomTests)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td><span class="numeral">3370 passed · 13 skipped · 0 failed</span> in <span class="numeral">3 m 4 s</span>, at the final commit. Includes the <span class="numeral">8</span> new tests for this change.</td>
+            </tr>
+            <tr>
+              <td class="what">C# tests (BloomFreezeDoctor.Tests)</td>
+              <td><span class="pill na">Not run</span></td>
+              <td>Arrived with the base merge, so it is not part of this branch's diff. Nothing in the diff builds or reads any of it, so a failure there could not come from this change.</td>
+            </tr>
+            <tr>
+              <td class="what">Production bundle (vite)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td>Built into an isolated tree, so the shared <code>output\browser</code> and the running dev server were left alone. Same reasoning as the front-end tests: not re-run for the C#-only fix.</td>
+            </tr>
+            <tr>
+              <td class="what">Formatting</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td>CSharpier and Prettier both clean; the pre-commit hooks ran on the commit.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed</h2>
+        <p class="lede">Three commits: the change, the base merge, and one fix that came out of review.</p>
+        <ul class="commits">
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/be2519615" target="_blank" rel="noopener">Stop offering Bloom Games target images to the AI image editor</a></div>
+            <div class="meta"><span class="numeral">be251961</span> · 4 files, <span class="numeral">+301 −1</span></div>
+          </li>
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/503bd2b34c847b7d8d435c32386da5457d58533b" target="_blank" rel="noopener">Merge <code>origin/Version6.5</code> into the branch</a></div>
+            <div class="meta"><span class="numeral">503bd2b3</span> · brought the branch up to date before publishing</div>
+          </li>
+          <li>
+            <div class="msg"><a href="https://github.com/BloomBooks/BloomDesktop/commit/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4" target="_blank" rel="noopener">Pair a game target's picture copies with the draggable's by position</a></div>
+            <div class="meta"><span class="numeral">fb741ea0</span> · <span class="numeral">+67 −3</span> · from Devin's review, with a test — see the Reviewers table</div>
+          </li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>The change itself</h2>
+        <p class="lede">Two things, both in the AI-image-editor API.</p>
+        <ul class="notes">
+          <li><strong>The clones are no longer offered.</strong> A Bloom Games target holds a copy of its draggable's whole content — image container and picture included — so each one looked like another editable image. The card's page offered seven pictures where it has four. <code>EnumerateBookImages</code> now declines any slot inside a target: <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1270" target="_blank" rel="noopener">AiImageEditorApi.cs:1270</a>, using <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L957" target="_blank" rel="noopener">IsSlotInsideGameTarget</a>.</li>
+          <li><strong>The filtering deliberately stays out of <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L912" target="_blank" rel="noopener">SelectImageSlotsOnPage</a>.</strong> A picture's identity is its position in that unfiltered list, and the browser side works the same position out for itself, so a declined slot has to keep its place. A test pins that: <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomTests/web/controllers/AiImageEditorApiTests.cs#L1366" target="_blank" rel="noopener">AiImageEditorApiTests.cs:1366</a>.</li>
+          <li><strong>The clones are kept in step on commit.</strong> Now that they can't be edited, nothing else would repoint one when an AI edit replaces a draggable's picture on a page you don't have open — the shadow would keep showing the replaced picture, and its stale reference also stopped Bloom reclaiming the superseded file. <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L1745" target="_blank" rel="noopener">AiImageEditorApi.cs:1745</a> repoints them via <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L968" target="_blank" rel="noopener">GetGameTargetImageCopiesOfSlot</a>.</li>
+          <li><strong>Each of a draggable's pictures maps to its own copy.</strong> A target holds a copy of the draggable's <em>whole</em> content, so a draggable with two pictures gives the target two copies; the copy for a given picture is the one in the same position. Pairing by position rather than repointing every copy is what the review fix added: <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomExe/web/controllers/AiImageEditorApi.cs#L985" target="_blank" rel="noopener">AiImageEditorApi.cs:985</a>, with <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomTests/web/controllers/AiImageEditorApiTests.cs#L1437" target="_blank" rel="noopener">a test for it</a>.</li>
+          <li><strong>The page you have open needs nothing extra</strong> — and that was tested, not assumed. Selecting the swapped picture, which the browser side already does so Ctrl+Z can offer the undo, is what makes Bloom rebuild the copy: <a href="https://github.com/BloomBooks/BloomDesktop/blob/fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4/src/BloomBrowserUI/bookEdit/aiImageEditor/aiImageEditorPageCommands.ts#L151" target="_blank" rel="noopener">aiImageEditorPageCommands.ts:151</a>. An A/B against a running Bloom showed the shadow stays stale without that step and follows with it, so the extra code first drafted for this was dropped and only the comment kept.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <p class="lede">Each one at a terminal state for this commit.</p>
+        <div class="tblwrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="what">Local review</td>
+              <td><span class="pill pass">Clean</span></td>
+              <td>Light pass, run inline rather than in a sub-agent (this session is configured not to dispatch sub-agents unasked). Raised nothing: it checked the position-numbering agreement between the two sides, the background-image and <code>data-book</code> edge cases, whether a picture could be mistaken for its own clone, and that non-game pictures skip the new lookup. Worth saying plainly that it <em>missed</em> the multi-picture case Devin then caught — a "clean" here is one pass, not a guarantee.</td>
+            </tr>
+            <tr>
+              <td class="what"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8337" target="_blank" rel="noopener">Devin</a></td>
+              <td><span class="pill pass">Complete</span></td>
+              <td>Reviewed both commits. One real bug on the first, now fixed and
+                <a href="https://github.com/BloomBooks/BloomDesktop/pull/8337#discussion_r3973487274" target="_blank" rel="noopener">documented on its thread</a>:
+                a draggable holding more than one picture would have had <em>all</em> its target
+                copies repointed at whichever single picture was edited. Its re-review of the fix
+                marks the finding resolved by itself — "the method now finds the source slot's
+                position within its draggable and returns only the corresponding target slot."
+                No flags to investigate, no informational items. Took two rounds, about
+                <span class="numeral">3 min</span> each.</td>
+            </tr>
+            <tr>
+              <td class="what">CodeRabbit</td>
+              <td><span class="pill na">Off</span></td>
+              <td>Not applicable: this repo's <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so CodeRabbit never reviews a PR unless someone asks it to by name. That is a deliberate team setting, so preflight left it alone rather than overriding it.</td>
+            </tr>
+            <tr>
+              <td class="what">CI (GitHub checks)</td>
+              <td><span class="pill pass">Pass</span></td>
+              <td><code>pr-automation</code> succeeded on both pushes (<span class="numeral">34 s</span>, then <span class="numeral">31 s</span>) — the only GitHub-visible check on this repo; it is also what triggers Devin and adds the review link to the description.</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>How it was verified in the real app</h2>
+        <p class="lede">Beyond the unit tests, against a Bloom launched from this worktree on a real game book.</p>
+        <ul class="notes">
+          <li><strong>The fix, seen from inside the editor.</strong> On the "Drag Images to Targets" page of the <em>Testing Pages</em> book, the editor is now handed positions <span class="numeral">0, 3, 5, 7</span> — the background plus three draggables — and its own picture strip lists exactly those. Positions <span class="numeral">4, 6, 8</span>, the clones, are held open but not offered. That page previously offered seven pictures, which is the number on the card.</li>
+          <li><strong>The two sides still agree.</strong> Dumping the live page showed nine picture slots numbered the same way the saved book numbers them, with <span class="numeral">4, 6, 8</span> the clones — so the browser's numbering was unaffected, which is the thing that would break silently.</li>
+          <li><strong>Names renumber sensibly.</strong> The page's pictures are now offered as "Canvas Background" plus "Image 1–3" instead of counting the clones.</li>
+          <li><strong>An off-page edit keeps the shadow right.</strong> Driving a commit at the API against a game page that was not open, both the draggable and its target's copy ended on the new file, and the page's other two draggables and shadows were untouched.</li>
+          <li><strong>The test book was left exactly as found.</strong> Those checks write to a book, so it was backed up first and restored — the file is byte-identical to the backup and the image the test created was deleted.</li>
+          <li><strong>A Bloom is still running</strong> from this worktree (ports <span class="numeral">8089</span>/<span class="numeral">8091</span>), started for this verification. See the last item on the right if you would rather it were not.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Links</h2>
+        <div class="linkrow">
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8337" target="_blank" rel="noopener">Pull request</a>
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8337/files" target="_blank" rel="noopener">Files changed</a>
+          <a href="https://github.com/BloomBooks/BloomDesktop/pull/8337/commits" target="_blank" rel="noopener">Commits</a>
+          <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8337" target="_blank" rel="noopener">Devin review</a>
+          <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8337" target="_blank" rel="noopener">Reviewable</a>
+          <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16793" target="_blank" rel="noopener">BL-16793</a>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ================= RIGHT: decisions ================= -->
+    <div>
+
+      <div class="item" data-item="shadow-shape">
+        <span class="kind">Known limitation</span>
+        <h3>After an off-page AI edit, the shadow can briefly be the wrong shape</h3>
+        <p>When the AI image editor replaces a picture belonging to a draggable on a page you do <em>not</em> currently have open, Bloom now points that draggable's target — the shadow the reader drags onto — at the new file. But the shadow's copy also inherited a width, a height and any cropping from the <em>old</em> picture, and this change deliberately leaves those alone. So if the new picture is a noticeably different shape, the shadow can look stretched or cropped differently from the draggable itself.</p>
+        <p>It corrects itself: the next time you open that page and select that draggable, Bloom rebuilds the whole copy from it and the shadow matches again. Reproducing the sizing rules in the C# would mean a second, poorer copy of logic the browser side already owns, which is why leaving it is recommended.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q_shadow" value="Clear the copy's inline sizing on an off-page commit so it falls back to the stylesheet">
+            <span class="lbl">Clear the copy's inherited sizing on an off-page commit, so it falls back to the stylesheet until Bloom rebuilds it
+              <span class="fn">~10 lines in one place, low risk — but it trades one kind of wrong-looking shadow for another, since the stylesheet's guess need not match either.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_shadow" value="Empty the target on an off-page commit to force a rebuild">
+            <span class="lbl">Empty the target's content on an off-page commit, forcing a rebuild
+              <span class="fn">~5 lines, but worse in practice: nothing rebuilds a target until the draggable is selected, so the shadow would show nothing at all in the meantime.</span>
+            </span>
+          </label>
+          <label class="opt leave">
+            <input type="radio" name="q_shadow" value="Leave as is" checked>
+            <span class="lbl">Leave as is <span class="rec">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="Leave comment" data-for="shadow-shape"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_shadow" value="Other">
+            <span class="lbl">Other:
+              <input class="otherbox" type="text" data-q="Other" data-for="q_shadow" placeholder="your own answer">
+            </span>
+          </label>
+        </div>
+        <div class="noteslot">
+          <label for="n_shadow">Notes</label>
+          <textarea id="n_shadow" data-q="Notes" data-for="shadow-shape" placeholder="caveats, constraints, anything else"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="pr-base">
+        <span class="kind">Confirm</span>
+        <h3>The pull request targets Version6.5, not master</h3>
+        <p>This repo's default branch is <code>master</code>, so a PR opened without thinking would have gone there. This one targets <code>Version6.5</code> instead, for three reasons: the branch was cut from <code>Version6.5</code> and its tip was exactly that branch's tip, the card sits on the "Bloom 6.5" board, and the repo's own convention is that release work lands on the version branch and is merged forward to <code>master</code> later.</p>
+        <p>The project's rule that a <code>[6.X]</code> prefix on a card's summary names the target branch did not settle it, because this card has no such prefix — so this was a judgement call from the evidence rather than something the card stated, which is why it is worth a glance.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q_base" value="Retarget the PR to master">
+            <span class="lbl">Retarget the PR to <code>master</code> — the fix should ship in the next version rather than 6.5
+              <span class="fn">No code change; one command, and it re-runs the reviewers.</span>
+            </span>
+          </label>
+          <label class="opt leave">
+            <input type="radio" name="q_base" value="Leave as is" checked>
+            <span class="lbl">Leave as is — keep <code>Version6.5</code> as the base <span class="rec">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="Leave comment" data-for="pr-base"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_base" value="Other">
+            <span class="lbl">Other:
+              <input class="otherbox" type="text" data-q="Other" data-for="q_base" placeholder="your own answer">
+            </span>
+          </label>
+        </div>
+        <div class="noteslot">
+          <label for="n_base">Notes</label>
+          <textarea id="n_base" data-q="Notes" data-for="pr-base" placeholder="caveats, constraints, anything else"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="scope">
+        <span class="kind">For information</span>
+        <h3>Half the diff is beyond what the card asks for</h3>
+        <p>The card asks only that Bloom stop sending game target images to the editor. About a third of the change does something further: it keeps those copies pointing at the right file when an AI edit lands on a page you do not have open. That was chosen deliberately while planning, because the moment the copies stop being editable, nothing else updates them — the shadow would go on showing the replaced picture, and its stale reference to the old file also stopped Bloom from reclaiming that file, so it would sit in the book folder indefinitely.</p>
+        <p>Flagged here only so a reviewer meeting the diff cold is not surprised to find two things in it.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q_scope" value="Drop the off-page repointing and ship only the omission">
+            <span class="lbl">Drop the off-page repointing and ship only what the card asks for
+              <span class="fn">Removes roughly 25 lines and 4 tests — straightforward, but it puts back the stale shadow and the file that never gets reclaimed.</span>
+            </span>
+          </label>
+          <label class="opt leave">
+            <input type="radio" name="q_scope" value="Leave as is" checked>
+            <span class="lbl">Leave as is — keep both halves in this PR <span class="rec">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="Leave comment" data-for="scope"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_scope" value="Other">
+            <span class="lbl">Other:
+              <input class="otherbox" type="text" data-q="Other" data-for="q_scope" placeholder="your own answer">
+            </span>
+          </label>
+        </div>
+        <div class="noteslot">
+          <label for="n_scope">Notes</label>
+          <textarea id="n_scope" data-q="Notes" data-for="scope" placeholder="caveats, constraints, anything else"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="running-bloom">
+        <span class="kind">For information</span>
+        <h3>A Bloom from this worktree is still running</h3>
+        <p>Verifying the change in the real app meant launching Bloom from this worktree; it is still up, on ports <span class="numeral">8089</span> and <span class="numeral">8091</span>, with this branch's code in it. Leaving it running costs nothing but memory, and it is there if you want to look at a game page yourself.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q_bloom" value="Shut down the Bloom instance and its dev server">
+            <span class="lbl">Shut it down, along with its dev server and watcher
+              <span class="fn">One command, no code involved.</span>
+            </span>
+          </label>
+          <label class="opt leave">
+            <input type="radio" name="q_bloom" value="Leave as is" checked>
+            <span class="lbl">Leave as is — leave it running <span class="rec">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="Leave comment" data-for="running-bloom"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_bloom" value="Other">
+            <span class="lbl">Other:
+              <input class="otherbox" type="text" data-q="Other" data-for="q_bloom" placeholder="your own answer">
+            </span>
+          </label>
+        </div>
+        <div class="noteslot">
+          <label for="n_bloom">Notes</label>
+          <textarea id="n_bloom" data-q="Notes" data-for="running-bloom" placeholder="caveats, constraints, anything else"></textarea>
+        </div>
+      </div>
+
+      <div class="item" data-item="next-step">
+        <span class="kind">Next step</span>
+        <h3>What should happen after you answer</h3>
+        <p>Nothing above is blocking, and the pull request is a clean draft as it stands. If you picked a fix on any item, it needs implementing and the reviewers need re-running against the new commit.</p>
+        <div class="opts">
+          <label class="opt">
+            <input type="radio" name="q_next" value="Implement my choices above, then re-run preflight">
+            <span class="lbl">Implement whatever I picked above, then re-run preflight on the new commit
+              <span class="fn">Scope depends entirely on which options you chose.</span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_next" value="Discuss first before changing anything">
+            <span class="lbl">Talk it through with me before changing anything
+              <span class="fn">No code either way.</span>
+            </span>
+          </label>
+          <label class="opt leave">
+            <input type="radio" name="q_next" value="Leave as is" checked>
+            <span class="lbl">Leave as is — the PR stands; I will review it myself next <span class="rec">Recommended</span></span>
+            <span class="leavecomment"><input type="checkbox" data-q="Leave comment" data-for="next-step"> Leave comment</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q_next" value="Other">
+            <span class="lbl">Other:
+              <input class="otherbox" type="text" data-q="Other" data-for="q_next" placeholder="your own answer">
+            </span>
+          </label>
+        </div>
+        <div class="noteslot">
+          <label for="n_next">Notes</label>
+          <textarea id="n_next" data-q="Notes" data-for="next-step" placeholder="caveats, constraints, anything else"></textarea>
+        </div>
+      </div>
+
+      <div class="item" id="copyback">
+        <h3>Send your answers back</h3>
+        <p>Copy this and paste it into the session; it carries every choice, note and typed answer.</p>
+        <button id="copybtn" type="button">Copy answers</button><span id="copied">Copied</span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const ITEM_TITLES = {
+    "shadow-shape": "After an off-page AI edit, the shadow can briefly be the wrong shape",
+    "pr-base": "The pull request targets Version6.5, not master",
+    "scope": "Half the diff is beyond what the card asks for",
+    "running-bloom": "A Bloom from this worktree is still running",
+    "next-step": "What should happen after you answer"
+  };
+  const RADIO_OF = {
+    "shadow-shape": "q_shadow",
+    "pr-base": "q_base",
+    "scope": "q_scope",
+    "running-bloom": "q_bloom",
+    "next-step": "q_next"
+  };
+
+  function serialize() {
+    const lines = [
+      "Preflight decisions — BL-16793 / BloomDesktop #8337",
+      "commit fb741ea062e0e6bb4fd31b5561e0a553d8dcc3e4",
+      "report https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-BL-16793-OmitTargetImages.html",
+      ""
+    ];
+    for (const key of Object.keys(ITEM_TITLES)) {
+      const item = document.querySelector('[data-item="' + key + '"]');
+      const radioName = RADIO_OF[key];
+      const picked = item.querySelector('input[name="' + radioName + '"]:checked');
+      let answer = picked ? picked.value : "(no answer)";
+      if (answer === "Other") {
+        const box = item.querySelector('.otherbox[data-for="' + radioName + '"]');
+        const typed = box && box.value.trim();
+        answer = typed ? "Other: " + typed : "Other: (nothing typed)";
+      }
+      lines.push("## " + ITEM_TITLES[key]);
+      lines.push("Decision: " + answer);
+      const leave = item.querySelector('input[type="checkbox"][data-q="Leave comment"]');
+      if (leave && leave.checked) {
+        lines.push("Leave comment: record this decision as a code comment near the relevant code");
+      }
+      const notes = item.querySelector('textarea[data-q="Notes"]');
+      const notesVal = notes && notes.value.trim();
+      if (notesVal) { lines.push("Notes: " + notesVal); }
+      lines.push("");
+    }
+    return lines.join("\n");
+  }
+
+  const payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", async () => {
+    refresh();
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(payload.value);
+      ok = true;
+    } catch (e) {
+      payload.focus();
+      payload.select();
+      try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+    }
+    const flag = document.getElementById("copied");
+    flag.textContent = ok ? "Copied" : "Press Ctrl+C to copy";
+    flag.classList.add("show");
+    setTimeout(() => flag.classList.remove("show"), 2200);
+  });
+</script>
+</body>
+</html>
