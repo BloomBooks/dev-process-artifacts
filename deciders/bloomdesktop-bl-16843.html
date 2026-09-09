@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16843 Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f6f4ee;
+    --card: #ffffff;
+    --line: #dcd7cb;
+    --ink: #24231f;
+    --ink-2: #5a574e;
+    --accent: #1e6a72;
+    --accent-soft: #e3eff0;
+    --good: #2f7d4f;
+    --good-soft: #e6f2ea;
+    --warn: #9a6b12;
+    --warn-soft: #f7efdc;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+    --serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color-scheme: light;
+  }
+  html { background: var(--ground); }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 15px/1.55 var(--sans); padding-inline: 20px; padding-block: 28px 56px;
+  }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; margin: 0; }
+  h1 { font-size: 30px; line-height: 1.2; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16px; margin: 14px 0 4px; }
+  p { margin: 0 0 10px; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  header { max-width: 1240px; margin: 0 auto 22px; }
+  .lede { color: var(--ink-2); margin-top: 6px; max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+    font-size: 13px; border: 1px solid var(--line); background: var(--card);
+  }
+  .chip.good { background: var(--good-soft); border-color: transparent; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+  .chip.accent { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+  .grid { max-width: 1240px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .col { display: flex; flex-direction: column; gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-2); font-weight: 600; font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; border-top: 0; }
+  td.state { white-space: nowrap; }
+  .ok { color: var(--good); font-weight: 600; }
+  .na { color: var(--ink-2); }
+  .decision { display: flex; flex-direction: column; gap: 10px; }
+  .decision p { margin-bottom: 4px; }
+  .opts { display: flex; flex-direction: column; gap: 8px; margin: 6px 0; }
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 3px; }
+  .opt label { flex: 1; cursor: pointer; }
+  .opt .fn { display: block; color: var(--ink-2); font-size: 13px; }
+  .tag { display: inline-block; font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+  .lc { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
+  .other input[type=text], textarea { font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; width: 100%; }
+  .other { display: flex; flex-direction: column; gap: 6px; }
+  textarea { min-height: 56px; resize: vertical; }
+  .notes { font-size: 13px; color: var(--ink-2); }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 10px 16px; cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #payload { margin-top: 10px; min-height: 160px; font-family: var(--mono); font-size: 12px; }
+  .copied { margin-left: 10px; color: var(--good); font-size: 13px; }
+  code { font-family: var(--mono); font-size: 0.92em; background: var(--ground); padding: 1px 4px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>BL-16843 preflight: U+200B word breaks survive save again</h1>
+  <p class="lede">Draft PR #8336 against Version6.5. Local gate and the full front-end suite are green; the local review's finding and Devin's one bug are fixed. Two small questions below, neither blocking.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable into Version6.5</span>
+    <span class="chip warn">Devin re-review timed out</span>
+    <span class="chip warn">2 items waiting on you</span>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>On 6.5, saving a page deletes every zero-width space (U+200B) from the text. Khmer, Thai and Myanmar keyboards insert that character between words, so text is silently altered on every save, and the Leveled and Decodable Reader tools see a whole paragraph as one word: a 26-word Khmer paragraph counted as one 98-letter word, so no level limit can ever trip. Anything rendered without a dictionary for those scripts loses its line breaks. 6.4 keeps the characters.</p>
+    <h3>Cause</h3>
+    <p>CKEditor places a U+200B "filling char" at the caret and tracks it by node; its own data export already omits it. When Bloom rewrote a box's HTML from the live DOM, that node was detached and the character became orphaned text that got saved (BL-16490). The 6.5 fix for that stripped every U+200B from a box on save and reader markup, which also removed the real word breaks.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>The blanket strip is gone. CKEditor's exported data is used as-is on save, reader markup and talking-book cleanup, so real U+200B word breaks survive.</li>
+      <li>A new helper takes out only the one character CKEditor planted in the node it is tracking (a following plain space becomes an nbsp, as CKEditor does), leaves any word breaks the user typed into that node alone, and drops CKEditor's reference to it.</li>
+      <li>It runs before every rewrite that copies live HTML back into a box, so a filling char can never be orphaned: the nbsp and comment clean-ups after each typing pause, and show/hide invisibles.</li>
+      <li>Tests cover the helper, both clean-ups, and U+200B word breaks surviving save.</li>
+    </ul>
+    <p>Books that already carry an orphaned U+200B from earlier 6.5 builds keep it, the same trade-off 6.4 made for BL-16808.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th><th>Notes</th></tr>
+      <tr><td>Typecheck</td><td class="state ok">Pass</td><td>tsgo blunder-class check, clean.</td></tr>
+      <tr><td>Lint</td><td class="state ok">Pass</td><td>Whole front end: <span class="numeral">0 errors</span>; only pre-existing warnings.</td></tr>
+      <tr><td>Merge with Version6.5</td><td class="state ok">Clean</td><td>Branch already contains everything on the base.</td></tr>
+      <tr><td>TypeScript tests (Vitest)</td><td class="state ok">Pass</td><td>Full suite: <span class="numeral">791 passed · 5 skipped · 69 files</span>. Affected specs re-run after the review fix: <span class="numeral">43 passed</span>.</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="state na">Not run</td><td>No C# in the diff; the .NET suite neither reads nor builds any of these TypeScript files.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Moved the branch onto Version6.5 and committed the fix with its tests. After the local review, restored the "did anything change" guard in the comment clean-up so an attribute value containing <code>&lt;!--</code> no longer triggers a rewrite. After Devin, narrowed the helper to remove only the first U+200B in CKEditor's node. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8336/commits" target="_blank" rel="noopener">commit list</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/ca6ad1e996" target="_blank" rel="noopener">the fix</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/4a84b20fac" target="_blank" rel="noopener">the guard</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/db5365de32" target="_blank" rel="noopener">the narrowing</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>State</th><th>Summary</th></tr>
+      <tr><td>Local review</td><td class="state ok">Complete</td><td>Light read-only sub-agent pass. One finding, fixed: the comment clean-up had lost its no-change guard. It also confirmed the helper matches CKEditor 4.5.1's own removal exactly.</td></tr>
+<tr><td>Devin</td><td class="state ok">Complete for 4a84b20f; timed out after 30 min for db5365de</td><td>Reviewed the second commit and raised one bug: the helper deleted every U+200B in CKEditor's node, not just the planted one. Fixed in the third commit; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8336#discussion_r3973271114" target="_blank" rel="noopener">thread</a> resolved. Its job for the third commit errored on Devin's side and never completed in 30 min despite two re-triggers; a re-run of preflight folds in a late result. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8336" target="_blank" rel="noopener">Devin review page</a>.</td></tr>
+      <tr><td>CodeRabbit</td><td class="state na">Not active</td><td>The repo's <code>.coderabbit.yml</code> disables automatic reviews, and it has posted on none of the recent PRs.</td></tr>
+      <tr><td>CI</td><td class="state ok">Complete</td><td>The only check, pr-automation, passed for every pushed commit. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8336/checks" target="_blank" rel="noopener">Checks</a>.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Not exercised by hand in a running Bloom with a Khmer or Thai keyboard. The unit tests cover the mechanism; a tester should type U+200B-separated words, switch pages, and confirm the characters and the reader word count survive.</li>
+      <li>The worktree has an uncommitted change to <code>src/BloomBrowserUI/package.json</code> that I did not make and did not commit: the bloom-player and bloom-image-gallery pins became floating versions, apparently from tooling that ran with master's installed modules. Release branches pin, so it stays out of the PR.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col">
+
+  <section class="card decision" data-item="q1">
+    <h2>Game prompt copy: also guard it?</h2>
+    <p>The drag-activity prompt dialog copies its editable's live HTML into the page's permanent element on every keystroke. If CKEditor is holding a filling char in that dialog at the time, the U+200B is copied as plain text and saved. This is pre-existing: 6.4 behaves the same, and the removed blanket strip never covered that element either, so it is not a regression from this PR. Because the copy happens on every mutation, adding the removal there would also remove CKEditor's caret helper while the user is typing next to bold text, so leaving it is the safer default.</p>
+    <div class="opts">
+      <div class="opt"><input type="radio" name="q1" id="q1a" value="Add the one-line removal before the copy in GamePromptDialog" data-q="q1"><label for="q1a">Add the one-line removal before the copy<span class="fn">~3 lines, localized, low risk to the copy itself; removes CKEditor's caret helper on every keystroke in that dialog.</span></label></div>
+      <div class="opt"><input type="radio" name="q1" id="q1b" value="Leave as is" data-q="q1" checked><label for="q1b">Leave as is<span class="tag">Recommended</span></label><span class="lc"><input type="checkbox" id="q1lc" data-q="q1" data-role="leave-comment"><label for="q1lc">Leave comment</label></span></div>
+      <div class="opt other"><div style="display:flex;gap:10px;align-items:flex-start"><input type="radio" name="q1" id="q1o" value="Other" data-q="q1"><label for="q1o">Other:</label></div><input type="text" id="q1other" data-q="q1" data-role="other" placeholder="Your answer"></div>
+    </div>
+    <textarea id="q1notes" data-q="q1" data-role="notes" placeholder="Notes or caveats"></textarea>
+  </section>
+
+  <section class="card decision" data-item="q2">
+    <h2>Next step</h2>
+    <p>The PR is a draft with every gate green. Do you want to review it yourself now, or talk through anything first?</p>
+    <div class="opts">
+      <div class="opt"><input type="radio" name="q2" id="q2a" value="I'll review the PR myself now" data-q="q2" checked><label for="q2a">I'll review the PR myself now<span class="tag">Recommended</span><span class="fn">Nothing else is outstanding; after your own pass it is ready for pr-ready-for-human.</span></label></div>
+      <div class="opt"><input type="radio" name="q2" id="q2b" value="Discuss first" data-q="q2"><label for="q2b">Discuss first<span class="fn">No code; say what you want to talk through in the notes.</span></label></div>
+      <div class="opt"><input type="radio" name="q2" id="q2c" value="Leave as is" data-q="q2"><label for="q2c">Leave as is</label><span class="lc"><input type="checkbox" id="q2lc" data-q="q2" data-role="leave-comment"><label for="q2lc">Leave comment</label></span></div>
+      <div class="opt other"><div style="display:flex;gap:10px;align-items:flex-start"><input type="radio" name="q2" id="q2o" value="Other" data-q="q2"><label for="q2o">Other:</label></div><input type="text" id="q2other" data-q="q2" data-role="other" placeholder="Your answer"></div>
+    </div>
+    <textarea id="q2notes" data-q="q2" data-role="notes" placeholder="Notes or caveats"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p class="notes">Copies every choice and note as plain text to paste into the session.</p>
+    <button id="copy" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Answers"></textarea>
+  </section>
+
+</div>
+</div>
+
+<script>
+(function () {
+  var titles = { q1: "Game prompt copy: also guard it?", q2: "Next step" };
+  function serialize() {
+    var out = ["Preflight decisions for BloomDesktop BL-16843 (PR #8336)", "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16843.html", ""];
+    Object.keys(titles).forEach(function (q) {
+      var sel = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      var val = sel ? sel.value : "(no selection)";
+      if (sel && sel.value === "Other") {
+        var o = document.querySelector('[data-q="' + q + '"][data-role="other"]').value.trim();
+        val = "Other: " + (o || "(blank)");
+      }
+      out.push(titles[q] + ": " + val);
+      var lc = document.querySelector('[data-q="' + q + '"][data-role="leave-comment"]');
+      if (lc && lc.checked) out.push("  Leave comment: record this decision as a code comment near the relevant code");
+      var n = document.querySelector('[data-q="' + q + '"][data-role="notes"]').value.trim();
+      if (n) out.push("  Notes: " + n);
+    });
+    return out.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.querySelectorAll("input, textarea").forEach(function (el) {
+    if (el !== payload) { el.addEventListener("input", refresh); el.addEventListener("change", refresh); }
+  });
+  refresh();
+  document.getElementById("copy").addEventListener("click", function () {
+    refresh();
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2500); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () { payload.select(); document.execCommand("copy"); done(); });
+    } else { payload.select(); document.execCommand("copy"); done(); }
+  });
+})();
+</script>
+</body>
+</html>
