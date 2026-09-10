@@ -140,7 +140,7 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
     <span class="chip"><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">#8338</a></span>
     <span class="chip"><strong>Base</strong> Version6.5</span>
     <span class="chip"><strong>State</strong> draft</span>
-    <span class="chip"><strong>HEAD</strong> <span class="numeral">c956dda07</span></span>
+    <span class="chip"><strong>HEAD</strong> <span class="numeral">a81463534</span></span>
     <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/files" target="_blank" rel="noopener">Files changed</a></span>
     <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16729" target="_blank" rel="noopener">BL-16729</a></span>
     <span class="chip"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">Devin review</a></span>
@@ -211,6 +211,16 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
       &nbsp;Persist log messages under the lock, so the file matches memory
       <p>Correcting my own earlier fix: I had split the message-log lock in the wrong place, leaving the write to disk outside it. The append now happens with the list update; only the status-changed event stays outside, since that one reaches WinForms.</p>
     </div>
+    <div class="commit">
+      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a7cddff180832835a50610a57bd75166e9bf0326" target="_blank" rel="noopener">a7cddff18</a>
+      &nbsp;Don't let a failed OpenForms lookup swallow a disconnect
+      <p>Prompted by your manual test. Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — so if it threw, the disconnect was silently discarded and Bloom went on looking connected. Also added log lines for when the periodic check finds and confirms a problem, because your report showed that from outside, "the check ran and decided" and "the check never ran" look identical.</p>
+    </div>
+    <div class="commit">
+      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a814635343d1ca82b18b9f28343b8bac7210bfcf" target="_blank" rel="noopener">a81463534</a>
+      &nbsp;Marshal via the UI SynchronizationContext, not a form lookup
+      <p>Devin pushed back on the fix above — falling back to running inline traded a missed notification for a data race — and it was right. The window lookup is gone entirely; this now posts to the synchronization context captured at startup, which never touches <span class="numeral">Application.OpenForms</span> at all.</p>
+    </div>
   </div>
 </section>
 
@@ -226,15 +236,16 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
           <td><strong>6 raised, 6 fixed, 0 escalated, 0 dismissed.</strong> Two were mine and serious: a failing <a href="https://github.com/BloomBooks/BloomDesktop/blob/2bacccab05a365c175100527cfaaec18361d3b47/src/BloomExe/TeamCollection/TeamCollection.cs#L684" target="_blank" rel="noopener"><span class="numeral">TryStartWatching</span></a> could disconnect synchronously from inside <span class="numeral">StartMonitoring</span>, leaving a live watcher on an abandoned collection; and an <span class="numeral">Interlocked</span> gate in <a href="https://github.com/BloomBooks/BloomDesktop/blob/2bacccab05a365c175100527cfaaec18361d3b47/src/BloomExe/TeamCollection/TeamCollectionManager.cs#L592" target="_blank" rel="noopener"><span class="numeral">MakeDisconnected</span></a>'s caller could latch permanently and disable every future disconnect. It also found the first of the three stuck-busy-flag bugs — <span class="numeral">_writeBookInProgress</span> was never cleared when a repo write threw — and one of my own tests that passed vacuously.</td>
         </tr>
         <tr>
-          <td>Devin<br><span class="numeral">7 rounds</span></td>
+          <td>Devin<br><span class="numeral">9 rounds</span></td>
           <td class="status pass">complete</td>
           <td>
             Re-triggered on every push. Devin accumulates findings across rounds and re-lists ones already fixed, so the counts below are of <em>distinct</em> findings.<br><br>
-            <strong>16 distinct findings, all 16 now closed.</strong>
+            <strong>17 distinct findings, all 17 now closed.</strong>
             Eight were fixed in code (watcher-callback thread safety; the untested heartbeat; probe exceptions preserving a strike; a stale overflow warning after disconnect; the non-atomic disconnect claim; message-log locking and then snapshots; a silently dropped setup failure; a failed sync leaving the heartbeat permanently switched off). Three were closed with a documented answer rather than a code change: the live-verification gap is real and is decision 2 below; the <span class="numeral">translate="no"</span> flag is this repo's documented convention for new strings, and the <span class="numeral">useEffect</span> rationale rule governs introducing an effect, not correcting one word inside a pre-existing one.<br><br>
             The two that were open going into this round — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r3973923424" target="_blank" rel="noopener">Missing book watcher stays connected</a> and
             <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r3974034580" target="_blank" rel="noopener">New collection watcher failures ignored</a> — were the two faces of the question you answered, and are closed with that decision recorded on each thread.<br><br>
-            Reviewing the fix produced three more. One was a real ordering flaw in my own previous fix (log messages were written to disk outside the lock, so the file could disagree with memory and two threads could collide over it) and is fixed. One asked me to verify that the recovery path preserves ordering — it does, and it follows the pattern <span class="numeral">StartMonitoringOnIdle</span> already uses for the same kind of catch-up. The third argued a missing <span class="numeral">Books</span> folder should disconnect an *established* collection; I did not act on it, both because it is the decision you just made and because that scenario is not silent — the sync fails first and reports it. <strong>No review thread is left open.</strong>
+            Reviewing the fix produced three more. One was a real ordering flaw in my own previous fix (log messages were written to disk outside the lock, so the file could disagree with memory and two threads could collide over it) and is fixed. One asked me to verify that the recovery path preserves ordering — it does, and it follows the pattern <span class="numeral">StartMonitoringOnIdle</span> already uses for the same kind of catch-up. The third argued a missing <span class="numeral">Books</span> folder should disconnect an <em>established</em> collection; I did not act on it, both because it is the decision you just made and because that scenario is not silent — the sync fails first and reports it.<br><br>
+            One more arrived after that, and it was a good catch on a fix I had just made: my recovery from a failed window lookup ran the work inline instead, which trades a missed notification for a data race. Fixed properly by dropping the window lookup altogether. <strong>No review thread is left open.</strong>
             <br><br>The fifth and final round, against this exact HEAD, produced <strong>no new findings</strong> \u2014 every title it listed was one already recorded above. (Devin\u2019s list is cumulative and never shrinks, which is why fixed items keep reappearing in it.)
           </td>
         </tr>
@@ -294,11 +305,23 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
     <p>That puts the risk on the path that works today for every collection, in order to fix a case that only affects a joiner mid-sync. The catch-up it saves turned out to be about ten lines reusing what was already there.</p>
   </div>
 
+  <div class="decision fyi">
+    <h3>Your manual test found two things</h3>
+    <p>You put a Team Collection on a <span class="numeral">subst</span> drive, removed the drive letter, and found the disconnection was not noticed until you tried to check a book out.</p>
+    <p><strong>My test advice was wrong.</strong> Removing a <span class="numeral">subst</span> letter does not invalidate handles that are already open: Bloom's folder-watching resolved through the letter when it opened, so it goes on watching the real folder underneath and Windows never reports the failure that drives the instant path. I had recommended <span class="numeral">subst</span> as the quick way in; it is not one. To exercise the instant path you need media that genuinely goes away — a USB stick you unplug, or a real mapped network drive.</p>
+    <p>What should still have caught it is the once-a-minute check, which does a fresh lookup of the path and finds the drive letter gone. That takes about <strong>75 seconds</strong>, so if the checkout came sooner than that, everything behaved as designed and only my "a second or two" claim was wrong. The corrected script on the card now separates the two mechanisms and says to leave Bloom alone for two minutes rather than clicking anything.</p>
+    <p><strong>And it flushed out a real bug.</strong> Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — and every caller is on a watcher's thread or the timer's. Had it thrown, the disconnect would have been silently discarded and Bloom would have gone on looking connected indefinitely, since every later check hit the same thing. That is fixed, and the marshalling no longer touches <span class="numeral">Application.OpenForms</span> at all.</p>
+  </div>
+
   <div class="decision">
-    <h3>Still on your list: run it in a real Bloom</h3>
-    <p>The one thing neither the tests nor a reviewer can settle. Nothing in this PR has been exercised in a running Bloom: no share has been pulled out from under one, no Dropbox has been killed mid-session, and nobody has watched the notification appear. The quoted timings — a second or two for a vanished share, about seventy-five seconds for Dropbox — are intended, not observed.</p>
-    <p>The script on the card covers both failure modes and, more importantly, the negative cases: a collection that is working must never be disconnected by mistake, because there is no automatic way back from that. It now also covers the joiner case added this round, where the shared folder arrives after Bloom has already opened the collection.</p>
-    <p>The quickest way in is <span class="numeral">subst Z: C:&#92;some&#92;folder</span> to make a fake drive, put a Team Collection on it, then <span class="numeral">subst Z: /D</span> while Bloom is running.</p>
+    <h3>Still on your list: the rest of the manual script</h3>
+    <p>The instant path and the Dropbox path are both still unobserved, and so are the negative cases — which matter most, because a collection that is working must never be disconnected by mistake and there is no automatic way back from that.</p>
+    <p>The script on the card now also covers the joiner case, where the shared folder arrives after Bloom has already opened the collection, and tells you where to look in the event log to confirm the periodic check ran at all.</p>
+  </div>
+
+  <div class="decision fyi">
+    <h3>One unexplained test failure</h3>
+    <p>The first full test run at <span class="numeral">a7cddff18</span> reported one failure out of 3406, and I did not capture which test it was. Four subsequent full runs were clean, including one recorded to a results file, and the Team Collection tests have passed every time. So it is intermittent and not obviously related to this work — but "it passed on retry" is not the same as "it was fine", and I cannot tell you what it was. Worth remembering if a stray red appears in CI.</p>
   </div>
 
   <div class="decision">
@@ -316,7 +339,7 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
 
 <script>
 (function () {
-  var HEADER = "Preflight round 2 — BL-16729 / PR #8338 (HEAD c956dda07)";
+  var HEADER = "Preflight round 2 — BL-16729 / PR #8338 (HEAD a81463534)";
   function build() {
     var t = (document.getElementById("freenotes").value || "").trim();
     document.getElementById("payload").value =
