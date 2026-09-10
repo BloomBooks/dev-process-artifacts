@@ -306,17 +306,28 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
   </div>
 
   <div class="decision fyi">
-    <h3>Your manual test found two things</h3>
-    <p>You put a Team Collection on a <span class="numeral">subst</span> drive, removed the drive letter, and found the disconnection was not noticed until you tried to check a book out.</p>
-    <p><strong>My test advice was wrong.</strong> Removing a <span class="numeral">subst</span> letter does not invalidate handles that are already open: Bloom's folder-watching resolved through the letter when it opened, so it goes on watching the real folder underneath and Windows never reports the failure that drives the instant path. I had recommended <span class="numeral">subst</span> as the quick way in; it is not one. To exercise the instant path you need media that genuinely goes away — a USB stick you unplug, or a real mapped network drive.</p>
-    <p>What should still have caught it is the once-a-minute check, which does a fresh lookup of the path and finds the drive letter gone. That takes about <strong>75 seconds</strong>, so if the checkout came sooner than that, everything behaved as designed and only my "a second or two" claim was wrong. The corrected script on the card now separates the two mechanisms and says to leave Bloom alone for two minutes rather than clicking anything.</p>
-    <p><strong>And it flushed out a real bug.</strong> Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — and every caller is on a watcher's thread or the timer's. Had it thrown, the disconnect would have been silently discarded and Bloom would have gone on looking connected indefinitely, since every later check hit the same thing. That is fixed, and the marshalling no longer touches <span class="numeral">Application.OpenForms</span> at all.</p>
+    <h3>Manual testing settled a question I had been asserting</h3>
+    <p>Two rounds of testing, and the second produced a definite answer that changes how this feature should be described.</p>
+    <p><strong>The near-instant path does not fire.</strong> With a Team Collection on a USB stick, physically pulling the drive out produced this in the event log:</p>
+    <p><span class="numeral">11:32:00 &nbsp;periodic check found a problem (TeamCollection.MissingRepo); looking again in 15s</span><br>
+       <span class="numeral">11:32:15 &nbsp;periodic check confirmed a problem (TeamCollection.MissingRepo); disconnecting</span></p>
+    <p>No watcher-failure line at all. Windows never told Bloom the folder had become unwatchable, so the once-a-minute check did the entire job — in exactly its designed timing. I had been describing instant detection as the headline mechanism; it is not, and the honest number is about 75 seconds however the folder goes away. The notes on the card now say so.</p>
+    <p>The watcher subscription stays. It costs nothing, it is the documented mechanism, it is how a notification-buffer overflow is detected — a real and separate case — and it may well fire in situations other than media removal. It is simply best-effort, which I should have said rather than promising seconds.</p>
+    <p><strong>The first round's mistake was mine.</strong> I had recommended <span class="numeral">subst</span> as the quick way to simulate a lost drive. Removing a <span class="numeral">subst</span> letter does not invalidate handles that are already open, so Bloom keeps watching the real folder underneath. It only ever exercises the periodic check — which, as it turns out, is the path that matters anyway.</p>
+    <p><strong>And chasing it flushed out a real bug.</strong> Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — and every caller is on a watcher's thread or the timer's. Had it thrown, the disconnect would have been silently discarded and Bloom would have carried on looking connected indefinitely, since every later check would hit the same thing. Fixed; the marshalling no longer touches <span class="numeral">Application.OpenForms</span> at all.</p>
+  </div>
+
+  <div class="decision fyi">
+    <h3>The timing was re-confirmed, not just inherited</h3>
+    <p>You had already chosen to leave the check at 60 seconds with a 15-second confirmation. That decision was made believing the watcher covered vanished folders instantly and the periodic check was a backstop for Dropbox. Since it is now known to be the only mechanism that fires, the question was put again with that correction, and the answer was the same: <strong>leave it</strong>.</p>
+    <p>The reasoning holds up. What this card fixes is going <em>hours</em> unaware; nobody loses work in 75 seconds, they just see slightly stale status for a minute. And the confirmation delay cannot usefully drop below 15 seconds anyway, because the Dropbox reachability answer is cached for 10 — a faster second look would simply return the first one and confirm nothing.</p>
   </div>
 
   <div class="decision">
     <h3>Still on your list: the rest of the manual script</h3>
-    <p>The instant path and the Dropbox path are both still unobserved, and so are the negative cases — which matter most, because a collection that is working must never be disconnected by mistake and there is no automatic way back from that.</p>
-    <p>The script on the card now also covers the joiner case, where the shared folder arrives after Bloom has already opened the collection, and tells you where to look in the event log to confirm the periodic check ran at all.</p>
+    <p><strong>Confirmed working in a real Bloom:</strong> a lost drive is detected, the red notification appears, the collection goes Disconnected, and Reload Collection recovers it.</p>
+    <p>Not yet exercised: the <strong>Dropbox</strong> failure (quitting Dropbox with the collection hosted there), the <strong>joiner</strong> case added this round (the shared folder arriving after Bloom has already opened the collection), and — mattering most — the <strong>negative</strong> cases, since a collection that is working must never be disconnected by mistake and there is no automatic way back from that. The long-idle test and the Dropbox-plus-LAN combination are the two worth real patience.</p>
+    <p>The script on the card covers all of these, and now tells you where to look in the event log to confirm the periodic check ran at all — which is what made the last round conclusive rather than ambiguous.</p>
   </div>
 
   <div class="decision fyi">
