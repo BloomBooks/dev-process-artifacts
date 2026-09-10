@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Title Padding Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f7f4ee;
+    --card: #ffffff;
+    --rule: #e4dccd;
+    --rule-soft: #efe9dd;
+    --ink: #221f1a;
+    --muted: #6d6659;
+    --accent: #2f5d7c;
+    --accent-soft: #eaf1f6;
+    --good: #3d6b48;
+    --good-soft: #e9f1e9;
+    --warn: #92601a;
+    --warn-soft: #f7efdf;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-inline: 24px;
+    padding-block: 40px 72px;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+
+  /* ---- header ---- */
+  header { margin-bottom: 28px; }
+  .kicker { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15; margin: 0 0 14px; text-wrap: balance; max-width: 24ch;
+    position: relative; padding-bottom: 14px;
+  }
+  /* a baseline with one descender dropping through it - the thing this PR is about */
+  h1::after {
+    content: ""; position: absolute; left: 0; bottom: 8px; width: 132px; height: 1px; background: var(--ink);
+  }
+  h1::before {
+    content: ""; position: absolute; left: 96px; bottom: 0; width: 1px; height: 15px; background: var(--accent);
+  }
+  .lede { font-size: 16.5px; color: var(--muted); margin: 0 0 20px; max-width: 62ch; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+    padding: 4px 10px; border: 1px solid var(--rule); border-radius: 2px;
+    background: var(--card); color: var(--ink); white-space: nowrap;
+  }
+  .chip.good { background: var(--good-soft); border-color: #cfe0cf; color: var(--good); }
+  .chip.attn { background: var(--warn-soft); border-color: #e8d6b4; color: var(--warn); }
+
+  .links { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; font-size: 13px; }
+  .links a {
+    font-family: var(--mono); font-size: 12px; color: var(--accent); text-decoration: none;
+    padding: 3px 9px; border: 1px solid #cddbe4; border-radius: 2px; background: var(--accent-soft);
+    margin-bottom: 6px;
+  }
+  .links a:hover, .links a:focus-visible { background: #dceaf2; text-decoration: underline; }
+
+  /* ---- layout ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 22px 24px;
+  }
+  section.card > :first-child { margin-top: 0; }
+  section.card > :last-child { margin-bottom: 0; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.25; margin: 0 0 14px; }
+  h3 { font-size: 12px; font-family: var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 500; }
+  p { margin: 0 0 12px; max-width: 66ch; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 7px; max-width: 66ch; }
+  a { color: var(--accent); }
+  code, .numeral { font-family: var(--mono); font-size: .9em; }
+  .numeral { font-variant-numeric: tabular-nums; }
+  code { background: #f3efe6; padding: 1px 4px; border-radius: 2px; }
+
+  /* ---- tables ---- */
+  .tablewrap { overflow-x: auto; margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.state { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  td.state.ok { color: var(--good); }
+  td.state.na { color: var(--muted); }
+  table.measure td:not(:first-child), table.measure th:not(:first-child) { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; }
+
+  /* ---- decisions ---- */
+  .item { border: 1px solid var(--rule); border-radius: 3px; background: var(--card); padding: 20px 22px; }
+  .item h2 { font-size: 18px; margin-bottom: 10px; }
+  .opts { display: flex; flex-direction: column; gap: 2px; margin: 14px 0 4px; }
+  .opt {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px;
+    align-items: start; padding: 9px 10px; border-radius: 2px; border: 1px solid transparent;
+  }
+  .opt:hover { background: #faf8f3; }
+  .opt.rec { background: var(--accent-soft); border-color: #cddbe4; }
+  .opt input[type=radio] { margin: 4px 0 0; }
+  .opt label { cursor: pointer; }
+  .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); border: 1px solid #cddbe4; padding: 1px 5px; border-radius: 2px; background: var(--card); white-space: nowrap; margin-left: 6px; }
+  .cost { display: block; color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  .leaveco { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .otherwrap { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    background: #fbfaf6; border: 1px solid var(--rule); border-radius: 2px; padding: 6px 8px; width: 100%;
+  }
+  .otherwrap input[type=text] { max-width: 260px; }
+  textarea { min-height: 58px; resize: vertical; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid #26506c; border-radius: 2px; padding: 9px 18px;
+  }
+  button:hover { background: #26506c; }
+  #copied { font-family: var(--mono); font-size: 12px; color: var(--good); margin-left: 10px; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12px; min-height: 130px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">Preflight &middot; BloomDesktop &middot; BL-16811</p>
+  <h1>Front cover and title page stop overwriting each other&rsquo;s title padding</h1>
+  <p class="lede">Local gate and the full C# suite are green, Devin came back clean, CI passed. Five
+  things are waiting on you; the first is a design question a colleague left on the card.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &middot; clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">C# tests <span class="numeral">3371 passed &middot; 13 skipped</span></span>
+    <span class="chip attn">5 items for you</span>
+  </div>
+  <nav class="links" aria-label="Related pages">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8342" target="_blank" rel="noopener">PR #8342</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8342/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8342/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16811" target="_blank" rel="noopener">BL-16811</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8342" target="_blank" rel="noopener">Devin review</a>
+  </nav>
+</header>
+
+<div class="cols">
+
+  <!-- ======================= LEFT ======================= -->
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>The book title appears on both the front cover and the title page, and each needs a
+      <em>different</em> bottom padding so its descenders are not clipped. Bloom keeps that padding in
+      the editable&rsquo;s <code>style</code> attribute, and <code>style</code> is synchronised across
+      every copy of a <code>data-book</code> field through a single data-div entry. So the two pages
+      overwrite each other, and whichever was visited more recently wins; the other one is saved with a
+      value that is wrong for it.</p>
+      <p>You never see it in the editor, because <code>OverflowChecker</code> re-measures and re-applies
+      the padding every time a page loads. But the <em>saved</em> value is what gets published, and
+      BloomPUB, ePUB, Bloom Reader and BloomLibrary have no OverflowChecker &mdash; they render what is
+      in the file. A book published while the front cover holds the title page&rsquo;s value loses the
+      descender room on its cover title: exactly the clipping <code>bloom-padForOverflow</code> exists
+      to prevent, on the most prominent text in the book. A side effect of the same ping-pong is that
+      those two pages really do change every time they are looked at, so a book shows as modified after
+      merely being browsed &mdash; spurious checkouts in a Team Collection.</p>
+
+      <div class="tablewrap">
+        <table class="measure">
+          <thead><tr><th>Where the title is</th><th>Type size</th><th>Excess descent</th><th>Padding it needs</th></tr></thead>
+          <tbody>
+            <tr><td>Front cover</td><td>33.33px</td><td>+2.33</td><td>3px</td></tr>
+            <tr><td>Title page</td><td>18.67px</td><td>&minus;2.14</td><td>0px</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>What the PR does</h3>
+      <ul>
+        <li>A new <code>_pageDependentAttributes</code> set in <code>BookData</code> names the
+        (data-book key, attribute) pairs whose value legitimately differs from one xmatter page to
+        another. It currently holds exactly one pair, <code>(bookTitle, style)</code>; every other key
+        and attribute is untouched by the mechanism.</li>
+        <li>Such a value is now saved in the data-div once <strong>per kind of xmatter page</strong>, as
+        <code>data-&lt;attr&gt;-&lt;pagetype&gt;</code> &mdash; <code>data-style-frontcover</code>,
+        <code>data-style-titlepage</code>. The plain attribute is still written too, holding the most
+        recently saved value, so older Bloom versions and books with no variant yet behave exactly as
+        before.</li>
+        <li>Reading the book keeps first-found-wins for every other attribute, but collects each xmatter
+        page&rsquo;s own variant instead of letting the first element found decide for all of them. When
+        Bloom reads a single edited page &mdash; where the data-div is not part of what it reads &mdash;
+        the other pages&rsquo; variants are seeded from the data-div, so saving one page cannot forget
+        the others.</li>
+        <li>Restoring routes the saved list through
+        <a href="https://github.com/BloomBooks/BloomDesktop/blob/88c06416b91f9b39564bb446a40bdd71e881c01f/src/BloomExe/Book/BookData.cs#L1937" target="_blank" rel="noopener"><code>ResolvePageDependentAttributes</code></a>:
+        an xmatter page gets its own variant under the plain attribute name and never another
+        page&rsquo;s; the data-div gets the variants verbatim; anything not on an xmatter page gets just
+        the plain attribute. The existing custom-layout exclusions (BL-16357, BL-9460) are untouched.</li>
+        <li>Five new <code>BookDataTests</code> cover both save directions, a whole-book synchronize of a
+        book whose two pages disagree, the legacy upgrade path where the data-div holds only the plain
+        value, and a title on an ordinary page with no <code>data-xmatter-page</code>.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>C# build</td><td class="state ok">pass</td><td><code>BloomExe</code> builds with no errors</td></tr>
+            <tr><td>C# format (csharpier)</td><td class="state ok">pass</td><td>both touched files clean; pre-commit hooks ran</td></tr>
+            <tr><td>C# tests &mdash; <code>dotnet test</code></td><td class="state ok">pass</td><td><span class="numeral">3371 passed, 0 failed, 13 skipped</span> (full <code>BloomTests</code> suite at HEAD)</td></tr>
+            <tr><td>TypeScript typecheck</td><td class="state na">not run</td><td>no TypeScript in the diff &mdash; nothing in it the front end reads or builds</td></tr>
+            <tr><td>TypeScript lint (eslint)</td><td class="state na">not run</td><td>same reason</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="state na">not run</td><td>same reason</td></tr>
+            <tr><td>Merge with <code>Version6.5</code></td><td class="state ok">clean</td><td>base merged in before publishing; no conflicts</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>The whole PR was written this run: the <code>BookData</code> change plus five tests, then
+      <code>Version6.5</code> merged in, then one follow-up commit for the local review&rsquo;s finding
+      about the plain attribute. Two commits, listed on the
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8342/commits" target="_blank" rel="noopener">PR&rsquo;s commit page</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>What it found</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Local review<br><span class="cost">light sub-agent pass</span></td>
+              <td class="state ok">complete</td>
+              <td>Two findings, both in the whole-book merge helper. <strong>Fixed:</strong> the merge
+              filled gaps for the per-page variant names but not for the plain attribute they are
+              variants of, so a full synchronize of a book with no recorded style could leave the
+              data-div with variants and no plain fallback. <strong>Assessed and kept:</strong> the merge
+              does not refresh a variant the data-div already has &mdash; that is the module&rsquo;s
+              deliberate first-found-wins rule when reading the whole book (BL-10739), and a
+              page&rsquo;s own edited value reaches the data-div through the single-page read; the
+              method&rsquo;s comment now says so instead of implying a refresh.</td>
+            </tr>
+            <tr>
+              <td>Devin</td>
+              <td class="state ok" id="devin-state">complete</td>
+              <td id="devin-detail">Clean: no bugs, no Investigate flags, no informational items. Nothing
+              to mirror, so there are no finding threads on the PR
+              (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8342#issuecomment-5623292112" target="_blank" rel="noopener">consultation log</a>).</td>
+            </tr>
+            <tr>
+              <td>Comment-posting bots<br><span class="cost">CodeRabbit, Greptile</span></td>
+              <td class="state na">nothing posted</td>
+              <td>Neither posted a review or comment on this PR within the wait. Nothing to fold in.</td>
+            </tr>
+            <tr>
+              <td>CI</td>
+              <td class="state ok" id="ci-state">complete</td>
+              <td id="ci-detail"><code>pr-automation</code> passed; it is the only required check on this
+              repo&rsquo;s PRs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>A book whose saved cover padding is already wrong is not retroactively repaired.</strong>
+        The fix stops the two pages overwriting each other from now on, but it cannot invent a
+        measurement: only <code>OverflowChecker</code>, running in the editor, knows what the cover
+        needs. So a book last saved with the title page&rsquo;s <code>0px</code> on the cover keeps that
+        value until someone opens its front cover in the editor once. Opening such a book and publishing
+        straight away still clips. That is expected, not the fix failing.</li>
+        <li><strong>Bloom still rewrites the book&rsquo;s <code>.htm</code> on every page navigation</strong>
+        &mdash; that is its normal page save and this PR does not change it. What the PR changes is that
+        the content no longer differs: repeated front-cover &harr; title-page visits now produce
+        byte-identical files, where before the two paddings swapped every time.</li>
+        <li><strong>Confirmed by hand in a Bloom built from this branch, not just by unit tests.</strong>
+        With a title long enough to overflow, the cover kept <code>padding-bottom: 5px</code> and the
+        title page <code>0px</code>, and the data-div carried both variants plus the plain value. With
+        the change temporarily reverted and Bloom restarted, both pages were forced to the same value
+        &mdash; the reported bug &mdash; and the variant attributes leaked onto the page elements.</li>
+        <li><strong>Only the book title is covered.</strong> Some project-specific xmatter packs put
+        <code>bloom-padForOverflow</code> on other <code>data-book</code> fields as well; see the first
+        question on the right.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ======================= RIGHT ======================= -->
+  <div class="stack" id="decisions">
+
+    <section class="item" data-item="approach">
+      <h2>An unanswered question on the card asks whether a cheaper approach exists</h2>
+      <p>Before this work started, a colleague left a comment on
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16811" target="_blank" rel="noopener">BL-16811</a>
+      addressed to you:</p>
+      <blockquote style="margin:0 0 12px; padding:10px 14px; border-left:3px solid var(--rule); background:#faf8f3; color:var(--muted); font-style:italic;">
+      &ldquo;the recommended fix was to merge instead of to replace but it looks to me like something
+      is leaking into this user style attribute that should not have leaked. Still a significant bug
+      but a different approach may be cheaper. @john_thomson is that right or wrong?&rdquo;
+      </blockquote>
+      <p>That reads as a different diagnosis: rather than teaching the shared store to keep one value
+      per page, stop the measured padding from being written into the title&rsquo;s user
+      <code>style</code> in the first place &mdash; keep it somewhere that was never meant to be shared
+      between the copies of a field. It was never answered, and this PR implements the per-page
+      approach instead, as instructed.</p>
+      <p>I have deliberately not replied to it: answering a colleague&rsquo;s question about the design
+      is yours to do. It is worth deciding before human review, because a reviewer may well ask the
+      same thing.</p>
+      <div class="opts">
+        <div class="opt rec">
+          <input type="radio" name="approach" id="appr-answer" value="I'll answer the colleague's comment on the card myself" checked>
+          <label for="appr-answer">Leave the PR as it is; you&rsquo;ll answer the comment on the card
+          yourself<span class="tag">recommended</span>
+          <span class="cost">No code change &mdash; recommended because the per-page approach is
+          working, verified end to end, and reviewed clean; the open question is about design
+          preference, and it is addressed to you by name.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="approach" id="appr-explore" value="Investigate the alternative (move the padding out of the shared style attribute) before review">
+          <label for="appr-explore">Have me investigate the alternative &mdash; find where the padding
+          could live instead of the shared <code>style</code> attribute &mdash; before this goes to
+          review
+          <span class="cost">Large / architectural: it touches how OverflowChecker stores what it
+          measures and how the published book picks it up, and would likely replace this PR rather
+          than amend it.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="approach" id="appr-leave" value="Leave as is">
+          <label for="appr-leave">Leave as is
+          <span class="cost">The comment stays unanswered on the card.</span></label>
+          <span class="leaveco"><input type="checkbox" id="appr-comment" data-q="Leave comment"><label for="appr-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="approach" id="appr-other" value="Other">
+          <label for="appr-other" class="otherwrap">Other:
+          <input type="text" id="appr-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="appr-notes">Notes</label>
+      <textarea id="appr-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="scope">
+      <h2>Should other padded xmatter fields be covered too?</h2>
+      <p>The new mechanism deliberately applies to one field: the book title. But
+      <code>bloom-padForOverflow</code> &mdash; the class that makes Bloom measure and store a
+      padding &mdash; is also on other <code>data-book</code> fields in some project-specific xmatter
+      packs: <code>author</code>, <code>editor</code>, <code>illustrator</code>, <code>year</code>,
+      <code>publisher</code>, <code>department</code> and <code>location</code> in the
+      Afghan Children Read pack, and the title again in the ABC Reader pack. Any of those that appears
+      on two different xmatter pages at two different type sizes has exactly the same bug as the title
+      did, and would still have it after this PR.</p>
+      <p>We have no report of any of them actually misbehaving, and each field we add is another field
+      that stops sharing a style between its copies &mdash; a behaviour change for those packs.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="scope" id="scope-add" value="Add the other padded data-book keys to the set now">
+          <label for="scope-add">Add the other <code>bloom-padForOverflow</code> keys to
+          <code>_pageDependentAttributes</code> now
+          <span class="cost">~2 lines plus tests, but it changes behaviour for those xmatter packs
+          sight-unseen &mdash; those fields would stop sharing a style between pages.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="scope" id="scope-leave" value="Leave as is" checked>
+          <label for="scope-leave">Leave as is<span class="tag">recommended</span>
+          <span class="cost">Keeps the change to the one field we have evidence for; widen it if and
+          when one of the others is actually reported.</span></label>
+          <span class="leaveco"><input type="checkbox" id="scope-comment" data-q="Leave comment"><label for="scope-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="scope" id="scope-other" value="Other">
+          <label for="scope-other" class="otherwrap">Other:
+          <input type="text" id="scope-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="scope-notes">Notes</label>
+      <textarea id="scope-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="prune">
+      <h2>Should variants for page types a book no longer has be pruned?</h2>
+      <p>Each variant is stored under the kind of page it came from, e.g.
+      <code>data-style-frontcover</code>. If a book later changes xmatter pack, or a page type simply
+      disappears from it, the entry for the old page type stays in the data-div forever. It is inert
+      &mdash; nothing reads a variant whose page type is not in the book &mdash; and it is a few dozen
+      bytes, but it is never cleaned up.</p>
+      <p>Pruning is not free: a page type can be temporarily absent while xmatter is being regenerated
+      or swapped, and pruning then would throw away a value the book still wants.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="prune" id="prune-add" value="Prune variants for page types not present in the book">
+          <label for="prune-add">Prune variants whose page type is not present in the book, during the
+          whole-book synchronize
+          <span class="cost">~10 lines, localized &mdash; but carries a real risk of discarding a wanted
+          value while xmatter is mid-regeneration.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="prune" id="prune-leave" value="Leave as is" checked>
+          <label for="prune-leave">Leave as is<span class="tag">recommended</span>
+          <span class="cost">The stale entries are inert and tiny, and leaving them cannot lose a value
+          that is still wanted.</span></label>
+          <span class="leaveco"><input type="checkbox" id="prune-comment" data-q="Leave comment"><label for="prune-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="prune" id="prune-other" value="Other">
+          <label for="prune-other" class="otherwrap">Other:
+          <input type="text" id="prune-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="prune-notes">Notes</label>
+      <textarea id="prune-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="repair">
+      <h2>Should already-affected books get repaired somehow?</h2>
+      <p>Because only the editor can measure what the cover needs, an existing book that was last saved
+      with the title page&rsquo;s value on its cover keeps that wrong value until someone opens its
+      front cover in the editor. Until then, publishing that book still clips the cover title exactly as
+      before. Every book anyone has edited in 6.4 is potentially in that state.</p>
+      <p>There is no way to compute the right value outside the editor, so the only options are to make
+      the editor visit the two pages once when a book is opened, or to accept that the value corrects
+      itself the first time someone looks at the cover.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="repair" id="repair-visit" value="Have the editor re-measure the title pages once on book open">
+          <label for="repair-visit">Make opening a book re-measure the two title pages once, so the
+          stored values are corrected without the user visiting them
+          <span class="cost">Moderate and risky &mdash; it means running the overflow measurement outside
+          normal page display, and it would add time to opening every book.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="repair" id="repair-leave" value="Leave as is" checked>
+          <label for="repair-leave">Leave as is<span class="tag">recommended</span>
+          <span class="cost">The value fixes itself the first time anyone opens the cover page, and the
+          worst case is the same clipping the book already has today.</span></label>
+          <span class="leaveco"><input type="checkbox" id="repair-comment" data-q="Leave comment"><label for="repair-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="repair" id="repair-other" value="Other">
+          <label for="repair-other" class="otherwrap">Other:
+          <input type="text" id="repair-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="repair-notes">Notes</label>
+      <textarea id="repair-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="attribution">
+      <h2>The commit trailer names Sonnet 5, not Fable 5.1</h2>
+      <p>The instructions that started this work asked for commits ending
+      <code>Co-Authored-By: Claude Fable 5.1</code>, but this session&rsquo;s own attribution setting
+      &mdash; and the model that actually did the work &mdash; is Claude Sonnet 5, so both commits carry
+      <code>Co-Authored-By: Claude Sonnet 5</code>. Flagging it so the mismatch is a choice rather than
+      a surprise.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="attribution" id="attr-amend" value="Amend both commits to say Claude Fable 5.1 and force-push">
+          <label for="attr-amend">Amend both commits to say Claude Fable 5.1 and force-push the branch
+          <span class="cost">Trivial to do, but it rewrites already-pushed history and restarts the
+          reviewers.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="attribution" id="attr-leave" value="Leave as is" checked>
+          <label for="attr-leave">Leave as is<span class="tag">recommended</span>
+          <span class="cost">The trailer names the model that actually wrote the code, which is what the
+          trailer is for.</span></label>
+          <span class="leaveco"><input type="checkbox" id="attr-comment" data-q="Leave comment"><label for="attr-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="attribution" id="attr-other" value="Other">
+          <label for="attr-other" class="otherwrap">Other:
+          <input type="text" id="attr-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="attr-notes">Notes</label>
+      <textarea id="attr-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="next">
+      <h2>What next?</h2>
+      <p>The PR is a draft with everything green. Nothing above blocks your own review of it, though
+      the design question at the top is worth settling first.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="next" id="next-implement" value="Implement the options I selected above, then re-run preflight">
+          <label for="next-implement">Implement whatever I selected above, then re-run preflight
+          <span class="cost">Each selected fix is a new commit and a fresh reviewer round.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="next" id="next-discuss" value="Discuss my selections before changing any code">
+          <label for="next-discuss">Talk through my selections first, before any code changes
+          <span class="cost">No code change yet.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="next" id="next-leave" value="Leave as is" checked>
+          <label for="next-leave">Leave as is<span class="tag">recommended</span>
+          <span class="cost">Nothing further from me; the PR is ready for your own review, and
+          <code>pr-ready-for-human</code> is the next step when you are happy with it.</span></label>
+          <span class="leaveco"><input type="checkbox" id="next-comment" data-q="Leave comment"><label for="next-comment">Leave comment</label></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="next" id="next-other" value="Other">
+          <label for="next-other" class="otherwrap">Other:
+          <input type="text" id="next-other-text" data-q="Other" placeholder="your answer"></label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes"><label for="next-notes">Notes</label>
+      <textarea id="next-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="copyback">
+      <h2>Send your answers back</h2>
+      <p>Copy this block and paste it into the Claude Code session.</p>
+      <button type="button" id="copybtn">Copy my answers</button><span id="copied" hidden>copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var TITLES = {
+    approach: "An unanswered question on the card asks whether a cheaper approach exists",
+    scope: "Should other padded xmatter fields be covered too?",
+    prune: "Should variants for page types a book no longer has be pruned?",
+    repair: "Should already-affected books get repaired somehow?",
+    attribution: "The commit trailer names Sonnet 5, not Fable 5.1",
+    next: "What next?"
+  };
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var out = ["Preflight answers - BL-16811 / PR #8342", ""];
+    Object.keys(TITLES).forEach(function (name) {
+      var chosen = document.querySelector('input[name="' + name + '"]:checked');
+      var value = chosen ? chosen.value : "(no answer)";
+      if (value === "Other") {
+        var box = document.getElementById((name === "attribution" ? "attr" : (name === "approach" ? "appr" : name)) + "-other-text");
+        value = "Other: " + ((box && box.value.trim()) || "(blank)");
+      }
+      out.push("## " + TITLES[name]);
+      out.push("Answer: " + value);
+      var short = name === "attribution" ? "attr" : (name === "approach" ? "appr" : name);
+      var cb = document.getElementById(short + "-comment");
+      if (cb && cb.checked) out.push("Leave comment: record this decision as a code comment in the repo");
+      var notes = document.getElementById(short + "-notes");
+      if (notes && notes.value.trim()) out.push("Notes: " + notes.value.trim());
+      out.push("");
+    });
+    payload.value = out.join("\n");
+  }
+
+  document.getElementById("decisions").addEventListener("input", serialize);
+  document.getElementById("decisions").addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.hidden = false;
+      setTimeout(function () { tag.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
