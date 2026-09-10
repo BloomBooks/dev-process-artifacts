@@ -140,7 +140,7 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
     <span class="chip"><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">#8338</a></span>
     <span class="chip"><strong>Base</strong> Version6.5</span>
     <span class="chip"><strong>State</strong> draft</span>
-    <span class="chip"><strong>HEAD</strong> <span class="numeral">a81463534</span></span>
+    <span class="chip"><strong>HEAD</strong> <span class="numeral">6790f07ec</span></span>
     <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/files" target="_blank" rel="noopener">Files changed</a></span>
     <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16729" target="_blank" rel="noopener">BL-16729</a></span>
     <span class="chip"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">Devin review</a></span>
@@ -323,11 +323,19 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
     <p>The reasoning holds up. What this card fixes is going <em>hours</em> unaware; nobody loses work in 75 seconds, they just see slightly stale status for a minute. And the confirmation delay cannot usefully drop below 15 seconds anyway, because the Dropbox reachability answer is cached for 10 — a faster second look would simply return the first one and confirm nothing.</p>
   </div>
 
-  <div class="decision">
-    <h3>Still on your list: the rest of the manual script</h3>
-    <p><strong>Confirmed working in a real Bloom.</strong> A drive physically removed is detected; Dropbox being quit is detected; in both cases the red notification appears and the collection goes Disconnected; and restoring the folder and clicking Reload Collection returns it to normal.</p>
-    <p>Not yet exercised: the <strong>joiner</strong> case added this round (the shared folder arriving after Bloom has already opened the collection), and — mattering most — the <strong>negative</strong> cases, since a collection that is working must never be disconnected by mistake and there is no automatic way back from that. The long-idle test and the Dropbox-plus-LAN combination are the two that need patience rather than cleverness.</p>
-    <p>The script on the card covers all of these, and now tells you where to look in the event log to confirm the periodic check ran at all — which is what turned an ambiguous result into a conclusive one.</p>
+  <div class="decision fyi">
+    <h3>Manual testing: essentially done, and it passed</h3>
+    <p><strong>Detection.</strong> A drive physically removed is detected; Dropbox being quit is detected. In both cases the red notification appears and the collection goes Disconnected, and restoring the folder and clicking Reload Collection returns it to normal.</p>
+    <p><strong>The negative cases — the ones that mattered most — both passed.</strong> An hour idle on a healthy Dropbox collection stayed connected. Unplugging the ethernet cable for five to ten seconds stayed connected. Those were the outcomes worth worrying about, because a wrong disconnect costs the user a full reload and there is no automatic way back from it. The confirm-before-believing rule is doing its job.</p>
+    <p><strong>Not run, and not runnable here:</strong> the Dropbox-folder-also-shared-on-a-LAN combination, for want of the setup. It stays on the card as untested rather than passed.</p>
+    <p><strong>One test turned out not to exist.</strong> The script asked for a Team Collection to be joined while its shared folder was incomplete. You cannot: the join fails outright in that state. See the note below.</p>
+  </div>
+
+  <div class="decision fyi">
+    <h3>A justification I had to withdraw</h3>
+    <p>The deferred-watcher work earlier in this run was justified on the grounds that a joiner's Dropbox might not have delivered the shared folder's <span class="numeral">Books</span> sub-folder yet. Testing showed that is not a real state: you cannot join a collection in that condition at all, because the join fails earlier on the missing folder.</p>
+    <p>What is genuinely reachable is narrower — <em>reopening</em> a collection already joined, at a moment when <span class="numeral">Books</span> is absent, such as while Dropbox restores the shared folder onto a new machine. Monitoring starts on every collection open, not only at join. And the sync still fails and still tells the user in that case; what the retry avoids is having to restart Bloom once the folder arrives.</p>
+    <p>Kept after weighing it, on the reasoning that its failure mode is inert and the same restructure independently stops a missing <span class="numeral">Books</span> folder from silently skipping the <span class="numeral">Other</span> watcher. The code comment and the QA step now state the real reachability instead of the version I had assumed, and the QA step's expected result is corrected too — it said the collection would open normally, when in fact it reports a sync error.</p>
   </div>
 
   <div class="decision fyi">
@@ -358,7 +366,7 @@ ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--mu
 
 <script>
 (function () {
-  var HEADER = "Preflight round 2 — BL-16729 / PR #8338 (HEAD a81463534)";
+  var HEADER = "Preflight round 2 — BL-16729 / PR #8338 (HEAD 6790f07ec)";
   function build() {
     var t = (document.getElementById("freenotes").value || "").trim();
     document.getElementById("payload").value =
