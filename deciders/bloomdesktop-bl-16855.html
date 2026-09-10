@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16855 Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f4f5f2;
+    --card: #ffffff;
+    --line: #d9ddd6;
+    --ink: #1f2a2e;
+    --ink-soft: #55636a;
+    --accent: #2f6f7e;
+    --accent-soft: #e3eef1;
+    --ok: #3f7a44;
+    --ok-soft: #e6f1e6;
+    --warn: #a8731c;
+    --warn-soft: #f7efdc;
+    --bad: #a63d40;
+    --bad-soft: #f6e4e4;
+    --serif: Charter, "Iowan Old Style", Georgia, "Times New Roman", serif;
+    --sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: Consolas, "SF Mono", Menlo, monospace;
+  }
+  html { color-scheme: light; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 15px/1.55 var(--sans); padding: 28px 20px 60px;
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.2; text-wrap: balance; margin: 0; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16px; margin: 14px 0 4px; }
+  p { margin: 0 0 10px; }
+  .page { max-width: 1320px; margin: 0 auto; }
+  header { margin-bottom: 22px; }
+  .lede { color: var(--ink-soft); margin-top: 6px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; background: var(--accent-soft); color: var(--accent); border: 1px solid transparent; }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .links a { display: inline-block; padding: 4px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); text-decoration: none; font-size: 13.5px; }
+  .links a:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 22px; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
+  .col { display: flex; flex-direction: column; }
+  .prose { max-width: 68ch; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; color: var(--ink-soft); font-size: 12.5px; letter-spacing: .03em; text-transform: uppercase; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+  .state { font-weight: 600; }
+  .state.ok { color: var(--ok); } .state.warn { color: var(--warn); } .state.bad { color: var(--bad); }
+  .reviewer { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 6px 14px; }
+  .reviewer dt { font-weight: 600; }
+  .reviewer dd { margin: 0; }
+  @media (max-width: 600px) { .reviewer { grid-template-columns: minmax(0, 1fr); } }
+  code { font-family: var(--mono); font-size: 13px; background: var(--ground); padding: 1px 5px; border-radius: 4px; }
+  .q { border-top: 3px solid var(--accent); }
+  .q h2 { font-size: 18px; }
+  .opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 8px; }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt label { flex: 1; cursor: pointer; }
+  .opt .rec { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; background: var(--ok-soft); color: var(--ok); font-size: 12px; }
+  .opt .foot { display: block; color: var(--ink-soft); font-size: 13px; margin-top: 2px; }
+  .opt .side { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); white-space: nowrap; }
+  .opt input[type=text] { flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+  textarea { width: 100%; min-height: 64px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: 14px/1.45 var(--sans); resize: vertical; }
+  .notes label { display: block; font-size: 13px; color: var(--ink-soft); margin: 8px 0 4px; }
+  button { font: inherit; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button:hover { filter: brightness(1.08); }
+  #copied { margin-left: 10px; color: var(--ok); font-size: 14px; }
+  #payload { margin-top: 10px; font-family: var(--mono); font-size: 12.5px; min-height: 140px; }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>BL-16855 Preflight</h1>
+  <p class="lede">Publish &gt; Apps no longer builds an Android app from a Playground book. Gates are green, reviewers have finished, and one question waits on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip warn">1 question for you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8344" target="_blank" rel="noopener">PR #8344</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8344/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8344/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16855" target="_blank" rel="noopener">BL-16855</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8344" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card prose">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom refuses to publish a book made from the Playground template. The BloomPUB, ePUB, PDF, video, and BloomLibrary-upload screens all disable their action button for such a book. Publish &gt; Apps, the Reading App Builder screen, was the exception, so a Playground book could be turned into an Android app.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>The Reading App Builder status now lists the titles of any books headed into the app that came from the Playground template. That covers every book in the app's Choose Books list, not only the currently selected book. The Apps screen disables Prepare and Build while that list is non-empty, and the tooltip names the books.</li>
+      <li>The Reading App Builder export refuses to start if any book headed into the app is a Playground book, naming the offending books in the Apps screen log. This is the safety net behind the UI check.</li>
+      <li>The Playground test moves from the loaded book to its metadata, so both checks read the book lineage without loading the book. A tracked book that has since been deleted from the collection is skipped by the status check rather than breaking it.</li>
+      <li>Unit tests cover the export guard and the new status field.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+      <tr><td>TypeScript typecheck</td><td class="state ok">pass</td><td>No type errors.</td></tr>
+      <tr><td>Lint (eslint)</td><td class="state ok">pass</td><td>Changed files clean; pre-commit hook agreed.</td></tr>
+      <tr><td>Base integration</td><td class="state ok">clean</td><td>Branch already matched <code>origin/Version6.5</code>; nothing to merge.</td></tr>
+      <tr><td>Front-end tests (vitest)</td><td class="state ok">pass</td><td><span class="numeral">786 passed · 5 skipped</span> across 70 files, full suite, run with <code>--no-file-parallelism</code>.</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="state ok">pass</td><td><span class="numeral">3386 passed · 12 skipped</span>, full suite at the final commit, including the real Reading App Builder build test.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card prose">
+    <h2>What changed this run</h2>
+    <p>Committed the original fix, then three follow-ups: the local review moved the button gate from "is the current book a Playground book" to "is any book in the app a Playground book" and made the check read metadata instead of loading books; Devin's finding made the status skip a deleted tracked book; the full C# suite exposed a null collection model in tests, now guarded. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8344/commits" target="_blank" rel="noopener">commit list</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <dl class="reviewer">
+      <dt>Local review</dt><dd>Light sub-agent pass, complete. Two findings, both fixed: the UI gated on the wrong book (current vs. the app's list), and the export guard loaded every book to read a value available from metadata.</dd>
+      <dt>Devin</dt><dd>Complete for the final commit, clean. Its one Bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8344#discussion_r3983827892" target="_blank" rel="noopener">deleted book locks the Apps screen</a>, was fixed and the thread resolved; Devin's re-review marked it resolved.</dd>
+      <dt>CodeRabbit</dt><dd>Configured in the repo but its automatic review is switched off, so it does not run here.</dd>
+      <dt>CI</dt><dd>The only GitHub check, pr-automation, passed for every pushed commit.</dd>
+    </dl>
+  </section>
+
+  <section class="card prose">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The disabled-button behaviour was verified through unit tests and code reading, not by hand in a running Bloom. The test-ideas comment on the card walks a tester through it.</li>
+      <li>The Choose Books dialog still lists Playground books. Adding one disables Prepare and Build with a tooltip naming it, rather than hiding it from the list. See the question on the right.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col">
+
+  <section class="card q">
+    <h2>Should the Choose Books dialog hide Playground books?</h2>
+    <p class="prose">Today a Playground book appears in the Choose Books list like any other book. If someone adds it, Prepare and Build turn grey and the tooltip says which book is the problem, and they remove it again. The alternative is to leave Playground books out of the list entirely, so the situation cannot arise. That needs the collection book list the dialog reads to carry a "made from Playground" flag, plus a filter in the dialog.</p>
+    <div class="opt"><input type="radio" name="q1" id="q1a" value="Hide Playground books from Choose Books" data-q="Choose Books"><label for="q1a">Hide Playground books from the Choose Books list<span class="foot">~30 lines across the collection API, its TypeScript type, and the dialog; low risk, but the user then has no hint why their book is missing.</span></label></div>
+    <div class="opt"><input type="radio" name="q1" id="q1b" value="Leave as is" data-q="Choose Books" checked><label for="q1b">Leave as is<span class="rec">Recommended</span><span class="foot">Recommended because the disabled buttons plus a tooltip naming the book already explain the situation, which matches how every other publish screen treats a Playground book.</span></label><span class="side"><input type="checkbox" id="q1c" data-q="Choose Books" data-kind="comment"><label for="q1c">Leave comment</label></span></div>
+    <div class="opt"><input type="radio" name="q1" id="q1o" value="Other" data-q="Choose Books"><label for="q1o">Other:</label><input type="text" id="q1t" data-q="Choose Books" data-kind="other" placeholder="Your answer"></div>
+    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="Choose Books" data-kind="notes"></textarea></div>
+  </section>
+
+  <section class="card q">
+    <h2>Next step</h2>
+    <div class="opt"><input type="radio" name="q2" id="q2a" value="Implement my answers above and re-run preflight" data-q="Next step" checked><label for="q2a">Implement my answers above and re-run preflight<span class="rec">Recommended</span></label></div>
+    <div class="opt"><input type="radio" name="q2" id="q2b" value="Discuss first" data-q="Next step"><label for="q2b">Discuss first before changing anything</label></div>
+    <div class="opt"><input type="radio" name="q2" id="q2c" value="Leave as is" data-q="Next step"><label for="q2c">Leave as is</label><span class="side"><input type="checkbox" id="q2cc" data-q="Next step" data-kind="comment"><label for="q2cc">Leave comment</label></span></div>
+    <div class="opt"><input type="radio" name="q2" id="q2o" value="Other" data-q="Next step"><label for="q2o">Other:</label><input type="text" id="q2t" data-q="Next step" data-kind="other" placeholder="Your answer"></div>
+    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="Next step" data-kind="notes"></textarea></div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p class="prose">Copy this block and paste it into the Claude Code session.</p>
+    <button id="copy" type="button">Copy answers</button><span id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var payload = document.getElementById('payload');
+  function serialize() {
+    var lines = ['Preflight decisions for BL-16855 / PR #8344 (https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16855.html)'];
+    var qs = [];
+    document.querySelectorAll('[data-q]').forEach(function (el) { if (qs.indexOf(el.dataset.q) < 0) qs.push(el.dataset.q); });
+    qs.forEach(function (q) {
+      var chosen = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      var val = chosen ? chosen.value : '(no selection)';
+      if (chosen && chosen.value === 'Other') {
+        var other = document.querySelector('input[type=text][data-q="' + q + '"][data-kind="other"]');
+        val = 'Other: ' + (other && other.value ? other.value : '(blank)');
+      }
+      lines.push('', q + ': ' + val);
+      var cmt = document.querySelector('input[type=checkbox][data-q="' + q + '"][data-kind="comment"]');
+      if (cmt && cmt.checked) lines.push('  Leave comment: record this decision as a code comment near the relevant code');
+      var notes = document.querySelector('textarea[data-q="' + q + '"][data-kind="notes"]');
+      if (notes && notes.value.trim()) lines.push('  Notes: ' + notes.value.trim());
+    });
+    payload.value = lines.join('\n');
+  }
+  document.addEventListener('input', serialize);
+  document.addEventListener('change', serialize);
+  serialize();
+  document.getElementById('copy').addEventListener('click', function () {
+    serialize();
+    var done = function () { var c = document.getElementById('copied'); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2500); };
+    var fallback = function () { payload.select(); try { document.execCommand('copy'); } catch (e) {} done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(payload.value).then(done, fallback); else fallback();
+  });
+})();
+</script>
+</body>
+</html>
