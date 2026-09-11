@@ -132,7 +132,7 @@
         <tr><td>TypeScript lint</td><td class="ok">Pass</td><td>No new lint errors in the changed front-end files.</td></tr>
         <tr><td>Front-end tests (vitest)</td><td class="ok">Pass</td><td><span class="numeral">792 passed · 5 skipped · 0 failed</span>, run directory by directory. The <code>bookEdit</code> tree, which holds the changed code, is <span class="numeral">690 passed · 5 skipped</span>.</td></tr>
         <tr><td>C# tests (dotnet test)</td><td class="bad">8 failing</td><td><span class="numeral">3436 passed · 8 failed</span>. All eight are <code>PdfMakerTests</code> and fail with <code>FileNotFoundException: BloomPdfMaker.exe</code> — the isolated test output directory has no PDF maker. Nothing in this branch touches PDF generation.</td></tr>
-        <tr><td>Feature suite</td><td class="ok">Pass</td><td><code>BookCopyrightAndLicenseTests</code>: <span class="numeral">46 of 46</span>, including seven new cases covering the lock, the unlock, the save-time relock and the use-original-copyright interaction.</td></tr>
+        <tr><td>Feature suite</td><td class="ok">Pass</td><td><code>BookCopyrightAndLicenseTests</code>: <span class="numeral">47 of 47</span>, and the whole <code>BloomTests.Book</code> namespace <span class="numeral">1160 passed · 5 skipped</span>. The new cases cover the lock, the unlock, the save-time relock, the use-original-copyright interaction and an ampersand in the original title.</td></tr>
       </tbody>
     </table>
     </div>
@@ -140,12 +140,13 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>The whole branch was rebased onto master and pushed. Two findings were fixed: an attribute the editor uses to place the caret was being harvested into the data div, and the user's own wording was still being printed when "use the original copyright" was on. A papercut was logged about <code>vitest run</code> never exiting after it finishes.</p>
+    <p>The whole branch was rebased onto master and pushed. Three findings were fixed: an attribute the editor uses to place the caret was being harvested into the data div, the user's own wording was still being printed when "use the original copyright" was on, and clicking the padlock threw on any book whose original title or copyright holder contains an ampersand. A papercut was logged about <code>vitest run</code> never exiting after it finishes.</p>
     <ul>
       <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/b102d3ceae" target="_blank" rel="noopener">b102d3c</a> — the feature itself.</li>
       <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/ba6b429854" target="_blank" rel="noopener">ba6b429</a> — keep <code>data-bloom-focus-when-shown</code> out of the data div.</li>
       <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/3c5560f18e" target="_blank" rel="noopener">3c5560f</a> — hide the user's own sentence when using the original copyright.</li>
       <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/ead97404a8" target="_blank" rel="noopener">ead9740</a> — the papercut entry.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/commit/c17af2339f" target="_blank" rel="noopener">c17af23</a> — escape the generated sentence when handing it to the user.</li>
     </ul>
   </section>
 
@@ -157,7 +158,7 @@
       <tbody>
         <tr>
           <td>Local review</td><td class="ok">Complete</td>
-          <td>Light pass, run in-session. One finding: the caret-placement attribute could reach the data div when a page is rendered with focus suppressed. Fixed by adding it to <code>BookData._attributesNotToCopy</code>. The reviewer also confirmed that a partial save cannot drop the user's edit, because the editable field carries <code>data-book</code> and so forces a full save when its text changes.</td>
+          <td>Two passes, both complete. The first found that the caret-placement attribute could reach the data div when a page is rendered with focus suppressed; fixed by adding it to <code>BookData._attributesNotToCopy</code>. The second found that clicking the padlock threw an <code>XmlException</code> on any book whose original title or copyright holder contains an ampersand, because the generated sentence pastes those in unescaped and the seeding code parsed it as XML; fixed in c17af23, with a test. Both passes confirmed that a partial save cannot drop the user's edit, because the editable field carries <code>data-book</code> and so forces a full save when its text changes.</td>
         </tr>
         <tr>
           <td>Devin</td><td class="ok">Complete</td>
@@ -180,8 +181,8 @@
     <h2>Worth knowing</h2>
     <ul>
       <li><strong>None of this has been exercised by hand in a running Bloom.</strong> The padlock, the caret placement and the re-lock are covered by unit tests against the DOM, not by a pass through the editor with a real derivative book.</li>
-      <li>The behaviour hangs on the editable shape never being written anywhere but the per-view page DOM. Three places put it back: <a href="https://github.com/BloomBooks/BloomDesktop/blob/ead97404a83f8cd5bfd14955efa9ac78c86f9b7b/src/BloomExe/Book/Book.cs#L4269" target="_blank" rel="noopener">the save path in <code>Book.cs</code></a>, the epub exporter, and every rebuild of the page. A reviewer worried about the field leaking into a saved book should read those three call sites together.</li>
-      <li>The wording moves from <code>data-derived</code> to <code>data-book</code> once the user owns it, which is how their text gets harvested back into the data div. That switch is the load-bearing part of the design, in <a href="https://github.com/BloomBooks/BloomDesktop/blob/ead97404a83f8cd5bfd14955efa9ac78c86f9b7b/src/BloomExe/Book/BookCopyrightAndLicense.cs#L436" target="_blank" rel="noopener"><code>MakeOriginalCopyrightNoticeEditable</code></a>.</li>
+      <li>The behaviour hangs on the editable shape never being written anywhere but the per-view page DOM. Three places put it back: <a href="https://github.com/BloomBooks/BloomDesktop/blob/c17af2339f3d6db8cd78642c68edf82614ab42aa/src/BloomExe/Book/Book.cs#L4269" target="_blank" rel="noopener">the save path in <code>Book.cs</code></a>, the epub exporter, and every rebuild of the page. A reviewer worried about the field leaking into a saved book should read those three call sites together.</li>
+      <li>The wording moves from <code>data-derived</code> to <code>data-book</code> once the user owns it, which is how their text gets harvested back into the data div. That switch is the load-bearing part of the design, in <a href="https://github.com/BloomBooks/BloomDesktop/blob/c17af2339f3d6db8cd78642c68edf82614ab42aa/src/BloomExe/Book/BookCopyrightAndLicense.cs#L436" target="_blank" rel="noopener"><code>MakeOriginalCopyrightNoticeEditable</code></a>.</li>
     </ul>
   </section>
 
