@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cover Title Padding Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground: #f7f4ee;
+    --card: #ffffff;
+    --rule: #e4dccd;
+    --rule-soft: #efe9dd;
+    --ink: #221f1a;
+    --muted: #6d6659;
+    --accent: #2f5d7c;
+    --accent-soft: #eaf1f6;
+    --good: #3d6b48;
+    --good-soft: #e9f1e9;
+    --warn: #92601a;
+    --warn-soft: #f7efdf;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-inline: 24px;
+    padding-block: 40px 72px;
+  }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+
+  header { margin-bottom: 28px; }
+  .kicker { font-family: var(--mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+  h1 {
+    font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15; margin: 0 0 14px; text-wrap: balance; max-width: 24ch;
+    position: relative; padding-bottom: 14px;
+  }
+  /* a baseline with one descender dropping through it - the thing this PR is about */
+  h1::after {
+    content: ""; position: absolute; left: 0; bottom: 8px; width: 132px; height: 1px; background: var(--ink);
+  }
+  h1::before {
+    content: ""; position: absolute; left: 96px; bottom: 0; width: 1px; height: 15px; background: var(--accent);
+  }
+  .lede { font-size: 16.5px; color: var(--muted); margin: 0 0 20px; max-width: 62ch; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .chip {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em;
+    padding: 4px 10px; border: 1px solid var(--rule); border-radius: 2px;
+    background: var(--card); color: var(--ink); white-space: nowrap;
+  }
+  .chip.good { background: var(--good-soft); border-color: #cfe0cf; color: var(--good); }
+  .chip.attn { background: var(--warn-soft); border-color: #e8d6b4; color: var(--warn); }
+
+  .links { display: flex; flex-wrap: wrap; gap: 0 6px; align-items: baseline; font-size: 13px; }
+  .links a {
+    font-family: var(--mono); font-size: 12px; color: var(--accent); text-decoration: none;
+    padding: 3px 9px; border: 1px solid #cddbe4; border-radius: 2px; background: var(--accent-soft);
+    margin-bottom: 6px;
+  }
+  .links a:hover, .links a:focus-visible { background: #dceaf2; text-decoration: underline; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 26px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 22px 24px;
+  }
+  section.card > :first-child { margin-top: 0; }
+  section.card > :last-child { margin-bottom: 0; }
+  h2 { font-family: var(--serif); font-weight: 400; font-size: 21px; line-height: 1.25; margin: 0 0 14px; }
+  h3 { font-size: 12px; font-family: var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 20px 0 8px; font-weight: 500; }
+  p { margin: 0 0 12px; max-width: 66ch; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 7px; max-width: 66ch; }
+  a { color: var(--accent); }
+  code, .numeral { font-family: var(--mono); font-size: .9em; }
+  .numeral { font-variant-numeric: tabular-nums; }
+  code { background: #f3efe6; padding: 1px 4px; border-radius: 2px; }
+
+  .tablewrap { overflow-x: auto; margin-bottom: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.state { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+  td.state.ok { color: var(--good); }
+  td.state.na { color: var(--muted); }
+
+  .item { border: 1px solid var(--rule); border-radius: 3px; background: var(--card); padding: 20px 22px; }
+  .item h2 { font-size: 18px; margin-bottom: 10px; }
+  .cost { display: block; color: var(--muted); font-size: 12.5px; margin-top: 3px; }
+  input[type=text], textarea {
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink);
+    background: #fbfaf6; border: 1px solid var(--rule); border-radius: 2px; padding: 6px 8px; width: 100%;
+  }
+  textarea { min-height: 58px; resize: vertical; }
+  .notes { margin-top: 12px; }
+  .notes label { display: block; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+  button {
+    font-family: var(--sans); font-size: 14px; font-weight: 500; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid #26506c; border-radius: 2px; padding: 9px 18px;
+  }
+  button:hover { background: #26506c; }
+  #copied { font-family: var(--mono); font-size: 12px; color: var(--good); margin-left: 10px; }
+  #payload { margin-top: 12px; font-family: var(--mono); font-size: 12px; min-height: 110px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="kicker">Preflight &middot; BloomDesktop &middot; BL-16811 &middot; the simpler fix, on master</p>
+  <h1>Measure the title&rsquo;s padding only on the front cover</h1>
+  <p class="lede">A one-line gate in OverflowChecker, with four unit tests. Typecheck, lint, the full front-end suite, the local review, Devin and CI are all green at HEAD; Devin&rsquo;s two remarks were about decisions already taken. Nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable &middot; clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">Front-end tests <span class="numeral">798 passed &middot; 5 skipped</span></span>
+    <span class="chip good">0 items for you</span>
+  </div>
+  <nav class="links" aria-label="Related pages">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353" target="_blank" rel="noopener">PR #8353</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16811" target="_blank" rel="noopener">BL-16811</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8353" target="_blank" rel="noopener">Devin review</a>
+  </nav>
+</header>
+
+<div class="cols">
+
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>The book title appears on both the front cover and the title page, and both copies carry
+      <code>bloom-padForOverflow</code>, so when either page opens in the editor Bloom measures the
+      title&rsquo;s descenders and stores the extra room they need as <code>padding-bottom</code> in the
+      title&rsquo;s <code>style</code> attribute. The two copies are set at different sizes and so need
+      different amounts: about 3px on the cover and none on the title page at the default sizes.</p>
+      <p>Bloom keeps the <code>style</code> attribute of every copy of a <code>data-book</code> field in
+      sync. So the two pages overwrote each other&rsquo;s padding on every visit, and whichever page was
+      looked at last won. In the editor you never noticed, because the padding is re-measured on every
+      page load. But the <em>saved</em> value is what gets published, and BloomPUB, ePUB, Bloom Reader and
+      BloomLibrary render what is in the file: a book published after visiting the title page last
+      clipped the descenders (g, y, p, j) of its cover title. As a side effect, the two pages genuinely
+      changed every time they were looked at, so a merely browsed book showed as modified, and a Team
+      Collection saw spurious checkouts.</p>
+
+      <h3>What the PR does</h3>
+      <p>The cover is the one place where this clipping matters, so <code>OverflowChecker</code> now
+      measures the title&rsquo;s padding <strong>only on the outside front cover</strong>. The
+      title&rsquo;s other copies inherit the cover&rsquo;s padding through the normal sync, which costs
+      them a few pixels of extra room and nothing else, and nothing overwrites the cover&rsquo;s value
+      any more. Padded fields other than the title are still measured wherever they appear.</p>
+      <p>This is a deliberate imperfection: the cover&rsquo;s measurement is not exactly right for the
+      title page, and we are choosing to live with that rather than store one value per page.</p>
+      <p>Four unit tests cover the new gate: the title on the cover, the title on the title page, a
+      title on no page, and another padded field on another page.</p>
+      <p class="cost">An earlier, more elaborate fix for the same card, which stored one value per page
+      in the data-div, is parked as draft
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8342" target="_blank" rel="noopener">PR #8342</a>
+      on <code>Version6.5</code>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>TypeScript typecheck</td><td class="state ok">pass</td><td><code>pnpm typecheck</code>: no type errors</td></tr>
+            <tr><td>TypeScript lint (eslint)</td><td class="state ok">pass</td><td>no errors on the two touched files; the warnings it prints are all on pre-existing lines</td></tr>
+            <tr><td>Format (prettier)</td><td class="state ok">pass</td><td>both files formatted; the pre-commit hook ran</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="state ok">pass</td><td><span class="numeral">70 files, 798 passed, 0 failed, 5 skipped</span> (full <code>pnpm vitest run</code> at HEAD)</td></tr>
+            <tr><td>C# build / tests</td><td class="state na">not run</td><td>no C# in the diff, and the C# suite neither reads nor builds the front-end source this change touches</td></tr>
+            <tr><td>Merge with <code>master</code></td><td class="state ok">clean</td><td>the branch is one commit on top of current <code>master</code>; GitHub reports the PR mergeable</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>The whole PR was written this run: a single commit adding the front-cover gate in
+      <code>OverflowChecker</code> and four unit tests, on the
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353/commits" target="_blank" rel="noopener">PR&rsquo;s commit page</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>What it found</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Local review<br><span class="cost">light sub-agent pass</span></td>
+              <td class="state ok">complete</td>
+              <td>Clean &mdash; no findings. It confirmed that the overflow-warning suppression that follows the measurement is unchanged for the title page, that custom-layout covers keep the <code>outsideFrontCover</code> class so their canvas-element title is still measured, and that no shipped xmatter has a front cover without that class.</td>
+            </tr>
+            <tr>
+              <td>Devin</td>
+              <td class="state ok">complete</td>
+              <td>One Bug and one Investigate flag, both about decisions already taken, no informational items. The Bug: a book whose cover was last saved wrong keeps that value until its cover is opened once in this build (an accepted limit, noted for QA) &mdash; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353#discussion_r3993671421" target="_blank" rel="noopener">thread</a>. The flag: the PR targets <code>master</code> while <code>AGENTS.md</code> says <code>Version6.5</code> (deliberate: not fixing this in 6.5) &mdash; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8353#discussion_r3993671817" target="_blank" rel="noopener">thread</a>. Both answered and resolved (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8353#issuecomment-5641041015" target="_blank" rel="noopener">consultation log</a>).</td>
+            </tr>
+            <tr>
+              <td>Comment-posting bots<br><span class="cost">CodeRabbit, Greptile</span></td>
+              <td class="state na">nothing posted</td>
+              <td>Neither has posted a review or comment on this PR. Nothing to fold in.</td>
+            </tr>
+            <tr>
+              <td>CI</td>
+              <td class="state ok">complete</td>
+              <td><code>pr-automation</code> passed on HEAD; it is the only required check on this
+              repo&rsquo;s PRs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>The title page&rsquo;s padding is now the cover&rsquo;s, by design.</strong> If a
+        reviewer objects that the cover&rsquo;s measurement is not right for other pages, the answer is
+        that this is an imperfection we are choosing to live with for now; the alternative is parked in
+        PR #8342.</li>
+        <li><strong>A book whose saved cover padding is already wrong is not retroactively repaired.</strong>
+        Only the editor, showing the front cover, can measure what the cover needs, so such a book keeps
+        its wrong value until someone opens its front cover once. Noted for QA in the test ideas.</li>
+        <li><strong>Not exercised by hand in a running Bloom.</strong> The change is a one-line gate on a
+        path the earlier PR verified end to end, and the four unit tests cover the gate itself; the
+        developer reviewed the change before this run.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <div class="stack" id="decisions">
+
+    <section class="item" data-item="anything">
+      <h2>Nothing is waiting on you</h2>
+      <p>Every reviewer is terminal and clean at HEAD. If you want something else looked at before
+      human review, say so here.</p>
+      <div class="notes"><label for="anything-notes">Notes</label>
+      <textarea id="anything-notes" data-q="Notes"></textarea></div>
+    </section>
+
+    <section class="item" data-item="copyback">
+      <h2>Send your answers back</h2>
+      <p>Copy this block and paste it into the Claude Code session.</p>
+      <button type="button" id="copybtn">Copy my answers</button><span id="copied" hidden>copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+
+  function serialize() {
+    var out = ["Preflight answers - BL-16811 / PR #8353", ""];
+    out.push("## Nothing is waiting on you");
+    var notes = document.getElementById("anything-notes");
+    out.push("Notes: " + ((notes && notes.value.trim()) || "(none)"));
+    out.push("");
+    payload.value = out.join("\n");
+  }
+
+  document.getElementById("decisions").addEventListener("input", serialize);
+  document.getElementById("decisions").addEventListener("change", serialize);
+  serialize();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.hidden = false;
+      setTimeout(function () { tag.hidden = true; }, 2500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand("copy"); done();
+      });
+    } else {
+      payload.select(); document.execCommand("copy"); done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
