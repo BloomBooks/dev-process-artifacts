@@ -80,7 +80,7 @@
 </head>
 <body>
 <h1>Preflight: BL-16870, Update Book breaks images</h1>
-<p class="lede">Branch <code>BL-16870-UpdateBookBreaksImages</code> in BloomBooks/BloomDesktop, one commit on top of <code>Version6.5</code>. Draft PR #8360 targets <code>Version6.5</code>. Everything below is for commit <code>8e00983</code>.</p>
+<p class="lede">Branch <code>BL-16870-UpdateBookBreaksImages</code> in BloomBooks/BloomDesktop, two commits on top of <code>Version6.5</code>. Draft PR #8360 targets <code>Version6.5</code>. Second preflight run, after the decisions from the first were implemented. Everything below is for commit <code>e42dd28</code> unless it says otherwise.</p>
 <div class="links">
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360" target="_blank" rel="noopener">PR #8360 (draft)</a>
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360/files" target="_blank" rel="noopener">Files changed</a>
@@ -100,9 +100,9 @@
       <tbody>
         <tr><td>TypeScript typecheck</td><td><span class="pill ok">pass</span></td><td><code>pnpm typecheck</code>, also run by the pre-commit hook</td></tr>
         <tr><td>Lint</td><td><span class="pill ok">pass</span></td><td>eslint on the changed TS/TSX (pre-commit hook), prettier and csharpier clean</td></tr>
-        <tr><td>Merge cleanliness</td><td><span class="pill ok">clean</span></td><td>Zero commits behind <code>origin/Version6.5</code> at push time; nothing to merge</td></tr>
-        <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pill ok">pass</span></td><td><span class="numeral">796 passed · 5 skipped · 70 files (1 skipped)</span>, 84 s</td></tr>
-        <tr><td>C# tests (dotnet test, full suite)</td><td><span class="pill ok">pass</span></td><td><span class="numeral">3387 passed · 13 skipped · 0 failed</span>, 3 min 25 s, via <code>build/agent-dotnet.sh</code></td></tr>
+        <tr><td>Merge cleanliness</td><td><span class="pill ok">clean</span></td><td>Zero commits behind <code>origin/Version6.5</code> at both pushes; nothing to merge</td></tr>
+        <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pill ok">pass</span></td><td><span class="numeral">802 passed · 5 skipped · 71 files (1 skipped)</span>, re-run on <code>e42dd28</code></td></tr>
+        <tr><td>C# tests (dotnet test, full suite)</td><td><span class="pill ok">pass</span></td><td><span class="numeral">3387 passed · 13 skipped · 0 failed</span>, 3 min 12 s, re-run on <code>e42dd28</code> via <code>build/agent-dotnet.sh</code></td></tr>
         <tr><td>C# build</td><td><span class="pill ok">pass</span></td><td>0 errors, 8 pre-existing warnings</td></tr>
       </tbody>
     </table>
@@ -111,7 +111,12 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>One commit, <a href="https://github.com/BloomBooks/BloomDesktop/commit/8e00983737d5309a1a9a8d1dbb979cdc52e07d70" target="_blank" rel="noopener"><code>8e00983</code> Run Update Book's per-page pass off-screen so it can't save a half-converted image</a>. Ten files.</p>
+    <p><strong>This run:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/commit/e42dd285ba31fc6b7b76e1a0dd660b8168f87aa5" target="_blank" rel="noopener"><code>e42dd28</code> Repair pages saved mid-conversion, and refuse an off-screen capture while one is pending</a>, implementing decisions 1 and 4 from the first run. Seven files.</p>
+    <ul>
+      <li><strong>Repair on page load (decision 1).</strong> A page saved by an early 6.5 Update Book with the old picture still in the canvas next to a background element saved <code>visibility: hidden</code> is now repaired the moment it is shown in the Edit tab: <a href="https://github.com/BloomBooks/BloomDesktop/blob/e42dd285ba31fc6b7b76e1a0dd660b8168f87aa5/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementBackgroundImageManager.ts#L150" target="_blank" rel="noopener"><code>repairInterruptedBackgroundConversion</code></a> shows the element and removes the stray picture. A converted canvas's obsolete placeholder picture is left alone. Two new Vitest cases.</li>
+      <li><strong>Off-screen capture refuses to save a pending conversion (decision 4).</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/e42dd285ba31fc6b7b76e1a0dd660b8168f87aa5/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L1620" target="_blank" rel="noopener"><code>captureContentForExternalProcessing</code></a> now waits up to 20 seconds (was 4) and, if the conversion is still pending at the cap, returns an error so <code>ProcessBook</code> fails the page and the whole all-or-nothing run. Other pending work still captures as before; the live editor's 4-second cap is unchanged. The policy is a small tested module, <a href="https://github.com/BloomBooks/BloomDesktop/blob/e42dd285ba31fc6b7b76e1a0dd660b8168f87aa5/src/BloomBrowserUI/bookEdit/js/pageContentCapturePolicy.ts" target="_blank" rel="noopener"><code>pageContentCapturePolicy.ts</code></a>; the C# poll timeout rose to 60 seconds to stay above the browser's cap.</li>
+    </ul>
+    <p style="margin-top:14px"><strong>First run:</strong> <a href="https://github.com/BloomBooks/BloomDesktop/commit/8e00983737d5309a1a9a8d1dbb979cdc52e07d70" target="_blank" rel="noopener"><code>8e00983</code> Run Update Book's per-page pass off-screen so it can't save a half-converted image</a>. Ten files.</p>
     <ul>
       <li><strong>Why it broke.</strong> Since BL-16595 (6.5 only), Update Book visited every page in the live Edit tab and saved each the instant its DOM loaded. On a page whose picture was still in the pre-6.3 form, that save could land mid-way through the browser's conversion of the picture to a background canvas element, saving both the old picture and a hidden new element. Cropping then moved nothing visible and Delete removed only the hidden element.</li>
       <li><strong>Update Book now runs <code>BookProcessor.ProcessBook</code></strong>, the off-screen per-page fix-up BloomBridge uses. Its capture waits for the page's async work and is all-or-nothing. The live-editor page walk in <code>EditingModel</code> is removed. See <a href="https://github.com/BloomBooks/BloomDesktop/blob/8e00983737d5309a1a9a8d1dbb979cdc52e07d70/src/BloomExe/CollectionTab/CollectionModel.cs#L732" target="_blank" rel="noopener">CollectionModel.cs:732</a>.</li>
@@ -126,10 +131,10 @@
     <table>
       <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
       <tbody>
-        <tr><td>Local review (light sub-agent pass)</td><td><span class="pill ok">complete</span></td><td>Clean, no correctness findings. Two cosmetic observations, carried into the FYI items on the right. Ran about 6 minutes.</td></tr>
-        <tr><td>Devin</td><td><span class="pill warn">complete, 1 finding</span></td><td>Finished for <code>8e00983</code> about 6 minutes after the push (triggered by <code>pr-automation</code>). One non-severe bug, no Investigate or Informational flags. Mirrored as an <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010183517" target="_blank" rel="noopener">inline thread</a>, left open for decision item 4. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#issuecomment-5671705370" target="_blank" rel="noopener">Consultation log</a> posted.</td></tr>
+        <tr><td>Local review (light sub-agent pass)</td><td><span class="pill ok">complete</span></td><td>Ran on <code>8e00983</code>: clean, no correctness findings; two cosmetic observations became FYIs 2 and 3 (both left as is). The follow-up <code>e42dd28</code> was not given a second sub-agent pass: it implements two decided fixes, is covered by eight Vitest cases, and both full suites and the gate were re-run on it.</td></tr>
+        <tr><td>Devin</td><td><span class="pill ok">complete, all threads closed</span></td><td><strong>Round 1</strong> (<code>8e00983</code>): one non-severe bug, the 4-second capture fallback; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010183517" target="_blank" rel="noopener">thread</a> now fixed in <code>e42dd28</code> and resolved; Devin itself marks it resolved on re-review. <strong>Round 2</strong> (<code>e42dd28</code>, finished about 6 minutes after the push): two new non-severe bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010291775" target="_blank" rel="noopener">Live save keeps its 4-second cap</a>: closed as the developer's round-1 decision, with the new page-load repair covering the residual case (FYI 5 below). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010292132" target="_blank" rel="noopener">Partial in-memory pages after a failed run</a>: closed as not an issue (FYI 6 below). Logs: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#issuecomment-5671705370" target="_blank" rel="noopener">round 1</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#issuecomment-5671880626" target="_blank" rel="noopener">round 2</a>.</td></tr>
         <tr><td>CodeRabbit</td><td><span class="pill info">not run</span></td><td>This repo's <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so CodeRabbit does not review pushes here. Nothing to wait for.</td></tr>
-        <tr><td>CI (<code>pr-automation</code> and any other checks)</td><td><span class="pill ok">complete, green</span></td><td>The only check on this PR is <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/34903822372" target="_blank" rel="noopener"><code>pr-automation</code></a>, which passed. GitHub reports the PR mergeable and clean.</td></tr>
+        <tr><td>CI (<code>pr-automation</code> and any other checks)</td><td><span class="pill ok">complete, green</span></td><td>The only check on this PR is <code>pr-automation</code>, which passed for both commits. GitHub reports the PR mergeable and clean.</td></tr>
       </tbody>
     </table>
     </div>
@@ -140,7 +145,8 @@
     <ul>
       <li>Manual verification by the developer before preflight: Update Book on the card's book, then crop and delete on page 4, in a regular collection and in a Team Collection, with the React dialog in place.</li>
       <li>The PR base is <code>Version6.5</code>, not <code>master</code>: the branch descends from <code>origin/Version6.5</code> and the page walk it replaces only exists in 6.5. The card summary has no <code>[6.X]</code> prefix, so this was a judgment call, confirmed in chat.</li>
-      <li>PR link posted to the card (no earlier link there). QA test ideas comment posted to the card (new; there was none before). This report's link posted to the card as well.</li>
+      <li>PR link posted to the card on the first run. The QA test-ideas comment was created on the first run and refreshed in place on this one to cover the page-load repair and the slow-image failure. This report is republished at the same URL already linked on the card.</li>
+      <li>Decisions from the first run: 1 (repair on page load) implemented; 2 and 3 (spinner beside the percent bar, bar filling twice) left as is, as recommended; 4 (Devin, off-screen capture) implemented as recommended and the thread closed with the fix.</li>
       <li>No personal board skill is installed, so board moves were skipped.</li>
     </ul>
   </section>
@@ -148,65 +154,43 @@
 </div>
 <div class="col">
 
-  <section class="card decision">
-    <h3>1. Books already damaged by the old Update Book are not repaired <span class="pill info">decision</span></h3>
-    <p class="desc">Anyone who ran Update Book on an older book with an earlier 6.5 beta may already have pages carrying two copies of a picture: a visible old-style one and a hidden background canvas element with <code>visibility: hidden</code> saved on it. This commit stops new damage but does nothing for those pages. When such a page opens in the Edit tab, the conversion code sees a background element already present and leaves everything alone, so the picture still cannot be cropped or deleted. A stray old-style picture beside a background element that is saved hidden is a signature that nothing else in Bloom produces, so a targeted repair on page load is safe to recognise: unhide the element and remove the stray picture.</p>
-    <div class="opts" data-q="Q1">
-      <div class="opt"><input type="radio" id="q1a" name="q1" value="Repair on page load" checked data-q="Q1"><label for="q1a">Add a repair when the page loads <span class="tag">recommended</span><span class="foot">In <code>switchBackgroundToCanvasElementIfNeeded</code>: when the background element exists and is saved hidden, clear that and remove any non-placeholder old-style img still in the bloom-canvas, with a Vitest. About 15 lines, localized, low risk. Recommended because 6.5 beta testers may already have such books and this is the only place that could quietly fix them.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q1b" name="q1" value="Repair in Update Book only" data-q="Q1"><label for="q1b">Repair only during Update Book, not on every page load<span class="foot">Same check, but run from the off-screen pass. Similar size, but users would have to know to run Update Book again.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q1c" name="q1" value="Leave as is" data-q="Q1"><label for="q1c">Leave as is</label><span class="leave"><input type="checkbox" id="q1lc" data-q="Q1" data-leave-comment="1"><label for="q1lc">Leave comment</label></span></div>
-      <div class="opt"><input type="radio" id="q1d" name="q1" value="Other" data-q="Q1"><label for="q1d">Other:<input type="text" id="q1other" data-q="Q1" data-other="1" placeholder="your answer"></label><span></span></div>
-    </div>
-    <label class="notes-label" for="q1notes">Notes</label>
-    <textarea class="notes" id="q1notes" data-q="Q1" data-notes="1"></textarea>
+  <section class="card">
+    <h2>Nothing is waiting on you</h2>
+    <p>Every reviewer is terminal for <code>e42dd28</code>, every review thread on the PR is closed with a documented outcome, and both full suites are green. The two items below are Devin's round-2 findings, already answered on the PR; they are here so you can overrule either answer.</p>
   </section>
 
   <section class="card decision">
-    <h3>2. The spinner shows alongside the percent bar <span class="pill info">FYI</span></h3>
-    <p class="desc">The embedded progress dialog decides at mount time whether to show its title-bar spinner, before it knows the dialog will be opened in percent mode. So during Update Book you see both the spinner and the percent bar until the work finishes. It is purely visual, and the developer saw this version of the dialog when verifying the fix. The same applies to any future caller that asks for the percent bar.</p>
-    <div class="opts" data-q="Q2">
-      <div class="opt"><input type="radio" id="q2a" name="q2" value="Hide spinner in determinate mode" data-q="Q2"><label for="q2a">Hide the spinner whenever the dialog is in percent mode<span class="foot">Derive the spinner state from the current props instead of the mount-time value in <code>ProgressDialog.tsx</code>. About 3 lines, low risk, but touches a shared dialog used by imports and publishing.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q2b" name="q2" value="Leave as is" checked data-q="Q2"><label for="q2b">Leave as is <span class="tag">recommended</span></label><span class="leave"><input type="checkbox" id="q2lc" data-q="Q2" data-leave-comment="1"><label for="q2lc">Leave comment</label></span></div>
-      <div class="opt"><input type="radio" id="q2c" name="q2" value="Other" data-q="Q2"><label for="q2c">Other:<input type="text" id="q2other" data-q="Q2" data-other="1" placeholder="your answer"></label><span></span></div>
+    <h3>5. Devin: the live Edit-tab save still gives up after 4 seconds <span class="pill info">FYI, thread closed</span></h3>
+    <p class="desc"><strong>Source:</strong> Devin round 2, non-severe, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010291775" target="_blank" rel="noopener">thread</a>. <strong>Devin's comment (verbatim):</strong> "When conversion exceeds four seconds, <code>wrapWithRequestPageContentDelay</code> still permits a mid-conversion live save. <code>requestPageContent</code> captures at its timeout regardless of remaining delays. The saved page retains the old image beside a hidden replacement, recreating the crop and delete failure."</p>
+    <p class="desc"><strong>Assessment:</strong> True, and it is the part of decision 4 you chose to leave alone: the off-screen capture got the longer wait and the refuse-to-capture rule, while the live editor kept its 4-second cap so a save can never be left waiting on an image that may never load (BL-16776). The exposure needs a save within 4 seconds of a page appearing on a picture still loading after 4 seconds, and as of this commit such a page is repaired the next time it is shown, so it can no longer leave an uncroppable picture. The thread records this and is resolved.</p>
+    <div class="opts" data-q="Q5 (Devin: live save 4-second cap)">
+      <div class="opt"><input type="radio" id="q5a" name="q5" value="Also make the live save wait on the conversion delay" data-q="Q5"><label for="q5a">Also make the live save wait longer while the conversion is pending<span class="foot">Teach <code>requestPageContent</code> to extend its wait (bounded, say 20 s) only while <code>kBackgroundConversionDelayId</code> is active. About 10 lines plus a test; low code risk, but a stuck image then delays a live save by up to that long.</span></label><span></span></div>
+      <div class="opt"><input type="radio" id="q5b" name="q5" value="Leave as is" checked data-q="Q5"><label for="q5b">Leave as is <span class="tag">recommended</span></label><span class="leave"><input type="checkbox" id="q5lc" data-q="Q5" data-leave-comment="1"><label for="q5lc">Leave comment</label></span></div>
+      <div class="opt"><input type="radio" id="q5c" name="q5" value="Other" data-q="Q5"><label for="q5c">Other:<input type="text" id="q5other" data-q="Q5" data-other="1" placeholder="your answer"></label><span></span></div>
     </div>
-    <label class="notes-label" for="q2notes">Notes</label>
-    <textarea class="notes" id="q2notes" data-q="Q2" data-notes="1"></textarea>
+    <label class="notes-label" for="q5notes">Notes</label>
+    <textarea class="notes" id="q5notes" data-q="Q5" data-notes="1"></textarea>
   </section>
 
   <section class="card decision">
-    <h3>3. The percent bar can run to 100 twice <span class="pill info">FYI</span></h3>
-    <p class="desc">If the whole-book update has to shrink oversized images first, that step drives the same percent indicator from 0 to 100 on its own. The per-page pass then starts the bar again from 0. A tester would see the bar fill, jump back, and fill again. This only happens for books with oversized images, and the messages beneath the bar make it clear what is going on.</p>
-    <div class="opts" data-q="Q3">
-      <div class="opt"><input type="radio" id="q3a" name="q3" value="Scale phases into one bar" data-q="Q3"><label for="q3a">Give the shrink step its own slice of the bar<span class="foot">Wrap the progress passed to the shrink step so its 0 to 100 maps into, say, the first 10 percent. About 20 lines including a small adapter, low risk.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q3b" name="q3" value="Leave as is" checked data-q="Q3"><label for="q3b">Leave as is <span class="tag">recommended</span></label><span class="leave"><input type="checkbox" id="q3lc" data-q="Q3" data-leave-comment="1"><label for="q3lc">Leave comment</label></span></div>
-      <div class="opt"><input type="radio" id="q3c" name="q3" value="Other" data-q="Q3"><label for="q3c">Other:<input type="text" id="q3other" data-q="Q3" data-other="1" placeholder="your answer"></label><span></span></div>
+    <h3>6. Devin: after a failed run, processed pages stay in memory <span class="pill info">FYI, thread closed</span></h3>
+    <p class="desc"><strong>Source:</strong> Devin round 2, non-severe, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010292132" target="_blank" rel="noopener">thread</a>. <strong>Devin's comment (verbatim):</strong> "After a later page fails, <code>doWhenDialogCloses</code> reselects the mutated <code>b</code>. <code>ProcessOnePage</code> has already merged earlier captures into that instance before the final save. A later save can persist a half-processed book despite the all-or-nothing contract."</p>
+    <p class="desc"><strong>Assessment:</strong> Not an issue. The contract is about what the failed run writes, and it holds: nothing from the page pass reaches disk. In memory, each page is either fully processed or untouched; the failing page is never merged. That mixed state is what Bloom produces every day when a user opens some pages of an older book in the Edit tab and not others. A later edit-and-save writes for those pages exactly what a successful run would have. Reloading from disk would throw away valid work. The thread records this and is resolved.</p>
+    <div class="opts" data-q="Q6 (Devin: partial in-memory pages after failure)">
+      <div class="opt"><input type="radio" id="q6a" name="q6" value="Reload the book from disk after a failed run" data-q="Q6"><label for="q6a">Reload the book from disk before reselecting it after a failure<span class="foot">Track success in <code>BringBookUpToDateAsync</code> and, on failure, replace the selected <code>Book</code> with a fresh instance on the UI thread. About 15 lines, moderate risk: other objects may hold the old instance.</span></label><span></span></div>
+      <div class="opt"><input type="radio" id="q6b" name="q6" value="Leave as is" checked data-q="Q6"><label for="q6b">Leave as is <span class="tag">recommended</span></label><span class="leave"><input type="checkbox" id="q6lc" data-q="Q6" data-leave-comment="1"><label for="q6lc">Leave comment</label></span></div>
+      <div class="opt"><input type="radio" id="q6c" name="q6" value="Other" data-q="Q6"><label for="q6c">Other:<input type="text" id="q6other" data-q="Q6" data-other="1" placeholder="your answer"></label><span></span></div>
     </div>
-    <label class="notes-label" for="q3notes">Notes</label>
-    <textarea class="notes" id="q3notes" data-q="Q3" data-notes="1"></textarea>
-  </section>
-
-  <section class="card decision">
-    <h3>4. Devin: a very slow image can still be saved half-converted <span class="pill warn">decision, thread open</span></h3>
-    <p class="desc"><strong>Source:</strong> Devin, non-severe bug, mirrored as <a href="https://github.com/BloomBooks/BloomDesktop/pull/8360#discussion_r4010183517" target="_blank" rel="noopener">this inline thread</a> on <a href="https://github.com/BloomBooks/BloomDesktop/blob/8e00983737d5309a1a9a8d1dbb979cdc52e07d70/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementBackgroundImageManager.ts#L218" target="_blank" rel="noopener">CanvasElementBackgroundImageManager.ts:218</a>.</p>
-    <p class="desc"><strong>Devin's comment (verbatim):</strong> "After four seconds, <code>captureContentForExternalProcessing</code> captures while the outer delay remains active. Its timeout preserves the old image beside the hidden canvas element, breaking crop and delete." Its suggested fix: "Make external capture fail instead of serializing while conversion delays remain, or extend its timeout and verify <code>activeDelays</code> is empty before capture. Add a test that advances beyond <code>kMaxWaitTimeMs</code> while the conversion remains pending."</p>
-    <p class="desc"><strong>Assessment:</strong> Correct, and already known: it is the "shared weakness" noted in chat before this change was made. Both save paths stop waiting after <code>kMaxWaitTimeMs</code> (4 seconds) and capture anyway. The new delay makes a save wait for the conversion, but only within that cap, so an image that takes more than 4 seconds to load (a slow network drive, a huge file) could still be saved with the old picture next to a hidden background element. Before this change the same case was broken with any timing; now it needs a genuinely slow image. There is no cost-free fix: waiting forever risks a save that never completes if an image never loads, and failing a live save is what BL-16776 fixed.</p>
-    <div class="opts" data-q="Q4 (Devin: slow image can still save half-converted)">
-      <div class="opt"><input type="radio" id="q4a" name="q4" value="Off-screen capture fails instead of saving while a conversion is pending, with a longer cap" checked data-q="Q4"><label for="q4a">Off-screen capture fails rather than saving while a conversion is still pending, with a longer cap <span class="tag">recommended</span><span class="foot">In <code>captureContentForExternalProcessing</code>: wait up to about 30 seconds instead of 4, and if the conversion delay is still active at the cap, return an <code>ERROR:</code> result so <code>ProcessBook</code> throws. Update Book then shows the error in its dialog and saves nothing from the page pass; BloomBridge re-runs. The live editor keeps its current 4-second behaviour, whose exposure is now only a save within 4 seconds of page load. About 15 lines plus a Vitest, low risk. Recommended because the off-screen pass is a background job where failing loudly beats saving corrupt pages, and because it fixes the path Devin actually named.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q4b" name="q4" value="Raise kMaxWaitTimeMs for both paths" data-q="Q4"><label for="q4b">Raise the 4-second cap for both save paths<span class="foot">One constant, but a stuck image then holds up a live save for the whole longer wait. Trivial change, moderate user-facing risk.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q4c" name="q4" value="Finalize the pending conversion at capture time" data-q="Q4"><label for="q4c">At capture time, finish the conversion by hand (remove the old picture, unhide the new element)<span class="foot">Guarantees the saved HTML has one picture, but if the size adjustment had not finished, the saved element may have no geometry. About 20 lines plus a test, moderate risk; pairs naturally with decision 1.</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="q4d" name="q4" value="Leave as is" data-q="Q4"><label for="q4d">Leave as is</label><span class="leave"><input type="checkbox" id="q4lc" data-q="Q4" data-leave-comment="1"><label for="q4lc">Leave comment</label></span></div>
-      <div class="opt"><input type="radio" id="q4e" name="q4" value="Other" data-q="Q4"><label for="q4e">Other:<input type="text" id="q4other" data-q="Q4" data-other="1" placeholder="your answer"></label><span></span></div>
-    </div>
-    <label class="notes-label" for="q4notes">Notes</label>
-    <textarea class="notes" id="q4notes" data-q="Q4" data-notes="1"></textarea>
+    <label class="notes-label" for="q6notes">Notes</label>
+    <textarea class="notes" id="q6notes" data-q="Q6" data-notes="1"></textarea>
   </section>
 
   <section class="card decision">
     <h3>Next step</h3>
     <p class="desc">How should the answers above be handled?</p>
     <div class="opts" data-q="Next step">
-      <div class="opt"><input type="radio" id="nsa" name="ns" value="Implement the chosen fixes and re-run preflight" checked data-q="Next step"><label for="nsa">Implement the chosen fixes and re-run preflight <span class="tag">recommended</span></label><span></span></div>
-      <div class="opt"><input type="radio" id="nsb" name="ns" value="Discuss first" data-q="Next step"><label for="nsb">Discuss first before changing anything</label><span></span></div>
+      <div class="opt"><input type="radio" id="nsa" name="ns" value="Nothing more from preflight; I will do my own review, then run pr-ready-for-human" checked data-q="Next step"><label for="nsa">Nothing more from preflight: do your own review, then run <code>pr-ready-for-human</code> <span class="tag">recommended</span></label><span></span></div>
+      <div class="opt"><input type="radio" id="nsb" name="ns" value="Implement a change chosen above and re-run preflight" data-q="Next step"><label for="nsb">Implement a change chosen above and re-run preflight</label><span></span></div>
       <div class="opt"><input type="radio" id="nsc" name="ns" value="Leave as is" data-q="Next step"><label for="nsc">Leave as is</label><span class="leave"><input type="checkbox" id="nslc" data-q="Next step" data-leave-comment="1"><label for="nslc">Leave comment</label></span></div>
       <div class="opt"><input type="radio" id="nsd" name="ns" value="Other" data-q="Next step"><label for="nsd">Other:<input type="text" id="nsother" data-q="Next step" data-other="1" placeholder="your answer"></label><span></span></div>
     </div>
