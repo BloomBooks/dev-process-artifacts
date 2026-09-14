@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Non-Interactive Hang Preflight</title>
+<style>
+  :root{
+    --ground:#f6f8f9;
+    --card:#ffffff;
+    --border:#dce2e7;
+    --border-strong:#c3ccd4;
+    --ink:#1b2126;
+    --ink-muted:#5b6771;
+    --ink-faint:#818d97;
+    --accent:#0f6b6b;
+    --accent-soft:#e6f1f1;
+    --good:#2c7a3f;
+    --good-soft:#e8f3ea;
+    --warn:#8d5f06;
+    --warn-soft:#faf0dc;
+    --bad:#a92830;
+    --bad-soft:#fbeaea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:15px;
+    line-height:1.55;
+    padding-inline:20px;
+    padding-block:28px 56px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;}
+
+  /* ---------- header ---------- */
+  header.top{margin-bottom:24px;}
+  .eyebrow{
+    font-size:12px;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:600;margin:0 0 6px;
+  }
+  h1{
+    font-family:var(--serif);font-weight:600;
+    font-size:clamp(26px,3.2vw,36px);line-height:1.18;
+    margin:0 0 10px;text-wrap:balance;letter-spacing:-.01em;
+  }
+  .lede{margin:0 0 16px;color:var(--ink-muted);max-width:66ch;}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+  .chip{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 11px;border-radius:999px;font-size:12.5px;font-weight:600;
+    border:1px solid var(--border-strong);background:var(--card);color:var(--ink-muted);
+  }
+  .chip.good{background:var(--good-soft);border-color:#bcdcc4;color:var(--good);}
+  .chip.warn{background:var(--warn-soft);border-color:#e5d3a6;color:var(--warn);}
+  .chip.draft{background:var(--accent-soft);border-color:#b6d6d6;color:var(--accent);}
+  .links{display:flex;flex-wrap:wrap;gap:8px;}
+  .links a{
+    display:inline-flex;align-items:center;
+    padding:5px 12px;border-radius:6px;font-size:13px;font-weight:600;
+    text-decoration:none;color:var(--accent);
+    background:var(--card);border:1px solid var(--border-strong);
+  }
+  .links a:hover{background:var(--accent-soft);}
+  .links a.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .links a.primary:hover{background:#0b5757;}
+  a{color:var(--accent);}
+  a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
+    outline:2px solid var(--accent);outline-offset:2px;
+  }
+
+  /* ---------- layout ---------- */
+  .cols{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:24px;align-items:start;}
+  .cols > *{min-width:0;}
+  @media (max-width:980px){ .cols{grid-template-columns:minmax(0,1fr);} }
+  .stack{display:flex;flex-direction:column;gap:18px;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;}
+  .card > :first-child{margin-top:0;}
+  .card > :last-child{margin-bottom:0;}
+  h2{
+    font-family:var(--serif);font-size:19px;font-weight:600;
+    margin:0 0 14px;letter-spacing:-.005em;
+  }
+  h3{
+    font-size:12px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--ink-faint);margin:18px 0 6px;
+  }
+  p{margin:0 0 11px;max-width:70ch;}
+  ul{margin:0 0 11px;padding-left:19px;}
+  li{margin-bottom:7px;}
+  code{
+    font-family:var(--mono);font-size:.875em;
+    background:#eef2f4;padding:1px 5px;border-radius:4px;color:#2c3840;
+  }
+  .numeral{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.9em;}
+
+  /* ---------- gate table ---------- */
+  .tablewrap{overflow-x:auto;}
+  table{border-collapse:collapse;width:100%;font-size:14px;}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;}
+  th{
+    font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--ink-faint);font-weight:700;border-bottom:1px solid var(--border-strong);
+  }
+  tr:last-child td{border-bottom:none;}
+  .tag{
+    display:inline-block;padding:2px 8px;border-radius:5px;
+    font-size:11.5px;font-weight:700;letter-spacing:.02em;white-space:nowrap;
+  }
+  .tag.pass{background:var(--good-soft);color:var(--good);}
+  .tag.skip{background:#eef2f4;color:var(--ink-muted);}
+  .tag.info{background:var(--accent-soft);color:var(--accent);}
+
+  /* ---------- reviewers ---------- */
+  .rev{display:flex;flex-direction:column;gap:13px;}
+  .rev-row{display:grid;grid-template-columns:minmax(0,150px) minmax(0,1fr);gap:14px;}
+  @media (max-width:560px){ .rev-row{grid-template-columns:minmax(0,1fr);gap:3px;} }
+  .rev-name{font-weight:700;font-size:14px;}
+  .rev-state{font-size:12px;color:var(--ink-faint);font-weight:600;}
+  .rev-body{margin:0;font-size:14px;}
+
+  /* ---------- decisions ---------- */
+  .item{border:1px solid var(--border);border-radius:10px;background:var(--card);padding:18px 20px;}
+  .item h2{margin-bottom:6px;}
+  .qnum{
+    font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 5px;
+  }
+  .opts{display:flex;flex-direction:column;gap:9px;margin:14px 0 0;}
+  .opt{
+    display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:9px;align-items:start;
+    padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:#fbfcfd;
+  }
+  .opt.rec{border-color:#b6d6d6;background:var(--accent-soft);}
+  .opt input[type=radio]{margin:3px 0 0;}
+  .opt label{cursor:pointer;font-size:14px;}
+  .opt .fn{display:block;color:var(--ink-muted);font-size:12.5px;margin-top:3px;}
+  .rectag{
+    display:inline-block;margin-left:7px;padding:1px 7px;border-radius:4px;
+    background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;vertical-align:1px;
+  }
+  .leavecomment{
+    display:flex;align-items:center;gap:6px;font-size:12px;
+    color:var(--ink-muted);white-space:nowrap;
+  }
+  .otherwrap{display:flex;flex-direction:column;gap:6px;}
+  input[type=text],textarea{
+    width:100%;font-family:var(--sans);font-size:13.5px;color:var(--ink);
+    border:1px solid var(--border-strong);border-radius:6px;padding:7px 9px;background:#fff;
+  }
+  textarea{resize:vertical;}
+  .notes{margin-top:12px;}
+  .notes label{
+    display:block;font-size:11.5px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px;
+  }
+
+  /* ---------- copy back ---------- */
+  .copyback{border:1px solid var(--border-strong);border-radius:10px;background:var(--card);padding:18px 20px;}
+  button.copy{
+    font-family:var(--sans);font-size:14px;font-weight:700;color:#fff;
+    background:var(--accent);border:none;border-radius:7px;padding:10px 18px;cursor:pointer;
+  }
+  button.copy:hover{background:#0b5757;}
+  #payload{margin-top:12px;font-family:var(--mono);font-size:12px;min-height:150px;}
+  .copied{margin-left:11px;font-size:13px;font-weight:700;color:var(--good);opacity:0;transition:opacity .18s;}
+  .copied.on{opacity:1;}
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;animation:none!important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <p class="eyebrow">Preflight report · BloomDesktop</p>
+  <h1>A problem report in a non-interactive Bloom hangs instead of failing</h1>
+  <p class="lede">One run, three commits, on <code>BL-16869-console-problem-report</code> against <code>master</code>. The C# suite is green, every reviewer is complete, and all four review threads are documented and resolved. Two questions are waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable · clean</span>
+    <span class="chip good">Reviewers complete</span>
+    <span class="chip warn">2 decisions waiting</span>
+  </div>
+  <nav class="links">
+    <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8358" target="_blank" rel="noopener">PR #8358</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16869" target="_blank" rel="noopener">BL-16869</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8358" target="_blank" rel="noopener">Devin review</a>
+  </nav>
+</header>
+
+<div class="cols">
+
+  <!-- ================= LEFT ================= -->
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>When a problem report happened in a Bloom with nobody at the keyboard, Bloom put up a modal dialog no one could dismiss, and the process blocked forever — no error, no exit code, no completion. That hits <code>bloom upload</code> run from a script, and also the child Bloom that Bloom's own <strong>Publish → Upload → “Upload this Collection”</strong> buttons launch: a bulk upload would stop part way through a collection and sit there in its console window. It is how one real exception (BL-16867) became a 10-minute nightly timeout that took three runs and two wrong timeout increases to diagnose, because the failure looked like slowness rather than an error.</p>
+
+      <h3>Cause</h3>
+      <p><code>NonFatalProblem</code> has suppressed dialogs in console mode for a while, but the problem-report dialogs never learned to. So the two paths disagreed: a non-fatal problem in a command-line verb printed and carried on, while a problem report in the same process blocked forever.</p>
+
+      <h3>What the PR does</h3>
+      <ul>
+        <li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/a722493b2c54180e16af270d2f48598c7ff30f68/src/BloomExe/Program.cs#L3166" target="_blank" rel="noopener"><code>Program.RunningNonInteractive</code></a> — command-line verbs only — and a shared <a href="https://github.com/BloomBooks/BloomDesktop/blob/a722493b2c54180e16af270d2f48598c7ff30f68/src/BloomExe/web/controllers/ProblemReportApi.cs#L1284" target="_blank" rel="noopener">helper</a> that reports on stderr and tells the caller to return.</li>
+        <li>Both problem-report entry points honour it: <code>ShowProblemDialog</code>, and <code>HtmlErrorReporter.ShowNotifyDialog</code> — the latter is the path a plain <code>ErrorReport.NotifyUserOfProblem</code> takes, and the one that actually hung the nightly. Both still log and report to Sentry first, so nothing is lost.</li>
+        <li>Makes the failure propagate, since returning is not enough on its own: <a href="https://github.com/BloomBooks/BloomDesktop/blob/a722493b2c54180e16af270d2f48598c7ff30f68/src/BloomExe/WebLibraryIntegration/BookUpload.cs#L1076" target="_blank" rel="noopener"><code>BookUpload</code> refuses to upload a book whose PDF failed</a> — a partial PDF can be on disk, so the pre-existing “does the file exist” check was not sufficient — and <a href="https://github.com/BloomBooks/BloomDesktop/blob/a722493b2c54180e16af270d2f48598c7ff30f68/src/BloomExe/CLI/UploadCommand.cs#L87" target="_blank" rel="noopener"><code>UploadCommand</code> exits non-zero</a> and says the upload failed rather than printing “Bulk upload complete”.</li>
+        <li>Completes that success signal: a collection refused for a missing default bookshelf or too low a subscription tier, and a book skipped for a missing collection file or a colliding ID, <a href="https://github.com/BloomBooks/BloomDesktop/blob/a722493b2c54180e16af270d2f48598c7ff30f68/src/BloomExe/WebLibraryIntegration/BulkUploader.cs#L188" target="_blank" rel="noopener">now count as failures</a> too. Previously those were logged as errors but still exited 0.</li>
+        <li><strong><code>--e2e</code> is deliberately excluded</strong>, unlike in <code>NonFatalProblem</code>. The e2e suite's <code>problemDialogWatcher</code> fixture finds the dialog among the CDP page targets and fails the test with the exception behind it; suppressing it there would let tests go green through errors they currently catch. Nothing is lost — the bulk-upload child runs the <code>upload</code> verb, so it is in console mode anyway.</li>
+      </ul>
+      <p>Interactive Bloom is unchanged: every guard sits behind <code>RunningNonInteractive</code>, which is false there.</p>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="tag pass">Pass</span></td><td><span class="numeral">3451 passed · 0 failed · 0 skipped</span>, at the final HEAD</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td><span class="tag skip">Not run</span></td><td>No front-end code in the diff — it touches only <code>src/BloomExe</code> and <code>src/BloomTests</code></td></tr>
+          <tr><td>TypeScript typecheck</td><td><span class="tag skip">Not run</span></td><td>Same reason; nothing in the diff the compiler would see</td></tr>
+          <tr><td>Lint</td><td><span class="tag skip">Not run</span></td><td>Same reason. C# formatting is enforced by CSharpier in the pre-commit hook, which ran on every commit</td></tr>
+          <tr><td>Merge cleanliness</td><td><span class="tag pass">Clean</span></td><td>Rebased onto <code>origin/master</code>, then merged again — already up to date. GitHub reports mergeable</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>The branch was moved off <code>Version6.5</code> onto <code>master</code> at your direction and the card retitled <code>[6.6]</code>; the fix itself was written, then narrowed and extended in response to review. Three commits: see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="rev">
+        <div class="rev-row">
+          <div><div class="rev-name">Local review</div><div class="rev-state">Light sub-agent pass · complete</div></div>
+          <p class="rev-body">Clean — no correctness bugs. It did note that a PDF failure is now reported twice (once to Bloom's log, once to the bulk-upload log); that is deliberate and is now explained in a code comment at the site.</p>
+        </div>
+        <div class="rev-row">
+          <div><div class="rev-name">Devin</div><div class="rev-state">Complete · 2 rounds</div></div>
+          <p class="rev-body">Round one raised a real Bug and a real Investigate flag, both now fixed (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8358#discussion_r4007557330" target="_blank" rel="noopener">incomplete failure signal</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358#discussion_r4007558277" target="_blank" rel="noopener">cancellation reported as success</a>). Round two confirmed the Bug fixed, repeated the cancellation flag as stale, and added two flags: it <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358#discussion_r4007603147" target="_blank" rel="noopener">correctly caught a stale PR description</a> (now corrected) and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8358#discussion_r4007604885" target="_blank" rel="noopener">queried the <code>master</code> base</a> (answered — it is deliberate). No informational items. All four threads replied to and resolved.</p>
+        </div>
+        <div class="rev-row">
+          <div><div class="rev-name">CodeRabbit</div><div class="rev-state">Not active here</div></div>
+          <p class="rev-body">Present in the repo, but <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, so it does not review this PR. Read from the config, not inferred from silence.</p>
+        </div>
+        <div class="rev-row">
+          <div><div class="rev-name">CI</div><div class="rev-state">Complete · green</div></div>
+          <p class="rev-body"><code>pr-automation</code> passed for the final commit. It is the only check GitHub runs on this repo; the build and test CI lives on TeamCity.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>Nothing here has been exercised by hand.</strong> No real bulk upload was run — the evidence is the unit tests plus reading the path. The QA notes on the card lead with the manual check that matters most: force a failure and confirm the console window finishes instead of freezing.</li>
+        <li><strong>The propagation path has no automated test</strong> — only the dialog guards do. That is decision 1 on the right.</li>
+        <li>A PDF failure is reported twice in a bulk upload: once into Bloom's own log via the pre-existing error path, once into <code>BloomBulkUploadLog.txt</code> via the caller's progress. Deliberate — the second is the one someone chasing a failed upload actually reads.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div class="stack">
+
+    <section class="item">
+      <p class="qnum">Decision 1</p>
+      <h2>No automated test covers “a failed PDF is not uploaded”</h2>
+      <p>The tests in this PR cover the dialog guards thoroughly — that a command-line Bloom writes to stderr instead of showing a dialog, that an interactive one still shows it, and that an <code>--e2e</code> run still shows it. They do <em>not</em> cover the second half of the fix: that a book whose PDF generation failed is actually refused by the uploader, and that the run then exits non-zero.</p>
+      <p>That second half is the part with the nastier failure mode. If it regressed, a bulk upload would silently upload a half-made PDF and report success — worse than the hang this PR fixes, because nobody would notice. The reason it is untested is cost: <code>MakePDFForUpload</code> needs a fully built <code>PublishModel</code> (a book, a collection, a book server, a thumbnailer) and it drives a <code>BackgroundWorker</code> with an <code>Application.DoEvents</code> pump, which this repo's own notes describe as fragile inside the test host. There is no existing fixture to build on.</p>
+      <div class="opts">
+        <div class="opt">
+          <input type="radio" name="q1" id="q1a" value="Build the test harness now">
+          <label for="q1a">Build the harness now and test the propagation path end to end.<span class="fn">Large — a new fixture plus a seam to inject PDF failure; carries real risk of a slow or flaky test in an area the repo already flags as fragile.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1b" value="Add a narrow seam and test just the refusal branch">
+          <label for="q1b">Make just the refusal decision testable — extract the “PDF failed, so do not upload” choice so it can be tested without a worker.<span class="fn">Moderate — a modest refactor of <code>BookUpload</code>; tests the branch that matters without pumping messages.</span></label>
+          <span></span>
+        </div>
+        <div class="opt rec">
+          <input type="radio" name="q1" id="q1c" value="Leave as is" checked>
+          <label for="q1c">Leave as is<span class="rectag">Recommended</span><span class="fn">The glue is a handful of lines a reviewer can read directly, and the QA notes give a tester the manual check. Revisit if this area churns.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Decision 1 leave comment" id="q1lc"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1d" value="Other">
+          <label for="q1d" class="otherwrap">Other:
+            <input type="text" id="q1other" data-q="Decision 1 other" placeholder="Your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q1notes">Notes</label>
+        <textarea id="q1notes" data-q="Decision 1 notes" rows="2" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <p class="qnum">Decision 2</p>
+      <h2>How much should <code>bloom upload</code> treat as failure?</h2>
+      <p>Before this PR, <code>bloom upload</code> always exited 0. It now exits 1 for anything it refused to do, which is a wider set than the original bug strictly needed. Concretely, it now fails when: no collections were found at all; a collection was skipped for having no default bookshelf; a collection was skipped because its subscription tier does not include bulk upload; a book was skipped for having no collection file in its parent folder; a book was skipped because its ID collides with a book already on BloomLibrary; or, the original case, a book's PDF could not be made.</p>
+      <p>Each of those already printed an error and already meant “we did not upload what you asked for”, so failing on them is consistent. The tradeoff is that anyone scripting <code>bloom upload</code> today sees exit 0 in all these cases, and a partner's script that checks the exit code will start failing on collections it has been quietly skipping for a long time.</p>
+      <div class="opts">
+        <div class="opt rec">
+          <input type="radio" name="q2" id="q2a" value="Keep the full contract: anything refused exits non-zero" checked>
+          <label for="q2a">Keep it as built — anything we refused to upload exits non-zero.<span class="rectag">Recommended</span><span class="fn">No code change. Makes “complete” mean what it says, which is the point of the exit code; a script that starts failing is a script that was silently missing books.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2b" value="Narrow to PDF/upload failures only">
+          <label for="q2b">Narrow it to genuine failures only — a PDF that could not be made, or an upload that errored — and keep exiting 0 for deliberate skips like a missing bookshelf or too low a tier.<span class="fn">Small — revert one counter and its two call sites; keeps existing scripts behaving exactly as before.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2c" value="Leave as is">
+          <label for="q2c">Leave as is<span class="fn">Same as the first option in effect; pick this if you would rather not record a view either way.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Decision 2 leave comment" id="q2lc"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2d" value="Other">
+          <label for="q2d" class="otherwrap">Other:
+            <input type="text" id="q2other" data-q="Decision 2 other" placeholder="Your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q2notes">Notes</label>
+        <textarea id="q2notes" data-q="Decision 2 notes" rows="2" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="item">
+      <p class="qnum">Next step</p>
+      <h2>What should happen after you answer?</h2>
+      <p>The PR is a clean draft with every reviewer complete. Promotion to human review is a separate step and is not something this run does.</p>
+      <div class="opts">
+        <div class="opt rec">
+          <input type="radio" name="q3" id="q3a" value="Implement my answers, then stop for my own review" checked>
+          <label for="q3a">Act on the answers above, then stop so I can review it myself.<span class="rectag">Recommended</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3b" value="Discuss before changing anything">
+          <label for="q3b">Talk it through with me before changing anything.</label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3c" value="Leave as is">
+          <label for="q3c">Leave as is<span class="fn">Nothing further for now; the PR stays a draft as it stands.</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="Next step leave comment" id="q3lc"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3d" value="Other">
+          <label for="q3d" class="otherwrap">Other:
+            <input type="text" id="q3other" data-q="Next step other" placeholder="Your answer">
+          </label>
+          <span></span>
+        </div>
+      </div>
+      <div class="notes">
+        <label for="q3notes">Notes</label>
+        <textarea id="q3notes" data-q="Next step notes" rows="2" placeholder="Anything to add?"></textarea>
+      </div>
+    </section>
+
+    <section class="copyback">
+      <h2>Send your answers back</h2>
+      <p>Copy this and paste it into the session.</p>
+      <button class="copy" id="copybtn" type="button">Copy answers</button>
+      <span class="copied" id="copied">Copied</span>
+      <textarea id="payload" readonly rows="9"></textarea>
+    </section>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function(){
+  var ITEMS = [
+    {name:"q1", title:"Decision 1 — automated test for the propagation path", other:"q1other", lc:"q1lc", notes:"q1notes"},
+    {name:"q2", title:"Decision 2 — how much bloom upload treats as failure", other:"q2other", lc:"q2lc", notes:"q2notes"},
+    {name:"q3", title:"Next step", other:"q3other", lc:"q3lc", notes:"q3notes"}
+  ];
+
+  function build(){
+    var out = ["Preflight answers — BL-16869 / PR #8358", ""];
+    ITEMS.forEach(function(it){
+      var picked = document.querySelector('input[name="'+it.name+'"]:checked');
+      var val = picked ? picked.value : "(no answer)";
+      if (val === "Other") {
+        var t = (document.getElementById(it.other).value || "").trim();
+        val = "Other: " + (t || "(nothing typed)");
+      }
+      out.push(it.title);
+      out.push("  → " + val);
+      var lc = document.getElementById(it.lc);
+      if (lc && lc.checked) out.push("  Leave comment: record this decision as a code comment in the repo");
+      var n = (document.getElementById(it.notes).value || "").trim();
+      if (n) out.push("  Notes: " + n);
+      out.push("");
+    });
+    return out.join("\n");
+  }
+
+  var payload = document.getElementById("payload");
+  function refresh(){ payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function(){
+    refresh();
+    var done = function(){
+      var c = document.getElementById("copied");
+      c.classList.add("on");
+      setTimeout(function(){ c.classList.remove("on"); }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function(){
+        payload.select(); try { document.execCommand("copy"); } catch(e){} done();
+      });
+    } else {
+      payload.select(); try { document.execCommand("copy"); } catch(e){} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
