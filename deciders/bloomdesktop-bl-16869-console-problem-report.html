@@ -269,8 +269,8 @@
     <section class="card">
       <h2>Worth knowing</h2>
       <ul>
-        <li><strong>Nothing here has been exercised by hand.</strong> No real bulk upload was run — the evidence is the unit tests plus reading the path. The QA notes on the card lead with the manual check that matters most: force a failure and confirm the console window finishes instead of freezing.</li>
-        <li><strong>The propagation path has no automated test</strong> — only the dialog guards do. That is decision 1 on the right.</li>
+        <li><strong>Nothing here has been exercised at runtime, by me or by a second session that tried.</strong> The evidence is the unit tests plus reading the path. The headline behaviour — that the process finishes instead of freezing — has not been watched happening. The QA notes on the card lead with exactly that check.</li>
+        <li><strong>The propagation path has no automated test</strong> — only the dialog guards do — <strong>and no cheap manual route either</strong>: the only way to reach this code at runtime is an authenticated <code>bloom upload</code>. That is decision 1 on the right, and it is the decision I would spend attention on.</li>
         <li>A PDF failure is reported twice in a bulk upload: once into Bloom's own log via the pre-existing error path, once into <code>BloomBulkUploadLog.txt</code> via the caller's progress. Deliberate — the second is the one someone chasing a failed upload actually reads.</li>
       </ul>
     </section>
@@ -285,10 +285,16 @@
       <h2>No automated test covers “a failed PDF is not uploaded”</h2>
       <p>The tests in this PR cover the dialog guards thoroughly — that a command-line Bloom writes to stderr instead of showing a dialog, that an interactive one still shows it, and that an <code>--e2e</code> run still shows it. They do <em>not</em> cover the second half of the fix: that a book whose PDF generation failed is actually refused by the uploader, and that the run then exits non-zero.</p>
       <p>That second half is the part with the nastier failure mode. If it regressed, a bulk upload would silently upload a half-made PDF and report success — worse than the hang this PR fixes, because nobody would notice. The reason it is untested is cost: <code>MakePDFForUpload</code> needs a fully built <code>PublishModel</code> (a book, a collection, a book server, a thumbnailer) and it drives a <code>BackgroundWorker</code> with an <code>Application.DoEvents</code> pump, which this repo's own notes describe as fragile inside the test host. There is no existing fixture to build on.</p>
+      <p><strong>“Just run it by hand once” is not available, and that is now checked rather than assumed.</strong> The natural reviewer response to a missing test is to verify it manually instead. There is no cheap way to: <code>MakePDFForUpload</code> has exactly one caller in the whole tree (<code>BookUpload.cs:1076</code>), <code>PublishModel</code> is constructed in exactly one place (<code>BulkUploader.cs:502</code>), and both sit inside <code>bloom upload</code>, which signs in to BloomLibrary at <code>BulkUploader.cs:77</code> before it touches a book. No other console verb reaches this code — <code>createArtifacts</code> makes no PDF at all. So the only runtime route is a real authenticated upload, which needs the BloomLibrary test credentials on a dev machine. A second session tried to verify it and was blocked on exactly that.</p>
       <div class="opts">
         <div class="opt">
           <input type="radio" name="q1" id="q1a" value="Build the test harness now">
           <label for="q1a">Build the harness now and test the propagation path end to end.<span class="fn">Large — a new fixture plus a seam to inject PDF failure; carries real risk of a slow or flaky test in an area the repo already flags as fragile.</span></label>
+          <span></span>
+        </div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1e" value="Verify by hand: put the BloomLibrary test credentials on a dev machine and drive a real upload">
+          <label for="q1e">Verify it by hand instead — put the BloomLibrary test credentials on a dev machine and drive one real bulk upload against the sandbox with a book whose PDF fails.<span class="fn">No production code. Exercises the real path end to end, including the exit code; but it is a one-off check, not a regression guard, and it needs a credential this machine does not have.</span></label>
           <span></span>
         </div>
         <div class="opt">
