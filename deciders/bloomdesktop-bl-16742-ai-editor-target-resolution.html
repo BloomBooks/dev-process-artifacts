@@ -109,7 +109,7 @@
 
 <header class="top">
   <h1>Telling the AI image editor how big each picture should be</h1>
-  <p class="runline">Preflight on <code>BL-16742-ai-editor-target-resolution</code>. This run committed the two fixes that were sitting in the working tree, recorded a standing decision, and drove every reviewer to a terminal state.</p>
+  <p class="runline">Preflight on <code>BL-16742-ai-editor-target-resolution</code>. This run committed the change that makes a screen-sized page follow the book&rsquo;s own BloomPUB Resolution setting, and drove every reviewer to a terminal state.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable, clean</span>
@@ -137,12 +137,12 @@
     <p>Bloom now tells the AI image editor the pixel size each image slot in the book wants. The editor offers it as the Upscale tool&rsquo;s &ldquo;Auto&rdquo; size and uses it for every generation.</p>
     <ul>
       <li><strong>One place does the arithmetic.</strong> A new module answers &ldquo;how big should an image be for this space&rdquo;. A paper page wants whatever fills the container at 300 DPI, the sum the image tooltip already did; the tooltip now calls this instead of repeating it.</li>
-      <li><strong>A screen-sized page is measured against a screen.</strong> A device layout wants the slot&rsquo;s share of a 1280 by 720 screen, the limit Bloom publishes BloomPUBs at. The page is fitted inside that screen on both edges, so the two ebook layouts that are not 16 by 9 do not overshoot the short edge.</li>
+      <li><strong>A screen-sized page is measured against the screen this book is published for.</strong> A device layout wants the slot&rsquo;s share of the book&rsquo;s own BloomPUB image limit, the Resolution setting in Book Settings, since asking for more only makes pixels the publish step discards and asking for less wastes a limit the user raised on purpose. Where that setting cannot be read, the BloomPUB default of 1280 by 720 stands in. The page is fitted inside the screen on both edges, so the two ebook layouts that are not 16 by 9 do not overshoot the short edge.</li>
       <li><strong>Slots on pages nobody has open.</strong> Only the page laid out in the browser can be measured, so the front end writes each container&rsquo;s share of its page into the HTML whenever a page is saved. That covers Edit-tab saves, every &ldquo;Edit with AI&rdquo; launch, and &ldquo;Update Book&rdquo;, which visits every page.</li>
       <li><strong>A background image is measured against its canvas, not its container.</strong> A canvas background is the picture of the whole canvas, and a replacement is re-fitted to fill it, while the container covers only as much as the current picture reaches. Measuring the container asked for the size of the old image&rsquo;s letterbox.</li>
       <li><strong>The cover&rsquo;s value survives bringing a book up to date.</strong> That rebuilds all xmatter from the template, which used to throw the cover&rsquo;s share away. It now travels through the data-div and is restored onto the rebuilt container.</li>
       <li><strong>Books that predate this get no guess.</strong> A page not saved since this change carries no fraction, and its slots offer no &ldquo;Auto&rdquo; size rather than a made-up one.</li>
-      <li><strong>The tooltip stops giving print advice about screens.</strong> On a device layout it drops the print-DPI lines and describes the screen target instead.</li>
+      <li><strong>The tooltip stops giving print advice about screens.</strong> On a device layout it drops the print-DPI lines and names the book&rsquo;s own screen numbers instead. It fetches the setting only on such a page, so a paper page pays for no extra request.</li>
     </ul>
   </section>
 
@@ -154,8 +154,8 @@
       <tbody>
         <tr><td>Typecheck (TypeScript)</td><td class="verdict pass">Pass</td><td>No blunder-class type errors.</td></tr>
         <tr><td>Lint (ESLint)</td><td class="verdict pass">Pass</td><td><span class="numeral">0 errors</span>. The <span class="numeral">764</span> warnings are pre-existing across the repo and untouched here.</td></tr>
-        <tr><td>Tests, TypeScript (vitest)</td><td class="verdict pass">Pass</td><td><span class="numeral">834 passed &middot; 0 failed &middot; 5 skipped</span> across <span class="numeral">70</span> files. Run with one file at a time, which is how this suite completes reliably on this machine.</td></tr>
-        <tr><td>Tests, C# (dotnet)</td><td class="verdict pass">Pass</td><td><span class="numeral">3419 passed &middot; 0 failed &middot; 13 skipped</span> in 4 m 38 s, through the isolated wrapper.</td></tr>
+        <tr><td>Tests, TypeScript (vitest)</td><td class="verdict pass">Pass</td><td><span class="numeral">846 passed &middot; 0 failed &middot; 5 skipped</span> across <span class="numeral">70</span> files. Run with one file at a time, which is how this suite completes reliably on this machine.</td></tr>
+        <tr><td>Tests, C# (dotnet)</td><td class="verdict pass">Pass</td><td><span class="numeral">3419 passed &middot; 0 failed &middot; 13 skipped</span> in 4 m 57 s, through the isolated wrapper.</td></tr>
         <tr><td>Base merge</td><td class="verdict pass">Clean</td><td>Already up to date with <code>BL-16868-ai-editor-crop</code>; no conflicts.</td></tr>
         <tr><td>Mergeability</td><td class="verdict pass">Clean</td><td>GitHub reports the PR mergeable with no conflicts against its base.</td></tr>
       </tbody>
@@ -165,10 +165,9 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Committed the two fixes that were sitting uncommitted in the working tree, then added a comment recording why a slot&rsquo;s recorded share is deliberately left alone after a page-size change. Nothing else about the PR moved.</p>
+    <p>Committed the one change that was sitting uncommitted in the working tree: a screen-sized page is now sized against the book&rsquo;s own BloomPUB Resolution setting rather than a hard-coded 1280 by 720, in both the AI editor and the Edit-tab tooltip. Nothing else about the PR moved.</p>
     <ul>
-      <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8359/commits/4a957e47dbf352e06f3e259b8dc52d4efafb64b3" target="_blank" rel="noopener">4a957e47db</a> &mdash; measure a background slot against its canvas, and carry the cover&rsquo;s share through an xmatter rebuild.</li>
-      <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8359/commits/2abe76a8c3bd8a077a51d1a791e118113d64655f" target="_blank" rel="noopener">2abe76a8c3</a> &mdash; a comment only, next to <a href="https://github.com/BloomBooks/BloomDesktop/blob/2abe76a8c3bd8a077a51d1a791e118113d64655f/src/BloomBrowserUI/bookEdit/js/imageTargetResolution.ts#L248" target="_blank" rel="noopener">recordFractionOfPageOnImageSlots</a>.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8359/commits/be1f408f1da4fa4ac4bcbd51f81335170d92f573" target="_blank" rel="noopener">be1f408f1d</a> &mdash; size a screen page against this book&rsquo;s own BloomPUB resolution.</li>
     </ul>
   </section>
 
@@ -177,12 +176,12 @@
 
     <div class="rev">
       <h3>Local review &mdash; light sub-agent pass</h3>
-      <p>Clean. No correctness defects. It checked the three things most likely to break here: that the three saved values stay in step between the gathering side and the rebuilding side, that a missing third value cannot run off the end of the array or dereference null, and that the tooltip&rsquo;s own caller already passes the canvas so the two paths agree. It raised one accuracy point rather than a bug, which is folded into the code comment and noted below.</p>
+      <p>Clean. No correctness defects. It traced the setting end to end, confirming that the JSON names C# emits for the BloomPUB image limit are exactly the ones the TypeScript parser reads, that every null and zero path falls back to the default rather than producing a nonsense size, and that the tooltip&rsquo;s pre-check for a device page uses the same test as the calculation it feeds, so the two cannot disagree about which advice to print. It also re-derived each new test expectation by hand and confirmed no caller of the two calculation functions was left behind.</p>
     </div>
 
     <div class="rev">
       <h3>Devin &mdash; complete</h3>
-      <p>Finished for the current commit with nothing new. It re-reviewed the whole diff from scratch this round, which is why it re-listed all three findings from the previous round; each already has a thread here and all three are now closed with a documented outcome. It marked the ebook-publish-limit bug resolved itself. Its own summary of the PR agreed with the one above and added nothing, so the description was kept.</p>
+      <p>Complete for the current commit, with nothing new. It again re-reviewed the whole diff from scratch rather than the new commit alone, so it re-listed the same three findings as last round; each already has a resolved thread here. Both repeated bugs were checked against the code Devin actually reviewed and are stale: the fit-to-both-edges arithmetic one of them asks for is present, and the other describes the limitation that was reviewed and deliberately kept. Its own summary of the PR agreed with the one above and added nothing, so the description was kept.</p>
     </div>
 
     <div class="rev">
@@ -192,7 +191,7 @@
 
     <div class="rev">
       <h3>CI &mdash; complete</h3>
-      <p>The <code>pr-automation</code> check passed for the current commit in 23 seconds. It is the only required check on this PR.</p>
+      <p>The <code>pr-automation</code> check passed for the current commit in 22 seconds. It is the only check on this PR, and its job is to start the Devin review.</p>
     </div>
   </section>
 
@@ -200,7 +199,8 @@
     <h2>Worth knowing</h2>
     <ul>
       <li><strong>A &ldquo;contain&rdquo; background is an upper bound.</strong> Only a cover-fit background is re-fitted to fill the canvas; one set to contain is letterboxed inside it. So for those the new canvas measurement asks for slightly more than the picture will finally occupy. That is the right direction, since the replacement&rsquo;s shape is not known until it exists, and it is stated in the code comment.</li>
-      <li><strong>Only part of this has been seen working by hand.</strong> The A5 cover path was exercised in a running Bloom, including surviving a restart. The screen-size layouts, the ebook page sizes, and the background-versus-overlay pairing have not been, and the test ideas on the card say so.</li>
+      <li><strong>The raised setting has never been seen reaching an actual screen-size page.</strong> In the running Bloom, the test book&rsquo;s BloomPUB limit was set to 1920 by 1080 and &ldquo;Edit with AI&rdquo; was launched; the launch payload carried the new numbers, and the setting was put back afterwards. But that book is A5, so its cover&rsquo;s 300 DPI target was correctly unaffected, and the larger screen numbers never turned into a larger suggested size on screen. That step needs a device-layout book.</li>
+      <li><strong>Only part of the rest has been seen working by hand.</strong> The A5 cover path was exercised in a running Bloom, including surviving a restart. The screen-size layouts, the ebook page sizes, and the background-versus-overlay pairing have not been, and the test ideas on the card say so.</li>
       <li><strong>This PR is stacked.</strong> Its base is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8356" target="_blank" rel="noopener">#8356</a>, not a version branch. Once that merges, this one needs re-basing onto <code>Version6.5</code> before it can go anywhere.</li>
     </ul>
   </section>
@@ -235,7 +235,7 @@
 
   <div class="q" data-item="next-step">
     <h3>What happens next</h3>
-    <p class="desc">Everything the automated pass can do is done: both fixes are committed and pushed, the gate is green on both stacks, every reviewer reached a terminal state, and the one review thread that was still open now carries the decision and is closed. The PR is left as a draft and nothing has been asked of a teammate. The one piece of sequencing that still needs a person is the stacking: this branch sits on top of the crop PR rather than on a version branch, so it cannot be promoted until that one lands and this one is re-based.</p>
+    <p class="desc">Everything the automated pass can do is done: the change is committed and pushed, the gate is green on both stacks, every reviewer reached a terminal state, and every review thread carries a documented decision and is closed. The PR is left as a draft and nothing has been asked of a teammate. The one piece of sequencing that still needs a person is the stacking: this branch sits on top of the crop PR rather than on a version branch, so it cannot be promoted until that one lands and this one is re-based.</p>
     <div class="opt">
       <input type="radio" id="q2a" name="q2" checked>
       <label for="q2a">Nothing more from me for now; you review it yourself and decide when to re-base.<span class="tag">Recommended</span>
@@ -320,6 +320,7 @@
   document.addEventListener("change", refresh);
   refresh();
   document.getElementById("copybtn").addEventListener("click", function(){
+    refresh();
     var ta = document.getElementById("payload");
     var done = function(){ var c = document.getElementById("copied"); c.hidden = false; setTimeout(function(){ c.hidden = true; }, 2200); };
     if(navigator.clipboard && navigator.clipboard.writeText){
