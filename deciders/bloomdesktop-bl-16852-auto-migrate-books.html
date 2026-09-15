@@ -65,7 +65,7 @@
 <body>
 <div class="wrap">
   <h1>Preflight — Auto-migrate books</h1>
-  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>b9661a4</code></p>
+  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>5b2a451</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
@@ -109,6 +109,7 @@
           <li><strong>Where.</strong> Called when a book is opened for editing, before the publish tab
           goes live, and after a page-size change. All three are deferred off Bloom's API sync lock so
           the off-screen pages' own API calls don't block behind them.</li>
+          <li><strong>Interplay with the AI image editor's size hints (PR 8359, now merged in).</strong> That PR writes each image slot's share of its page whenever a page is saved and falls back gracefully when it is absent. Because this PR re-saves every page before editing or publishing and after a page-size change, the value is always present in normal operation; 8359's fall-backs are kept as hardening and their comments now say so.</li>
           <li><strong>Strings.</strong> One <code>translate="no"</code> entry in <code>BloomMediumPriority.xlf</code>.</li>
         </ul>
       </div>
@@ -120,14 +121,14 @@
           <tr><td>Typecheck (C# build)</td><td class="pass">pass</td></tr>
           <tr><td>Lint (csharpier)</td><td class="pass">pass</td></tr>
           <tr><td>Merge with <code>Version6.5</code></td><td class="pass">clean</td></tr>
-          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pass">pass</span> <span class="num na">— 3433 passed, 13 skipped, 0 failed (incl. 6 new decision tests)</span></td></tr>
+          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pass">pass</span> <span class="num na">— 3451 passed, 13 skipped, 0 failed (incl. 6 new decision tests and the tests PR 8359 brought in). One earlier full run had a single flaky failure in a BloomPUB test (an empty-path file-copy error unrelated to this diff); it passed in isolation (43/43) and on the repeated full run.</span></td></tr>
           <tr><td>Front-end tests (vitest)</td><td class="na">not run — no front-end source in the diff (C# plus one English XLF string)</td></tr>
         </table>
       </div>
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>This run dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
+        <p>Fixed a real exclusive-access bug Devin caught on the merged code: the fix-up now never runs while a live page is loaded (edit-open shows the page only after the dialog; a page-size change goes through the editor's existing empty-and-reinitialize path). Also folded in <code>Version6.5</code> with PR 8359 (a clean merge) and retuned 8359's fall-back comments to describe a missing fraction-of-page value as an unexpected failure rather than a normal unvisited-page state. Earlier in this run it dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
       </div>
 
       <div class="card">
@@ -136,10 +137,10 @@
           <tr><th>Local review</th><td>Light sub-agent pass. Caught the API-sync-lock / re-entrancy
           hazard (fixed) and a lower-confidence background-thread refresh note (assessed low-risk — see
           Worth knowing).</td></tr>
-          <tr><th>Devin</th><td>Complete for HEAD. Across the branch it raised three findings:
+          <tr><th>Devin</th><td>Complete for HEAD. Across the branch it raised six findings:
           <span class="tag fixed">fixed</span> "Publishing races the page migration" and
           <span class="tag fixed">fixed</span> "Migration reactivates an inactive Publish tab" (both
-          resolved on their threads), and <span class="tag fixed">decided</span> "Failed updates still allow publishing" — the developer chose to leave it as is (best-effort publish plus the error dialog; Update Book is the manual retry); recorded and resolved on its thread. One Investigate flag (a doc comment left stale by the log-line removal) — fixed. No Informational flags.</td></tr>
+          resolved on their threads), <span class="tag fixed">fixed</span> "Live editor races whole-book migration" (the fix-up rewrote the DOM while a live page was loaded; now no live page exists during the update), <span class="tag fixed">not an issue</span> "Failed fix-up leaves partial DOM" (a page is replaced only after its capture succeeds and each replaced page is complete, so a partly migrated book is the ordinary pre-PR state; reasoning on the thread and in a code comment), and <span class="tag fixed">decided</span> "Failed updates still allow publishing" — the developer chose to leave it as is (best-effort publish plus the error dialog; Update Book is the manual retry); recorded and resolved on its thread. One Investigate flag (a doc comment left stale by the log-line removal) — fixed. No Informational flags.</td></tr>
           <tr><th>CodeRabbit / Greptile</th><td>No review posted this run (both stayed quiet, consistent
           with this repo's recent history).</td></tr>
           <tr><th>CI (pr-automation)</th><td class="pass">pass</td></tr>
@@ -149,6 +150,7 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
+          <li><strong>Live check of the final edit-open and page-size flows is pending.</strong> The exclusive-access fix changes when the first page appears (after the dialog, not before). Unit fixtures pass and the design mirrors the already-verified Publish gating, but the two flows have not yet been re-watched on a running Bloom since that change (the developer's concurrent testing pre-empted the scripted check); the developer's current instance runs this build.</li>
           <li><strong>Live-tested end to end.</strong> Opening for edit, changing page size, and
           switching to Publish each run the fix-up and stamp the book correctly; an image-heavy 20-page
           book completes in ~30s with no stall after the lock fix; an already-migrated book is a no-op.</li>
