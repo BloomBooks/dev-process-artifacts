@@ -65,13 +65,13 @@
 <body>
 <div class="wrap">
   <h1>Preflight — Auto-migrate books</h1>
-  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>e862381</code></p>
+  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>b9661a4</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable · clean</span>
     <span class="chip ok">CI green</span>
-    <span class="chip warn">1 decision waiting</span>
+    <span class="chip ok">No decisions waiting</span>
   </div>
   <div class="links">
     <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8361">PR #8361</a>
@@ -105,13 +105,11 @@
           or stamped at a different page size; it is skipped for a book that cannot be saved or has
           structural errors.</li>
           <li><strong>Running it.</strong> <code>EnsurePerPageFixupIfNeeded</code> runs the pass behind
-          a modal progress dialog (determinate bar, an explanation, and a localized "Updating page N of
-          M"), and remembers a per-book failure so it does not re-prompt every tab switch.</li>
+          a modal progress dialog (a determinate percent bar and a one-line explanation), and remembers a per-book failure so it does not re-prompt every tab switch.</li>
           <li><strong>Where.</strong> Called when a book is opened for editing, before the publish tab
           goes live, and after a page-size change. All three are deferred off Bloom's API sync lock so
           the off-screen pages' own API calls don't block behind them.</li>
-          <li><strong>Strings.</strong> Two <code>translate="no"</code> entries in
-          <code>BloomMediumPriority.xlf</code>.</li>
+          <li><strong>Strings.</strong> One <code>translate="no"</code> entry in <code>BloomMediumPriority.xlf</code>.</li>
         </ul>
       </div>
 
@@ -129,12 +127,7 @@
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>This run implemented the feature, integrated <code>Version6.5</code>, then hardened it against
-        what the reviewers raised: it moved the auto fix-up off Bloom's API sync lock (the off-screen
-        pages make their own sync-locked API calls, so running under the held lock would stall an
-        image-heavy book), and it gated the publish tab so it goes live only after the migration
-        finishes. Four commits — see the
-        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
+        <p>This run dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
       </div>
 
       <div class="card">
@@ -146,8 +139,7 @@
           <tr><th>Devin</th><td>Complete for HEAD. Across the branch it raised three findings:
           <span class="tag fixed">fixed</span> "Publishing races the page migration" and
           <span class="tag fixed">fixed</span> "Migration reactivates an inactive Publish tab" (both
-          resolved on their threads), and <span class="tag open">open</span> "Failed updates still allow
-          publishing" — the one decision at right. No Investigate or Informational flags.</td></tr>
+          resolved on their threads), and <span class="tag fixed">decided</span> "Failed updates still allow publishing" — the developer chose to leave it as is (best-effort publish plus the error dialog; Update Book is the manual retry); recorded and resolved on its thread. One Investigate flag (a doc comment left stale by the log-line removal) — fixed. No Informational flags.</td></tr>
           <tr><th>CodeRabbit / Greptile</th><td>No review posted this run (both stayed quiet, consistent
           with this repo's recent history).</td></tr>
           <tr><th>CI (pr-automation)</th><td class="pass">pass</td></tr>
@@ -165,6 +157,7 @@
           thread. For the edit sites an existing guard short-circuits it; on the publish tab
           <code>EditingModel.Visible</code> is false so it touches no UI. No crash path was found, but
           it is fragile against future tab-order changes.</li>
+          <li><strong>Pre-existing, not this PR:</strong> a book on the legacy-5-6 appearance theme can be switched to a page size its frozen stylesheet doesn't define (e.g. Ebook 7x5); the pages and thumbnails then render with zero height. Verified in source: <code>basePage-legacy-5-6</code> has no <code>Ebook7x5Landscape</code> rule, and the size list isn't filtered by theme. Switching back restores it; worth its own card.</li>
           <li><strong>Team Collection books not checked out are skipped</strong> (they can't be saved).
           Per the developer, such books can't be published anyway, so this is not a gap.</li>
         </ul>
@@ -173,8 +166,9 @@
 
     <div class="right">
       <div class="decision">
-        <h2>Decision needed</h2>
+        <h2>Decision — settled</h2>
         <h3>Failed migration still lets you publish</h3>
+        <p style="font-size:14px;font-weight:600;color:var(--ok)">Decided: leave as is. Recorded on the review thread and resolved. No action needed.</p>
         <p style="font-size:14px">When <code>ProcessBook</code> throws (e.g. a page times out), the modal
         shows the error, then publishing continues on the not-fully-migrated book, and the per-session
         failure cache means later Edit/Publish activations skip the retry until Bloom restarts. Devin rates
@@ -187,7 +181,7 @@
         make a book with any un-migratable page impossible to publish. "Update Book" is also a manual retry
         that ignores the cache.</p>
 
-        <form id="dform">
+        <form id="dform" hidden>
           <label class="opt"><input type="radio" name="d1" value="leave-as-is" checked>
             Leave as is <span class="rec">(recommended)</span>
             <span class="why">Best-effort publish plus the error dialog; not a regression; Update Book is
@@ -208,7 +202,7 @@
         </form>
       </div>
 
-      <div class="copywrap">
+      <div class="copywrap" hidden>
         <h2>Copy back your answer</h2>
         <p style="font-size:13.5px;color:var(--soft);margin-top:0">Paste this into the session to record the decision.</p>
         <textarea id="payload" readonly></textarea>
