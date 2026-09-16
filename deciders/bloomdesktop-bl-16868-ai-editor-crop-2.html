@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Preflight — Undo an AI image editor replacement with its cropping (BL-16868)</title>
+<style>
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --ink-soft: #57606a;
+    --rule: #e3ded4;
+    --accent: #8a5a2b;
+    --ok: #1a7f37;
+    --warn: #9a6700;
+    --stop: #b42318;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 16px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 28px 20px 64px;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 27px; margin: 0 0 6px; }
+  h2 { font-size: 20px; margin: 0 0 12px; }
+  h3 { font-size: 16px; margin: 18px 0 4px; font-family: inherit; font-weight: 700; }
+  p { margin: 0 0 12px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1240px; margin: 0 auto; }
+  .sub { color: var(--ink-soft); margin: 0 0 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+  .chip {
+    display: inline-block; padding: 4px 10px; border: 1px solid var(--rule);
+    border-radius: 999px; background: var(--card); font-size: 13px; color: var(--ink-soft);
+  }
+  .chip.good { color: var(--ok); border-color: #b7dfc2; }
+  .chip.warn { color: var(--warn); border-color: #e8d59a; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; padding: 0; list-style: none; }
+  .links a {
+    display: inline-block; padding: 4px 11px; border: 1px solid var(--rule);
+    border-radius: 6px; background: var(--card); font-size: 13px; text-decoration: none;
+  }
+  .links a:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; }
+  .grid > * { min-width: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 18px 20px; margin: 0 0 18px;
+  }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; color: var(--ink-soft); font-size: 13px; }
+  tr:last-child td { border-bottom: 0; }
+  .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
+  .pass { color: var(--ok); font-weight: 600; }
+  .skip { color: var(--ink-soft); }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin: 0 0 6px; }
+  .item { border-top: 1px solid var(--rule); padding-top: 14px; margin-top: 14px; }
+  .item:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .opt { display: block; margin: 0 0 9px; padding: 9px 11px; border: 1px solid var(--rule); border-radius: 7px; }
+  .opt:hover { border-color: var(--accent); }
+  .opt input[type=radio] { margin-right: 8px; }
+  .opt .foot { display: block; color: var(--ink-soft); font-size: 13px; margin: 3px 0 0 24px; }
+  .tag { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin-left: 6px; }
+  .leaverow { display: flex; align-items: flex-start; gap: 10px; justify-content: space-between; }
+  .leaverow .lc { font-size: 12px; color: var(--ink-soft); white-space: nowrap; padding-top: 1px; }
+  textarea, input[type=text] {
+    width: 100%; font: inherit; font-size: 14px; padding: 7px 9px;
+    border: 1px solid var(--rule); border-radius: 6px; background: #fdfcfa; color: var(--ink);
+  }
+  .notes { margin-top: 8px; }
+  .notes label { display: block; font-size: 12px; color: var(--ink-soft); margin-bottom: 4px; }
+  button {
+    font: inherit; font-size: 14px; padding: 8px 16px; border-radius: 7px;
+    border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  #payload { margin-top: 10px; min-height: 130px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: #f4f1ea; padding: 1px 4px; border-radius: 3px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Undo an AI image editor replacement with its cropping</h1>
+  <p class="sub">Preflight on <code>BL-16868-ai-editor-crop-2</code> — six commits, gate green, one question for you.</p>
+
+  <ul class="chips">
+    <li><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --></li>
+    <li><span class="chip good">Mergeable</span></li>
+    <li><span class="chip good">6 review findings fixed</span></li>
+    <li><span class="chip warn">1 item waiting on you</span></li>
+  </ul>
+
+  <ul class="links">
+    <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8367" target="_blank" rel="noopener">PR #8367</a></li>
+    <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8367/files" target="_blank" rel="noopener">Files changed</a></li>
+    <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8367/commits" target="_blank" rel="noopener">Commits</a></li>
+    <li><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16868" target="_blank" rel="noopener">BL-16868</a></li>
+    <li><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8367" target="_blank" rel="noopener">Devin review</a></li>
+  </ul>
+
+  <div class="grid">
+    <div>
+
+      <div class="card">
+        <h2>What this PR is about</h2>
+
+        <h3>Problem</h3>
+        <p>After <strong>Edit with AI...</strong> puts a new picture on the page, Undo cannot put back what was
+        there. Ctrl+Z does nothing at all, and the Undo button in the top bar brings the old picture file back
+        but <strong>uncropped</strong> — a picture the user had cropped returns showing the whole photo, at the
+        wrong shape. Found by working through this card's own test ideas after
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8356" target="_blank" rel="noopener">PR #8356</a> merged.</p>
+
+        <h3>Cause</h3>
+        <p>Two independent gaps. Nothing listened for Ctrl+Z over a picture: text undo belongs to the CKEditor
+        instance that has focus, and origami binds its own handler in layout mode, but an image change had
+        neither — only the Undo button reached the image undo. And right after the AI editor closes, the
+        keystroke arrives in the <em>top window</em>, where the editor's overlay lives, not in the page.</p>
+        <p>Separately, a crop is <strong>two boxes</strong>: the <code>img</code>, which grows past its canvas
+        element and slides under it, and the canvas element that frames it and takes the shape of the part that
+        shows. The undo record captured only the img's box, and restored it only on the background-image path.
+        The canvas element had meanwhile been reshaped to fit the new picture, and the background fitter then
+        rescaled the img to match — which is what erased the crop.</p>
+
+        <h3>What the PR does</h3>
+        <ul>
+          <li>The undo record captures the canvas element's box alongside the img's, and undo restores both,
+          telling the sizing code this is not a new image so it keeps the cropping instead of fitting to the
+          whole picture.</li>
+          <li>Ctrl+Z over a picture now reaches the image undo, handled in the page frame and in the top
+          window.</li>
+          <li>It takes the key only when the picture's undo is really the one meant: not from a text field or a
+          rich-text editable, not while a dialog or the AI editor overlay is open, and not before origami and
+          the active tool have had their turn — the same order the Undo button uses.</li>
+          <li>An undo back to a picture that was never cropped is handled as a new image, so it waits for the
+          restored file to load rather than sizing itself from the picture being undone away.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Typecheck</td><td class="pass">pass</td></tr>
+          <tr><td>Lint</td><td class="pass">pass <span class="skip numeral">(0 errors, 764 pre-existing warnings)</span></td></tr>
+          <tr><td>Merge into <code>Version6.5</code></td><td class="pass">clean — rebased onto the current base</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="pass">pass <span class="numeral">(862 passed, 5 skipped, 73 files)</span></td></tr>
+          <tr><td>C# tests (dotnet)</td><td class="skip">not run — no C# in the diff</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>What changed this run</h2>
+        <p>The branch had no commits of its own when this started — it was sitting on the commit from the
+        merged <a href="https://github.com/BloomBooks/BloomDesktop/pull/8356" target="_blank" rel="noopener">PR #8356</a>
+        — so the undo work was committed, rebased onto the current <code>Version6.5</code>, and opened as
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8367" target="_blank" rel="noopener">PR #8367</a>.
+        Five follow-up commits closed every review finding: the keystroke handling took four rounds to get the
+        precedence and the guards right, and one of them fixed a regression the first commit introduced. See the
+        <a href="https://github.com/BloomBooks/BloomDesktop/pull/8367/commits" target="_blank" rel="noopener">commit list</a>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Reviewer outcomes</h2>
+        <table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr>
+            <td>Local review</td>
+            <td>Light sub-agent pass, plus an inline pass when the agent overran its budget. Four findings,
+            all real: origami's own Ctrl+Z and the new one both firing on the same keystroke; the active tool
+            never getting its turn; the handler reaching past an open dialog; and an undo back to an
+            <em>uncropped</em> picture being sized from the picture it was replacing. Three fixed outright,
+            the fourth fixed except for the "Fill" case, which is the question on the right.</td>
+          </tr>
+          <tr>
+            <td>Devin</td>
+            <td>Complete. One bug — a page-frame form field losing its own undo to the image undo — fixed in
+            <code>6a68e14</code>;
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8367#discussion_r4030103964" target="_blank" rel="noopener">thread</a>
+            answered and resolved. Across three rounds it raised four bugs, all in the new keystroke handling and all fixed, each with its own resolved thread. Its last round re-reported three of them against the very commit that fixes them (its own incremental fetch had failed); each was checked against that commit and is genuinely fixed. No Investigate or Informational items in any round.</td>
+          </tr>
+          <tr>
+            <td>CodeRabbit</td>
+            <td>Configured on the repo (<code>.coderabbit.yml</code>) but posted nothing on this PR.</td>
+          </tr>
+          <tr>
+            <td>CI</td>
+            <td><code>pr-automation</code> passed. It is the only GitHub check this repo runs on a PR; the
+            build and test CI is TeamCity.</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>The crop restore is not specific to the AI editor. Every way of replacing a picture — the image
+          gallery, paste, and the C#-driven change — goes through the same function, so all of them now undo
+          back to a cropped picture correctly.</li>
+          <li>Checked by hand in a running Bloom: an ordinary picture canvas element, and a normal background
+          image, each with a real Ctrl+Z and with the Undo button. Reverting the fix reproduced both reported
+          symptoms exactly. The <strong>Fill</strong>-mode background is the case that is still open.</li>
+          <li>The image undo stack holds one entry per page and is cleared when you leave the page, so undo
+          after an AI replacement is a single step and only on that page. That is pre-existing behavior, not
+          something this PR changes.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Decisions</h2>
+
+        <div class="item">
+          <h3>Undo of a cropped <strong>Fill</strong>-mode background picture can come back the wrong size</h3>
+          <p>A background picture can be set to <strong>Fill</strong>, where it is scaled up and cropped so it
+          covers the whole page rather than fitting inside it. Undoing an AI replacement on such a picture can
+          bring it back at the wrong scale or offset, if the AI's picture and the original have different
+          proportions. The ordinary (fit-inside) case is correct, and so is a picture that was never cropped;
+          this is only the Fill case.</p>
+          <p>The reason is a timing one. When undo puts the old file back, the browser goes on reporting the
+          <em>previous</em> picture's real-world width and height until the restored file has decoded. Bloom's
+          sizing code normally waits for that, but on the undo path we deliberately tell it "this is not a new
+          picture" so that it keeps the cropping — and that same flag is what switches the waiting off. Every
+          other path works from the restored boxes and never asks for those dimensions; the Fill arithmetic is
+          the one place that does.</p>
+          <p>I have not fixed it because the honest fix separates the two meanings that flag currently carries,
+          which changes a function several other callers use, and because confirming it needs driving a real
+          Bloom — which I am not going to do against your collection unprompted.</p>
+
+          <label class="opt">
+            <input type="radio" name="q1" value="Split the flag and fix it" checked />
+            Split the flag and fix it<span class="tag">recommended</span>
+            <span class="foot">Give the sizing code a separate "the file just changed, wait for it" input, so the
+            undo path can keep the cropping and still get real dimensions. Roughly 30 lines across two files,
+            touching a shared function; needs one live check, in a throwaway book. Recommended because as it
+            stands a Fill-mode picture can come back visibly wrong, and it is the kind of thing that gets found
+            later and blamed on cropping in general.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Fix it in a separate card" />
+            Fix it in a separate card
+            <span class="foot">Ship this PR for the reported bug, and raise the Fill case as its own card. No
+            code change here; keeps this PR small and already verified.</span>
+          </label>
+          <label class="opt">
+            <span class="leaverow">
+              <span><input type="radio" name="q1" value="Leave as is" /> Leave as is</span>
+              <span class="lc"><label><input type="checkbox" data-q="Leave comment" /> Leave comment</label></span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q1" value="Other" /> Other:
+            <input type="text" data-q="q1-other" placeholder="your answer" />
+          </label>
+          <div class="notes">
+            <label for="n1">Notes</label>
+            <textarea id="n1" data-q="q1-notes" rows="2"></textarea>
+          </div>
+        </div>
+
+        <div class="item">
+          <h3>Next step</h3>
+          <p>How would you like me to carry on from here?</p>
+          <label class="opt">
+            <input type="radio" name="q2" value="Implement my choice above, then re-run preflight" checked />
+            Implement my choice above, then re-run preflight<span class="tag">recommended</span>
+            <span class="foot">Recommended because the PR is otherwise clean and this is the only thing between
+            it and your own review.</span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Talk it through first" />
+            Talk it through first
+            <span class="foot">No code changes until we have agreed the approach.</span>
+          </label>
+          <label class="opt">
+            <span class="leaverow">
+              <span><input type="radio" name="q2" value="Leave as is" /> Leave as is</span>
+              <span class="lc"><label><input type="checkbox" data-q="Leave comment (next step)" /> Leave comment</label></span>
+            </span>
+          </label>
+          <label class="opt">
+            <input type="radio" name="q2" value="Other" /> Other:
+            <input type="text" data-q="q2-other" placeholder="your answer" />
+          </label>
+          <div class="notes">
+            <label for="n2">Notes</label>
+            <textarea id="n2" data-q="q2-notes" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Send your answers back</h2>
+        <p class="sub">Copy this and paste it into the session.</p>
+        <button id="copybtn" type="button">Copy answers</button>
+        <span id="copied" style="margin-left:10px;color:var(--ok);font-size:13px;display:none;">copied</span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var QUESTIONS = [
+    { name: "q1", title: "Undo of a cropped Fill-mode background picture", other: "q1-other", notes: "q1-notes", comment: "Leave comment" },
+    { name: "q2", title: "Next step", other: "q2-other", notes: "q2-notes", comment: "Leave comment (next step)" }
+  ];
+
+  function valueOf(sel) {
+    var el = document.querySelector(sel);
+    return el ? el.value.trim() : "";
+  }
+
+  function build() {
+    var lines = ["Preflight answers — BL-16868 / PR 8367", ""];
+    QUESTIONS.forEach(function (q) {
+      var picked = document.querySelector('input[name="' + q.name + '"]:checked');
+      var answer = picked ? picked.value : "(none)";
+      if (answer === "Other") {
+        var typed = valueOf('input[data-q="' + q.other + '"]');
+        answer = "Other: " + (typed || "(blank)");
+      }
+      lines.push(q.title + ": " + answer);
+      var box = document.querySelector('input[type=checkbox][data-q="' + q.comment + '"]');
+      if (box && box.checked) {
+        lines.push("  Leave comment: yes");
+      }
+      var notes = valueOf('textarea[data-q="' + q.notes + '"]');
+      if (notes) {
+        lines.push("  Notes: " + notes);
+      }
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  function refresh() {
+    document.getElementById("payload").value = build();
+  }
+
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var ta = document.getElementById("payload");
+    var done = function () {
+      var tag = document.getElementById("copied");
+      tag.style.display = "inline";
+      setTimeout(function () { tag.style.display = "none"; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () {
+        ta.select();
+        document.execCommand("copy");
+        done();
+      });
+    } else {
+      ta.select();
+      document.execCommand("copy");
+      done();
+    }
+  });
+</script>
+</body>
+</html>
