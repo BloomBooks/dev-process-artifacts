@@ -75,6 +75,8 @@
   .badge { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 12px; font-weight: 600; white-space: nowrap; }
   .badge.pass { background: var(--pass-bg); color: var(--pass); }
   .badge.na   { background: var(--na-bg); color: var(--na); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #ecdcc0; }
 
   ul.tight { margin: 0 0 12px; padding-left: 20px; }
   ul.tight li { margin-bottom: 7px; }
@@ -127,8 +129,9 @@
     <p class="sub">The fonts shipped inside BloomPUB Viewer were never actually reaching a book in an installed build. This run fixed the lookup, refreshed the font files, and put the branch through the full review gauntlet.</p>
     <div class="metaline">
       <span class="chip ok">All reviewers clean</span>
+      <span class="chip warn">Master moved — conflicts</span>
       <span class="chip draft">PR left as draft</span>
-      <span class="chip">2 decisions for you</span>
+      <span class="chip">3 decisions for you</span>
       <a href="https://github.com/BloomBooks/bloompub-viewer/pull/63" target="_blank" rel="noopener">PR&nbsp;#63</a>
       <span style="color:var(--ink-faint)">·</span>
       <a href="https://github.com/BloomBooks/bloompub-viewer/pull/63/files" target="_blank" rel="noopener">Files changed</a>
@@ -156,7 +159,7 @@
             <tr><td>Other language stacks</td><td><span class="badge na">N/A</span></td><td>Not run — there is no C#, Go, Rust or Python in this repo, so nothing in the diff can reach one.</td></tr>
             <tr><td>Production build</td><td><span class="badge pass">pass</span></td><td>Full <code>webpack</code> production build — exit <span class="numeral">0</span>. This is the repo's only automated verification, so it stands in for a test suite.</td></tr>
             <tr><td>Packaged run</td><td><span class="badge pass">pass</span></td><td>Real <code>electron-builder</code> package built and launched; fonts served out of the asar.</td></tr>
-            <tr><td>Merge cleanliness</td><td><span class="badge pass">pass</span></td><td><code>origin/master</code> is already an ancestor of HEAD — nothing to integrate, no conflicts.</td></tr>
+            <tr><td>Merge cleanliness</td><td><span class="badge warn">conflicts</span></td><td>Clean when the run started; <code>master</code> then moved underneath us. Three conflicts, all needing your call — see the decision on the right. The branch is deliberately left un-integrated.</td></tr>
           </tbody>
         </table>
         </div>
@@ -220,7 +223,9 @@
           <li><strong>Two separate faults had to be fixed.</strong> Beyond the wrong folder, the shipped files were <code>.ttf</code> while books ask for <code>.woff2</code> by name — so even pointing at the right folder would not have matched. Both are fixed; this is why the file format changed rather than just the path.</li>
           <li><strong>Verified on a machine with no Andika installed</strong>, which is the only way to see this at all — with Andika present the book uses the machine's copy and looks correct either way.</li>
           <li><strong>The tracker question was settled permanently.</strong> This repo declared no tracker, so preflight asked once and wrote the answer into <code>AGENTS.md</code>; future runs here won't ask.</li>
-          <li><strong>You asked for the version bump partway through</strong>, which added a third commit and restarted the reviewer gauntlet — that second cycle is where GitHub dropped the notification described on the right. Version 2.2.2 is the next patch after master's 2.2.1.</li>
+          <li><strong>You asked for the version bump partway through</strong>, which added a third commit and restarted the reviewer gauntlet — that second cycle is where GitHub dropped the notification described on the right.</li>
+          <li><strong>Master then moved, twice over.</strong> The Electron upgrade landed while the reviewers were running, taking master to 2.3.0 and adding its own <code>AGENTS.md</code>. The branch is therefore left <em>un-integrated</em> on purpose: I tried the merge, saw that all three conflicts need a human judgement rather than a mechanical resolution, and aborted it cleanly. Nothing is half-merged.</li>
+          <li><strong>Everything reviewed and verified here predates that.</strong> The reviewers all read the branch as it stands, not as it will look merged with the Electron upgrade — so the merged result deserves its own packaged run.</li>
           <li>The QA test-ideas write-up was posted to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16708" target="_blank" rel="noopener">BL-16708</a>, along with the PR link.</li>
           <li>The PR is <strong>still a draft</strong> and no reviewer has been requested — that is <code>pr-ready-for-human</code>'s job, after your own review.</li>
         </ul>
@@ -230,6 +235,43 @@
 
     <!-- ================= RIGHT ================= -->
     <div class="col">
+
+      <div class="item decision">
+        <div class="kind">Decision — most important</div>
+        <h3>Master moved during this run, and the version number you asked for is now behind it</h3>
+        <p>When this run started, <code>master</code> was at version 2.2.1, which is why 2.2.2 was the sensible next number when you asked for a bump. Minutes later, while the reviewers were working, <a href="https://github.com/BloomBooks/bloompub-viewer/pull/62" target="_blank" rel="noopener">pull request #62</a> was merged into master: an upgrade of Electron from 30.5.1 to 43.3.0 — thirteen major versions — which set the version to <strong>2.3.0</strong>. So our 2.2.2 is now a <em>lower</em> number than what master already carries, and the two disagree in the same file.</p>
+        <p>Merging master in produces three conflicts, and I stopped rather than guessing at any of them:</p>
+        <ul class="tight">
+          <li><strong>The version number.</strong> Someone has to decide whether this font fix goes out as part of 2.3.0, or as a 2.3.1 after it. That is a release decision, not a mechanical one.</li>
+          <li><strong><code>AGENTS.md</code> and <code>CLAUDE.md</code>.</strong> Master's PR added its own versions of both files, independently of the ones this run created. Master's are broader — they cover the tracker, which platforms are really supported, and where the team skills live. Mine add things master's do not: the commands, the project layout, and specifically the note about <code>static/</code> only being copied into the build in production, which is the behaviour this whole bug turned on.</li>
+        </ul>
+        <p>There is also something worth checking rather than deciding: everything I verified about the packaged application — the fonts being served out of the asar, the file lookups, the protocol handler — was verified on Electron 30. On paper none of it depends on anything Electron 43 changed, but "on paper" is how this bug survived three years, so it deserves a real packaged run on the merged result.</p>
+        <div class="opts" data-item="mastermoved">
+          <div class="opt">
+            <input type="radio" name="q_master" id="q_mm_a" data-q="Master moved; version and AGENTS.md conflict" value="Merge master, drop our version bump (ship inside 2.3.0), fold our AGENTS.md notes into master's" checked>
+            <div class="body"><label class="lbl" for="q_mm_a">Merge master, drop the 2.2.2 bump, and fold my notes into master's AGENTS.md<span class="rec">Recommended</span></label>
+            <span class="fn">The font fix then ships as part of 2.3.0 alongside the Electron upgrade, and the agent docs end up as master's file plus the packaging and commands sections that are genuinely new. (~20 minutes including a fresh packaged run on Electron 43 to re-confirm the fonts.) Recommended because 2.3.0 is not released yet, so there is no reason to spend a second version number on this.</span></div>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q_master" id="q_mm_b" data-q="Master moved; version and AGENTS.md conflict" value="Merge master and set the version to 2.3.1">
+            <div class="body"><label class="lbl" for="q_mm_b">Merge master, but give the font fix its own 2.3.1</label>
+            <span class="fn">Choose this if 2.3.0 is already spoken for — cut, announced, or being tested as the Electron upgrade on its own, so that adding the font change to it would muddy what that release is. (Same work as above, one line different.)</span></div>
+          </div>
+          <div class="opt">
+            <div class="leaverow">
+              <input type="radio" name="q_master" id="q_mm_c" data-q="Master moved; version and AGENTS.md conflict" value="Leave as is">
+              <div class="body"><label class="lbl" for="q_mm_c">Leave as is</label></div>
+              <label class="leavecomment"><input type="checkbox" data-q="Master moved; version and AGENTS.md conflict — leave comment" value="yes"> Leave comment</label>
+            </div>
+          </div>
+          <div class="opt">
+            <input type="radio" name="q_master" id="q_mm_d" data-q="Master moved; version and AGENTS.md conflict" value="Other">
+            <div class="body"><label class="lbl" for="q_mm_d">Other:</label>
+            <input type="text" data-q="Master moved; version and AGENTS.md conflict — other" placeholder="e.g. drop AGENTS.md from this PR entirely"></div>
+          </div>
+        </div>
+        <div class="notes"><label>Notes on this item</label><textarea rows="2" data-q="Master moved; version and AGENTS.md conflict — notes" placeholder="Anything to add"></textarea></div>
+      </div>
 
       <div class="item decision">
         <div class="kind">Decision</div>
@@ -343,12 +385,12 @@
       <div class="item decision">
         <div class="kind">Next step</div>
         <h3>Where would you like this to go from here?</h3>
-        <p>Everything the gauntlet can do without you is done: the branch is pushed, the draft PR is open, all four reviewers came back clean, and the card has the PR link and the QA notes. Nothing is blocking. The remaining step is your own read of the change before it goes to a colleague.</p>
+        <p>Everything the gauntlet can do without you is done: the branch is pushed, the draft PR is open, all four reviewers came back clean, and the card has the PR link and the QA notes. What is left is not review work — it is the merge decision at the top of this column, which only you can make.</p>
         <div class="opts" data-item="next">
           <div class="opt">
             <input type="radio" name="q_next" id="q_next_a" data-q="Next step" value="I will review it myself, then run pr-ready-for-human" checked>
-            <div class="body"><label class="lbl" for="q_next_a">I'll review it myself, then run <code>pr-ready-for-human</code><span class="rec">Recommended</span></label>
-            <span class="fn">The normal path: you read the diff, then that skill marks the PR ready, links it on the card and moves it to peer review. Recommended because nothing here needs code changes first.</span></div>
+            <div class="body"><label class="lbl" for="q_next_a">Settle the master merge first, then I'll review and run <code>pr-ready-for-human</code><span class="rec">Recommended</span></label>
+            <span class="fn">The branch cannot go to a colleague while it conflicts with master, so the first decision above has to land before anything else. Once it is merged and the packaged run is re-confirmed on Electron 43, you read the diff and that skill takes it to peer review.</span></div>
           </div>
           <div class="opt">
             <input type="radio" name="q_next" id="q_next_b" data-q="Next step" value="Discuss something in this report before going further">
