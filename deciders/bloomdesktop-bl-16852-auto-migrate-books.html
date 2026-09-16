@@ -35,7 +35,6 @@
     border-radius:999px; background:var(--card); font-size:13px; color:var(--ink-soft);
   }
   .chip.good{border-color:#bcd7c4; background:#f1f8f3; color:var(--ok)}
-  .chip.att{border-color:#e3d3a8; background:#fdf8ea; color:var(--warn)}
   .links{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 26px}
   .links a{
     display:inline-block; padding:5px 12px; border:1px solid var(--line);
@@ -59,11 +58,10 @@
   th{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); font-weight:600}
   tr:last-child td{border-bottom:none}
   .tag{font-size:12.5px; font-weight:600; white-space:nowrap}
-  .tag.ok{color:var(--ok)} .tag.bad{color:var(--bad)} .tag.na{color:var(--ink-faint)} .tag.att{color:var(--warn)}
+  .tag.ok{color:var(--ok)} .tag.na{color:var(--ink-faint)} .tag.att{color:var(--warn)}
   code{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:#f4f1ea; padding:1px 5px; border-radius:4px}
 
   .item{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:18px}
-  .item.hot{border-color:#e0c9a6; box-shadow:0 0 0 3px #fbf3e6}
   .kicker{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:4px}
   .opt{display:flex; gap:9px; align-items:flex-start; padding:9px 0; border-top:1px solid #f0ece4}
   .opt:first-of-type{border-top:1px solid var(--line); margin-top:10px}
@@ -85,7 +83,7 @@
     background:var(--accent); color:#fff; cursor:pointer
   }
   button:hover{background:#7a4e24}
-  #payload{width:100%; min-height:150px; margin-top:12px; padding:10px; border:1px solid var(--line);
+  #payload{width:100%; min-height:130px; margin-top:12px; padding:10px; border:1px solid var(--line);
            border-radius:8px; font:12.5px/1.55 ui-monospace,Consolas,monospace; background:#fdfcfa; color:var(--ink)}
   #copied{margin-left:10px; font-size:13px; color:var(--ok); opacity:0; transition:opacity .2s}
   #copied.on{opacity:1}
@@ -95,13 +93,14 @@
 <div class="wrap">
 
   <h1>Preflight — Auto-migrate books</h1>
-  <p class="sub">BloomDesktop PR #8361 · branch <code>BL-16852-auto-migrate-books</code> → <code>Version6.5</code> · HEAD <code>7b76ac9</code></p>
+  <p class="sub">BloomDesktop PR #8361 · branch <code>BL-16852-auto-migrate-books</code> → <code>Version6.5</code> · HEAD <code>a79cf0e</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Gate green</span>
-    <span class="chip att">2 items waiting on you</span>
+    <span class="chip good">Reviewers quiet</span>
+    <span class="chip good">Nothing waiting on you</span>
   </div>
 
   <div class="links">
@@ -127,8 +126,8 @@
         <p>It gives Bloom a way to know whether a book has been through those per-page fix-ups, and runs them over the whole book, off-screen, when something actually depends on them.</p>
         <ul>
           <li><strong>Detection.</strong> A new <code>kBrowserMaintenanceLevel</code>, beside the existing <code>kMaintenanceLevel</code> and <code>kMediaMaintenanceLevel</code>, records how far a book has been taken. <code>ProcessBook</code> stamps that level and the page size it ran at into the book's HTML; the pass is due when the book records no level, a lower one, or a different page size. Deliberately <em>not</em> a Bloom-version comparison: version numbers are not comparable across channels, and keying off them would reprocess every book on every build.</li>
-          <li><strong>A level from the future comes back down.</strong> A book a newer Bloom took past what we produce cannot go on claiming that level once we write it, because the pages we add would never get that Bloom's extra fix-ups. Saving brings the record down to ours, so the newer Bloom sees the book as due again. One-way — a level at or below ours is left alone.</li>
-          <li><strong>Where, in 6.5.</strong> Launching the AI image editor (which empties the editor, runs the pass behind a determinate progress dialog, then returns to the page) and changing the page size. Entering the Edit or Publish tab deliberately does not; that is held for 6.6 under BL-16877.</li>
+          <li><strong>A level from the future comes back down.</strong> A book a newer Bloom took past what we produce cannot go on claiming that level once we write it, because the pages we add would never get that Bloom's extra fix-ups. Saving brings the record down to ours, so the newer Bloom sees the book as due again. One-way — a level at or below ours is left alone. Because nearly every edit takes the fast single-page save, which rewrites one page and not the head, a book still recording a higher level is pushed onto the full-save path until the level is ours.</li>
+          <li><strong>Where, in 6.5.</strong> Launching the AI image editor, and changing the page size. Both empty the editor first and put the page back afterwards: <code>ProcessBook</code> rewrites the book from a worker thread and must have it to itself, and every page it loads off-screen announces itself as loaded — including one carrying the id a live editor would be waiting on. Entering the Edit or Publish tab deliberately does not trigger it; that is held for 6.6 under BL-16877.</li>
           <li><strong>Strings.</strong> One <code>translate="no"</code> entry in <code>BloomMediumPriority.xlf</code>.</li>
         </ul>
         <p>Team Collection books that are not checked out are skipped, since they cannot be saved.</p>
@@ -142,9 +141,9 @@
           <tbody>
             <tr><td>TypeScript typecheck</td><td class="tag ok">pass</td><td>no blunder-class type errors</td></tr>
             <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings, none from this branch)</td></tr>
-            <tr><td>Merge with <code>Version6.5</code></td><td class="tag ok">clean</td><td>6 commits folded in, no conflicts</td></tr>
-            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">857 passed · 5 skipped · 72 files</span></td></tr>
+            <tr><td>Merge with <code>Version6.5</code></td><td class="tag ok">clean</td><td>no conflicts</td></tr>
             <tr><td>C# tests (NUnit)</td><td class="tag ok">pass</td><td><span class="numeral">3457 passed · 13 skipped</span> — includes 4 new tests for the level logic</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">857 passed · 5 skipped · 72 files</span> — last run at <code>8ec7e63</code>; every commit since is C#-only, so it still stands</td></tr>
             <tr><td>csharpier / prettier</td><td class="tag ok">pass</td><td>clean, and the pre-commit hook formats on the way in</td></tr>
           </tbody>
         </table>
@@ -153,8 +152,8 @@
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Narrowed the feature to its 6.5 scope (AI image editor only) and restored the page-size trigger; added the from-the-future level clamp with unit and live verification; merged <code>Version6.5</code>; and fixed three problems the reviewers raised (see below), plus a stale doc comment and an XLF translator note that still named removed triggers.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits" target="_blank" rel="noopener">The six commits</a>.</p>
+        <p>Narrowed the feature to its 6.5 scope and restored the page-size trigger; added the from-the-future level clamp; merged <code>Version6.5</code>; and fixed six problems the reviewers raised, the largest being that the page-size trigger ran the whole-book pass with a page still live in the editor. Both triggers now share one path that empties the editor, runs the pass, and returns to the page.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits" target="_blank" rel="noopener">The ten commits</a>.</p>
       </div>
 
       <div class="card">
@@ -166,12 +165,12 @@
             <tr>
               <td>Local review<br><span style="color:var(--ink-faint);font-size:13px">light read-only sub-agent pass</span></td>
               <td class="tag ok">complete</td>
-              <td>Four findings. Two fixed (the single-page save path, and the AI editor opening synchronously mid-navigation); one escalated — it is decision 1 opposite; one assessed as not worth acting on and <a href="https://github.com/BloomBooks/BloomDesktop/blob/7b76ac96d1bdd916d14f0c1dd3586f58c7a09bf7/src/BloomExe/Edit/EditingModel.cs#L1083" target="_blank" rel="noopener">recorded in the code</a>.</td>
+              <td>Four findings, all resolved: two fixed, one escalated and then fixed once you chose the restructure, one assessed as not worth acting on and <a href="https://github.com/BloomBooks/BloomDesktop/blob/a79cf0e7297d4c92db7a3c68463ad9262dc4e28d/src/BloomExe/Edit/EditingModel.cs#L1083" target="_blank" rel="noopener">recorded in the code</a>.</td>
             </tr>
             <tr>
               <td>Devin</td>
               <td class="tag ok">complete</td>
-              <td>Independently found the same three issues as the local pass, then a fourth on re-review (a failed write could strand the lowered level in memory). All but one are fixed and their threads replied to and resolved; the remaining one is decision 1. Three Investigate flags were stale — fixed in the very commit Devin reviewed — so they were reconciled, not posted.</td>
+              <td>Six rounds. Six bugs raised across the run, five fixed and one refuted with the code that disproves it; every thread replied to and resolved. Its final pass still lists the refuted one, which it cannot see the answer to. Three Investigate flags were stale repeats — each names text already corrected at this HEAD — so they were reconciled, not posted.</td>
             </tr>
             <tr>
               <td>CI — <code>pr-automation</code></td>
@@ -185,8 +184,8 @@
             </tr>
             <tr>
               <td>Human — andrew-polk</td>
-              <td class="tag att">open</td>
-              <td>An earlier discussion of his remains open at his own disposition, and he left a new comment about commit history — decision 2 opposite.</td>
+              <td class="tag att">with him</td>
+              <td>Answered on his commit-history thread with your decision and the reasoning, and offered to squash anyway if he prefers. Left open for his reply. His earlier discussion remains at his own disposition.</td>
             </tr>
           </tbody>
         </table>
@@ -196,9 +195,9 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>The clamp was verified live: a book hand-stamped at <code>browserMaintenanceLevel=99</code> came down to <code>1</code> the moment it was selected. The AI-editor and page-size triggers were also exercised live earlier.</li>
-          <li>The <strong>restore-on-failed-write</strong> path added for Devin's last finding has <strong>no automated test</strong>. Making the file replacement fail would need <code>FileUtils.ReplaceFileWithUserInteractionIfNeeded</code> to throw, which can put a dialog on screen — not something to provoke in CI. It is reasoned, not exercised.</li>
-          <li>Pre-existing, not this change: a book on the legacy 5.6 appearance theme can be switched to <strong>Ebook 7x5</strong>, <strong>Ebook 2x3</strong> or <strong>13cm Square</strong>, which that stylesheet does not define, and every page then renders with zero height. It looks alarming while testing the page-size trigger and is unrelated. Switching back restores it.</li>
+          <li>The page-size path was exercised by hand three times, in both directions: the pass ran, stamped the level and the new layout, and returned the editor to the <em>same</em> page rendering at the new size (671×952 for A5, 952×1347 for A4). The level clamp was verified separately — a book hand-stamped at <code>99</code> came down to <code>1</code> on selection.</li>
+          <li>Two paths are reasoned but <strong>not exercised</strong>: the restore-on-failed-write in <code>BookStorage.Save</code> (making the file replacement fail risks a dialog, so it is not something to provoke in CI) and the first-page fallback when the page you left no longer exists.</li>
+          <li>Pre-existing, not this change: a book on the legacy 5.6 appearance theme can be switched to <strong>Ebook 7x5</strong>, <strong>Ebook 2x3</strong> or <strong>13cm Square</strong>, which that stylesheet does not define, and every page then renders with zero height. It looks alarming while testing the page-size trigger and is unrelated; switching back restores it.</li>
         </ul>
       </div>
 
@@ -206,64 +205,47 @@
 
     <div>
 
-      <div class="item hot">
-        <div class="kicker">Decision 1</div>
-        <h3>The page-size trigger runs the whole-book pass while a page is still on screen</h3>
-        <p>When you change a book's page size, Bloom now runs the whole-book update right then. Everywhere else this feature runs, it first empties the editor — no page, no thumbnails — because the update rewrites the book's pages from a background thread and must have the book to itself. The page-size path does not: it navigates to the page you were on and starts the update alongside it.</p>
-        <p>Both reviewers flagged this independently. The local pass identified a specific mechanism: every page the update loads off-screen is a full editing page that reports itself as loaded, and Bloom accepts such a report whenever it is expecting a page load <em>and the page id matches</em> — which it does for exactly one off-screen page, the one you are sitting on. So the off-screen copy can be mistaken for the real one, and work queued for the real page load is consumed and never runs. The AI-editor path is immune only because emptying the editor first makes Bloom ignore those reports. Two lesser consequences follow: the update starts by bringing the book structurally up to date, which the page-size code itself elsewhere describes as invalidating the page objects it is holding; and nothing refreshes the editor or thumbnails afterwards, so they can keep showing the pre-update version.</p>
-        <p>Not observed in live testing — changing page size worked and stamped correctly — but it is a timing-dependent fault, which is exactly the kind that does not show up on demand.</p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Restructure the page-size path to match the AI-editor path — empty the editor, run the update, then go back to the page and refresh the thumbnails<span class="rec">Recommended</span><span class="fn">Moderate: ~25 lines in <code>SetLayout</code>, reshaping its save-and-navigate sequence, but it is copying a path that already exists and is proven. Recommended because it removes the hazard rather than narrowing it, and makes both triggers behave the same way. Needs a live re-test of changing page size.</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Drop the page-size trigger from 6.5 and let the next AI-editor launch pick the book up<span class="fn">Small: delete one block. But you asked for this trigger back deliberately, and it would mean a page-size change leaves the recorded measurements stale until something else runs the pass.</span></label></div>
+      <div class="item">
+        <div class="kicker">For information</div>
+        <h3>Nothing is waiting on you</h3>
+        <p>Both decisions from the previous report are implemented, verified and closed on the PR. The page-size path was restructured to match the AI-editor path, and Andrew has your answer on the commit-history question with the reasoning behind it.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Understood<span class="rec">Recommended</span></label></div>
         <div class="opt">
-          <input type="radio" name="q1" id="q1c"><label for="q1c">Leave as is</label>
+          <input type="radio" name="q1" id="q1b"><label for="q1b">Leave as is</label>
           <span class="leaveas"><input type="checkbox" id="q1comment"> Leave comment</span>
         </div>
-        <div class="opt"><input type="radio" name="q1" id="q1d"><label for="q1d">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1c"><label for="q1c">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q1notes" placeholder="Caveats, constraints, anything else"></textarea>
-      </div>
-
-      <div class="item">
-        <div class="kicker">Decision 2</div>
-        <h3>Andrew: “looks like the ai didn't squash”</h3>
-        <p>Andrew left this on the commits view of the PR. The branch carries six commits — four pieces of work, a merge of <code>Version6.5</code>, and the review fixes from this run — rather than one squashed commit.</p>
-        <p>Nothing in the repo forces a squash: GitHub is configured to allow merge, squash and rebase, so the commit history here can be collapsed at merge time without rewriting the branch now. Squashing now would mean a force-push over a branch Andrew is part-way through reviewing, which resets Reviewable's revision numbering and discards the r1–r13 trail his comments are anchored to — so leaving it is recommended unless he specifically wants the branch itself rewritten.</p>
-        <div class="opt"><input type="radio" name="q2" id="q2a"><label for="q2a">Squash the work commits into one and force-push<span class="fn">Small mechanically, but it invalidates the existing review revisions and Andrew would restart from r1.</span></label></div>
-        <div class="opt">
-          <input type="radio" name="q2" id="q2b" checked><label for="q2b">Leave as is<span class="rec">Recommended</span></label>
-          <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
-        </div>
-        <div class="opt"><input type="radio" name="q2" id="q2c"><label for="q2c">Other: <input class="otherbox" id="q2other" placeholder="e.g. squash at merge time using the PR title"></label></div>
-        <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q2notes" placeholder="Anything to pass back to Andrew"></textarea>
+        <textarea class="notes" id="q1notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
         <div class="kicker">For information</div>
-        <h3>The PR is back in draft</h3>
-        <p>It had been promoted to ready-for-review, but three commits landed after that promotion without going through a review cycle, which is what prompted this run. Preflight returns a PR to draft when that happens. Running <code>/pr-ready-for-human</code> promotes it again once you are happy with the decisions above.</p>
-        <div class="opt"><input type="radio" name="q3" id="q3a" checked><label for="q3a">Understood — I'll re-promote when ready<span class="rec">Recommended</span></label></div>
+        <h3>The PR is still in draft</h3>
+        <p>Preflight leaves it that way. Running <code>/pr-ready-for-human</code> promotes it and moves the card, once you have had your own look.</p>
+        <div class="opt"><input type="radio" name="q2" id="q2a" checked><label for="q2a">I'll promote it myself when ready<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="q2" id="q2b"><label for="q2b">Promote it now</label></div>
         <div class="opt">
-          <input type="radio" name="q3" id="q3b"><label for="q3b">Leave as is</label>
-          <span class="leaveas"><input type="checkbox" id="q3comment"> Leave comment</span>
+          <input type="radio" name="q2" id="q2c"><label for="q2c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
         </div>
-        <div class="opt"><input type="radio" name="q3" id="q3c"><label for="q3c">Other: <input class="otherbox" id="q3other" placeholder="…"></label></div>
+        <div class="opt"><input type="radio" name="q2" id="q2d"><label for="q2d">Other: <input class="otherbox" id="q2other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q3notes" placeholder=""></textarea>
+        <textarea class="notes" id="q2notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
         <div class="kicker">Next step</div>
-        <h3>How should I proceed?</h3>
-        <div class="opt"><input type="radio" name="q4" id="q4a" checked><label for="q4a">Implement the choices above, then re-run the gauntlet<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="q4" id="q4b"><label for="q4b">Talk it through with me first</label></div>
+        <h3>Anything else before this goes to review?</h3>
+        <div class="opt"><input type="radio" name="q3" id="q3a" checked><label for="q3a">No — it's ready for your look<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="q3" id="q3b"><label for="q3b">Cover the two unexercised paths with tests first<span class="fn">Moderate: the failed-write path needs the file replacement to throw without putting a dialog on screen, so it likely means an injection seam rather than a plain test.</span></label></div>
         <div class="opt">
-          <input type="radio" name="q4" id="q4c"><label for="q4c">Leave as is</label>
-          <span class="leaveas"><input type="checkbox" id="q4comment"> Leave comment</span>
+          <input type="radio" name="q3" id="q3c"><label for="q3c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q3comment"> Leave comment</span>
         </div>
-        <div class="opt"><input type="radio" name="q4" id="q4d"><label for="q4d">Other: <input class="otherbox" id="q4other" placeholder="…"></label></div>
+        <div class="opt"><input type="radio" name="q3" id="q3d"><label for="q3d">Other: <input class="otherbox" id="q3other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q4notes" placeholder=""></textarea>
+        <textarea class="notes" id="q3notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
@@ -280,28 +262,15 @@
 <script>
 (function(){
   var QS = [
-    {n:'q1', t:'Decision 1 — page-size trigger runs with a live page',
-     opts:{q1a:'Restructure the page-size path to match the AI-editor path',
-           q1b:'Drop the page-size trigger from 6.5',
-           q1c:'Leave as is',
-           q1d:'Other'},
+    {n:'q1', t:'Nothing waiting on you',
+     opts:{q1a:'Understood', q1b:'Leave as is', q1c:'Other'},
      other:'q1other', comment:'q1comment', notes:'q1notes'},
-    {n:'q2', t:'Decision 2 — Andrew on squashing commits',
-     opts:{q2a:'Squash the work commits and force-push',
-           q2b:'Leave as is',
-           q2c:'Other'},
+    {n:'q2', t:'PR still in draft',
+     opts:{q2a:"I'll promote it myself when ready", q2b:'Promote it now', q2c:'Leave as is', q2d:'Other'},
      other:'q2other', comment:'q2comment', notes:'q2notes'},
-    {n:'q3', t:'FYI — PR is back in draft',
-     opts:{q3a:"Understood — I'll re-promote when ready",
-           q3b:'Leave as is',
-           q3c:'Other'},
-     other:'q3other', comment:'q3comment', notes:'q3notes'},
-    {n:'q4', t:'Next step',
-     opts:{q4a:'Implement the choices above, then re-run the gauntlet',
-           q4b:'Talk it through with me first',
-           q4c:'Leave as is',
-           q4d:'Other'},
-     other:'q4other', comment:'q4comment', notes:'q4notes'}
+    {n:'q3', t:'Next step',
+     opts:{q3a:"No — it's ready for your look", q3b:'Cover the two unexercised paths with tests first', q3c:'Leave as is', q3d:'Other'},
+     other:'q3other', comment:'q3comment', notes:'q3notes'}
   ];
   function build(){
     var out = ['Preflight answers — BloomDesktop PR #8361 (BL-16852)', ''];
