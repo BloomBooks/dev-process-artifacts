@@ -2,237 +2,350 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight — BL-16852 Auto-migrate books</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Preflight — Auto-migrate books (BL-16852)</title>
 <style>
   :root{
-    --ink:#22201c; --soft:#6b6459; --line:#e4ddd0; --bg:#faf7f1; --card:#fff;
-    --accent:#1d94a4; --accent-ink:#0f5c66; --ok:#3f7d3f; --warn:#9a6a00; --open:#8a5a00;
+    --ink:#22201c; --ink-soft:#5c574f; --ink-faint:#857f75;
+    --ground:#faf8f4; --card:#ffffff; --line:#e4dfd5;
+    --accent:#8a5a2b; --accent-soft:#f3ece2;
+    --ok:#2f6b43; --bad:#9a3324; --warn:#8a6d1f;
+    color-scheme: light;
   }
   *{box-sizing:border-box}
-  html,body{margin:0}
-  body{background:var(--bg); color:var(--ink);
-    font:16px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; padding:28px 20px 60px}
-  .wrap{max-width:1180px; margin:0 auto}
-  h1{font-family:Georgia,"Times New Roman",serif; font-weight:600; font-size:26px; margin:0 0 4px}
-  h2{font-family:Georgia,serif; font-weight:600; font-size:18px; margin:0 0 10px}
-  h3{font-size:15px; margin:14px 0 4px; color:var(--accent-ink)}
-  .sub{color:var(--soft); margin:0 0 16px}
-  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:12px 0}
-  .chip{display:inline-block; padding:4px 11px; border:1px solid var(--line); border-radius:999px;
-    background:var(--card); font-size:13px; white-space:nowrap}
-  .chip.ok{border-color:#bcd9bc; background:#f1f8f1; color:var(--ok)}
-  .chip.warn{border-color:#e6d3a1; background:#fbf5e3; color:var(--warn)}
-  .chip.draft{border-color:#cdbff0; background:#f4f0fd; color:#5a3aa8}
-  .links{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 22px}
-  .links a{display:inline-block; padding:5px 12px; border:1px solid var(--line); border-radius:8px;
-    background:var(--card); text-decoration:none; color:var(--accent-ink); font-size:14px}
-  .links a.primary{border-color:var(--accent); background:#effafb; font-weight:600}
-  .grid{display:grid; grid-template-columns:1.55fr 1fr; gap:22px; align-items:start}
-  .grid>*{min-width:0}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:0 0 16px}
-  .card p{margin:8px 0}
-  .card ul{margin:6px 0 6px; padding-left:20px}
-  .card li{margin:4px 0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .wrap{max-width:1360px; margin:0 auto; padding:32px 20px 72px}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif; font-weight:600; line-height:1.25; margin:0}
+  h1{font-size:30px; letter-spacing:-.01em}
+  h2{font-size:20px; margin-bottom:12px}
+  h3{font-size:16px; margin-bottom:6px}
+  p{margin:0 0 12px}
+  a{color:var(--accent)}
+  .sub{color:var(--ink-soft); margin:8px 0 0; font-size:14px}
+  .numeral{font-variant-numeric:tabular-nums}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 10px}
+  .chip{
+    display:inline-block; padding:4px 11px; border:1px solid var(--line);
+    border-radius:999px; background:var(--card); font-size:13px; color:var(--ink-soft);
+  }
+  .chip.good{border-color:#bcd7c4; background:#f1f8f3; color:var(--ok)}
+  .chip.att{border-color:#e3d3a8; background:#fdf8ea; color:var(--warn)}
+  .links{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 26px}
+  .links a{
+    display:inline-block; padding:5px 12px; border:1px solid var(--line);
+    border-radius:8px; background:var(--card); font-size:13.5px; text-decoration:none;
+  }
+  .links a:hover{background:var(--accent-soft); border-color:#d8c8b2}
+  .links a.lead{border-color:#d8c8b2; background:var(--accent-soft); font-weight:600}
+
+  .grid{display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:24px; align-items:start}
+  .grid > *{min-width:0}
+  @media (max-width:900px){ .grid{grid-template-columns:minmax(0,1fr)} }
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:20px}
+  .card > :last-child{margin-bottom:0}
+  .card ul{margin:0 0 12px; padding-left:20px}
+  .card li{margin-bottom:8px}
+
+  .tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
   table{border-collapse:collapse; width:100%; font-size:14px}
-  th,td{text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top}
-  th{color:var(--soft); font-weight:600}
-  .num{font-variant-numeric:tabular-nums}
-  .pass{color:var(--ok); font-weight:600}
-  .na{color:var(--soft)}
-  .rev th{width:130px}
-  .tag{font-size:12px; padding:1px 7px; border-radius:5px; border:1px solid var(--line); white-space:nowrap}
-  .tag.fixed{background:#f1f8f1; border-color:#bcd9bc; color:var(--ok)}
-  .tag.open{background:#fbf3e3; border-color:#e6d3a1; color:var(--open)}
-  .decision{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:0 0 16px}
-  .decision h2{margin-bottom:4px}
-  .verbatim{border-left:3px solid var(--line); padding:6px 12px; color:var(--soft); font-size:14px; margin:10px 0}
-  .opt{display:block; border:1px solid var(--line); border-radius:9px; padding:10px 12px; margin:8px 0; cursor:pointer}
-  .opt:hover{border-color:var(--accent)}
-  .opt input{margin-right:8px}
-  .opt .rec{font-size:12px; color:var(--accent-ink); font-weight:600}
-  .opt .why{display:block; color:var(--soft); font-size:13.5px; margin:3px 0 0 22px}
-  .opt.leave input{margin-right:8px}
-  textarea{width:100%; border:1px solid var(--line); border-radius:8px; padding:8px; font:inherit; font-size:14px; margin-top:6px; resize:vertical}
-  .other input[type=text]{width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 8px; font:inherit; font-size:14px; margin-top:4px}
-  .copywrap{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px 18px}
-  .copywrap textarea{min-height:120px; font-family:ui-monospace,Consolas,monospace; font-size:12.5px}
-  button.copy{margin-top:8px; background:var(--accent); color:#fff; border:0; border-radius:8px; padding:9px 16px; font:inherit; font-weight:600; cursor:pointer}
-  code{font-family:ui-monospace,Consolas,monospace; font-size:13px; background:#f2eee5; padding:1px 5px; border-radius:4px}
-  @media (max-width:760px){ .grid{grid-template-columns:1fr} }
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .tag{font-size:12.5px; font-weight:600; white-space:nowrap}
+  .tag.ok{color:var(--ok)} .tag.bad{color:var(--bad)} .tag.na{color:var(--ink-faint)} .tag.att{color:var(--warn)}
+  code{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:#f4f1ea; padding:1px 5px; border-radius:4px}
+
+  .item{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:18px}
+  .item.hot{border-color:#e0c9a6; box-shadow:0 0 0 3px #fbf3e6}
+  .kicker{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:4px}
+  .opt{display:flex; gap:9px; align-items:flex-start; padding:9px 0; border-top:1px solid #f0ece4}
+  .opt:first-of-type{border-top:1px solid var(--line); margin-top:10px}
+  .opt input[type=radio]{margin-top:4px; flex:none}
+  .opt label{flex:1; font-size:14px}
+  .rec{display:inline-block; font-size:11.5px; font-weight:700; color:var(--accent); border:1px solid #d8c8b2;
+       background:var(--accent-soft); border-radius:4px; padding:0 5px; margin-left:6px; vertical-align:1px}
+  .fn{display:block; color:var(--ink-faint); font-size:12.5px; margin-top:3px}
+  .leaveas{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); flex:none; white-space:nowrap}
+  .otherbox, .notes{
+    width:100%; margin-top:8px; padding:7px 9px; border:1px solid var(--line);
+    border-radius:7px; font:14px/1.5 inherit; background:#fdfcfa; color:var(--ink)
+  }
+  .notes{min-height:52px; resize:vertical}
+  .notelabel{display:block; font-size:12.5px; color:var(--ink-faint); margin-top:12px}
+
+  button{
+    font:600 14px/1 inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--accent);
+    background:var(--accent); color:#fff; cursor:pointer
+  }
+  button:hover{background:#7a4e24}
+  #payload{width:100%; min-height:150px; margin-top:12px; padding:10px; border:1px solid var(--line);
+           border-radius:8px; font:12.5px/1.55 ui-monospace,Consolas,monospace; background:#fdfcfa; color:var(--ink)}
+  #copied{margin-left:10px; font-size:13px; color:var(--ok); opacity:0; transition:opacity .2s}
+  #copied.on{opacity:1}
 </style>
 </head>
 <body>
 <div class="wrap">
+
   <h1>Preflight — Auto-migrate books</h1>
-  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>f373c3a</code></p>
+  <p class="sub">BloomDesktop PR #8361 · branch <code>BL-16852-auto-migrate-books</code> → <code>Version6.5</code> · HEAD <code>7b76ac9</code></p>
 
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip ok" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
-    <span class="chip ok">Mergeable · clean</span>
-    <span class="chip ok">CI green</span>
-    <span class="chip ok">No decisions waiting</span>
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Gate green</span>
+    <span class="chip att">2 items waiting on you</span>
   </div>
+
   <div class="links">
-    <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8361">PR #8361</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/files">Files changed</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">Commits</a>
-    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16852">BL-16852</a>
-    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8361">Devin review</a>
+    <a class="lead" href="https://github.com/BloomBooks/BloomDesktop/pull/8361" target="_blank" rel="noopener">PR #8361</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16852" target="_blank" rel="noopener">BL-16852</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8361" target="_blank" rel="noopener">Devin review</a>
+    <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8361" target="_blank" rel="noopener">Reviewable</a>
   </div>
 
   <div class="grid">
-    <div class="left">
+    <div>
+
       <div class="card">
         <h2>What this PR is about</h2>
+
         <h3>Problem</h3>
-        <p>Old books reach the editor and the publish path with most pages un-migrated. Many DOM
-        fix-ups — notably converting a legacy image to the 6.3+ background canvas element, and
-        computing layout-derived image and canvas measurements — run only when a page is actually
-        opened for editing. So on an old book the AI image editor found only the images on pages that
-        happened to have been opened, and publishing could ship un-migrated pages. In the reported
-        case a dictionary showed far fewer images than it has, and different runs found different
-        subsets.</p>
+        <p>Many of the fix-ups a page needs happen only when that page is opened in the Edit tab: converting an old-style image to the 6.3+ background canvas element, recording each image slot's share of its page, canvas-element geometry. They need a real browser that has laid the page out, so nothing else applies them, and a book carries them on the pages someone happened to visit and nowhere else.</p>
+        <p>That is what BL-16852 reported. The AI image editor works across the whole book and sizes each image from the share-of-page its slot records — data only those fix-ups write. On an old dictionary it found a fraction of the images, and different runs found different subsets.</p>
+
         <h3>What the PR does</h3>
-        <p>It applies those per-page fix-ups to the whole book automatically, when needed, at the
-        points where it matters. The heavy lifting reuses <code>BookProcessor.ProcessBook</code> — the
-        off-screen per-page pass that "Update Book" and BloomBridge already use — so this PR adds the
-        "is it needed, and if so run it behind a progress dialog" layer around it.</p>
+        <p>It gives Bloom a way to know whether a book has been through those per-page fix-ups, and runs them over the whole book, off-screen, when something actually depends on them.</p>
         <ul>
-          <li><strong>Detection.</strong> A new <code>BookStorage.kBrowserMaintenanceLevel</code>, alongside the existing <code>kMaintenanceLevel</code> and <code>kMediaMaintenanceLevel</code>, records how far a book has been taken through the fix-ups only a real browser can do. <code>ProcessBook</code> stamps that level and the page size it ran at; <code>NeedsPerPageFixup</code> is due when the book records no level, a level below the current one, or a different page size. Deliberately not a version comparison — version numbers are not comparable across channels, and keying off them would reprocess every book on every build.</li>
-          <li><strong>Running it.</strong> <code>EnsurePerPageFixupIfNeeded</code> runs the pass behind
-          a modal progress dialog (a determinate percent bar and a one-line explanation), and remembers a per-book failure so it does not re-prompt every tab switch.</li>
-          <li><strong>Where.</strong> Called when a book is opened for editing, before the publish tab
-          goes live, and after a page-size change. All three are deferred off Bloom's API sync lock so
-          the off-screen pages' own API calls don't block behind them.</li>
-          <li><strong>Interplay with the AI image editor's size hints (PR 8359, now merged in).</strong> That PR writes each image slot's share of its page whenever a page is saved and falls back gracefully when it is absent. Because this PR re-saves every page before editing or publishing and after a page-size change, the value is always present in normal operation; 8359's fall-backs are kept as hardening and their comments now say so.</li>
+          <li><strong>Detection.</strong> A new <code>kBrowserMaintenanceLevel</code>, beside the existing <code>kMaintenanceLevel</code> and <code>kMediaMaintenanceLevel</code>, records how far a book has been taken. <code>ProcessBook</code> stamps that level and the page size it ran at into the book's HTML; the pass is due when the book records no level, a lower one, or a different page size. Deliberately <em>not</em> a Bloom-version comparison: version numbers are not comparable across channels, and keying off them would reprocess every book on every build.</li>
+          <li><strong>A level from the future comes back down.</strong> A book a newer Bloom took past what we produce cannot go on claiming that level once we write it, because the pages we add would never get that Bloom's extra fix-ups. Saving brings the record down to ours, so the newer Bloom sees the book as due again. One-way — a level at or below ours is left alone.</li>
+          <li><strong>Where, in 6.5.</strong> Launching the AI image editor (which empties the editor, runs the pass behind a determinate progress dialog, then returns to the page) and changing the page size. Entering the Edit or Publish tab deliberately does not; that is held for 6.6 under BL-16877.</li>
           <li><strong>Strings.</strong> One <code>translate="no"</code> entry in <code>BloomMediumPriority.xlf</code>.</li>
         </ul>
+        <p>Team Collection books that are not checked out are skipped, since they cannot be saved.</p>
       </div>
 
       <div class="card">
         <h2>Quality gate</h2>
+        <div class="tablewrap">
         <table>
-          <tr><th>Check</th><th>Result</th></tr>
-          <tr><td>Typecheck (C# build)</td><td class="pass">pass</td></tr>
-          <tr><td>Lint (csharpier)</td><td class="pass">pass</td></tr>
-          <tr><td>Merge with <code>Version6.5</code></td><td class="pass">clean</td></tr>
-          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pass">pass</span> <span class="num na">— 3452 passed, 13 skipped, 0 failed (incl. 6 new decision tests and the tests PR 8359 brought in). One earlier full run had a single flaky failure in a BloomPUB test (an empty-path file-copy error unrelated to this diff); it passed in isolation (43/43) and on the repeated full run.</span></td></tr>
-          <tr><td>Front-end tests (vitest)</td><td class="na">not run — no front-end source in the diff (C# plus one English XLF string)</td></tr>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>TypeScript typecheck</td><td class="tag ok">pass</td><td>no blunder-class type errors</td></tr>
+            <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings, none from this branch)</td></tr>
+            <tr><td>Merge with <code>Version6.5</code></td><td class="tag ok">clean</td><td>6 commits folded in, no conflicts</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">857 passed · 5 skipped · 72 files</span></td></tr>
+            <tr><td>C# tests (NUnit)</td><td class="tag ok">pass</td><td><span class="numeral">3457 passed · 13 skipped</span> — includes 4 new tests for the level logic</td></tr>
+            <tr><td>csharpier / prettier</td><td class="tag ok">pass</td><td>clean, and the pre-commit hook formats on the way in</td></tr>
+          </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Replaced the Bloom-version test with a manually bumped BookStorage.kBrowserMaintenanceLevel, after review pointed out that version numbers are not comparable across channels and that keying off the build would reprocess every book on every patch release. Fixed a real exclusive-access bug Devin caught on the merged code: the fix-up now never runs while a live page is loaded (edit-open shows the page only after the dialog; a page-size change goes through the editor's existing empty-and-reinitialize path). Also folded in <code>Version6.5</code> with PR 8359 (a clean merge) and retuned 8359's fall-back comments to describe a missing fraction-of-page value as an unexpected failure rather than a normal unvisited-page state. Earlier in this run it dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
+        <p>Narrowed the feature to its 6.5 scope (AI image editor only) and restored the page-size trigger; added the from-the-future level clamp with unit and live verification; merged <code>Version6.5</code>; and fixed three problems the reviewers raised (see below), plus a stale doc comment and an XLF translator note that still named removed triggers.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits" target="_blank" rel="noopener">The six commits</a>.</p>
       </div>
 
       <div class="card">
         <h2>Reviewer outcomes</h2>
-        <table class="rev">
-          <tr><th>Local review</th><td>Light sub-agent pass. Caught the API-sync-lock / re-entrancy
-          hazard (fixed) and a lower-confidence background-thread refresh note (assessed low-risk — see
-          Worth knowing).</td></tr>
-          <tr><th>Devin</th><td>Complete for HEAD. Across the branch it raised six findings:
-          <span class="tag fixed">fixed</span> "Publishing races the page migration" and
-          <span class="tag fixed">fixed</span> "Migration reactivates an inactive Publish tab" (both
-          resolved on their threads), <span class="tag fixed">fixed</span> "Live editor races whole-book migration" (the fix-up rewrote the DOM while a live page was loaded; now no live page exists during the update), <span class="tag fixed">not an issue</span> "Failed fix-up leaves partial DOM" (a page is replaced only after its capture succeeds and each replaced page is complete, so a partly migrated book is the ordinary pre-PR state; reasoning on the thread and in a code comment), and <span class="tag fixed">decided</span> "Failed updates still allow publishing" — the developer chose to leave it as is (best-effort publish plus the error dialog; Update Book is the manual retry); recorded and resolved on its thread. One Investigate flag (a doc comment left stale by the log-line removal) — fixed. No Informational flags.</td></tr>
-          <tr><th>CodeRabbit / Greptile</th><td>No review posted this run (both stayed quiet, consistent
-          with this repo's recent history).</td></tr>
-          <tr><th>CI (pr-automation)</th><td class="pass">pass</td></tr>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Local review<br><span style="color:var(--ink-faint);font-size:13px">light read-only sub-agent pass</span></td>
+              <td class="tag ok">complete</td>
+              <td>Four findings. Two fixed (the single-page save path, and the AI editor opening synchronously mid-navigation); one escalated — it is decision 1 opposite; one assessed as not worth acting on and <a href="https://github.com/BloomBooks/BloomDesktop/blob/7b76ac96d1bdd916d14f0c1dd3586f58c7a09bf7/src/BloomExe/Edit/EditingModel.cs#L1083" target="_blank" rel="noopener">recorded in the code</a>.</td>
+            </tr>
+            <tr>
+              <td>Devin</td>
+              <td class="tag ok">complete</td>
+              <td>Independently found the same three issues as the local pass, then a fourth on re-review (a failed write could strand the lowered level in memory). All but one are fixed and their threads replied to and resolved; the remaining one is decision 1. Three Investigate flags were stale — fixed in the very commit Devin reviewed — so they were reconciled, not posted.</td>
+            </tr>
+            <tr>
+              <td>CI — <code>pr-automation</code></td>
+              <td class="tag ok">pass</td>
+              <td>The repo's only GitHub check; the rest of CI is TeamCity.</td>
+            </tr>
+            <tr>
+              <td>Greptile / CodeRabbit</td>
+              <td class="tag na">not present</td>
+              <td>Neither is configured on this PR — no check context, no config file, no prior comment.</td>
+            </tr>
+            <tr>
+              <td>Human — andrew-polk</td>
+              <td class="tag att">open</td>
+              <td>An earlier discussion of his remains open at his own disposition, and he left a new comment about commit history — decision 2 opposite.</td>
+            </tr>
+          </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li><strong>Live check of the final edit-open and page-size flows is pending.</strong> The exclusive-access fix changes when the first page appears (after the dialog, not before). Unit fixtures pass and the design mirrors the already-verified Publish gating, but the two flows have not yet been re-watched on a running Bloom since that change (the developer's concurrent testing pre-empted the scripted check); the developer's current instance runs this build.</li>
-          <li><strong>Live-tested end to end.</strong> Opening for edit, changing page size, and
-          switching to Publish each run the fix-up and stamp the book correctly; an image-heavy 20-page
-          book completes in ~30s with no stall after the lock fix; an already-migrated book is a no-op.</li>
-          <li><strong>One residual, low-risk.</strong> <code>ProcessBook</code>'s
-          <code>BringBookUpToDate</code> raises <code>BookRefreshEvent</code> on the background worker
-          thread. For the edit sites an existing guard short-circuits it; on the publish tab
-          <code>EditingModel.Visible</code> is false so it touches no UI. No crash path was found, but
-          it is fragile against future tab-order changes.</li>
-          <li><strong>Pre-existing, not this PR:</strong> a book on the legacy-5-6 appearance theme can be switched to a page size its frozen stylesheet doesn't define (e.g. Ebook 7x5); the pages and thumbnails then render with zero height. Verified in source: <code>basePage-legacy-5-6</code> has no <code>Ebook7x5Landscape</code> rule, and the size list isn't filtered by theme. Switching back restores it; worth its own card.</li>
-          <li><strong>Team Collection books not checked out are skipped</strong> (they can't be saved).
-          Per the developer, such books can't be published anyway, so this is not a gap.</li>
+          <li>The clamp was verified live: a book hand-stamped at <code>browserMaintenanceLevel=99</code> came down to <code>1</code> the moment it was selected. The AI-editor and page-size triggers were also exercised live earlier.</li>
+          <li>The <strong>restore-on-failed-write</strong> path added for Devin's last finding has <strong>no automated test</strong>. Making the file replacement fail would need <code>FileUtils.ReplaceFileWithUserInteractionIfNeeded</code> to throw, which can put a dialog on screen — not something to provoke in CI. It is reasoned, not exercised.</li>
+          <li>Pre-existing, not this change: a book on the legacy 5.6 appearance theme can be switched to <strong>Ebook 7x5</strong>, <strong>Ebook 2x3</strong> or <strong>13cm Square</strong>, which that stylesheet does not define, and every page then renders with zero height. It looks alarming while testing the page-size trigger and is unrelated. Switching back restores it.</li>
         </ul>
       </div>
+
     </div>
 
-    <div class="right">
-      <div class="decision">
-        <h2>Decision — settled</h2>
-        <h3>Failed migration still lets you publish</h3>
-        <p style="font-size:14px;font-weight:600;color:var(--ok)">Decided: leave as is. Recorded on the review thread and resolved. No action needed.</p>
-        <p style="font-size:14px">When <code>ProcessBook</code> throws (e.g. a page times out), the modal
-        shows the error, then publishing continues on the not-fully-migrated book, and the per-session
-        failure cache means later Edit/Publish activations skip the retry until Bloom restarts. Devin rates
-        this severe.</p>
-        <div class="verbatim">Devin: "When ProcessBook fails, EnsurePerPageFixupIfNeeded returns normally
-        and publishing continues with unprocessed pages. The failure cache also suppresses later attempts."</div>
-        <p style="font-size:14px"><strong>My read:</strong> factually correct, but not a regression —
-        before this PR every book published straight from its on-disk DOM, so a failed migration just falls
-        back to the prior behavior, and the user has already seen an error. Blocking publish outright would
-        make a book with any un-migratable page impossible to publish. "Update Book" is also a manual retry
-        that ignores the cache.</p>
+    <div>
 
-        <form id="dform" hidden>
-          <label class="opt"><input type="radio" name="d1" value="leave-as-is" checked>
-            Leave as is <span class="rec">(recommended)</span>
-            <span class="why">Best-effort publish plus the error dialog; not a regression; Update Book is
-            the manual escape. Blocking would make some books unpublishable.</span></label>
-          <label class="opt"><input type="radio" name="d1" value="clearer-message">
-            Improve the failure message
-            <span class="why">Keep publishing, but make the auto-path error say the book couldn't be fully
-            updated and point to "Update Book". Message-only, low risk.</span></label>
-          <label class="opt"><input type="radio" name="d1" value="block-publish">
-            Block publishing after a failed migration
-            <span class="why">Devin's suggestion. I don't recommend it: a single un-migratable page would
-            make the whole book unpublishable.</span></label>
-          <label class="opt other"><input type="radio" name="d1" value="other">
-            Other
-            <input type="text" id="d1other" placeholder="describe…"></label>
-          <label style="display:block;margin-top:6px;font-size:13.5px"><input type="checkbox" id="d1comment"> Also record the decision as a code comment</label>
-          <textarea id="d1notes" placeholder="Notes (optional)"></textarea>
-        </form>
+      <div class="item hot">
+        <div class="kicker">Decision 1</div>
+        <h3>The page-size trigger runs the whole-book pass while a page is still on screen</h3>
+        <p>When you change a book's page size, Bloom now runs the whole-book update right then. Everywhere else this feature runs, it first empties the editor — no page, no thumbnails — because the update rewrites the book's pages from a background thread and must have the book to itself. The page-size path does not: it navigates to the page you were on and starts the update alongside it.</p>
+        <p>Both reviewers flagged this independently. The local pass identified a specific mechanism: every page the update loads off-screen is a full editing page that reports itself as loaded, and Bloom accepts such a report whenever it is expecting a page load <em>and the page id matches</em> — which it does for exactly one off-screen page, the one you are sitting on. So the off-screen copy can be mistaken for the real one, and work queued for the real page load is consumed and never runs. The AI-editor path is immune only because emptying the editor first makes Bloom ignore those reports. Two lesser consequences follow: the update starts by bringing the book structurally up to date, which the page-size code itself elsewhere describes as invalidating the page objects it is holding; and nothing refreshes the editor or thumbnails afterwards, so they can keep showing the pre-update version.</p>
+        <p>Not observed in live testing — changing page size worked and stamped correctly — but it is a timing-dependent fault, which is exactly the kind that does not show up on demand.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Restructure the page-size path to match the AI-editor path — empty the editor, run the update, then go back to the page and refresh the thumbnails<span class="rec">Recommended</span><span class="fn">Moderate: ~25 lines in <code>SetLayout</code>, reshaping its save-and-navigate sequence, but it is copying a path that already exists and is proven. Recommended because it removes the hazard rather than narrowing it, and makes both triggers behave the same way. Needs a live re-test of changing page size.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Drop the page-size trigger from 6.5 and let the next AI-editor launch pick the book up<span class="fn">Small: delete one block. But you asked for this trigger back deliberately, and it would mean a page-size change leaves the recorded measurements stale until something else runs the pass.</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1c"><label for="q1c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q1comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q1" id="q1d"><label for="q1d">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q1notes" placeholder="Caveats, constraints, anything else"></textarea>
       </div>
 
-      <div class="copywrap" hidden>
-        <h2>Copy back your answer</h2>
-        <p style="font-size:13.5px;color:var(--soft);margin-top:0">Paste this into the session to record the decision.</p>
+      <div class="item">
+        <div class="kicker">Decision 2</div>
+        <h3>Andrew: “looks like the ai didn't squash”</h3>
+        <p>Andrew left this on the commits view of the PR. The branch carries six commits — four pieces of work, a merge of <code>Version6.5</code>, and the review fixes from this run — rather than one squashed commit.</p>
+        <p>Nothing in the repo forces a squash: GitHub is configured to allow merge, squash and rebase, so the commit history here can be collapsed at merge time without rewriting the branch now. Squashing now would mean a force-push over a branch Andrew is part-way through reviewing, which resets Reviewable's revision numbering and discards the r1–r13 trail his comments are anchored to — so leaving it is recommended unless he specifically wants the branch itself rewritten.</p>
+        <div class="opt"><input type="radio" name="q2" id="q2a"><label for="q2a">Squash the work commits into one and force-push<span class="fn">Small mechanically, but it invalidates the existing review revisions and Andrew would restart from r1.</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2b" checked><label for="q2b">Leave as is<span class="rec">Recommended</span></label>
+          <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q2" id="q2c"><label for="q2c">Other: <input class="otherbox" id="q2other" placeholder="e.g. squash at merge time using the PR title"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q2notes" placeholder="Anything to pass back to Andrew"></textarea>
+      </div>
+
+      <div class="item">
+        <div class="kicker">For information</div>
+        <h3>The PR is back in draft</h3>
+        <p>It had been promoted to ready-for-review, but three commits landed after that promotion without going through a review cycle, which is what prompted this run. Preflight returns a PR to draft when that happens. Running <code>/pr-ready-for-human</code> promotes it again once you are happy with the decisions above.</p>
+        <div class="opt"><input type="radio" name="q3" id="q3a" checked><label for="q3a">Understood — I'll re-promote when ready<span class="rec">Recommended</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3b"><label for="q3b">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q3comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q3" id="q3c"><label for="q3c">Other: <input class="otherbox" id="q3other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q3notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <div class="kicker">Next step</div>
+        <h3>How should I proceed?</h3>
+        <div class="opt"><input type="radio" name="q4" id="q4a" checked><label for="q4a">Implement the choices above, then re-run the gauntlet<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="q4" id="q4b"><label for="q4b">Talk it through with me first</label></div>
+        <div class="opt">
+          <input type="radio" name="q4" id="q4c"><label for="q4c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q4comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q4" id="q4d"><label for="q4d">Other: <input class="otherbox" id="q4other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q4notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <h3>Send your answers back</h3>
+        <p style="font-size:14px;color:var(--ink-soft)">Copy this and paste it into the Claude Code session.</p>
+        <button id="copybtn" type="button">Copy answers</button><span id="copied">copied</span>
         <textarea id="payload" readonly></textarea>
-        <button class="copy" id="copybtn" type="button">Copy</button>
       </div>
+
     </div>
   </div>
 </div>
 
 <script>
+(function(){
+  var QS = [
+    {n:'q1', t:'Decision 1 — page-size trigger runs with a live page',
+     opts:{q1a:'Restructure the page-size path to match the AI-editor path',
+           q1b:'Drop the page-size trigger from 6.5',
+           q1c:'Leave as is',
+           q1d:'Other'},
+     other:'q1other', comment:'q1comment', notes:'q1notes'},
+    {n:'q2', t:'Decision 2 — Andrew on squashing commits',
+     opts:{q2a:'Squash the work commits and force-push',
+           q2b:'Leave as is',
+           q2c:'Other'},
+     other:'q2other', comment:'q2comment', notes:'q2notes'},
+    {n:'q3', t:'FYI — PR is back in draft',
+     opts:{q3a:"Understood — I'll re-promote when ready",
+           q3b:'Leave as is',
+           q3c:'Other'},
+     other:'q3other', comment:'q3comment', notes:'q3notes'},
+    {n:'q4', t:'Next step',
+     opts:{q4a:'Implement the choices above, then re-run the gauntlet',
+           q4b:'Talk it through with me first',
+           q4c:'Leave as is',
+           q4d:'Other'},
+     other:'q4other', comment:'q4comment', notes:'q4notes'}
+  ];
   function build(){
-    var pick = document.querySelector('input[name=d1]:checked');
-    var v = pick ? pick.value : '';
-    if(v==='other'){ var o=document.getElementById('d1other').value.trim(); v = o ? ('other: '+o) : 'other'; }
-    var lines = [];
-    lines.push('Preflight decision — BL-16852 (PR #8361)');
-    lines.push('Report: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16852-auto-migrate-books.html');
-    lines.push('');
-    lines.push('[Failed migration still lets you publish] -> ' + v);
-    if(document.getElementById('d1comment').checked) lines.push('  leave-comment: yes');
-    var n = document.getElementById('d1notes').value.trim();
-    if(n) lines.push('  notes: ' + n);
-    return lines.join('\n');
+    var out = ['Preflight answers — BloomDesktop PR #8361 (BL-16852)', ''];
+    QS.forEach(function(q){
+      var chosenId = null;
+      Object.keys(q.opts).forEach(function(id){
+        var el = document.getElementById(id);
+        if (el && el.checked) chosenId = id;
+      });
+      var label = chosenId ? q.opts[chosenId] : '(no answer)';
+      if (chosenId && /Other$/.test(label)) {
+        var ov = (document.getElementById(q.other) || {}).value || '';
+        label = 'Other: ' + ov.trim();
+      }
+      out.push(q.t);
+      out.push('  → ' + label);
+      var cb = document.getElementById(q.comment);
+      if (cb && cb.checked) out.push('  Leave comment: record this decision as a code comment in the repo');
+      var nt = (document.getElementById(q.notes) || {}).value || '';
+      if (nt.trim()) out.push('  Notes: ' + nt.trim());
+      out.push('');
+    });
+    return out.join('\n');
   }
-  function refresh(){ document.getElementById('payload').value = build(); }
-  document.getElementById('dform').addEventListener('input', refresh);
-  document.getElementById('copybtn').addEventListener('click', function(){
-    var t=document.getElementById('payload'); t.select();
-    try{ document.execCommand('copy'); }catch(e){}
-    this.textContent='Copied'; var b=this; setTimeout(function(){b.textContent='Copy';},1400);
-  });
+  var payload = document.getElementById('payload');
+  function refresh(){ payload.value = build(); }
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
   refresh();
+  document.getElementById('copybtn').addEventListener('click', function(){
+    refresh();
+    var done = function(){
+      var c = document.getElementById('copied');
+      c.classList.add('on'); setTimeout(function(){ c.classList.remove('on'); }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function(){
+        payload.select(); try { document.execCommand('copy'); } catch(e){} done();
+      });
+    } else {
+      payload.select(); try { document.execCommand('copy'); } catch(e){} done();
+    }
+  });
+})();
 </script>
 </body>
 </html>
