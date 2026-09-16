@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stage 0 Preflight — BL-16878</title>
+<style>
+  :root {
+    --ground: #f6f5f1; --card: #ffffff; --line: #d9d7cf; --ink: #22252a; --ink-2: #5a5f68;
+    --accent: #1d94a4; --accent-ink: #0e6b78; --accent-soft: #e3f2f4; --ok: #2f7d4f; --ok-soft: #e4f3ea;
+    --warn: #9a6a00; --warn-soft: #fbf1d6; --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: var(--ground); color: var(--ink); font: 15px/1.55 "Segoe UI", system-ui, -apple-system, sans-serif; padding-block: 28px 56px; padding-inline: 20px; }
+  h1, h2, h3 { font-family: Cambria, Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.2; margin: 0; text-wrap: balance; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-bottom: 12px; }
+  h3 { font-size: 16px; margin: 14px 0 6px; }
+  p { margin: 0 0 10px; max-width: 72ch; }
+  a { color: var(--accent-ink); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  code { font-family: var(--mono); font-size: 0.92em; background: #efede7; padding: 1px 4px; border-radius: 3px; }
+  .wrap { max-width: 1320px; margin: 0 auto; }
+  header { margin-bottom: 22px; }
+  .lede { color: var(--ink-2); margin-top: 6px; max-width: 80ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); font-size: 13px; }
+  .chip.ok { background: var(--ok-soft); border-color: #bfe0cb; color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); border-color: #ecd9a0; color: var(--warn); }
+  .chip.accent { background: var(--accent-soft); border-color: #b9dde2; color: var(--accent-ink); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .links a { display: inline-block; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); text-decoration: none; font-size: 13px; }
+  .links a:first-child { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); font-weight: 600; }
+  td.status { white-space: nowrap; font-weight: 600; }
+  .pass { color: var(--ok); } .skip { color: var(--ink-2); } .warnt { color: var(--warn); }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  .q { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .q:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px 10px; align-items: start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px; background: #fbfaf7; }
+  .opt label { cursor: pointer; }
+  .opt .rec { display: inline-block; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-ink); background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+  .opt .foot { display: block; color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+  .opt input[type=text] { width: 100%; min-width: 0; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+  .leavecomment { font-size: 13px; color: var(--ink-2); white-space: nowrap; display: inline-flex; gap: 6px; align-items: center; }
+  textarea { width: 100%; min-height: 64px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 14px; resize: vertical; background: #fff; }
+  .notes { margin-top: 8px; }
+  .notes label { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 9px 16px; cursor: pointer; }
+  button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #payload { font-family: var(--mono); font-size: 12.5px; min-height: 180px; margin-top: 10px; }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight report — Retire CKEditor, stage 0 (BL-16878)</h1>
+  <p class="lede">Run of 2026-09-16 on branch <code>BL-6681-stage0-inventory</code>, PR #8153 into <code>master</code>, HEAD <span class="numeral">464876949a</span>. The PR was re-based on current master (by merge) after the Version6.5 branch was cut, moved to its own card, and re-run through the gauntlet.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip accent" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable, up to date with master</span>
+    <span class="chip ok">Bots quiet: Devin clean, CI green</span>
+    <span class="chip warn">2 questions for John, neither blocking review</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8153" target="_blank" rel="noopener">PR #8153</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8153/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8153/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16878" target="_blank" rel="noopener">BL-16878</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-6681" target="_blank" rel="noopener">BL-6681 (parent)</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8153" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom's text boxes are edited through CKEditor 4, a 2015-era, hand-patched, 1.5 MB vendored copy. It has featured in bug reports for years (BL-6681, open since 2018): its asynchronous load races Bloom's own edits so highlights vanish, it swallows cut, copy and paste in ways Bloom cannot intercept or recover from, and it runs one of five uncoordinated Undo mechanisms. The plan is to replace it with our own code and give Bloom a single Undo, in stages, over months, against a moving <code>master</code>.</p>
+    <h3>What the PR does</h3>
+    <p>This is Stage 0: the groundwork that writes down what must not break <em>before</em> anything moves, and prepares the one seam that could not be done as a late one-line change. <strong>No user-visible behaviour changes and no CKEditor is removed.</strong></p>
+    <ul>
+      <li>The staged plan, the behaviour inventory that serves as acceptance criteria for the whole project, the review findings already verified, a progress log so an interrupted session can resume, a resume skill, and a hand-run live-verification harness, all under <a href="https://github.com/BloomBooks/BloomDesktop/tree/464876949a84362177f0c3b1c978795ad98271e0/docs/retire-ckeditor" target="_blank" rel="noopener">docs/retire-ckeditor/</a>.</li>
+      <li>Ten characterization tests pinning the selection helpers that the future CKEditor-free caret anchors will be built on; their <code>&lt;br&gt;</code>-stepping behaviour had no coverage at all.</li>
+      <li>The "record the caret, rewrite the markup, put the caret back" bracket in the keystroke pipeline (what runs when you type with a Decodable or Leveled Reader tool active) is moved, unchanged, into a new module, <a href="https://github.com/BloomBooks/BloomDesktop/blob/464876949a84362177f0c3b1c978795ad98271e0/src/BloomBrowserUI/bookEdit/toolbox/markupSelectionPreservation.ts" target="_blank" rel="noopener">markupSelectionPreservation.ts</a>, so a later stage swaps four function bodies instead of rewriting the most delicate code in the editor. Master's BL-16717 rule (record the caret only when something might rewrite the box) and its BL-16808 note travel with it.</li>
+      <li>One narrow deliberate difference: on the async markup path, if the editor reports no selection when the caret is re-recorded, the pass now abandons cleanly instead of throwing inside an un-awaited async function.</li>
+      <li>Two misleading comments in <code>toolbox.ts</code> corrected.</li>
+    </ul>
+    <p>Tracked by card BL-16878, a subtask of the umbrella card BL-6681. Base is <code>master</code>: this is 6.6 work. Merged with master rather than rebased, and not to be squashed, because these commits are the base of the project's integration branch <code>BL-6681-ckeditor</code> (PLAN.md §5).</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td class="status pass">Pass</td><td>Front-end type check clean.</td></tr>
+        <tr><td>Lint (changed files)</td><td class="status pass">Pass</td><td>0 errors; one warning (an unused function in <code>toolbox.ts</code>) that is identical on master.</td></tr>
+        <tr><td>Merge with <code>master</code></td><td class="status pass">Clean</td><td>Two merge commits; the one conflict (<code>toolbox.ts</code>, BL-16717 and BL-16808 against the moved bookmark code) resolved by keeping the seam. <code>toolbox.ts</code> now differs from master only by the seam.</td></tr>
+        <tr><td>TypeScript tests (vitest), fast subset</td><td class="status pass">Pass</td><td><span class="numeral">445 passed</span> across the 28 files under <code>bookEdit/toolbox</code> plus the new selection spec.</td></tr>
+        <tr><td>TypeScript tests (vitest), full suite</td><td class="status pass">Pass</td><td><span class="numeral">867 passed &middot; 5 skipped</span> in 74 files (one file skipped), run against the merged HEAD.</td></tr>
+        <tr><td>C# tests (dotnet test)</td><td class="status skip">Not run</td><td>No C# in the diff; the change is TypeScript, docs and two whitespace-only config files, none of which the C# build or tests read.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Merged current <code>master</code> into the branch in two steps (<a href="https://github.com/BloomBooks/BloomDesktop/commit/3d22573f50" target="_blank" rel="noopener">3d22573</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/d24a495714" target="_blank" rel="noopener">d24a495</a>), carrying the integration branch's BL-16717 resolution and master's BL-16808 note into the seam module, and recorded the sync and the new card in the progress log (<a href="https://github.com/BloomBooks/BloomDesktop/commit/464876949a" target="_blank" rel="noopener">4648769</a>). No behaviour changed. The PR title and description now point at BL-16878.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review (light sub-agent pass)</td><td class="status pass">Complete</td><td>Clean, no findings. It checked the merged <code>handlePageEditing</code> statement by statement against master's, confirmed the BL-16717 rule and the <code>if (bookmarks)</code> guards survive the seam, and hand-traced the ten new tests to confirm none passes vacuously.</td></tr>
+        <tr><td>Devin</td><td class="status pass">Complete</td><td>Reviewed the merged HEAD: no bugs, no investigate flags, 9 informational notes (mostly confirming the extraction is line-for-line equivalent; one repeats a harness path fix that is already in). Nothing mirrored, nothing to act on. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8153#issuecomment-5701029586" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+        <tr><td>CI (<code>pr-automation</code>)</td><td class="status pass">Pass</td><td>The <code>pr-automation</code> check passed for the current HEAD; it is the only check configured for PRs.</td></tr>
+        <tr><td>Other review bots</td><td class="status skip">None active</td><td>No Greptile or CodeRabbit activity on this PR.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The branch name still starts with the parent card's id (BL-6681), not BL-16878. Renaming it would churn the PR and the branch table in the project docs, so it was left; the card-side steps for this PR were done against BL-16878 by hand.</li>
+      <li>Stage 1 (PR #8317, the undo stack) still targets the integration branch <code>BL-6681-ckeditor</code> and is linked only on BL-6681. It is not part of this PR; see the question on the right.</li>
+      <li>Two verification items the plan lists for Stage 0 (the async markup path G2 and the live-Range highlight rows G6/G7) remain open and are carried in PROGRESS.md; this PR changes no behaviour in those areas.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="col">
+  <section class="card">
+    <h2>Decisions</h2>
+
+    <div class="q" data-q="1. Hook-reformatted master files">
+      <h3>1. Two unrelated files were reformatted on the way</h3>
+      <p>Every commit on this branch runs the repo's pre-commit hook, which formats every staged file with Prettier. When master was merged in, two of master's own files came out reformatted: <code>crowdin.yml</code> (its list indentation changed from two spaces to four, 24 lines) and <code>src/content/branding/SIL-Niger/branding.less</code> (3 lines). Neither changes meaning; both are whitespace only. Master's copies are not Prettier-clean under the repo's own config, so any commit that stages them will do the same. Leaving them is recommended: they are harmless, a reviewer can see at a glance that they are whitespace, and restoring them needs a commit that bypasses the hook.</p>
+      <div class="opt"><input type="radio" name="q1" id="q1a" value="Restore master's copies of the two files with a hook-bypassing commit" data-q="1"><label for="q1a">Restore master's copies of the two files<span class="foot">2 files, no code; needs one <code>--no-verify</code> commit; low risk</span></label><span></span></div>
+      <div class="opt"><input type="radio" name="q1" id="q1b" value="Leave as is" data-q="1" checked><label for="q1b">Leave as is<span class="rec">Recommended</span></label><label class="leavecomment"><input type="checkbox" id="q1c" data-q="1" data-leave-comment="1">Leave comment</label></div>
+      <div class="opt"><input type="radio" name="q1" id="q1o" value="Other" data-q="1"><label for="q1o">Other:</label><span></span><input type="text" id="q1other" data-q="1" data-other="1" placeholder="Your answer" style="grid-column: 2 / span 2"></div>
+      <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="1" data-notes="1"></textarea></div>
+    </div>
+
+    <div class="q" data-q="2. Stage 1 PR #8317: retarget to master?">
+      <h3>2. Stage 1 (PR #8317) still lives on the integration branch</h3>
+      <p>The plan's integration branch <code>BL-6681-ckeditor</code> existed only because nothing could merge to master until Version6.5 was cut. That branch now exists and this Stage 0 PR targets master directly. Stage 1, the undo stack, is a draft PR into the integration branch and is linked only on BL-6681. Nothing here changes it. Retargeting it to master once this PR merges, and giving it its own card, is recommended: stage PRs straight to master are cheaper than the integration branch and its weekly syncs, which is what the plan did before the constraint.</p>
+      <div class="opt"><input type="radio" name="q2" id="q2a" value="After this PR merges, retarget PR #8317 to master and give it its own card" data-q="2" checked><label for="q2a">After this PR merges, retarget #8317 to master and give it its own card<span class="rec">Recommended</span><span class="foot">a merge of master into that branch, a base change on the PR, one card, and a §5 edit in PLAN.md; moderate, no code</span></label><span></span></div>
+      <div class="opt"><input type="radio" name="q2" id="q2b" value="Keep the integration-branch topology; Stage 1 merges into BL-6681-ckeditor" data-q="2"><label for="q2b">Keep the integration-branch topology<span class="foot">no change now; the integration branch keeps needing weekly master syncs and nightly runs by hand</span></label><span></span></div>
+      <div class="opt"><input type="radio" name="q2" id="q2c" value="Leave as is" data-q="2"><label for="q2c">Leave as is</label><label class="leavecomment"><input type="checkbox" id="q2lc" data-q="2" data-leave-comment="1">Leave comment</label></div>
+      <div class="opt"><input type="radio" name="q2" id="q2o" value="Other" data-q="2"><label for="q2o">Other:</label><span></span><input type="text" id="q2other" data-q="2" data-other="1" placeholder="Your answer" style="grid-column: 2 / span 2"></div>
+      <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="2" data-notes="1"></textarea></div>
+    </div>
+
+    <div class="q" data-q="3. Next step">
+      <h3>3. Next step for this PR</h3>
+      <p>Everything is green and the PR is marked ready for review, with its card BL-16878 in Ready For Code Review. The two questions above do not change the code under review, so nothing waits on them.</p>
+      <div class="opt"><input type="radio" name="q3" id="q3a" value="Proceed: the PR stays in human review as it is" data-q="3" checked><label for="q3a">Proceed as it is<span class="rec">Recommended</span></label><span></span></div>
+      <div class="opt"><input type="radio" name="q3" id="q3b" value="Discuss first" data-q="3"><label for="q3b">Discuss first</label><span></span></div>
+      <div class="opt"><input type="radio" name="q3" id="q3c" value="Leave as is" data-q="3"><label for="q3c">Leave as is</label><label class="leavecomment"><input type="checkbox" id="q3lc" data-q="3" data-leave-comment="1">Leave comment</label></div>
+      <div class="opt"><input type="radio" name="q3" id="q3o" value="Other" data-q="3"><label for="q3o">Other:</label><span></span><input type="text" id="q3other" data-q="3" data-other="1" placeholder="Your answer" style="grid-column: 2 / span 2"></div>
+      <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" data-q="3" data-notes="1"></textarea></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this block and paste it into the Claude Code session that produced this report.</p>
+    <button id="copybtn" type="button">Copy answers</button><span id="copied" class="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Serialized answers"></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var REPORT = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-6681-stage0-inventory.html";
+  function serialize() {
+    var lines = ["Preflight decisions — BloomDesktop PR #8153 (BL-16878)", "Report: " + REPORT, ""];
+    document.querySelectorAll(".q").forEach(function (q) {
+      var title = q.getAttribute("data-q");
+      var checked = q.querySelector("input[type=radio]:checked");
+      var choice = checked ? checked.value : "(no selection)";
+      if (checked && checked.value === "Other") {
+        var o = q.querySelector("input[data-other]");
+        choice = "Other: " + (o && o.value ? o.value : "(blank)");
+      }
+      lines.push(title);
+      lines.push("  Choice: " + choice);
+      var lc = q.querySelector("input[data-leave-comment]");
+      if (lc && lc.checked) lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      var n = q.querySelector("textarea[data-notes]");
+      if (n && n.value.trim()) lines.push("  Notes: " + n.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.querySelectorAll("input, textarea").forEach(function (el) {
+    if (el === payload) return;
+    el.addEventListener("input", refresh); el.addEventListener("change", refresh);
+  });
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", function () {
+    refresh();
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function () { payload.select(); document.execCommand("copy"); done(); });
+    } else { payload.select(); document.execCommand("copy"); done(); }
+  });
+})();
+</script>
+</body>
+</html>
