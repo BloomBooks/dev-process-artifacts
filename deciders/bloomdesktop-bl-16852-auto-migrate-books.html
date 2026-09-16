@@ -65,7 +65,7 @@
 <body>
 <div class="wrap">
   <h1>Preflight — Auto-migrate books</h1>
-  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>5b2a451</code></p>
+  <p class="sub">BL-16852 · branch <code>BL-16852-auto-migrate-books</code> · base <code>Version6.5</code> · HEAD <code>f373c3a</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip ok" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
@@ -99,11 +99,7 @@
         off-screen per-page pass that "Update Book" and BloomBridge already use — so this PR adds the
         "is it needed, and if so run it behind a progress dialog" layer around it.</p>
         <ul>
-          <li><strong>Detection.</strong> On a successful run <code>ProcessBook</code> stamps two
-          <code>&lt;meta&gt;</code> values: the Bloom version and the page size it ran at.
-          <code>NeedsPerPageFixup</code> is due when the book is unstamped, stamped by an older Bloom,
-          or stamped at a different page size; it is skipped for a book that cannot be saved or has
-          structural errors.</li>
+          <li><strong>Detection.</strong> A new <code>BookStorage.kBrowserMaintenanceLevel</code>, alongside the existing <code>kMaintenanceLevel</code> and <code>kMediaMaintenanceLevel</code>, records how far a book has been taken through the fix-ups only a real browser can do. <code>ProcessBook</code> stamps that level and the page size it ran at; <code>NeedsPerPageFixup</code> is due when the book records no level, a level below the current one, or a different page size. Deliberately not a version comparison — version numbers are not comparable across channels, and keying off them would reprocess every book on every build.</li>
           <li><strong>Running it.</strong> <code>EnsurePerPageFixupIfNeeded</code> runs the pass behind
           a modal progress dialog (a determinate percent bar and a one-line explanation), and remembers a per-book failure so it does not re-prompt every tab switch.</li>
           <li><strong>Where.</strong> Called when a book is opened for editing, before the publish tab
@@ -121,14 +117,14 @@
           <tr><td>Typecheck (C# build)</td><td class="pass">pass</td></tr>
           <tr><td>Lint (csharpier)</td><td class="pass">pass</td></tr>
           <tr><td>Merge with <code>Version6.5</code></td><td class="pass">clean</td></tr>
-          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pass">pass</span> <span class="num na">— 3451 passed, 13 skipped, 0 failed (incl. 6 new decision tests and the tests PR 8359 brought in). One earlier full run had a single flaky failure in a BloomPUB test (an empty-path file-copy error unrelated to this diff); it passed in isolation (43/43) and on the repeated full run.</span></td></tr>
+          <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="pass">pass</span> <span class="num na">— 3452 passed, 13 skipped, 0 failed (incl. 6 new decision tests and the tests PR 8359 brought in). One earlier full run had a single flaky failure in a BloomPUB test (an empty-path file-copy error unrelated to this diff); it passed in isolation (43/43) and on the repeated full run.</span></td></tr>
           <tr><td>Front-end tests (vitest)</td><td class="na">not run — no front-end source in the diff (C# plus one English XLF string)</td></tr>
         </table>
       </div>
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Fixed a real exclusive-access bug Devin caught on the merged code: the fix-up now never runs while a live page is loaded (edit-open shows the page only after the dialog; a page-size change goes through the editor's existing empty-and-reinitialize path). Also folded in <code>Version6.5</code> with PR 8359 (a clean merge) and retuned 8359's fall-back comments to describe a missing fraction-of-page value as an unexpected failure rather than a normal unvisited-page state. Earlier in this run it dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
+        <p>Replaced the Bloom-version test with a manually bumped BookStorage.kBrowserMaintenanceLevel, after review pointed out that version numbers are not comparable across channels and that keying off the build would reprocess every book on every patch release. Fixed a real exclusive-access bug Devin caught on the merged code: the fix-up now never runs while a live page is loaded (edit-open shows the page only after the dialog; a page-size change goes through the editor's existing empty-and-reinitialize path). Also folded in <code>Version6.5</code> with PR 8359 (a clean merge) and retuned 8359's fall-back comments to describe a missing fraction-of-page value as an unexpected failure rather than a normal unvisited-page state. Earlier in this run it dropped the per-page "Updating page N of M" log line (the percent bar already shows progress; the line only flooded the log), fixed the doc comment that still promised it, and investigated a report that changing a book to Ebook 7x5 blanked its pages — traced to a pre-existing legacy-theme stylesheet gap, not this PR (see Worth knowing). Seven commits in all — see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8361/commits">commit list</a>.</p>
       </div>
 
       <div class="card">
