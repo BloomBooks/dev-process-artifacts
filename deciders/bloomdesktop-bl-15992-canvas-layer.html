@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Layer Submenu Preflight</title>
+<style>
+  :root {
+    --ground: #f6f8f8;
+    --card: #ffffff;
+    --ink: #17282b;
+    --ink-soft: #4b5d61;
+    --line: #d5dfe1;
+    --accent: #1d94a4;
+    --accent-soft: #e2f2f4;
+    --ok: #2e7d4f;
+    --ok-soft: #e4f3ea;
+    --warn: #a86a12;
+    --warn-soft: #fbf0dc;
+    --info-soft: #eef1f2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-block: 28px 56px;
+    padding-inline: 24px;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  h2 { font-size: 1.2rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin-top: 14px; margin-bottom: 4px; }
+  p { margin: 0 0 10px; max-width: 70ch; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  a { color: var(--accent); }
+  code { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 0.9em; background: var(--info-soft); padding: 0 4px; border-radius: 3px; }
+  .numeral { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  header { max-width: 1320px; margin: 0 auto 22px; }
+  .summary { color: var(--ink-soft); margin-top: 6px; }
+  .chips, .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--line); background: var(--card); }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .links a { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--accent); text-decoration: none; }
+  .links a:hover, .links a:focus-visible { background: var(--accent-soft); }
+  .grid { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-soft); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
+  td.state { white-space: nowrap; }
+  .pass { color: var(--ok); font-weight: 600; }
+  .skip { color: var(--ink-soft); }
+  .decision { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .decision:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .option { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
+  .option label { flex: 1; }
+  .option .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; vertical-align: middle; }
+  .option .note { color: var(--ink-soft); font-size: 0.9em; }
+  .leave-comment { margin-left: auto; white-space: nowrap; font-size: 0.85rem; color: var(--ink-soft); display: flex; align-items: center; gap: 4px; }
+  .option input[type=text], textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: var(--ink); }
+  .option input[type=text] { margin-top: 4px; }
+  textarea { min-height: 56px; resize: vertical; margin-top: 6px; }
+  textarea#payload { min-height: 180px; font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 0.85rem; }
+  button { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button:hover, button:focus-visible { filter: brightness(1.08); outline: 2px solid var(--accent-soft); }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; display: none; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Preflight: Layer submenu for canvas elements (BL-15992)</h1>
+  <p class="summary">Branch <code>BL-15992-canvas-layer</code> into <code>master</code>. Gate green, front-end tests green, every reviewer terminal, all review threads closed with outcomes. <span id="waiting-summary">Three items are waiting on you, none of them blocking.</span></p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8372" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable, up to date with master</span>
+    <span class="chip ok">Devin complete, all 7 threads resolved</span>
+    <span class="chip warn">3 items waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372" target="_blank" rel="noopener">PR #8372</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-15992" target="_blank" rel="noopener">BL-15992</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8372" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="col">
+    <section class="card lead">
+      <h2>What this PR is about</h2>
+      <h3>Problem</h3>
+      <p>When things added with the Canvas tool overlap on a page, whichever was added last is drawn on top, and there has been no way to change that. A user who wants a caption in front of a picture added later, or one bubble tucked behind another, has had to delete and re-create elements in the right order. Requested on the community forum; tracked as BL-15992.</p>
+      <h3>What the PR does</h3>
+      <ul>
+        <li>Adds a <strong>Layer</strong> submenu to the canvas element menu (the "..." button and the right-click menu), in its own group just before Duplicate and Delete, with Bring Forward (Ctrl+]), Bring to Front (Ctrl+Alt+]), Send Backwards (Ctrl+[) and Send to Back (Ctrl+Alt+[). The shortcuts work whenever an element is selected and text is not being edited; they accept either the physical bracket keys or the bracket characters, so they also work on layouts where the brackets live elsewhere (an AltGr-typed bracket counts as the one-step shortcut).</li>
+        <li>The submenu is hidden for the background image, which always stays at the back, and disabled when the selected element is the only one that could move. Forward commands are disabled at the front of the stack, backward ones at the back.</li>
+        <li>Stacking order is the DOM order of the elements, while Comical draws and hit-tests bubbles by a separate stored level. A new <code>CanvasElementZOrder</code> module moves the element in the DOM and then renumbers every level to match, background first, before asking Comical to redraw. A parent bubble and its child bubbles move together as one unit; a family that had become scattered is gathered next to its parent first, so every move is exactly one step. On game pages, draggable pieces and fixed pieces only reorder among their own kind, matching the existing rule that draggables stay on top; a family with any draggable member counts as draggable. The game code that pushes draggables to the top now shares the level-renumbering helper.</li>
+        <li>Nested menu rows can now be disabled (the shared nested menu item previously ignored <code>disabled</code>), five localizable strings are added, and unit tests cover the moves, the menu, and the shortcuts.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Typecheck</td><td class="state pass">Pass</td><td>No type errors.</td></tr>
+          <tr><td>Lint (eslint, changed files)</td><td class="state pass">Pass</td><td>Clean.</td></tr>
+          <tr><td>Merge with master</td><td class="state pass">Clean</td><td>Branch already up to date with <code>origin/master</code>; nothing to fold in.</td></tr>
+          <tr><td>TypeScript tests (vitest, full suite)</td><td class="state pass">Pass, with a note</td><td>Last complete run, on the second-to-last commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/b40d243895dd796d0a3b57964549a8d8af1279d5" target="_blank" rel="noopener">b40d2438</a>): <span class="numeral">898 passed · 5 skipped</span>. One file's worker failed to start (a known vitest pool flake on this machine); run on its own it passes (<span class="numeral">4 tests</span>). The re-run on the final commit was stopped by the machine's memory watchdog. The only files changed since are the keyboard provider and its test, whose <span class="numeral">12 tests</span> pass. See the first decision.</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="state skip">Not run</td><td>No C# in the diff; the only non-TypeScript file is <code>Bloom.xlf</code>, which no C# test reads.</td></tr>
+          <tr><td>Production bundle (isolated Vite build)</td><td class="state pass">Pass</td><td>Bundle and post-build step complete.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>Committed the feature, then folded in the local review's findings (a move past a scattered bubble family is one step; moves stay within the draggable / fixed bands on game pages) and Devin's (a mixed-draggability family moves whole; the shortcuts work on non-US keyboard layouts, including AltGr-typed brackets, and are not swallowed when nothing is selected). Four commits; see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td>Local review (light sub-agent pass)</td><td class="state pass">Complete</td><td>Five findings: three fixed (two-step jump past a scattered family, game-page reverts, stale README identifiers); two dismissed (<code>translate="no"</code> is this repo's required marking for new XLF strings; a malformed <code>data-bubble</code> would already break Comical itself, per the repo's fail-fast rule).</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8372" target="_blank" rel="noopener">Devin</a></td><td class="state pass">Complete</td><td>Three rounds, one per pushed commit. Seven findings across the branch: five fixed (a mixed-draggability bubble family could be split; shortcuts matched only US physical bracket keys; shortcuts were swallowed with nothing selected; an AltGr-typed bracket was taken as the Ctrl+Alt variant; stale README steps) and two assessed as not an issue (the localization file was chosen explicitly; the XLF indentation matches the file). All seven are <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372/files" target="_blank" rel="noopener">review threads</a> closed with their outcome; the final round re-listed only already-fixed items and found nothing new. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8372#issuecomment-5719576302" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+          <tr><td>CodeRabbit (configured in <code>.coderabbit.yml</code>)</td><td class="state skip">Timed out</td><td>No review or comment posted on any of the four commits; timed out after 37 min from the first push (8 min from the last). Re-running preflight folds in a late review.</td></tr>
+          <tr><td>Greptile</td><td class="state skip">Timed out</td><td>No review or comment posted; same wait as above.</td></tr>
+          <tr><td>CI (pr-automation)</td><td class="state pass">Pass</td><td>The only workflow that runs on pull requests in this repo; it triggers Devin.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>Text boxes, bubbles and videos are always drawn in front of pictures.</strong> That is existing, deliberate CSS (so a bubble's tail can point at something in a picture), so a Layer command on a picture that overlaps only text has no visible effect. The QA notes on the card say so explicitly.</li>
+        <li><strong>Not yet exercised by hand in a running Bloom.</strong> This worktree has no C# build, so the menu was verified only by unit tests. The nested submenu's icon alignment and the greyed-out look of a disabled Layer row are the things to eyeball.</li>
+        <li><strong>Level renumbering touches every element on the canvas.</strong> After any Layer command, and on game pages when draggables are pushed to the top, all bubble levels are rewritten to a dense 1..n in DOM order. On an old page whose stored levels disagreed with the DOM this changes which bubble outline is drawn on top the first time, which is the intended repair.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>Decisions</h2>
+      <div class="decision">
+        <h3>Re-run the full front-end test suite on the final commit?</h3>
+        <p>The whole vitest suite passed on the second-to-last commit. The re-run on the final commit, which only changed the keyboard shortcut code and its test, was stopped by the machine's memory watchdog while the session was idle, and the harness asks that it not be restarted without you. The changed test file passes on its own, so a full re-run is belt and braces rather than a real doubt.</p>
+        <div class="option"><input type="radio" name="q0" id="q0a" data-q="Full suite re-run" value="Re-run the full suite now" checked><label for="q0a">Re-run the full suite now <span class="tag">recommended</span><br><span class="note">Recommended because the standard is a green suite at the final commit; about 12 minutes of machine time, no code risk.</span></label></div>
+        <div class="option"><input type="radio" name="q0" id="q0b" data-q="Full suite re-run" value="Leave as is"><label for="q0b">Leave as is</label><span class="leave-comment"><input type="checkbox" id="q0lc" data-q="Full suite re-run" data-leave-comment="1"><label for="q0lc">Leave comment</label></span></div>
+        <div class="option"><input type="radio" name="q0" id="q0c" data-q="Full suite re-run" value="Other"><label for="q0c">Other:<input type="text" id="q0other" data-q="Full suite re-run" data-other="1" placeholder="Your answer"></label></div>
+        <textarea id="q0notes" data-q="Full suite re-run" data-notes="1" placeholder="Notes (optional)"></textarea>
+      </div>
+      <div class="decision">
+        <h3>Have the menu checked in a running Bloom before review?</h3>
+        <p>The feature has only been verified by unit tests, since this worktree cannot launch Bloom. A quick look would confirm the Layer icon lines up in the nested menu row, a disabled Layer row is visibly greyed out, and the submenu opens on hover like the existing Transparency submenu.</p>
+        <div class="option"><input type="radio" name="q1" id="q1a" data-q="Visual check" value="You check it during your own review" checked><label for="q1a">Check it during your own review of the PR <span class="tag">recommended</span><br><span class="note">Recommended because you will be in the app anyway; no extra agent time.</span></label></div>
+        <div class="option"><input type="radio" name="q1" id="q1b" data-q="Visual check" value="Agent checks it in a running Bloom first"><label for="q1b">Have the agent launch Bloom from this worktree and check it first <span class="note">(needs a C# build plus dependencies for this worktree; roughly half an hour of machine time, no code risk)</span></label></div>
+        <div class="option"><input type="radio" name="q1" id="q1c" data-q="Visual check" value="Leave as is"><label for="q1c">Leave as is</label><span class="leave-comment"><input type="checkbox" id="q1lc" data-q="Visual check" data-leave-comment="1"><label for="q1lc">Leave comment</label></span></div>
+        <div class="option"><input type="radio" name="q1" id="q1d" data-q="Visual check" value="Other"><label for="q1d">Other:<input type="text" id="q1other" data-q="Visual check" data-other="1" placeholder="Your answer"></label></div>
+        <textarea id="q1notes" data-q="Visual check" data-notes="1" placeholder="Notes (optional)"></textarea>
+      </div>
+      <div class="decision">
+        <h3>Next step</h3>
+        <div class="option"><input type="radio" name="qn" id="qna" data-q="Next step" value="Ready for my own review, then hand to a colleague" checked><label for="qna">The PR is ready for my own review; nothing to change first <span class="tag">recommended</span></label></div>
+        <div class="option"><input type="radio" name="qn" id="qnb" data-q="Next step" value="Discuss first"><label for="qnb">Discuss the open points first</label></div>
+        <div class="option"><input type="radio" name="qn" id="qnc" data-q="Next step" value="Leave as is"><label for="qnc">Leave as is</label><span class="leave-comment"><input type="checkbox" id="qnlc" data-q="Next step" data-leave-comment="1"><label for="qnlc">Leave comment</label></span></div>
+        <div class="option"><input type="radio" name="qn" id="qnd" data-q="Next step" value="Other"><label for="qnd">Other:<input type="text" id="qnother" data-q="Next step" data-other="1" placeholder="Your answer"></label></div>
+        <textarea id="qnnotes" data-q="Next step" data-notes="1" placeholder="Notes (optional)"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Send your answers back</h2>
+      <p>Copy the block and paste it into the session.</p>
+      <button id="copy" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+      <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+  const REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-15992-canvas-layer.html";
+  function serialize() {
+    const lines = ["Preflight decisions for BloomDesktop PR #8372 (BL-15992-canvas-layer)", REPORT_URL, ""];
+    const questions = [];
+    document.querySelectorAll("[data-q]").forEach(el => { if (!questions.includes(el.dataset.q)) questions.push(el.dataset.q); });
+    questions.forEach(q => {
+      lines.push(q + ":");
+      const checked = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      if (checked) {
+        if (checked.value === "Other") {
+          const other = document.querySelector('input[data-other][data-q="' + q + '"]');
+          lines.push("  Answer: Other: " + (other ? other.value : ""));
+        } else {
+          lines.push("  Answer: " + checked.value);
+        }
+      }
+      const lc = document.querySelector('input[data-leave-comment][data-q="' + q + '"]');
+      if (lc && lc.checked) lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      const notes = document.querySelector('textarea[data-notes][data-q="' + q + '"]');
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  function refresh() { document.getElementById("payload").value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copy").addEventListener("click", async () => {
+    refresh();
+    const ta = document.getElementById("payload");
+    let ok = false;
+    try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) { ok = false; }
+    if (!ok) { ta.focus(); ta.select(); try { ok = document.execCommand("copy"); } catch (e) { ok = false; } }
+    const c = document.getElementById("copied");
+    c.style.display = ok ? "inline" : "none";
+    if (ok) setTimeout(() => { c.style.display = "none"; }, 2500);
+  });
+</script>
+</body>
+</html>
