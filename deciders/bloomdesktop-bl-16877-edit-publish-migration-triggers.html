@@ -73,11 +73,13 @@
                     border-radius:7px; font:14px/1.5 inherit; background:#fdfcfa; color:var(--ink)}
   .notes{min-height:52px; resize:vertical}
   .notelabel{display:block; font-size:12.5px; color:var(--ink-faint); margin-top:12px}
+  .settled{font-size:14px; margin:0 0 10px; padding-left:20px}
+  .settled li{margin-bottom:9px}
 
   button{font:600 14px/1 inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--accent);
          background:var(--accent); color:#fff; cursor:pointer}
   button:hover{background:#7a4e24}
-  #payload{width:100%; min-height:150px; margin-top:12px; padding:10px; border:1px solid var(--line);
+  #payload{width:100%; min-height:130px; margin-top:12px; padding:10px; border:1px solid var(--line);
            border-radius:8px; font:12.5px/1.55 ui-monospace,Consolas,monospace; background:#fdfcfa; color:var(--ink)}
   #copied{margin-left:10px; font-size:13px; color:var(--ok); opacity:0; transition:opacity .2s}
   #copied.on{opacity:1}
@@ -87,12 +89,12 @@
 <div class="wrap">
 
   <h1>Preflight — Edit &amp; Publish migration triggers</h1>
-  <p class="sub">BloomDesktop PR #8371 · branch <code>BL-16877-edit-publish-migration-triggers</code> → <code>master</code> · HEAD <code>674439a</code></p>
+  <p class="sub">BloomDesktop PR #8371 · branch <code>BL-16877-edit-publish-migration-triggers</code> → <code>master</code> · HEAD <code>7420720</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Gate green</span>
-    <span class="chip att">3 items waiting on you</span>
+    <span class="chip att">1 item waiting on you</span>
   </div>
 
   <div class="links">
@@ -110,14 +112,18 @@
         <h2>What this PR is about</h2>
 
         <h3>Problem</h3>
-        <p>Many page fix-ups happen only when a page is opened in the Edit tab, so a book carries them on the pages someone happened to visit and nowhere else. BL-16852 built the machinery to detect that and run the whole book through an off-screen pass, but — to keep the 6.5 change small — wired it to only two triggers: launching the AI image editor, and changing the page size. So a book is still brought up to date only when one particular feature needs it. Ordinary editing works on a half-migrated book, and publishing can ship un-migrated pages.</p>
+        <p>Many of the fix-ups a page needs happen only when that page is opened in the Edit tab, so a book carries them on the pages someone happened to visit and nowhere else. BL-16852 built the machinery to detect that and run the whole book through an off-screen pass, but wired it to only two triggers — launching the AI image editor, and changing the page size — to keep the 6.5 change small.</p>
+        <p>So a book is still brought up to date only when one particular feature needs it. Ordinary editing works on a half-migrated book, publishing can ship un-migrated pages, and a book harvested from the command line comes out different from the same book published locally.</p>
 
         <h3>What the PR does</h3>
-        <p>Runs the same pass in the two remaining situations, so a book is up to date before anything works with it.</p>
+        <p>Makes the pass happen wherever someone is about to work with or publish a book.</p>
         <ul>
-          <li><strong>Entering the Edit tab.</strong> <code>OnBecomeVisible</code> runs the pass before showing a page, through <code>RunPerPageFixupThenReturnToPage</code> — the path the other two triggers already use — so it inherits running off the API sync lock and landing on the first page if the page it aimed at is gone.</li>
-          <li><strong>Entering the Publish tab.</strong> <code>Activate</code> splits in two, deferring the rest of activation until the pass finishes. The pass must not run while the sync-locked <code>workspace/selectTab</code> handler holds the lock, and publishing must not start until it has finished; deferring both together satisfies both.</li>
-          <li><strong>A precondition, made explicit.</strong> The pass may only start when the editor has no page. <code>EditingStateMachine</code> gains a <code>NoPage</code> predicate and the Edit-tab trigger requires it. See "what changed this run" — this is what the review turned up.</li>
+          <li><strong>A named chokepoint.</strong> <code>Book.EnsureReadyForUserWork</code> does <code>EnsureUpToDate</code> and then the per-page fix-up if it is due. It is deliberately <em>not</em> a step inside <code>EnsureUpToDate</code>: that is called from previews, imports, bulk collection operations and throwaway copies, none of which want a whole-book browser pass — and <code>ProcessBook</code> begins by calling <code>BringBookUpToDate</code>, so putting it there would recurse forever.</li>
+          <li><strong>Two ways to run it.</strong> <code>BookProcessor</code> gains a no-UI form, and one callable from any thread that shows the modal progress dialog where there is a window and falls back to the no-UI form where there is not — so a headless run does the work rather than silently skipping it.</li>
+          <li><strong>Entering the Edit tab.</strong> <code>OnBecomeVisible</code> runs the pass before showing a page, requiring the new <code>EditingStateMachine.NoPage</code>. The pass rewrites the book's DOM from a worker thread and every page it loads off-screen announces itself as loaded, including one carrying the id a live editor would be waiting on. That precondition holds on tab entry and fails during <code>SetLayout</code>'s mid-save orientation rebuild, which would otherwise schedule the pass a second time.</li>
+          <li><strong>Publishing, wherever it starts.</strong> A new <code>publish/ensureBookReady</code> endpoint, called before anything else is asked about the book. It is separate from <code>getInitialPublishTabInfo</code> because the two have opposite requirements: the fix-up must <em>not</em> hold the API sync lock (the off-screen pages it loads make their own sync-locked calls), while <code>getInitialPublishTabInfo</code> must keep it, since it assigns the static <code>PublishApi.Model</code> and <code>LibraryPublishApi.Model</code> that the other publish endpoints read. <code>PublishView</code> and <code>PublishModel</code> are unchanged from master.</li>
+          <li><strong>The harvester too.</strong> <code>CreateArtifactsCommand</code> does the same preparation, so harvested artifacts match a local publish.</li>
+          <li><strong><code>HydrateBookCommand</code> deliberately does not</strong>, and says so: it has no <code>ProjectContext</code> and so no server, and is not given a collection to build one from. It feeds automated converters rather than publishing.</li>
           <li><strong>Comments widened.</strong> Three comments narrowed for 6.5 described the fraction-of-page data as present "by the time the AI image editor opens"; it is now present before a book can be edited or published.</li>
         </ul>
         <p>No new detection logic, metas, strings or settings — this is the trigger half of BL-16852, already in 6.5 and master.</p>
@@ -133,8 +139,9 @@
             <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings)</td></tr>
             <tr><td>Merge with <code>master</code></td><td class="tag ok">clean</td><td>no conflicts</td></tr>
             <tr><td>C# tests (NUnit)</td><td class="tag ok">pass</td><td><span class="numeral">3520 passed · 1 skipped</span></td></tr>
-            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">858 passed · 5 skipped · 72 files</span> — run at <code>a8e4104</code>; every commit since is C#-only</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">858 passed · 5 skipped · 72 files</span></td></tr>
             <tr><td>csharpier / prettier</td><td class="tag ok">pass</td><td>clean</td></tr>
+            <tr><td>Harvester, by hand</td><td class="tag ok">pass</td><td>real <code>createArtifacts</code> run on a book that was due: 6/6 pages processed headless, book stamped, exit 0</td></tr>
           </tbody>
         </table>
         </div>
@@ -142,8 +149,8 @@
 
       <div class="card">
         <h2>What changed this run</h2>
-        <p>Added the two triggers, then twice corrected how the Edit-tab one starts the pass. The first attempt let an orientation change schedule the pass twice, overlapping; a guard against that turned out to be worse, because the turned-away caller then navigated while the first pass was still running. Both are now fixed at the source: the pass starts only when the editor has no page, and <code>BookProcessor</code> is back to exactly what is on master.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/commits" target="_blank" rel="noopener">The four commits</a>.</p>
+        <p>The publish half was rebuilt. It began as a split of <code>PublishView.Activate</code>, which could only ever cover the Bloom UI; it is now a chokepoint (<code>Book.EnsureReadyForUserWork</code>) reached from the publish UI through a new non-sync endpoint and from the harvester directly, with <code>PublishView</code> and <code>PublishModel</code> back to what is on master. The Edit-tab trigger also changed twice before settling on requiring <code>NoPage</code>.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/commits" target="_blank" rel="noopener">The commits</a>.</p>
       </div>
 
       <div class="card">
@@ -155,12 +162,12 @@
             <tr>
               <td>Local review<br><span style="color:var(--ink-faint);font-size:13px">light read-only sub-agent pass</span></td>
               <td class="tag ok">complete</td>
-              <td>Four findings, and the most important one of the run. It showed that an orientation change scheduled the pass twice and that the two runs overlap through the progress dialog's message pump — fixed. Its other three are the decisions opposite.</td>
+              <td>Four findings, and the most valuable of the run: it showed that an orientation change scheduled the pass twice and that the two runs overlap through the progress dialog's message pump. Fixed. Its other findings became the decisions, all now settled.</td>
             </tr>
             <tr>
               <td>Devin</td>
               <td class="tag ok">complete</td>
-              <td>Clean on the first pass — it found none of the above. On the re-review it caught that the guard added for the first finding made matters worse, which is why that guard was reverted in favour of the precondition. Re-review of the final state in flight.</td>
+              <td>Clean on its first pass — it found none of the above. Its value came later: it caught that the guard written for the local pass's finding made matters worse, and two real documentation defects. One finding remains open, opposite.</td>
             </tr>
             <tr><td>CI — <code>pr-automation</code></td><td class="tag ok">pass</td><td>The repo's only GitHub check; the rest of CI is TeamCity.</td></tr>
             <tr><td>Greptile / CodeRabbit</td><td class="tag na">not present</td><td>Neither is configured on this PR.</td></tr>
@@ -172,8 +179,9 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li><strong>Nothing here has been exercised by hand.</strong> Both triggers, and the orientation-change interaction that caused the trouble, have only been reasoned about and covered by the existing suites. The equivalent 6.5 work was live-tested; this has not been.</li>
-          <li>The three decisions opposite are all really one question — whether the Publish trigger is properly gated. The Edit-tab trigger stands on its own.</li>
+          <li><strong>Nothing has been exercised in the Bloom UI.</strong> The Edit-tab trigger and the publish progress dialog have only been reasoned about and covered by the suites. The one path actually run end to end is the harvester, from the command line.</li>
+          <li>The publish gate depends on <code>publish/ensureBookReady</code> staying small and sharing nothing — that is what makes <code>requiresSync:false</code> defensible for it. Worth a reviewer's eye, and worth protecting if anyone later adds to that handler.</li>
+          <li>Unrelated, found while testing: <code>BloomServer.RobustFileExistsWithCaseCheck</code> throws when a book sits under a path whose casing the OS reports differently from the string Bloom holds. It killed a harvester run from a temp directory; re-running from a clean path passed. Not this PR's problem, and not filed.</li>
         </ul>
       </div>
 
@@ -182,28 +190,39 @@
     <div>
 
       <div class="item hot">
-        <div class="kicker">Decision 1</div>
-        <h3>The Publish gate does not actually gate the publish front end</h3>
-        <p>Deferring the rest of <code>Activate</code> holds back the <code>switchToPublishTab</code> event, but the publish UI does not wait for it. <code>PublishTabPane</code> is mounted fresh on every switch to Publish and calls <code>publish/getInitialPublishTabInfo</code> from its mount effect. That endpoint is registered <code>requiresSync: false</code>, so nothing holds it off, and it runs <code>UpdateModelUponActivation()</code> → <code>EnsureUpToDate()</code> — which can rewrite and save the book — on a non-UI thread while <code>ProcessBook</code> is rewriting the same book on the dialog's worker thread.</p>
-        <p>Not memory corruption (<code>SafeXmlDocument</code> locks per operation), but a genuine race against the rule that the pass must have the book to itself, and the publish tools render against a half-migrated book. The comment in the PR claiming the tab "does not go live until the book is migrated" is true only of the event, not of the mount.</p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Land the Edit-tab trigger now; do the Publish trigger properly on its own card<span class="rec">Recommended</span><span class="fn">Small here — drop the <code>PublishView</code> change from this PR. Recommended because a correct publish gate has to hold off the front end too, which means touching the React mount or that endpoint, and that is a larger piece than this PR is.</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Fix it in this PR — gate the front end as well<span class="fn">Moderate to large: needs <code>getInitialPublishTabInfo</code> (or the <code>PublishTabPane</code> mount) to wait for the pass, plus a way for the front end to show that it is waiting.</span></label></div>
+        <div class="kicker">Decision</div>
+        <h3>Two passes could still overlap if Edit and Publish both start one</h3>
+        <p>Both triggers hand their work to the UI thread and then a modal progress dialog blocks in <code>ShowDialog</code> — which <em>pumps the message loop</em>. So a second request arriving while the first dialog is up gets dispatched inside it, and two <code>ProcessBook</code> runs would rewrite one book's DOM from two worker threads at once.</p>
+        <p>What makes it hard to reach: the dialog is owned by the shell, so it blocks user-initiated tab switching for as long as it is up. Reaching this needs a tab change that does not come from the user, during the dialog. I have not demonstrated one.</p>
+        <p>What makes it hard to fix: the obvious guard was tried on an earlier commit here and made things worse — the turned-away caller returned immediately and then navigated, loading a live page while the first pass was still running, which is the same bad end state by another route. Devin caught that. Doing it properly means the second caller <em>waits</em> for the first rather than being refused, which needs a synchronization primitive and a decision about what the Edit path shows meanwhile, since it has no page to fall back to.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Leave it, and raise a card<span class="rec">Recommended</span><span class="fn">No code change. Recommended because the failure needs a non-user-initiated tab change during a modal, which nobody has produced, and the fix is a waiting primitive that deserves its own thought rather than being bolted on at the end of this PR.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Fix it here — make the second caller wait for the first<span class="fn">Moderate: a per-book wait handle in <code>BookProcessor</code>, plus deciding what the Edit path displays while it waits. Touches the one piece of this feature that has already been got wrong twice.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1c"><label for="q1c">Try to reproduce it first, then decide<span class="fn">Small: hunt for a C#-initiated tab change that can fire during a modal. Settles whether this is theoretical.</span></label></div>
         <div class="opt">
-          <input type="radio" name="q1" id="q1c"><label for="q1c">Leave as is</label>
+          <input type="radio" name="q1" id="q1d"><label for="q1d">Leave as is</label>
           <span class="leaveas"><input type="checkbox" id="q1comment"> Leave comment</span>
         </div>
-        <div class="opt"><input type="radio" name="q1" id="q1d"><label for="q1d">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1e"><label for="q1e">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
         <textarea class="notes" id="q1notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
-        <div class="kicker">Decision 2</div>
-        <h3>Publishing silently skips the migration when there is no shell form</h3>
-        <p>The Publish trigger only runs the pass when <code>Shell.GetShellOrOtherOpenForm()</code> returns a form with a created handle. Otherwise it skips the pass entirely and publishes whatever is on disk. <code>EditingModel.RunOffTheApiLock</code> handles the same situation differently — it runs the action inline instead.</p>
-        <p>The asymmetry may well be right: running inline here would execute under the API sync lock, which is the one thing this code must not do. But it means a headless, early-startup or automated publish quietly ships an un-migrated book, which is the bug this feature exists to prevent.</p>
-        <div class="opt"><input type="radio" name="q2" id="q2a" checked><label for="q2a">Keep skipping, but say so in a log entry<span class="rec">Recommended</span><span class="fn">A few lines. Recommended because the skip is defensible but currently invisible; a log line means a later "why did this publish un-migrated?" is answerable.</span></label></div>
-        <div class="opt"><input type="radio" name="q2" id="q2b"><label for="q2b">Run it inline as <code>RunOffTheApiLock</code> does<span class="fn">Small to write, but it runs the pass under the held API sync lock, which is exactly the deadlock-shaped hazard the deferral exists to avoid.</span></label></div>
+        <div class="kicker">Settled since the last report</div>
+        <h3>The three earlier decisions</h3>
+        <ul class="settled">
+          <li><strong>Publish gate did not gate the front end.</strong> Resolved, but not as the last report proposed. Rather than dropping the Publish trigger to its own card, it moved to <code>publish/ensureBookReady</code>, called before <code>getInitialPublishTabInfo</code>, which stays synchronized — because that handler assigns two statics about twenty-six other places read.</li>
+          <li><strong>Silent skip when there is no shell form.</strong> Resolved. The any-thread form falls back to headless rather than skipping, and the harvester now runs the pass for real — proven by running the command, not reasoned.</li>
+          <li><strong>Publish re-entrancy while the dialog is up.</strong> Gone. <code>PublishView</code> is back to master, so there is no deferred activation to re-enter.</li>
+        </ul>
+        <p style="font-size:14px;color:var(--ink-soft);margin:0">No answer needed — recorded here because you asked to see them.</p>
+      </div>
+
+      <div class="item">
+        <div class="kicker">Next step</div>
+        <h3>How should I proceed?</h3>
+        <div class="opt"><input type="radio" name="q2" id="q2a" checked><label for="q2a">Live-test both triggers in Bloom, then promote<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="q2" id="q2b"><label for="q2b">Promote now; live-test separately</label></div>
         <div class="opt">
           <input type="radio" name="q2" id="q2c"><label for="q2c">Leave as is</label>
           <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
@@ -211,36 +230,6 @@
         <div class="opt"><input type="radio" name="q2" id="q2d"><label for="q2d">Other: <input class="otherbox" id="q2other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
         <textarea class="notes" id="q2notes" placeholder=""></textarea>
-      </div>
-
-      <div class="item">
-        <div class="kicker">Decision 3</div>
-        <h3>Publish re-entrancy while the progress dialog is up</h3>
-        <p><code>_isActive</code> is set as soon as <code>Activate()</code> returns, even though activation was only queued. If something drives a tab change away from Publish and back while the modal is up — Bloom does have C#-initiated tab jumps, and the modal's message pump would dispatch them — <code>Deactivate()</code> runs having never really activated, and the return calls <code>Activate()</code> again, starting a second pass on the same book.</p>
-        <p>Lower confidence than the other two: it needs a C#-initiated tab change during a modal, which I have not demonstrated. It is the one thing the reverted guard would still have covered, and it disappears entirely if the Publish trigger moves to its own card under decision 1.</p>
-        <div class="opt"><input type="radio" name="q3" id="q3a" checked><label for="q3a">Let decision 1 settle it<span class="rec">Recommended</span><span class="fn">No work now. Recommended because if the Publish trigger moves to its own card this cannot arise here, and if it stays it should be fixed together with the front-end gate rather than separately.</span></label></div>
-        <div class="opt"><input type="radio" name="q3" id="q3b"><label for="q3b">Set <code>_isActive</code> only once activation really happens<span class="fn">Small and localized, but it changes the meaning of a field the tab subscriber relies on, so it wants its own look.</span></label></div>
-        <div class="opt">
-          <input type="radio" name="q3" id="q3c"><label for="q3c">Leave as is</label>
-          <span class="leaveas"><input type="checkbox" id="q3comment"> Leave comment</span>
-        </div>
-        <div class="opt"><input type="radio" name="q3" id="q3d"><label for="q3d">Other: <input class="otherbox" id="q3other" placeholder="…"></label></div>
-        <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q3notes" placeholder=""></textarea>
-      </div>
-
-      <div class="item">
-        <div class="kicker">Next step</div>
-        <h3>How should I proceed?</h3>
-        <div class="opt"><input type="radio" name="q4" id="q4a" checked><label for="q4a">Implement the choices above, live-test both triggers, then re-run the gauntlet<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="q4" id="q4b"><label for="q4b">Talk it through with me first</label></div>
-        <div class="opt">
-          <input type="radio" name="q4" id="q4c"><label for="q4c">Leave as is</label>
-          <span class="leaveas"><input type="checkbox" id="q4comment"> Leave comment</span>
-        </div>
-        <div class="opt"><input type="radio" name="q4" id="q4d"><label for="q4d">Other: <input class="otherbox" id="q4other" placeholder="…"></label></div>
-        <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q4notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
@@ -257,26 +246,17 @@
 <script>
 (function(){
   var QS = [
-    {n:'q1', t:'Decision 1 — Publish gate does not gate the front end',
-     opts:{q1a:'Land the Edit-tab trigger now; Publish on its own card',
-           q1b:'Fix it in this PR — gate the front end as well',
-           q1c:'Leave as is', q1d:'Other'},
+    {n:'q1', t:'Decision — Edit and Publish passes could overlap',
+     opts:{q1a:'Leave it, and raise a card',
+           q1b:'Fix it here — make the second caller wait',
+           q1c:'Try to reproduce it first, then decide',
+           q1d:'Leave as is', q1e:'Other'},
      other:'q1other', comment:'q1comment', notes:'q1notes'},
-    {n:'q2', t:'Decision 2 — silent skip when there is no shell form',
-     opts:{q2a:'Keep skipping, but log it',
-           q2b:'Run it inline as RunOffTheApiLock does',
+    {n:'q2', t:'Next step',
+     opts:{q2a:'Live-test both triggers in Bloom, then promote',
+           q2b:'Promote now; live-test separately',
            q2c:'Leave as is', q2d:'Other'},
-     other:'q2other', comment:'q2comment', notes:'q2notes'},
-    {n:'q3', t:'Decision 3 — Publish re-entrancy while the modal is up',
-     opts:{q3a:'Let decision 1 settle it',
-           q3b:'Set _isActive only once activation really happens',
-           q3c:'Leave as is', q3d:'Other'},
-     other:'q3other', comment:'q3comment', notes:'q3notes'},
-    {n:'q4', t:'Next step',
-     opts:{q4a:'Implement the choices, live-test both triggers, re-run the gauntlet',
-           q4b:'Talk it through with me first',
-           q4c:'Leave as is', q4d:'Other'},
-     other:'q4other', comment:'q4comment', notes:'q4notes'}
+     other:'q2other', comment:'q2comment', notes:'q2notes'}
   ];
   function build(){
     var out = ['Preflight answers — BloomDesktop PR #8371 (BL-16877)', ''];
