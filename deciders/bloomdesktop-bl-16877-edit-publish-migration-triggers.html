@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Preflight — Edit &amp; Publish migration triggers (BL-16877)</title>
+<style>
+  :root{
+    --ink:#22201c; --ink-soft:#5c574f; --ink-faint:#857f75;
+    --ground:#faf8f4; --card:#ffffff; --line:#e4dfd5;
+    --accent:#8a5a2b; --accent-soft:#f3ece2;
+    --ok:#2f6b43; --bad:#9a3324; --warn:#8a6d1f;
+    color-scheme: light;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  .wrap{max-width:1360px; margin:0 auto; padding:32px 20px 72px}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif; font-weight:600; line-height:1.25; margin:0}
+  h1{font-size:30px; letter-spacing:-.01em}
+  h2{font-size:20px; margin-bottom:12px}
+  h3{font-size:16px; margin-bottom:6px}
+  p{margin:0 0 12px}
+  a{color:var(--accent)}
+  .sub{color:var(--ink-soft); margin:8px 0 0; font-size:14px}
+  .numeral{font-variant-numeric:tabular-nums}
+
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin:18px 0 10px}
+  .chip{display:inline-block; padding:4px 11px; border:1px solid var(--line);
+        border-radius:999px; background:var(--card); font-size:13px; color:var(--ink-soft)}
+  .chip.good{border-color:#bcd7c4; background:#f1f8f3; color:var(--ok)}
+  .chip.att{border-color:#e3d3a8; background:#fdf8ea; color:var(--warn)}
+  .links{display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 26px}
+  .links a{display:inline-block; padding:5px 12px; border:1px solid var(--line);
+           border-radius:8px; background:var(--card); font-size:13.5px; text-decoration:none}
+  .links a:hover{background:var(--accent-soft); border-color:#d8c8b2}
+  .links a.lead{border-color:#d8c8b2; background:var(--accent-soft); font-weight:600}
+
+  .grid{display:grid; grid-template-columns:minmax(0,1.55fr) minmax(0,1fr); gap:24px; align-items:start}
+  .grid > *{min-width:0}
+  @media (max-width:900px){ .grid{grid-template-columns:minmax(0,1fr)} }
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:20px}
+  .card > :last-child{margin-bottom:0}
+  .card ul{margin:0 0 12px; padding-left:20px}
+  .card li{margin-bottom:8px}
+
+  .tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse; width:100%; font-size:14px}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top}
+  th{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .tag{font-size:12.5px; font-weight:600; white-space:nowrap}
+  .tag.ok{color:var(--ok)} .tag.na{color:var(--ink-faint)} .tag.att{color:var(--warn)}
+  code{font:13px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; background:#f4f1ea; padding:1px 5px; border-radius:4px}
+
+  .item{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin-bottom:18px}
+  .item.hot{border-color:#e0c9a6; box-shadow:0 0 0 3px #fbf3e6}
+  .kicker{font-size:12.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-faint); margin-bottom:4px}
+  .opt{display:flex; gap:9px; align-items:flex-start; padding:9px 0; border-top:1px solid #f0ece4}
+  .opt:first-of-type{border-top:1px solid var(--line); margin-top:10px}
+  .opt input[type=radio]{margin-top:4px; flex:none}
+  .opt label{flex:1; font-size:14px}
+  .rec{display:inline-block; font-size:11.5px; font-weight:700; color:var(--accent); border:1px solid #d8c8b2;
+       background:var(--accent-soft); border-radius:4px; padding:0 5px; margin-left:6px; vertical-align:1px}
+  .fn{display:block; color:var(--ink-faint); font-size:12.5px; margin-top:3px}
+  .leaveas{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--ink-soft); flex:none; white-space:nowrap}
+  .otherbox, .notes{width:100%; margin-top:8px; padding:7px 9px; border:1px solid var(--line);
+                    border-radius:7px; font:14px/1.5 inherit; background:#fdfcfa; color:var(--ink)}
+  .notes{min-height:52px; resize:vertical}
+  .notelabel{display:block; font-size:12.5px; color:var(--ink-faint); margin-top:12px}
+
+  button{font:600 14px/1 inherit; padding:10px 16px; border-radius:8px; border:1px solid var(--accent);
+         background:var(--accent); color:#fff; cursor:pointer}
+  button:hover{background:#7a4e24}
+  #payload{width:100%; min-height:150px; margin-top:12px; padding:10px; border:1px solid var(--line);
+           border-radius:8px; font:12.5px/1.55 ui-monospace,Consolas,monospace; background:#fdfcfa; color:var(--ink)}
+  #copied{margin-left:10px; font-size:13px; color:var(--ok); opacity:0; transition:opacity .2s}
+  #copied.on{opacity:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Preflight — Edit &amp; Publish migration triggers</h1>
+  <p class="sub">BloomDesktop PR #8371 · branch <code>BL-16877-edit-publish-migration-triggers</code> → <code>master</code> · HEAD <code>674439a</code></p>
+
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Gate green</span>
+    <span class="chip att">3 items waiting on you</span>
+  </div>
+
+  <div class="links">
+    <a class="lead" href="https://github.com/BloomBooks/BloomDesktop/pull/8371" target="_blank" rel="noopener">PR #8371</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16877" target="_blank" rel="noopener">BL-16877</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8371" target="_blank" rel="noopener">Devin review</a>
+  </div>
+
+  <div class="grid">
+    <div>
+
+      <div class="card">
+        <h2>What this PR is about</h2>
+
+        <h3>Problem</h3>
+        <p>Many page fix-ups happen only when a page is opened in the Edit tab, so a book carries them on the pages someone happened to visit and nowhere else. BL-16852 built the machinery to detect that and run the whole book through an off-screen pass, but — to keep the 6.5 change small — wired it to only two triggers: launching the AI image editor, and changing the page size. So a book is still brought up to date only when one particular feature needs it. Ordinary editing works on a half-migrated book, and publishing can ship un-migrated pages.</p>
+
+        <h3>What the PR does</h3>
+        <p>Runs the same pass in the two remaining situations, so a book is up to date before anything works with it.</p>
+        <ul>
+          <li><strong>Entering the Edit tab.</strong> <code>OnBecomeVisible</code> runs the pass before showing a page, through <code>RunPerPageFixupThenReturnToPage</code> — the path the other two triggers already use — so it inherits running off the API sync lock and landing on the first page if the page it aimed at is gone.</li>
+          <li><strong>Entering the Publish tab.</strong> <code>Activate</code> splits in two, deferring the rest of activation until the pass finishes. The pass must not run while the sync-locked <code>workspace/selectTab</code> handler holds the lock, and publishing must not start until it has finished; deferring both together satisfies both.</li>
+          <li><strong>A precondition, made explicit.</strong> The pass may only start when the editor has no page. <code>EditingStateMachine</code> gains a <code>NoPage</code> predicate and the Edit-tab trigger requires it. See "what changed this run" — this is what the review turned up.</li>
+          <li><strong>Comments widened.</strong> Three comments narrowed for 6.5 described the fraction-of-page data as present "by the time the AI image editor opens"; it is now present before a book can be edited or published.</li>
+        </ul>
+        <p>No new detection logic, metas, strings or settings — this is the trigger half of BL-16852, already in 6.5 and master.</p>
+      </div>
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+          <tbody>
+            <tr><td>TypeScript typecheck</td><td class="tag ok">pass</td><td>no blunder-class type errors</td></tr>
+            <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings)</td></tr>
+            <tr><td>Merge with <code>master</code></td><td class="tag ok">clean</td><td>no conflicts</td></tr>
+            <tr><td>C# tests (NUnit)</td><td class="tag ok">pass</td><td><span class="numeral">3520 passed · 1 skipped</span></td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">858 passed · 5 skipped · 72 files</span> — run at <code>a8e4104</code>; every commit since is C#-only</td></tr>
+            <tr><td>csharpier / prettier</td><td class="tag ok">pass</td><td>clean</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>What changed this run</h2>
+        <p>Added the two triggers, then twice corrected how the Edit-tab one starts the pass. The first attempt let an orientation change schedule the pass twice, overlapping; a guard against that turned out to be worse, because the turned-away caller then navigated while the first pass was still running. Both are now fixed at the source: the pass starts only when the editor has no page, and <code>BookProcessor</code> is back to exactly what is on master.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/commits" target="_blank" rel="noopener">The four commits</a>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Local review<br><span style="color:var(--ink-faint);font-size:13px">light read-only sub-agent pass</span></td>
+              <td class="tag ok">complete</td>
+              <td>Four findings, and the most important one of the run. It showed that an orientation change scheduled the pass twice and that the two runs overlap through the progress dialog's message pump — fixed. Its other three are the decisions opposite.</td>
+            </tr>
+            <tr>
+              <td>Devin</td>
+              <td class="tag ok">complete</td>
+              <td>Clean on the first pass — it found none of the above. On the re-review it caught that the guard added for the first finding made matters worse, which is why that guard was reverted in favour of the precondition. Re-review of the final state in flight.</td>
+            </tr>
+            <tr><td>CI — <code>pr-automation</code></td><td class="tag ok">pass</td><td>The repo's only GitHub check; the rest of CI is TeamCity.</td></tr>
+            <tr><td>Greptile / CodeRabbit</td><td class="tag na">not present</td><td>Neither is configured on this PR.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li><strong>Nothing here has been exercised by hand.</strong> Both triggers, and the orientation-change interaction that caused the trouble, have only been reasoned about and covered by the existing suites. The equivalent 6.5 work was live-tested; this has not been.</li>
+          <li>The three decisions opposite are all really one question — whether the Publish trigger is properly gated. The Edit-tab trigger stands on its own.</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div>
+
+      <div class="item hot">
+        <div class="kicker">Decision 1</div>
+        <h3>The Publish gate does not actually gate the publish front end</h3>
+        <p>Deferring the rest of <code>Activate</code> holds back the <code>switchToPublishTab</code> event, but the publish UI does not wait for it. <code>PublishTabPane</code> is mounted fresh on every switch to Publish and calls <code>publish/getInitialPublishTabInfo</code> from its mount effect. That endpoint is registered <code>requiresSync: false</code>, so nothing holds it off, and it runs <code>UpdateModelUponActivation()</code> → <code>EnsureUpToDate()</code> — which can rewrite and save the book — on a non-UI thread while <code>ProcessBook</code> is rewriting the same book on the dialog's worker thread.</p>
+        <p>Not memory corruption (<code>SafeXmlDocument</code> locks per operation), but a genuine race against the rule that the pass must have the book to itself, and the publish tools render against a half-migrated book. The comment in the PR claiming the tab "does not go live until the book is migrated" is true only of the event, not of the mount.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Land the Edit-tab trigger now; do the Publish trigger properly on its own card<span class="rec">Recommended</span><span class="fn">Small here — drop the <code>PublishView</code> change from this PR. Recommended because a correct publish gate has to hold off the front end too, which means touching the React mount or that endpoint, and that is a larger piece than this PR is.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Fix it in this PR — gate the front end as well<span class="fn">Moderate to large: needs <code>getInitialPublishTabInfo</code> (or the <code>PublishTabPane</code> mount) to wait for the pass, plus a way for the front end to show that it is waiting.</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q1" id="q1c"><label for="q1c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q1comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q1" id="q1d"><label for="q1d">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q1notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <div class="kicker">Decision 2</div>
+        <h3>Publishing silently skips the migration when there is no shell form</h3>
+        <p>The Publish trigger only runs the pass when <code>Shell.GetShellOrOtherOpenForm()</code> returns a form with a created handle. Otherwise it skips the pass entirely and publishes whatever is on disk. <code>EditingModel.RunOffTheApiLock</code> handles the same situation differently — it runs the action inline instead.</p>
+        <p>The asymmetry may well be right: running inline here would execute under the API sync lock, which is the one thing this code must not do. But it means a headless, early-startup or automated publish quietly ships an un-migrated book, which is the bug this feature exists to prevent.</p>
+        <div class="opt"><input type="radio" name="q2" id="q2a" checked><label for="q2a">Keep skipping, but say so in a log entry<span class="rec">Recommended</span><span class="fn">A few lines. Recommended because the skip is defensible but currently invisible; a log line means a later "why did this publish un-migrated?" is answerable.</span></label></div>
+        <div class="opt"><input type="radio" name="q2" id="q2b"><label for="q2b">Run it inline as <code>RunOffTheApiLock</code> does<span class="fn">Small to write, but it runs the pass under the held API sync lock, which is exactly the deadlock-shaped hazard the deferral exists to avoid.</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q2" id="q2c"><label for="q2c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q2" id="q2d"><label for="q2d">Other: <input class="otherbox" id="q2other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q2notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <div class="kicker">Decision 3</div>
+        <h3>Publish re-entrancy while the progress dialog is up</h3>
+        <p><code>_isActive</code> is set as soon as <code>Activate()</code> returns, even though activation was only queued. If something drives a tab change away from Publish and back while the modal is up — Bloom does have C#-initiated tab jumps, and the modal's message pump would dispatch them — <code>Deactivate()</code> runs having never really activated, and the return calls <code>Activate()</code> again, starting a second pass on the same book.</p>
+        <p>Lower confidence than the other two: it needs a C#-initiated tab change during a modal, which I have not demonstrated. It is the one thing the reverted guard would still have covered, and it disappears entirely if the Publish trigger moves to its own card under decision 1.</p>
+        <div class="opt"><input type="radio" name="q3" id="q3a" checked><label for="q3a">Let decision 1 settle it<span class="rec">Recommended</span><span class="fn">No work now. Recommended because if the Publish trigger moves to its own card this cannot arise here, and if it stays it should be fixed together with the front-end gate rather than separately.</span></label></div>
+        <div class="opt"><input type="radio" name="q3" id="q3b"><label for="q3b">Set <code>_isActive</code> only once activation really happens<span class="fn">Small and localized, but it changes the meaning of a field the tab subscriber relies on, so it wants its own look.</span></label></div>
+        <div class="opt">
+          <input type="radio" name="q3" id="q3c"><label for="q3c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q3comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q3" id="q3d"><label for="q3d">Other: <input class="otherbox" id="q3other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q3notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <div class="kicker">Next step</div>
+        <h3>How should I proceed?</h3>
+        <div class="opt"><input type="radio" name="q4" id="q4a" checked><label for="q4a">Implement the choices above, live-test both triggers, then re-run the gauntlet<span class="rec">Recommended</span></label></div>
+        <div class="opt"><input type="radio" name="q4" id="q4b"><label for="q4b">Talk it through with me first</label></div>
+        <div class="opt">
+          <input type="radio" name="q4" id="q4c"><label for="q4c">Leave as is</label>
+          <span class="leaveas"><input type="checkbox" id="q4comment"> Leave comment</span>
+        </div>
+        <div class="opt"><input type="radio" name="q4" id="q4d"><label for="q4d">Other: <input class="otherbox" id="q4other" placeholder="…"></label></div>
+        <label class="notelabel">Notes</label>
+        <textarea class="notes" id="q4notes" placeholder=""></textarea>
+      </div>
+
+      <div class="item">
+        <h3>Send your answers back</h3>
+        <p style="font-size:14px;color:var(--ink-soft)">Copy this and paste it into the Claude Code session.</p>
+        <button id="copybtn" type="button">Copy answers</button><span id="copied">copied</span>
+        <textarea id="payload" readonly></textarea>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var QS = [
+    {n:'q1', t:'Decision 1 — Publish gate does not gate the front end',
+     opts:{q1a:'Land the Edit-tab trigger now; Publish on its own card',
+           q1b:'Fix it in this PR — gate the front end as well',
+           q1c:'Leave as is', q1d:'Other'},
+     other:'q1other', comment:'q1comment', notes:'q1notes'},
+    {n:'q2', t:'Decision 2 — silent skip when there is no shell form',
+     opts:{q2a:'Keep skipping, but log it',
+           q2b:'Run it inline as RunOffTheApiLock does',
+           q2c:'Leave as is', q2d:'Other'},
+     other:'q2other', comment:'q2comment', notes:'q2notes'},
+    {n:'q3', t:'Decision 3 — Publish re-entrancy while the modal is up',
+     opts:{q3a:'Let decision 1 settle it',
+           q3b:'Set _isActive only once activation really happens',
+           q3c:'Leave as is', q3d:'Other'},
+     other:'q3other', comment:'q3comment', notes:'q3notes'},
+    {n:'q4', t:'Next step',
+     opts:{q4a:'Implement the choices, live-test both triggers, re-run the gauntlet',
+           q4b:'Talk it through with me first',
+           q4c:'Leave as is', q4d:'Other'},
+     other:'q4other', comment:'q4comment', notes:'q4notes'}
+  ];
+  function build(){
+    var out = ['Preflight answers — BloomDesktop PR #8371 (BL-16877)', ''];
+    QS.forEach(function(q){
+      var chosenId = null;
+      Object.keys(q.opts).forEach(function(id){
+        var el = document.getElementById(id);
+        if (el && el.checked) chosenId = id;
+      });
+      var label = chosenId ? q.opts[chosenId] : '(no answer)';
+      if (chosenId && /Other$/.test(label)) {
+        var ov = (document.getElementById(q.other) || {}).value || '';
+        label = 'Other: ' + ov.trim();
+      }
+      out.push(q.t);
+      out.push('  → ' + label);
+      var cb = document.getElementById(q.comment);
+      if (cb && cb.checked) out.push('  Leave comment: record this decision as a code comment in the repo');
+      var nt = (document.getElementById(q.notes) || {}).value || '';
+      if (nt.trim()) out.push('  Notes: ' + nt.trim());
+      out.push('');
+    });
+    return out.join('\n');
+  }
+  var payload = document.getElementById('payload');
+  function refresh(){ payload.value = build(); }
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+  refresh();
+  document.getElementById('copybtn').addEventListener('click', function(){
+    refresh();
+    var done = function(){
+      var c = document.getElementById('copied');
+      c.classList.add('on'); setTimeout(function(){ c.classList.remove('on'); }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, function(){
+        payload.select(); try { document.execCommand('copy'); } catch(e){} done();
+      });
+    } else {
+      payload.select(); try { document.execCommand('copy'); } catch(e){} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
