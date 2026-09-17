@@ -88,12 +88,13 @@
 
 <header class="top">
   <h1>Preflight — Decodable Reader setup dialog</h1>
-  <p class="runline">Branch <code>modernizeReaderSetup</code> at <span class="numeral">54fe49ca8a</span>. Rebased onto master, two bugs found and fixed, all gates green. Three decisions need you.</p>
+  <p class="runline">Branch <code>modernizeReaderSetup</code> at <span class="numeral">ecffdac32e</span>. Rebased onto master, two bugs found and fixed, decisions answered and recorded, all gates green and every review thread resolved. Nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip warn">3 items waiting on you</span>
+    <span class="chip good">Nothing waiting on you</span>
+    <span class="chip good">All threads resolved</span>
   </div>
   <div class="links">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">PR #8132</a>
@@ -143,8 +144,9 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Rebased the branch onto master (<span class="numeral">86</span> commits, no conflicts) and fixed two bugs found during review: a replaced reader-tools model was left without its Sample Texts watcher, so the Sample Words tab threw on mount; and the Sample Words help link was a plain anchor to the help API, which navigated the whole edit view away from the book. Both are folded into the existing fix commit, with a regression test for the first.</p>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/commits" target="_blank" rel="noopener">Commit list</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/cfa1a98824" target="_blank" rel="noopener">cfa1a98824 (fixes)</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/54fe49ca8a" target="_blank" rel="noopener">54fe49ca8a (e2e test)</a></p>
+    <p>Rebased the branch onto master (<span class="numeral">86</span> commits, no conflicts) and fixed two bugs found during review: a replaced reader-tools model was left without its Sample Texts watcher, so the Sample Words tab threw on mount; and the Sample Words help link was a plain anchor to the help API, which navigated the whole edit view away from the book. Both are folded into the fix commit, with a regression test for the first.</p>
+    <p>Then, answering the decisions from the previous round, recorded two accepted limitations as code comments — how the word list file deletions could be deferred to save, and what the shared dialog host does and does not leak. Every review thread on the PR is now resolved.</p>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/commits" target="_blank" rel="noopener">Commit list</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/fb73949d3a" target="_blank" rel="noopener">fb73949d3a (fixes + notes)</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/ecffdac32e" target="_blank" rel="noopener">ecffdac32e (e2e test)</a></p>
   </section>
 
   <section class="card">
@@ -158,7 +160,7 @@
       </tr>
       <tr>
         <td>Devin</td><td class="state">Complete</td>
-        <td>Listed 22 bugs and 26 investigate flags, but its own <code>incremental</code> field shows the prior round re-reviewed the whole diff from scratch, so most are repeats of findings already fixed or decided. Each was screened against the code at this commit: 16 already fixed here, 2 refuted as not-an-issue (replied and resolved), 1 fixed this run, and 4 <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r4041622981" target="_blank" rel="noopener">left open</a> for you — the two decisions on the right.</td>
+        <td>Listed 22 bugs and 26 investigate flags, but its own <code>incremental</code> field shows the prior round re-reviewed the whole diff from scratch, so most are repeats of findings already fixed or decided. Each was screened against the code at this commit: 16 already fixed here, 2 refuted as not-an-issue (replied and resolved), 1 fixed this run, and 4 escalated. Of those 4, checking each against the code showed 3 were false positives (the stage-removal cleanup has been there since the first commit; the focus listener was measured at a net zero across three open/close cycles) and 1 was a real, deliberate carry-over from the legacy dialog. All are now <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r4041622981" target="_blank" rel="noopener">replied to and resolved</a>.</td>
       </tr>
       <tr>
         <td>CodeRabbit</td><td class="state na">Not a reviewer here</td>
@@ -186,95 +188,9 @@
 <div class="right">
 
   <div class="item">
-    <h3>1. What should happen to a stage's word list file?</h3>
-    <p>In the allowed-words mode, each reading stage can point at a word list file in the collection. Two behaviours around deleting those files are now inconsistent, and they pull against each other, which is why this is a question rather than a fix.</p>
-    <p>Clicking the trash icon next to a file deletes it from disk <em>immediately</em>, before anything is saved — so if the user then presses Cancel, the saved settings still name a file that is no longer there. Meanwhile, removing a whole stage now deletes nothing, where the old dialog cleaned the file up once no stage referenced it — so unused files accumulate instead.</p>
-    <p>Fixing either one the obvious way makes the other worse: making stage-removal delete immediately widens the Cancel problem, and deferring both to Save changes behaviour the old dialog has always had.</p>
-    <div class="opts">
-      <div class="opt">
-        <input type="radio" name="q1" id="q1a" data-q="Word list file lifecycle" value="Defer all deletions to Save" checked>
-        <label class="lab" for="q1a">Defer both deletions to Save, so Cancel never touches disk<span class="rec">Recommended</span>
-          <span class="fn">Moderate — the dialog has to track files pending deletion and act on them in the save path. Recommended because it makes Cancel mean what users expect, and fixes the accumulating-files half at the same time.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q1" id="q1b" data-q="Word list file lifecycle" value="Match legacy: delete on stage removal too, immediately">
-        <label class="lab" for="q1b">Match the old dialog: delete on stage removal too, immediately
-          <span class="fn">Small — reuse the existing check in the stage-removal path. Restores the old cleanup, but leaves Cancel able to strand a reference, as it always could.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q1" id="q1c" data-q="Word list file lifecycle" value="Leave as is">
-        <label class="lab" for="q1c">Leave as is</label>
-        <label class="leavec"><input type="checkbox" data-q="Word list file lifecycle — leave comment"> Leave comment</label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q1" id="q1d" data-q="Word list file lifecycle" value="Other">
-        <label class="lab" for="q1d">Other: <input type="text" data-q="Word list file lifecycle — other" placeholder="your answer"></label>
-      </div>
-    </div>
-    <div class="notes"><label for="n1">Notes</label><textarea id="n1" rows="2" data-q="Word list file lifecycle — notes"></textarea></div>
-  </div>
-
-  <div class="item">
-    <h3>2. The dialog is never unmounted, so a listener accumulates</h3>
-    <p>Every time the dialog is shown, Bloom detaches the old container element and makes a new one — but detaching a container does not unmount the React tree inside it, so each dialog session leaves its component alive forever.</p>
-    <p>For this dialog that matters because the Sample Words tab registers a listener for window focus and removes it in its cleanup, which now never runs. So each time a user opens the dialog and visits that tab, one more listener is left behind, and every later click back into Bloom re-queries the Sample Texts folder once per abandoned session. In a long editing session Bloom does progressively more useless background work and holds on to more memory.</p>
-    <p>This is not specific to this dialog — the same non-unmounting applies to everything shown that way. This one is just the first to add a window-level listener, which is what makes it visible. That is why it has not been fixed here unilaterally.</p>
-    <div class="opts">
-      <div class="opt">
-        <input type="radio" name="q2" id="q2a" data-q="Dialog never unmounted" value="Narrow fix: scope the focus listener to the dialog being open" checked>
-        <label class="lab" for="q2a">Narrow fix here: tie the focus listener to the dialog being open rather than to mount<span class="rec">Recommended</span>
-          <span class="fn">Small, localized, low risk — a few lines in this dialog only. Recommended because it removes the growing cost now without touching shared dialog machinery that every other dialog depends on.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2b" data-q="Dialog never unmounted" value="Fix the shared dialog host to unmount properly">
-        <label class="lab" for="q2b">Fix the shared host so closing really unmounts the dialog
-          <span class="fn">Large / architectural — changes behaviour for every dialog shown this way, and would want its own testing pass. Fixes the root cause rather than this symptom.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2c" data-q="Dialog never unmounted" value="Leave as is">
-        <label class="lab" for="q2c">Leave as is</label>
-        <label class="leavec"><input type="checkbox" data-q="Dialog never unmounted — leave comment"> Leave comment</label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q2" id="q2d" data-q="Dialog never unmounted" value="Other">
-        <label class="lab" for="q2d">Other: <input type="text" data-q="Dialog never unmounted — other" placeholder="your answer"></label>
-      </div>
-    </div>
-    <div class="notes"><label for="n2">Notes</label><textarea id="n2" rows="2" data-q="Dialog never unmounted — notes"></textarea></div>
-  </div>
-
-  <div class="item">
-    <h3>3. Reviewable is waiting on a reviewer who has left</h3>
-    <p>The <code>code-review/reviewable</code> check is the only thing that is not green. It currently reports files and discussions still outstanding for <strong>josiahwall</strong>, who you have said is gone. The substance is done — every discussion on the PR has a documented outcome — so what remains is bookkeeping that no one can clear on his behalf.</p>
-    <p>This blocks promotion to human review, not the code.</p>
-    <div class="opts">
-      <div class="opt">
-        <input type="radio" name="q3" id="q3a" data-q="Reviewable blocked" value="You take over the outstanding files in Reviewable" checked>
-        <label class="lab" for="q3a">You take over the outstanding files in Reviewable yourself<span class="rec">Recommended</span>
-          <span class="fn">No code — a few minutes in the Reviewable UI. Recommended because it clears the check without changing repo settings, and you are reviewing this work anyway.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q3" id="q3b" data-q="Reviewable blocked" value="Remove Josiah as a Reviewable participant / adjust the check">
-        <label class="lab" for="q3b">Remove him as a participant, or stop the check gating this repo
-          <span class="fn">No code, but a settings change that affects every PR — worth a word with whoever owns the Reviewable configuration.</span>
-        </label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q3" id="q3c" data-q="Reviewable blocked" value="Leave as is">
-        <label class="lab" for="q3c">Leave as is</label>
-        <label class="leavec"><input type="checkbox" data-q="Reviewable blocked — leave comment"> Leave comment</label>
-      </div>
-      <div class="opt">
-        <input type="radio" name="q3" id="q3d" data-q="Reviewable blocked" value="Other">
-        <label class="lab" for="q3d">Other: <input type="text" data-q="Reviewable blocked — other" placeholder="your answer"></label>
-      </div>
-    </div>
-    <div class="notes"><label for="n3">Notes</label><textarea id="n3" rows="2" data-q="Reviewable blocked — notes"></textarea></div>
+    <h3>Nothing needs a decision</h3>
+    <p>The questions from the previous round have been answered and acted on. Where the answer was to keep the current behaviour, the reasoning now lives in a comment next to the code rather than in this report, and every review thread on the PR has been replied to and resolved.</p>
+    <p>One thing is still outstanding, but not as a decision: the <a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8132" target="_blank" rel="noopener">Reviewable</a> check stays pending because it is waiting on a reviewer who has left the team. That was deliberately left as is. It blocks promotion to human review, not the code, and it cannot be cleared from this session.</p>
   </div>
 
   <div class="item">
