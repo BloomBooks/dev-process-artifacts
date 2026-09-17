@@ -89,12 +89,13 @@
 <div class="wrap">
 
   <h1>Preflight — Edit &amp; Publish migration triggers</h1>
-  <p class="sub">BloomDesktop PR #8371 · branch <code>BL-16877-edit-publish-migration-triggers</code> → <code>master</code> · HEAD <code>7420720</code></p>
+  <p class="sub">BloomDesktop PR #8371 · branch <code>BL-16877-edit-publish-migration-triggers</code> → <code>master</code> · HEAD <code>753b1c6</code></p>
 
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Gate green</span>
-    <span class="chip att">1 item waiting on you</span>
+    <span class="chip good">Live-tested</span>
+    <span class="chip good">Nothing blocking</span>
   </div>
 
   <div class="links">
@@ -116,17 +117,16 @@
         <p>So a book is still brought up to date only when one particular feature needs it. Ordinary editing works on a half-migrated book, publishing can ship un-migrated pages, and a book harvested from the command line comes out different from the same book published locally.</p>
 
         <h3>What the PR does</h3>
-        <p>Makes the pass happen wherever someone is about to work with or publish a book.</p>
+        <p>Runs the pass wherever someone is about to work with or publish a book — and, importantly, <em>before</em> they get there.</p>
         <ul>
-          <li><strong>A named chokepoint.</strong> <code>Book.EnsureReadyForUserWork</code> does <code>EnsureUpToDate</code> and then the per-page fix-up if it is due. It is deliberately <em>not</em> a step inside <code>EnsureUpToDate</code>: that is called from previews, imports, bulk collection operations and throwaway copies, none of which want a whole-book browser pass — and <code>ProcessBook</code> begins by calling <code>BringBookUpToDate</code>, so putting it there would recurse forever.</li>
-          <li><strong>Two ways to run it.</strong> <code>BookProcessor</code> gains a no-UI form, and one callable from any thread that shows the modal progress dialog where there is a window and falls back to the no-UI form where there is not — so a headless run does the work rather than silently skipping it.</li>
-          <li><strong>Entering the Edit tab.</strong> <code>OnBecomeVisible</code> runs the pass before showing a page, requiring the new <code>EditingStateMachine.NoPage</code>. The pass rewrites the book's DOM from a worker thread and every page it loads off-screen announces itself as loaded, including one carrying the id a live editor would be waiting on. That precondition holds on tab entry and fails during <code>SetLayout</code>'s mid-save orientation rebuild, which would otherwise schedule the pass a second time.</li>
-          <li><strong>Publishing, wherever it starts.</strong> A new <code>publish/ensureBookReady</code> endpoint, called before anything else is asked about the book. It is separate from <code>getInitialPublishTabInfo</code> because the two have opposite requirements: the fix-up must <em>not</em> hold the API sync lock (the off-screen pages it loads make their own sync-locked calls), while <code>getInitialPublishTabInfo</code> must keep it, since it assigns the static <code>PublishApi.Model</code> and <code>LibraryPublishApi.Model</code> that the other publish endpoints read. <code>PublishView</code> and <code>PublishModel</code> are unchanged from master.</li>
-          <li><strong>The harvester too.</strong> <code>CreateArtifactsCommand</code> does the same preparation, so harvested artifacts match a local publish.</li>
-          <li><strong><code>HydrateBookCommand</code> deliberately does not</strong>, and says so: it has no <code>ProjectContext</code> and so no server, and is not given a collection to build one from. It feeds automated converters rather than publishing.</li>
-          <li><strong>Comments widened.</strong> Three comments narrowed for 6.5 described the fraction-of-page data as present "by the time the AI image editor opens"; it is now present before a book can be edited or published.</li>
+          <li><strong>A named chokepoint.</strong> <code>Book.EnsureReadyForUserWork</code> does <code>EnsureUpToDate</code> and then the per-page fix-up if it is due. Deliberately <em>not</em> a step inside <code>EnsureUpToDate</code>, which is called from previews, imports, bulk collection operations and throwaway copies, none of which want a whole-book browser pass — and <code>ProcessBook</code> begins by calling <code>BringBookUpToDate</code>, so putting it there would recurse forever. It is serialized, because two callers really do arrive at once.</li>
+          <li><strong>One way into the Edit tab.</strong> The front end's <code>goToEditTab()</code> asks for the book to be made ready (<code>app/ensureBookReady</code>), waits, then selects the tab. The tab button, double-clicking a book, the "Edit this book" / "Make a book from this source" button and its context-menu twin all go through it. Because the pass finishes before the tab exists, its progress dialog is never on the activation path.</li>
+          <li><strong>The APIs report instead of navigating.</strong> <code>app/makeOrEditBook</code>, <code>app/makeFromSelectedBook</code> and <code>collections/selectAndEditBook</code> make and select the book, then reply <code>{ goToEditTab }</code>. That is what makes "make a book from this source" work: the book does not exist until the call has run, so only the front end can prepare the right one.</li>
+          <li><strong>Publishing uses the same entry point.</strong> <code>PublishTabPane</code> calls <code>app/ensureBookReady</code> and only then <code>getInitialPublishTabInfo</code>. Separate calls because the two have opposite requirements: the fix-up must <em>not</em> hold the API sync lock (the off-screen pages it loads make their own sync-locked calls), while <code>getInitialPublishTabInfo</code> must keep it, since it assigns the static <code>PublishApi.Model</code> and <code>LibraryPublishApi.Model</code> that other publish endpoints read.</li>
+          <li><strong>The harvester too.</strong> <code>CreateArtifactsCommand</code> does the same preparation, so harvested artifacts match a local publish. <code>HydrateBookCommand</code> deliberately does not, and says why: no <code>ProjectContext</code>, so no server, and it feeds automated converters rather than publishing.</li>
+          <li><strong><code>EditBookCommand</code> is gone.</strong> Its handler only did <code>ChangeTab(edit)</code>; with the front end owning that step it had no raiser left. The class, its DI registration, the <code>WorkspaceView</code> subscription and handler, injected fields in three classes, the already-callerless <code>CollectionModel.DoubleClickedBook</code> and its stale <code>PerformanceMeasurement</code> entry all go with it.</li>
         </ul>
-        <p>No new detection logic, metas, strings or settings — this is the trigger half of BL-16852, already in 6.5 and master.</p>
+        <p><code>PublishView</code>, <code>PublishModel</code> and <code>EditingStateMachine</code> are unchanged from master. No new detection logic, metas, strings or settings.</p>
       </div>
 
       <div class="card">
@@ -136,21 +136,27 @@
           <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
           <tbody>
             <tr><td>TypeScript typecheck</td><td class="tag ok">pass</td><td>no blunder-class type errors</td></tr>
-            <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors (<span class="numeral">764</span> pre-existing warnings)</td></tr>
+            <tr><td>ESLint</td><td class="tag ok">pass</td><td><span class="numeral">0</span> errors</td></tr>
             <tr><td>Merge with <code>master</code></td><td class="tag ok">clean</td><td>no conflicts</td></tr>
             <tr><td>C# tests (NUnit)</td><td class="tag ok">pass</td><td><span class="numeral">3520 passed · 1 skipped</span></td></tr>
-            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">858 passed · 5 skipped · 72 files</span></td></tr>
-            <tr><td>csharpier / prettier</td><td class="tag ok">pass</td><td>clean</td></tr>
-            <tr><td>Harvester, by hand</td><td class="tag ok">pass</td><td>real <code>createArtifacts</code> run on a book that was due: 6/6 pages processed headless, book stamped, exit 0</td></tr>
+            <tr><td>TypeScript tests (vitest)</td><td class="tag ok">pass</td><td><span class="numeral">858 passed · 5 skipped</span></td></tr>
+            <tr><td>Production bundle</td><td class="tag ok">pass</td><td>built in an isolated tree</td></tr>
+            <tr><td><strong>Interactive test</strong></td><td class="tag ok">pass</td><td>all four Edit/Publish routes driven by clicking the real UI, each on a book that was due — see below</td></tr>
+            <tr><td>Harvester, by hand</td><td class="tag ok">pass</td><td>real <code>createArtifacts</code> run: 6/6 pages processed headless, book stamped, exit 0</td></tr>
           </tbody>
         </table>
         </div>
       </div>
 
       <div class="card">
-        <h2>What changed this run</h2>
-        <p>The publish half was rebuilt. It began as a split of <code>PublishView.Activate</code>, which could only ever cover the Bloom UI; it is now a chokepoint (<code>Book.EnsureReadyForUserWork</code>) reached from the publish UI through a new non-sync endpoint and from the harvester directly, with <code>PublishView</code> and <code>PublishModel</code> back to what is on master. The Edit-tab trigger also changed twice before settling on requiring <code>NoPage</code>.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8371/commits" target="_blank" rel="noopener">The commits</a>.</p>
+        <h2>What the interactive test found</h2>
+        <p>This is the part worth reading. The suites and Devin's first pass were clean while <strong>three separate hangs</strong> sat in the code. Each was found by running Bloom, and each is fixed.</p>
+        <ul>
+          <li><strong>Entering the Edit tab hung Bloom.</strong> The trigger returned early without showing a page so the pass could have the book to itself; the Edit tab then came up with no page selected, asked for <code>editView/frameSources</code>, that threw for want of a current page, and the resulting problem dialog opened <em>inside</em> the progress dialog's message pump where neither could be dismissed. The same shape was in the original design, so this trigger had never worked.</li>
+          <li><strong>The publish route hung differently.</strong> Two <code>app/ensureBookReady</code> calls ran concurrently — <code>PublishTabPane</code> asks on both its mount effect and the <code>switchToPublishTab</code> event — which is the BL-3166 hazard <code>EnsureUpToDateMemory</code> nags about. In a DEBUG build that nag is a <code>MessageBox</code> on a background thread, so Bloom froze behind the progress dialog. Now serialized.</li>
+          <li><strong>A navigation regression</strong> (found by Devin, not the tests): the context menu's "Make a book using this source" goes through a generic dispatcher that ignores the reply, so once that endpoint stopped navigating, it made the book and left the user on Collections.</li>
+        </ul>
+        <p>After the fixes, all four routes were re-driven from the UI: Edit tab button, "Edit this book", the context menu's equivalent, and the Publish tab. Each ran the pass, stamped the book, closed the dialog, and arrived with a page (or the publish tools) showing. An already-migrated book goes straight through with no dialog.</p>
       </div>
 
       <div class="card">
@@ -160,14 +166,19 @@
           <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
           <tbody>
             <tr>
+              <td>Interactive testing</td>
+              <td class="tag ok">complete</td>
+              <td>The most valuable reviewer on this PR: it found two hangs that nothing else did, and confirmed all four routes afterwards.</td>
+            </tr>
+            <tr>
               <td>Local review<br><span style="color:var(--ink-faint);font-size:13px">light read-only sub-agent pass</span></td>
               <td class="tag ok">complete</td>
-              <td>Four findings, and the most valuable of the run: it showed that an orientation change scheduled the pass twice and that the two runs overlap through the progress dialog's message pump. Fixed. Its other findings became the decisions, all now settled.</td>
+              <td>Four findings, all resolved. Its best was that an orientation change scheduled the pass twice and the two runs overlap through the dialog's message pump.</td>
             </tr>
             <tr>
               <td>Devin</td>
               <td class="tag ok">complete</td>
-              <td>Clean on its first pass — it found none of the above. Its value came later: it caught that the guard written for the local pass's finding made matters worse, and two real documentation defects. One finding remains open, opposite.</td>
+              <td>Clean on its first pass, useful on later ones: it caught that a guard written for the local pass's finding made matters worse, the context-menu regression above, and three stale comments. Everything raised is fixed or refuted on its thread.</td>
             </tr>
             <tr><td>CI — <code>pr-automation</code></td><td class="tag ok">pass</td><td>The repo's only GitHub check; the rest of CI is TeamCity.</td></tr>
             <tr><td>Greptile / CodeRabbit</td><td class="tag na">not present</td><td>Neither is configured on this PR.</td></tr>
@@ -179,9 +190,9 @@
       <div class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li><strong>Nothing has been exercised in the Bloom UI.</strong> The Edit-tab trigger and the publish progress dialog have only been reasoned about and covered by the suites. The one path actually run end to end is the harvester, from the command line.</li>
-          <li>The publish gate depends on <code>publish/ensureBookReady</code> staying small and sharing nothing — that is what makes <code>requiresSync:false</code> defensible for it. Worth a reviewer's eye, and worth protecting if anyone later adds to that handler.</li>
-          <li>Unrelated, found while testing: <code>BloomServer.RobustFileExistsWithCaseCheck</code> throws when a book sits under a path whose casing the OS reports differently from the string Bloom holds. It killed a harvester run from a temp directory; re-running from a clean path passed. Not this PR's problem, and not filed.</li>
+          <li><strong>The serialization lock covers <code>EnsureReadyForUserWork</code> only, on purpose.</strong> The two direct callers of the dialog form (a page-size change and the AI image editor) run on the UI thread, and taking the same lock there could deadlock against a worker thread that holds it while marshalling to the UI thread.</li>
+          <li>The publish gate depends on <code>app/ensureBookReady</code> staying small and sharing nothing — that is what makes <code>requiresSync:false</code> defensible for it. Worth protecting if anyone later adds to that handler.</li>
+          <li>Unrelated, found while testing: <code>BloomServer.RobustFileExistsWithCaseCheck</code> throws when a book sits under a path whose casing the OS reports differently from the string Bloom holds. It killed a harvester run from a temp directory; re-running from a clean path passed. Not filed.</li>
         </ul>
       </div>
 
@@ -189,51 +200,35 @@
 
     <div>
 
+      <div class="item">
+        <div class="kicker">Settled</div>
+        <h3>Everything asked in earlier reports is now closed</h3>
+        <ul class="settled">
+          <li><strong>Publish gate did not gate the front end.</strong> Resolved: <code>app/ensureBookReady</code> called before <code>getInitialPublishTabInfo</code>, which stays synchronized.</li>
+          <li><strong>Silent skip when there is no shell form.</strong> Resolved: the any-thread form falls back to headless, and the harvester runs the pass for real — proven by running the command.</li>
+          <li><strong>Publish re-entrancy while the dialog is up.</strong> Gone: <code>PublishView</code> is back to master, so there is no deferred activation to re-enter.</li>
+          <li><strong>Edit and Publish passes could overlap.</strong> You asked me to try to reproduce it before deciding. A bounded search found no C#-initiated tab change that could fire during a modal — but interactive testing then found a <em>real</em> concurrency bug on the publish route, which the serialization above fixes. So the concern was genuine, just not by the route anyone was looking at.</li>
+        </ul>
+        <p style="font-size:14px;color:var(--ink-soft);margin:0">No answer needed — recorded because you asked to see resolved questions.</p>
+      </div>
+
       <div class="item hot">
-        <div class="kicker">Decision</div>
-        <h3>Two passes could still overlap if Edit and Publish both start one</h3>
-        <p>Both triggers hand their work to the UI thread and then a modal progress dialog blocks in <code>ShowDialog</code> — which <em>pumps the message loop</em>. So a second request arriving while the first dialog is up gets dispatched inside it, and two <code>ProcessBook</code> runs would rewrite one book's DOM from two worker threads at once.</p>
-        <p>What makes it hard to reach: the dialog is owned by the shell, so it blocks user-initiated tab switching for as long as it is up. Reaching this needs a tab change that does not come from the user, during the dialog. I have not demonstrated one.</p>
-        <p>What makes it hard to fix: the obvious guard was tried on an earlier commit here and made things worse — the turned-away caller returned immediately and then navigated, loading a live page while the first pass was still running, which is the same bad end state by another route. Devin caught that. Doing it properly means the second caller <em>waits</em> for the first rather than being refused, which needs a synchronization primitive and a decision about what the Edit path shows meanwhile, since it has no page to fall back to.</p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Leave it, and raise a card<span class="rec">Recommended</span><span class="fn">No code change. Recommended because the failure needs a non-user-initiated tab change during a modal, which nobody has produced, and the fix is a waiting primitive that deserves its own thought rather than being bolted on at the end of this PR.</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Fix it here — make the second caller wait for the first<span class="fn">Moderate: a per-book wait handle in <code>BookProcessor</code>, plus deciding what the Edit path displays while it waits. Touches the one piece of this feature that has already been got wrong twice.</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1c"><label for="q1c">Try to reproduce it first, then decide<span class="fn">Small: hunt for a C#-initiated tab change that can fire during a modal. Settles whether this is theoretical.</span></label></div>
+        <div class="kicker">Next step</div>
+        <h3>How should I proceed?</h3>
+        <p>Nothing is blocked. The gate is green, all four routes are live-tested, and every reviewer thread is resolved or refuted.</p>
+        <div class="opt"><input type="radio" name="q1" id="q1a" checked><label for="q1a">Promote it for human review<span class="rec">Recommended</span><span class="fn">Runs <code>/pr-ready-for-human</code>: un-drafts the PR and moves the card to Ready For Code Review.</span></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1b"><label for="q1b">Hold — I want to look at it first</label></div>
         <div class="opt">
-          <input type="radio" name="q1" id="q1d"><label for="q1d">Leave as is</label>
+          <input type="radio" name="q1" id="q1c"><label for="q1c">Leave as is</label>
           <span class="leaveas"><input type="checkbox" id="q1comment"> Leave comment</span>
         </div>
-        <div class="opt"><input type="radio" name="q1" id="q1e"><label for="q1e">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
+        <div class="opt"><input type="radio" name="q1" id="q1d"><label for="q1d">Other: <input class="otherbox" id="q1other" placeholder="…"></label></div>
         <label class="notelabel">Notes</label>
         <textarea class="notes" id="q1notes" placeholder=""></textarea>
       </div>
 
       <div class="item">
-        <div class="kicker">Settled since the last report</div>
-        <h3>The three earlier decisions</h3>
-        <ul class="settled">
-          <li><strong>Publish gate did not gate the front end.</strong> Resolved, but not as the last report proposed. Rather than dropping the Publish trigger to its own card, it moved to <code>publish/ensureBookReady</code>, called before <code>getInitialPublishTabInfo</code>, which stays synchronized — because that handler assigns two statics about twenty-six other places read.</li>
-          <li><strong>Silent skip when there is no shell form.</strong> Resolved. The any-thread form falls back to headless rather than skipping, and the harvester now runs the pass for real — proven by running the command, not reasoned.</li>
-          <li><strong>Publish re-entrancy while the dialog is up.</strong> Gone. <code>PublishView</code> is back to master, so there is no deferred activation to re-enter.</li>
-        </ul>
-        <p style="font-size:14px;color:var(--ink-soft);margin:0">No answer needed — recorded here because you asked to see them.</p>
-      </div>
-
-      <div class="item">
-        <div class="kicker">Next step</div>
-        <h3>How should I proceed?</h3>
-        <div class="opt"><input type="radio" name="q2" id="q2a" checked><label for="q2a">Live-test both triggers in Bloom, then promote<span class="rec">Recommended</span></label></div>
-        <div class="opt"><input type="radio" name="q2" id="q2b"><label for="q2b">Promote now; live-test separately</label></div>
-        <div class="opt">
-          <input type="radio" name="q2" id="q2c"><label for="q2c">Leave as is</label>
-          <span class="leaveas"><input type="checkbox" id="q2comment"> Leave comment</span>
-        </div>
-        <div class="opt"><input type="radio" name="q2" id="q2d"><label for="q2d">Other: <input class="otherbox" id="q2other" placeholder="…"></label></div>
-        <label class="notelabel">Notes</label>
-        <textarea class="notes" id="q2notes" placeholder=""></textarea>
-      </div>
-
-      <div class="item">
-        <h3>Send your answers back</h3>
+        <h3>Send your answer back</h3>
         <p style="font-size:14px;color:var(--ink-soft)">Copy this and paste it into the Claude Code session.</p>
         <button id="copybtn" type="button">Copy answers</button><span id="copied">copied</span>
         <textarea id="payload" readonly></textarea>
@@ -242,21 +237,14 @@
     </div>
   </div>
 </div>
-
 <script>
 (function(){
   var QS = [
-    {n:'q1', t:'Decision — Edit and Publish passes could overlap',
-     opts:{q1a:'Leave it, and raise a card',
-           q1b:'Fix it here — make the second caller wait',
-           q1c:'Try to reproduce it first, then decide',
-           q1d:'Leave as is', q1e:'Other'},
-     other:'q1other', comment:'q1comment', notes:'q1notes'},
-    {n:'q2', t:'Next step',
-     opts:{q2a:'Live-test both triggers in Bloom, then promote',
-           q2b:'Promote now; live-test separately',
-           q2c:'Leave as is', q2d:'Other'},
-     other:'q2other', comment:'q2comment', notes:'q2notes'}
+    {n:'q1', t:'Next step',
+     opts:{q1a:'Promote it for human review',
+           q1b:'Hold — I want to look at it first',
+           q1c:'Leave as is', q1d:'Other'},
+     other:'q1other', comment:'q1comment', notes:'q1notes'}
   ];
   function build(){
     var out = ['Preflight answers — BloomDesktop PR #8371 (BL-16877)', ''];
