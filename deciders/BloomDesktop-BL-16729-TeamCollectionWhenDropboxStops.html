@@ -3,390 +3,448 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight — BL-16729 Team Collection disconnect detection (round 2)</title>
+<title>Preflight — BL-16729 Team Collection</title>
 <style>
-*, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body, h1, h2, h3, h4, p, ul, ol, li, figure, table { margin: 0; padding: 0; }
-ul, ol { list-style: none; }
-table { border-collapse: collapse; }
-
-:root {
-  --ground: #FBFAF7;
-  --card: #FFFFFF;
-  --border: #E3DFD4;
-  --border-soft: #EFEBE1;
-  --ink: #25231E;
-  --muted: #6D6960;
-  --accent: #2F6B5E;
-  --accent-soft: #EAF1EF;
-  --pass: #3B7350;
-  --warn: #8E6415;
-  --open: #A24E27;
-  --skip: #7A766C;
-  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
-}
-
-body {
-  background: var(--ground);
-  color: var(--ink);
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.6;
-  padding: 40px 28px 72px;
-}
-
-.wrap { max-width: 1360px; margin: 0 auto; }
-
-/* ---------- header ---------- */
-header { border-bottom: 2px solid var(--ink); padding-bottom: 20px; margin-bottom: 28px; }
-header h1 {
-  font-family: var(--serif);
-  font-size: 29px;
-  line-height: 1.22;
-  font-weight: 600;
-  text-wrap: balance;
-  max-width: 30ch;
-}
-.sub { color: var(--muted); margin-top: 8px; font-size: 14px; }
-.meta { display: flex; flex-wrap: wrap; gap: 8px 10px; margin-top: 16px; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  border: 1px solid var(--border); background: var(--card);
-  border-radius: 3px; padding: 4px 10px; font-size: 13px;
-}
-.chip strong { font-weight: 600; }
-.chip .numeral { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
-a { color: var(--accent); }
-a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px;
-}
-
-/* ---------- grid ---------- */
-.cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 30px; align-items: start; }
-.cols > * { min-width: 0; }           /* required: else a table cell pushes the decisions off-screen */
-@media (max-width: 1000px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-
-section { margin-bottom: 28px; }
-h2 {
-  font-family: var(--serif); font-size: 20px; font-weight: 600;
-  padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 14px;
-}
-h3 { font-family: var(--serif); font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 16px 18px; }
-.card + .card { margin-top: 12px; }
-
-/* ---------- tables ---------- */
-.tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--card); }
-table { width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border-soft); vertical-align: top; }
-th {
-  font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
-  color: var(--muted); font-weight: 600; background: #F7F5F0;
-}
-tbody tr:last-child td { border-bottom: none; }
-td.status { white-space: nowrap; font-weight: 600; }
-.numeral { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
-.pass { color: var(--pass); }
-.warnc { color: var(--warn); }
-.openc { color: var(--open); }
-.skipc { color: var(--skip); }
-
-/* ---------- decisions ---------- */
-.decision { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 18px; margin-bottom: 16px; }
-.decision.fyi { border-left: 3px solid var(--accent); }
-.decision h3 { margin-bottom: 8px; }
-.decision p { margin-bottom: 10px; }
-.opt { display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px; border: 1px solid var(--border-soft); border-radius: 3px; margin-bottom: 7px; }
-.opt:hover { background: #FAF8F4; }
-.opt input[type=radio] { margin-top: 4px; flex: none; }
-.opt label { flex: 1; cursor: pointer; }
-.opt .note { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
-.rec { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 3px; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
-.leaverow { display: flex; align-items: flex-start; gap: 9px; }
-.leaverow .lc { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); white-space: nowrap; margin-left: auto; padding-left: 12px; }
-.otherrow input[type=text] { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 3px; padding: 4px 8px; font: inherit; font-size: 14px; }
-.notes { margin-top: 10px; }
-.notes label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-.notes textarea { width: 100%; border: 1px solid var(--border); border-radius: 3px; padding: 7px 9px; font: inherit; font-size: 14px; resize: vertical; min-height: 48px; }
-
-button {
-  font: inherit; font-weight: 600; background: var(--accent); color: #fff;
-  border: none; border-radius: 3px; padding: 9px 18px; cursor: pointer;
-}
-button:hover { background: #275A4F; }
-#payload { width: 100%; margin-top: 12px; min-height: 150px; font-family: var(--mono); font-size: 12px; line-height: 1.5; border: 1px solid var(--border); border-radius: 3px; padding: 9px; resize: vertical; background: #FAF8F4; }
-#copied { margin-left: 12px; color: var(--pass); font-weight: 600; font-size: 13.5px; }
-
-ul.bul { margin: 0 0 10px 0; }
-ul.bul li { padding-left: 16px; position: relative; margin-bottom: 5px; }
-ul.bul li::before { content: "—"; position: absolute; left: 0; color: var(--muted); }
-.commit { padding: 10px 0; border-bottom: 1px solid var(--border-soft); }
-.commit:last-child { border-bottom: none; }
-.commit .sha { font-family: var(--mono); font-size: 12px; }
-.commit p { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #faf8f4;
+    --card: #ffffff;
+    --ink: #23201c;
+    --muted: #6b645c;
+    --line: #e4ded4;
+    --accent: #8a5a2b;
+    --accent-soft: #f4ece1;
+    --ok: #2f6b43;
+    --warn: #8a6d1f;
+    --open: #9c3b2e;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    padding: 28px 20px 60px;
+  }
+  h1, h2, h3 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0 0 10px;
+  }
+  h1 { font-size: 28px; }
+  h2 { font-size: 20px; margin-top: 0; }
+  h3 { font-size: 16px; margin: 0 0 8px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  header.page { margin-bottom: 22px; }
+  header.page .sub { color: var(--muted); margin-top: 6px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: var(--accent-soft); padding: 1px 5px; border-radius: 3px; }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .pill.ok { background: #e7f1ea; color: var(--ok); }
+  .pill.warn { background: #f6efdc; color: var(--warn); }
+  .pill.na { background: #efece7; color: var(--muted); }
+  ul.tight { margin: 8px 0 0; padding-left: 20px; }
+  ul.tight li { margin-bottom: 9px; }
+  .item { border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; background: var(--card); }
+  .opt { display: flex; align-items: flex-start; gap: 9px; padding: 9px 0; border-top: 1px solid var(--line); }
+  .opt input[type=radio] { margin-top: 4px; flex: none; }
+  .opt .body { flex: 1 1 auto; min-width: 0; }
+  .opt .foot { display: block; color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .tag { font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: .04em; }
+  .leavecomment { flex: none; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .notes { width: 100%; margin-top: 10px; font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: #fdfcfa; }
+  input.other { font: inherit; font-size: 14px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 5px; width: 100%; max-width: 360px; margin-top: 5px; background: #fdfcfa; display: block; }
+  button {
+    font: inherit; font-weight: 600; background: var(--accent); color: #fff;
+    border: none; border-radius: 6px; padding: 9px 16px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  #payload { width: 100%; min-height: 160px; margin-top: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 9px; border: 1px solid var(--line); border-radius: 6px; background: #fdfcfa; }
+  .copied { color: var(--ok); font-weight: 600; margin-left: 10px; font-size: 13px; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<header>
-  <h1>Team Collection now notices when it loses the shared folder</h1>
-  <p class="sub">Preflight report (second run, after your decisions) for BL-16729 · branch <span class="numeral">BL-16729-TeamCollectionWhenDropboxStops</span></p>
-  <div class="meta">
-    <span class="chip"><strong>PR</strong> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">#8338</a></span>
-    <span class="chip"><strong>Base</strong> Version6.5</span>
-    <span class="chip"><strong>State</strong> draft</span>
-    <span class="chip"><strong>HEAD</strong> <span class="numeral">6790f07ec</span></span>
-    <span class="chip"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/files" target="_blank" rel="noopener">Files changed</a></span>
-    <span class="chip"><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16729" target="_blank" rel="noopener">BL-16729</a></span>
-    <span class="chip"><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">Devin review</a></span>
+<header class="page">
+  <h1>Preflight — Team Collection notices when the shared folder drops out</h1>
+  <div class="sub">
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16729" target="_blank" rel="noopener">BL-16729</a> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">PR #8338</a> (draft) &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/files" target="_blank" rel="noopener">files changed</a> &middot;
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/commits" target="_blank" rel="noopener">commits</a> &middot;
+    base <code>master</code> &middot; head <span class="numeral">f38cfff5c</span> &middot; 17 September 2026
   </div>
 </header>
 
-<div class="cols">
+<div class="grid">
 
-<!-- ============ LEFT ============ -->
 <div>
 
-<section>
-  <h2>Quality gate</h2>
-  <div class="tablewrap">
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
     <table>
       <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td>TypeScript typecheck</td><td class="status pass">pass</td><td><span class="numeral">pnpm typecheck</span> — clean</td></tr>
-        <tr><td>ESLint</td><td class="status pass">pass</td><td><span class="numeral">0 errors</span>, 764 warnings — all pre-existing, none in the changed file</td></tr>
-        <tr><td>Base integration</td><td class="status pass">clean</td><td>Merged <span class="numeral">origin/Version6.5</span> (115 commits) with no conflicts; gate re-run against the merged tree. Version6.5 has since moved 3 commits (a Reading App Builder licence fix and its tests) which are <em>not</em> merged in — GitHub still reports the PR mergeable and clean, and those commits touch only <span class="numeral">Publish/Rab</span>, which nothing in this diff reaches or is reached by.</td></tr>
-        <tr><td>C# tests — <span class="numeral">BloomTests</span></td><td class="status pass">pass</td><td><span class="numeral">3393 passed · 13 skipped · 0 failed</span>, of which 239 Team Collection — 31 of those new on this branch</td></tr>
-        <tr><td>TypeScript tests — vitest</td><td class="status pass">pass</td><td><span class="numeral">784 passed · 5 skipped · 0 failed</span> across 69 files. Run at <span class="numeral">815a595c8</span>; the two later commits are C#-only, so the TypeScript tree is byte-identical.</td></tr>
-        <tr><td>C# tests — <span class="numeral">BloomFreezeDoctor.Tests</span></td><td class="status skipc">not run</td><td>Nothing in the diff reaches it — it neither builds nor reads any Team Collection code. Arrived in the branch only as part of the Version6.5 merge.</td></tr>
-        <tr><td><span class="numeral">BloomVisualRegressionTests</span></td><td class="status skipc">not run</td><td>Screenshot comparison of book layouts. The diff changes no rendering, styling or page markup.</td></tr>
-        <tr><td>Production bundle</td><td class="status pass">compiles</td><td><span class="numeral">build/agent-vite.sh</span> — full Vite build succeeded</td></tr>
+        <tr>
+          <td>TypeScript typecheck</td>
+          <td><span class="pill ok">pass</span></td>
+          <td><code>pnpm typecheck</code> &mdash; no blunder-class type errors.</td>
+        </tr>
+        <tr>
+          <td>Lint</td>
+          <td><span class="pill ok">pass</span></td>
+          <td><code>pnpm lint</code> &mdash; <span class="numeral">0 errors</span>, <span class="numeral">764 warnings</span>. The warnings are the repo-wide pre-existing baseline, not from this branch, which changes four lines of one <code>.tsx</code> file.</td>
+        </tr>
+        <tr>
+          <td>Tests &mdash; TypeScript (vitest)</td>
+          <td><span class="pill ok">pass</span></td>
+          <td><span class="numeral">858 passed &middot; 5 skipped &middot; 72 files</span>. Run against <span class="numeral">f7bba890e</span>; the one commit after that touches only C# files, so this result still holds for the final head.</td>
+        </tr>
+        <tr>
+          <td>Tests &mdash; C# (dotnet test)</td>
+          <td><span class="pill ok">pass</span></td>
+          <td><span class="numeral">3560 passed &middot; 1 skipped &middot; 0 failed</span> &mdash; the full suite, against the final head <span class="numeral">f38cfff5c</span>.</td>
+        </tr>
+        <tr>
+          <td>Base integration</td>
+          <td><span class="pill ok">clean</span></td>
+          <td><code>master</code> folded in before publishing (62 commits, no conflicts), and the gate re-run on the result. GitHub reports the PR <strong>mergeable</strong>.</td>
+        </tr>
       </tbody>
     </table>
+    </div>
   </div>
-</section>
 
-<section>
-  <h2>What changed this run</h2>
   <div class="card">
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/1f327802e0c151c495b1fdcd5aa7c9dece31099c" target="_blank" rel="noopener">1f327802e</a>
-      &nbsp;Notice when Team Collection monitoring stops working, and go Disconnected
-      <p>The feature itself: watcher <span class="numeral">Error</span> subscriptions, the 60-second connection heartbeat with its two-strikes rule, the persistent toast, 64&nbsp;KB watcher buffers, and three new localizable strings. Plus three supporting fixes described in the PR.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/815a595c8ce8d8d3447668cf8cac46ae3b099f76" target="_blank" rel="noopener">815a595c8</a>
-      &nbsp;Merge <span class="numeral">origin/Version6.5</span>
-      <p>See the note on the base branch in the decisions column.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/41a8ba44410e19ac9d53d863531e99d399a85a3c" target="_blank" rel="noopener">41a8ba444</a>
-      &nbsp;Address Devin review: watcher-callback thread safety, and test the heartbeat
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/7c343579c01f419eee1d59bf2be9954a0010e449" target="_blank" rel="noopener">7c343579c</a>
-      &nbsp;Address Devin round 2: probe-exception strike, stale overflow write, message-log locking
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/8b99f7f9a53ebfbc3f791bee90d945f1ef8b4db4" target="_blank" rel="noopener">8b99f7f9a</a>
-      &nbsp;Address Devin round 3: disconnect race, message-log snapshots, dropped setup failures
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/2bacccab05a365c175100527cfaaec18361d3b47" target="_blank" rel="noopener">2bacccab0</a>
-      &nbsp;Address Devin round 4: a failed sync no longer disables the heartbeat
-      <p>The third instance on this branch of one bug shape — a busy flag set before the work and cleared only where the work finishes normally. All three mattered because the new heartbeat consults those flags, so a stuck one silently switched the check off for the session.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/08fd8cb60dd0db740b7e7db38827142822b2fcd4" target="_blank" rel="noopener">08fd8cb60</a>
-      &nbsp;Start watching the Books folder if Dropbox delivers it later
-      <p>Your decision on the one open question, implemented. Not a disconnection; instead the periodic check retries, and announces the books it finds when the folder finally arrives. Also stops a missing <span class="numeral">Books</span> folder from silently costing us collection-settings notifications.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/c956dda07cc702adbb75280ba29ec72a90cb0985" target="_blank" rel="noopener">c956dda07</a>
-      &nbsp;Persist log messages under the lock, so the file matches memory
-      <p>Correcting my own earlier fix: I had split the message-log lock in the wrong place, leaving the write to disk outside it. The append now happens with the list update; only the status-changed event stays outside, since that one reaches WinForms.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a7cddff180832835a50610a57bd75166e9bf0326" target="_blank" rel="noopener">a7cddff18</a>
-      &nbsp;Don't let a failed OpenForms lookup swallow a disconnect
-      <p>Prompted by your manual test. Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — so if it threw, the disconnect was silently discarded and Bloom went on looking connected. Also added log lines for when the periodic check finds and confirms a problem, because your report showed that from outside, "the check ran and decided" and "the check never ran" look identical.</p>
-    </div>
-    <div class="commit">
-      <a class="sha" href="https://github.com/BloomBooks/BloomDesktop/commit/a814635343d1ca82b18b9f28343b8bac7210bfcf" target="_blank" rel="noopener">a81463534</a>
-      &nbsp;Marshal via the UI SynchronizationContext, not a form lookup
-      <p>Devin pushed back on the fix above — falling back to running inline traded a missed notification for a data race — and it was right. The window lookup is gone entirely; this now posts to the synchronization context captured at startup, which never touches <span class="numeral">Application.OpenForms</span> at all.</p>
-    </div>
+    <h2>What changed in this run</h2>
+    <p>Four commits reached the remote in this run; the branch had none of them before.</p>
+    <ul class="tight">
+      <li>
+        <a href="https://github.com/BloomBooks/BloomDesktop/commit/26dbdcd75" target="_blank" rel="noopener"><span class="numeral">26dbdcd75</span></a>
+        &mdash; <strong>the collection history file is no longer written while the message lock is held.</strong>
+        Appending to <code>log.txt</code> used to happen inside the lock that guards the in-memory message list, so if anything
+        else on the machine had that file open, every reader of Team Collection status waited out RobustFile's seconds of
+        retrying &mdash; including the Team&nbsp;Collection button, which is read on the UI thread. Messages are now queued under
+        that lock (which is what keeps the file in the same order as the in-memory log) and written outside it under a
+        separate one. Ordinary appends give up after a couple of quick tries and carry anything unwritten to the next
+        attempt; a new <code>Flush()</code> at shutdown does the stubborn retry instead. This was John's review comment, and
+        the design is essentially the one he sketched.
+      </li>
+      <li>
+        <a href="https://github.com/BloomBooks/BloomDesktop/commit/0a69a6001" target="_blank" rel="noopener"><span class="numeral">0a69a6001</span></a>
+        &mdash; <strong>books deleted while we had no watcher are now noticed.</strong>
+        When the shared folder's <code>Books</code> sub-folder arrives late, the catch-up only looked at books that were
+        <em>present</em>, so a book a teammate had deleted meanwhile sat in the local collection until a restart. It now raises
+        the same deletion event the watcher would have, and leaves the question of whether the book really was deleted to
+        the existing tombstone check. Also John's comment; renames turned out to be handled already.
+      </li>
+      <li>
+        <a href="https://github.com/BloomBooks/BloomDesktop/commit/f7bba890e" target="_blank" rel="noopener"><span class="numeral">f7bba890e</span></a>
+        &mdash; merge of <code>master</code> (62 commits), folded in before publishing so the gate ran against the code as it will
+        actually merge.
+      </li>
+      <li>
+        <a href="https://github.com/BloomBooks/BloomDesktop/commit/f38cfff5c" target="_blank" rel="noopener"><span class="numeral">f38cfff5c</span></a>
+        &mdash; <strong>two real bugs Devin found, both on the disconnect paths.</strong>
+        A <code>Books</code> folder that vanished again between the once-a-minute check and the work reaching the UI thread would
+        have thrown out of a posted callback with nothing to catch it, taking Bloom down
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f38cfff5c6c6ea6a8a073002009eb9a279f7d29f/src/BloomExe/TeamCollection/FolderTeamCollection.cs#L1127" target="_blank" rel="noopener">FolderTeamCollection.cs:1127</a>).
+        And the stand-in collection Bloom creates when it disconnects has a message log of its own that nothing ever
+        disposed, so its &ldquo;you are now disconnected&rdquo; messages would never have been flushed &mdash; a regression from the
+        first commit above
+        (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f38cfff5c6c6ea6a8a073002009eb9a279f7d29f/src/BloomExe/TeamCollection/TeamCollectionManager.cs#L734" target="_blank" rel="noopener">TeamCollectionManager.cs:734</a>).
+        Both fixed, the second with a regression test.
+      </li>
+    </ul>
   </div>
-</section>
 
-<section>
-  <h2>Reviewers</h2>
-  <div class="tablewrap">
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
     <table>
       <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
       <tbody>
         <tr>
-          <td>Local review<br><span class="numeral">light sub-agent pass</span></td>
-          <td class="status pass">complete</td>
-          <td><strong>6 raised, 6 fixed, 0 escalated, 0 dismissed.</strong> Two were mine and serious: a failing <a href="https://github.com/BloomBooks/BloomDesktop/blob/2bacccab05a365c175100527cfaaec18361d3b47/src/BloomExe/TeamCollection/TeamCollection.cs#L684" target="_blank" rel="noopener"><span class="numeral">TryStartWatching</span></a> could disconnect synchronously from inside <span class="numeral">StartMonitoring</span>, leaving a live watcher on an abandoned collection; and an <span class="numeral">Interlocked</span> gate in <a href="https://github.com/BloomBooks/BloomDesktop/blob/2bacccab05a365c175100527cfaaec18361d3b47/src/BloomExe/TeamCollection/TeamCollectionManager.cs#L592" target="_blank" rel="noopener"><span class="numeral">MakeDisconnected</span></a>'s caller could latch permanently and disable every future disconnect. It also found the first of the three stuck-busy-flag bugs — <span class="numeral">_writeBookInProgress</span> was never cleared when a repo write threw — and one of my own tests that passed vacuously.</td>
+          <td>Local review<br><span style="color:#6b645c;font-size:13px">light sub-agent pass</span></td>
+          <td><span class="pill ok">clean</span></td>
+          <td>One pass over the two new commits. <strong>No correctness problems found.</strong> It traced the lock ordering and
+            the interleavings of the new message-log code, and satisfied itself that the new deletion announcement cannot
+            remove a book it should not. It raised one non-blocking observation, carried opposite as an FYI.</td>
         </tr>
         <tr>
-          <td>Devin<br><span class="numeral">9 rounds</span></td>
-          <td class="status pass">complete</td>
-          <td>
-            Re-triggered on every push. Devin accumulates findings across rounds and re-lists ones already fixed, so the counts below are of <em>distinct</em> findings.<br><br>
-            <strong>17 distinct findings, all 17 now closed.</strong>
-            Eight were fixed in code (watcher-callback thread safety; the untested heartbeat; probe exceptions preserving a strike; a stale overflow warning after disconnect; the non-atomic disconnect claim; message-log locking and then snapshots; a silently dropped setup failure; a failed sync leaving the heartbeat permanently switched off). Three were closed with a documented answer rather than a code change: the live-verification gap is real and is decision 2 below; the <span class="numeral">translate="no"</span> flag is this repo's documented convention for new strings, and the <span class="numeral">useEffect</span> rationale rule governs introducing an effect, not correcting one word inside a pre-existing one.<br><br>
-            The two that were open going into this round — <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r3973923424" target="_blank" rel="noopener">Missing book watcher stays connected</a> and
-            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r3974034580" target="_blank" rel="noopener">New collection watcher failures ignored</a> — were the two faces of the question you answered, and are closed with that decision recorded on each thread.<br><br>
-            Reviewing the fix produced three more. One was a real ordering flaw in my own previous fix (log messages were written to disk outside the lock, so the file could disagree with memory and two threads could collide over it) and is fixed. One asked me to verify that the recovery path preserves ordering — it does, and it follows the pattern <span class="numeral">StartMonitoringOnIdle</span> already uses for the same kind of catch-up. The third argued a missing <span class="numeral">Books</span> folder should disconnect an <em>established</em> collection; I did not act on it, both because it is the decision you just made and because that scenario is not silent — the sync fails first and reports it.<br><br>
-            One more arrived after that, and it was a good catch on a fix I had just made: my recovery from a failed window lookup ran the work inline instead, which trades a missed notification for a data race. Fixed properly by dropping the window lookup altogether. <strong>No review thread is left open.</strong>
-            <br><br>The fifth and final round, against this exact HEAD, produced <strong>no new findings</strong> \u2014 every title it listed was one already recorded above. (Devin\u2019s list is cumulative and never shrinks, which is why fixed items keep reappearing in it.)
-          </td>
+          <td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">Devin</a></td>
+          <td><span class="pill ok">complete</span></td>
+          <td>Consulted twice &mdash; up to <span class="numeral">f7bba890e</span>, then again up to <span class="numeral">f38cfff5c</span>.
+            Four findings not already on the PR:
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4040695538" target="_blank" rel="noopener">crash on a vanished folder</a> (fixed),
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4040697221" target="_blank" rel="noopener">disconnect messages lost at shutdown</a> (fixed),
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4040697402" target="_blank" rel="noopener">new collections start unwatched</a>
+            (assessed &mdash; already deliberate and documented in the code; replied and resolved), and
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4040699098" target="_blank" rel="noopener">offline local collections falsely disconnect</a>,
+            <strong>left open for you</strong> opposite. The second round confirmed both fixes and found nothing new.
+            Nine Investigate flags, unchanged from earlier rounds and already mirrored and resolved; no informational items.
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#issuecomment-5720130147" target="_blank" rel="noopener">Consultation log</a>.</td>
         </tr>
         <tr>
           <td>CodeRabbit</td>
-          <td class="status skipc">not a reviewer here</td>
-          <td><span class="numeral">.coderabbit.yml</span> sets <span class="numeral">auto_review.enabled: false</span>, so it is configured but deliberately switched off on this repo. It never posts on push.</td>
+          <td><span class="pill na">not a reviewer here</span></td>
+          <td>Configured but deliberately switched off for this repo &mdash; <code>.coderabbit.yml</code> sets
+            <code>auto_review.enabled: false</code> and <code>review_status: false</code>. Nothing was waited on.</td>
         </tr>
         <tr>
-          <td>CI — <span class="numeral">pr-automation</span></td>
-          <td class="status pass">complete</td>
-          <td>Passed at every HEAD (23–41 s). Note this workflow only triggers the Devin review; it runs no build or tests, so it is not evidence the branch compiles — the gate table above is.</td>
+          <td>CI &mdash; <code>pr-automation</code></td>
+          <td><span class="pill ok">pass</span></td>
+          <td>Green at the final head (<span class="numeral">37s</span>).
+            <a href="https://github.com/BloomBooks/BloomDesktop/actions/runs/35265209682" target="_blank" rel="noopener">Run</a>.</td>
+        </tr>
+        <tr>
+          <td>Human review &mdash; John Thomson<br><span style="color:#6b645c;font-size:13px">via Reviewable</span></td>
+          <td><span class="pill warn">answered, awaiting him</span></td>
+          <td>John requested changes on 16 September with four discussions. <strong>All four are the work in this run</strong>, and
+            each now carries a published reply saying what changed: rename <code>Tick</code> to
+            <code>UpdateTcConnectionStatus</code>; move <code>RunOnUiThreadLater</code> out of the Team Collection manager into
+            <code>Program</code>; handle deleted (and renamed) books in the deferred catch-up; and stop holding the lock across
+            the log write. The <code>code-review/reviewable</code> check stays <em>pending</em> until he flips his own
+            disposition &mdash; that is his to do, not ours, and it is not a CI failure.
+            <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8338" target="_blank" rel="noopener">Reviewable</a>.</td>
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
-</section>
 
-<section>
-  <h2>Session notes</h2>
   <div class="card">
-    <h3>The base branch was changed mid-run</h3>
-    <p>The worktree was cut from <span class="numeral">master</span>, so I merged <span class="numeral">origin/master</span> first. That merge brought in an <span class="numeral">AGENTS.md</span> rule added to master on 2026-08-27 — <em>"new work targets Version6.5, not master"</em> — which had not existed when this worktree was created and so was invisible at the start of the run.</p>
-    <p>Master carries 172 commits that Version6.5 does not, so a PR built on that merge would have dragged all of them into a 6.5 release branch. I reset the merge, confirmed the branch's base commit was already an ancestor of Version6.5, and merged <span class="numeral">origin/Version6.5</span> instead. The PR diff is now exactly the ten files of this change. Your own comment on the card — <em>"Let's do a PR against 6.5"</em> — confirms this was the right target.</p>
-  </div>
-  <div class="card">
-    <h3>Three pre-existing bugs were fixed along the way</h3>
-    <ul class="bul">
-      <li><strong>Three stuck busy flags, all the same shape.</strong> <span class="numeral">_writeBookInProgress</span> (two sites) and <span class="numeral">_syncIsRunning</span> were each set before the work and cleared only where it finished normally, so any throw left them set for the rest of the session. That already suppressed change notifications; and because the new heartbeat asks "are we busy writing?" before each check, a stuck flag would have silently switched the whole feature off — in precisely the flaky-share conditions that make those writes throw. All now clear in a <span class="numeral">finally</span>.</li>
-      <li><strong><span class="numeral">MakeDisconnected</span> leaked the collection it replaced</strong>, nulling <span class="numeral">CurrentCollection</span> without stopping its watchers and leaving <span class="numeral">Dispose</span> unable to reach it — so the abandoned collection went on watching and queueing changes indefinitely.</li>
-      <li><strong>A failed book-status fetch rendered the book as available for checkout.</strong> <span class="numeral">CollectionsTabBookPane.tsx</span> set <span class="numeral">disconnected</span> where the interface field is <span class="numeral">isDisconnected</span>.</li>
+    <h2>Notes from this run</h2>
+    <ul class="tight">
+      <li><strong>The target branch is settled.</strong> The card reads <code>[6.6]</code>, <code>master</code> is version 6.6, and there is
+        no <code>Version6.6</code> branch &mdash; so the PR's existing base of <code>master</code> is right. The temporary
+        &ldquo;branch off Version6.5&rdquo; note in <code>AGENTS.md</code> does not govern this card; that was decided earlier and
+        recorded on the card.</li>
+      <li><strong>The QA test-ideas comment was refreshed in place</strong>, re-derived from the final diff. It gained a section for
+        the new &ldquo;books deleted while we were not watching&rdquo; behavior &mdash; including the negative test that matters
+        most, that a half-downloaded shared folder must <em>not</em> make books disappear &mdash; and one claim that had gone
+        stale was corrected: it still said none of this had been exercised in a running Bloom, which is no longer true of
+        the main disconnect paths.</li>
+      <li><strong>The report link on the card already points at this page</strong>, so it was not posted a second time. This page has
+        been rewritten in place, so that link shows what you are reading now.</li>
+      <li><strong>The branch was two commits behind its own remote</strong> when this run started: someone had merged
+        <code>master</code> into the pushed branch while the local work sat unpushed. That was integrated first, which is why
+        the merge appears before the fixes.</li>
     </ul>
   </div>
-</section>
 
 </div>
 
-<!-- ============ RIGHT ============ -->
 <div>
 
-<section>
-  <h2>Over to you</h2>
+  <div class="item">
+    <h3>1. Should a Team Collection be disconnected when the computer has no network, even if its folder is local?</h3>
+    <p>Devin raised this and I deliberately have not changed it, because it is a question about when Bloom should declare
+      a collection disconnected rather than a clear-cut defect.</p>
+    <p>The once-a-minute connection check asks Windows whether any network is available at all, and if the answer is no it
+      returns <em>&ldquo;No network is available on this computer&rdquo;</em>
+      (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f38cfff5c6c6ea6a8a073002009eb9a279f7d29f/src/BloomExe/TeamCollection/FolderTeamCollection.cs#L1875" target="_blank" rel="noopener">FolderTeamCollection.cs:1875</a>).
+      That test runs before anything asks whether <em>this particular</em> collection needs a network, and a few lines earlier
+      Bloom has already confirmed the shared folder is right there and readable.</p>
+    <p>So picture someone whose Team Collection folder is on a local drive, a USB stick, or a Dropbox folder that simply
+      has not synced yet, working on a laptop with the Wi-Fi switched off. The folder is perfectly readable and everything
+      works. Before this branch that verdict was only reached when something happened to ask; now the heartbeat asks every
+      sixty seconds, so two consecutive checks &mdash; about seventy-five seconds &mdash; would take that user from working
+      normally to <strong>Disconnected</strong> on their own machine, with no way back except &ldquo;fixing&rdquo; a problem that was
+      never affecting them and reloading the collection.</p>
+    <p>How much this matters turns on something the code cannot tell me: whether anyone really runs a Team Collection that
+      does not need the network. If every real collection lives on Dropbox or a network share, this is close to
+      theoretical.</p>
 
-  <div class="decision fyi">
-    <h3>Your decisions from the first run — all applied</h3>
-    <ul class="bul">
-      <li><strong>Missing <span class="numeral">Books</span> folder.</strong> Your reading was right and I checked it: the folder is created when a collection is <em>set up</em>, so the only way to lack it is to be a joiner whose Dropbox has not delivered it yet — and then there is nothing to miss. Not a disconnection. But the session-long give-up was real, so the once-a-minute check now retries, starts the watcher when the folder turns up, and announces the books already in it as new arrivals. I went with your option A over the whole-folder watcher; the reasoning is on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r3980733295" target="_blank" rel="noopener">PR thread</a> and summarised below.</li>
-      <li><strong>Live verification</strong> — yours to run; the script on the card now covers the new joiner case too.</li>
-      <li><strong>Message log thread safety</strong> and <strong>heartbeat timings</strong> — left as is, as you asked.</li>
-    </ul>
-    <p><strong>Nothing is waiting on you in this run.</strong> The items below are for information only; there are no unanswered questions and every PR review thread is now closed.</p>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1a" data-q="Decision 1 - no-network disconnect" value="Only apply the no-network test to collections that actually need the network" checked>
+      <label class="body" for="q1a">
+        <span class="tag">RECOMMENDED</span><br>
+        Only apply the no-network test to collections that actually need it &mdash; skip it when the shared folder is on a
+        local or removable drive, or fold it into the Dropbox branch that follows it.
+        <span class="foot">Roughly 10&ndash;20 lines inside <code>CheckConnection</code>, localized and low risk; recommended
+        because it removes a false disconnect without weakening the real detection, which is the whole point of the card.</span>
+      </label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1b" data-q="Decision 1 - no-network disconnect" value="Require more consecutive failures before the no-network verdict can disconnect">
+      <label class="body" for="q1b">
+        Keep the test, but require more consecutive failures (or a longer confirmation window) before the no-network
+        verdict specifically is allowed to disconnect anyone.
+        <span class="foot">Smaller &mdash; a constant and a branch &mdash; but it treats the symptom: someone offline for five
+        minutes still ends up disconnected.</span>
+      </label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1c" data-q="Decision 1 - no-network disconnect" value="Leave as is">
+      <label class="body" for="q1c">Leave as is</label>
+      <span class="leavecomment"><input type="checkbox" id="q1lc" data-leavecomment="1"><label for="q1lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1d" data-q="Decision 1 - no-network disconnect" value="Other">
+      <label class="body" for="q1d">Other:
+        <input class="other" type="text" data-other-for="q1" placeholder="your answer">
+      </label>
+    </div>
+    <textarea class="notes" data-q="Decision 1 - notes" placeholder="Notes, caveats, constraints..."></textarea>
   </div>
 
-  <div class="decision fyi">
-    <h3>Why not the single whole-folder watcher</h3>
-    <p>You asked which I thought was better. Watching the whole Team Collection folder and filtering would notice the <span class="numeral">Books</span> folder instantly and would need no catch-up scan — both real advantages — but one watcher means one notification filter. The <span class="numeral">Other</span> folder would start receiving file-name and directory events it does not get today, and that path runs into the check that can block in a modal and shut the user out of the collection when a teammate raises the minimum Bloom version. It would also make the debouncing helpers, which are per-watcher-per-event-type, share state between the two kinds of change, and it would add the Lost and Found folder plus Bloom's own temporary write traffic to the same notification buffer.</p>
-    <p>That puts the risk on the path that works today for every collection, in order to fix a case that only affects a joiner mid-sync. The catch-up it saves turned out to be about ten lines reusing what was already there.</p>
+  <div class="item">
+    <h3>2. FYI &mdash; a mock-only constructor could trip over the new shutdown flush</h3>
+    <p>The local review noticed this, and it is not a bug today. <code>TeamCollection</code> has a parameterless constructor
+      that exists only so Moq can subclass it, and it leaves the message log null. Disposing now calls <code>Flush()</code> on
+      that log unconditionally, so a future test that disposed such a mock would get a null-reference error. Nothing
+      disposes one today, and production cannot reach that constructor.</p>
+    <p>I left it alone because the project's own guidance is to fail fast rather than add defensive null checks, and a
+      guard here would be exactly that. It is recorded so whoever next writes a test against a mocked
+      <code>FolderTeamCollection</code> is not puzzled by it.</p>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2a" data-q="FYI 2 - mock constructor and the shutdown flush" value="Add a null-conditional guard on the flush">
+      <label class="body" for="q2a">Add a null-conditional guard so disposing a mocked collection cannot throw.
+        <span class="foot">One character, no runtime risk &mdash; but it is precisely the defensive style
+        <code>AGENTS.md</code> asks us not to add.</span>
+      </label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2b" data-q="FYI 2 - mock constructor and the shutdown flush" value="Leave as is" checked>
+      <label class="body" for="q2b"><span class="tag">RECOMMENDED</span> Leave as is</label>
+      <span class="leavecomment"><input type="checkbox" id="q2lc" data-leavecomment="1"><label for="q2lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2c" data-q="FYI 2 - mock constructor and the shutdown flush" value="Other">
+      <label class="body" for="q2c">Other:
+        <input class="other" type="text" data-other-for="q2" placeholder="your answer">
+      </label>
+    </div>
+    <textarea class="notes" data-q="FYI 2 - notes" placeholder="Notes..."></textarea>
   </div>
 
-  <div class="decision fyi">
-    <h3>Manual testing settled a question I had been asserting</h3>
-    <p>Two rounds of testing, and the second produced a definite answer that changes how this feature should be described.</p>
-    <p><strong>The near-instant path does not fire.</strong> With a Team Collection on a USB stick, physically pulling the drive out produced this in the event log:</p>
-    <p><span class="numeral">11:32:00 &nbsp;periodic check found a problem (TeamCollection.MissingRepo); looking again in 15s</span><br>
-       <span class="numeral">11:32:15 &nbsp;periodic check confirmed a problem (TeamCollection.MissingRepo); disconnecting</span></p>
-    <p>No watcher-failure line at all. Windows never told Bloom the folder had become unwatchable, so the once-a-minute check did the entire job — in exactly its designed timing. I had been describing instant detection as the headline mechanism; it is not, and the honest number is about 75 seconds however the folder goes away. The notes on the card now say so.</p>
-    <p>The watcher subscription stays. It costs nothing, it is the documented mechanism, it is how a notification-buffer overflow is detected — a real and separate case — and it may well fire in situations other than media removal. It is simply best-effort, which I should have said rather than promising seconds.</p>
-    <p><strong>The first round's mistake was mine.</strong> I had recommended <span class="numeral">subst</span> as the quick way to simulate a lost drive. Removing a <span class="numeral">subst</span> letter does not invalidate handles that are already open, so Bloom keeps watching the real folder underneath. It only ever exercises the periodic check — which, as it turns out, is the path that matters anyway.</p>
-    <p><strong>And chasing it flushed out a real bug.</strong> Looking up a window to marshal to reached <span class="numeral">Application.OpenForms</span>, which is not thread-safe, from outside a try — and every caller is on a watcher's thread or the timer's. Had it thrown, the disconnect would have been silently discarded and Bloom would have carried on looking connected indefinitely, since every later check would hit the same thing. Fixed; the marshalling no longer touches <span class="numeral">Application.OpenForms</span> at all.</p>
+  <div class="item">
+    <h3>3. FYI &mdash; the Reviewable check stays pending until John answers</h3>
+    <p>All four of John's discussions now carry a published reply describing what changed, but a Reviewable discussion
+      only closes when the person who raised it says so. Until he does, the <code>code-review/reviewable</code> check reads
+      <em>pending</em> and GitHub shows the PR as <em>changes requested</em>. That is human review working as intended rather than
+      something this run left unfinished &mdash; but it does mean the PR cannot go green on its own.</p>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3a" data-q="FYI 3 - Reviewable check pending" value="Leave as is" checked>
+      <label class="body" for="q3a"><span class="tag">RECOMMENDED</span> Leave as is</label>
+      <span class="leavecomment"><input type="checkbox" id="q3lc" data-leavecomment="1"><label for="q3lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3b" data-q="FYI 3 - Reviewable check pending" value="Other">
+      <label class="body" for="q3b">Other:
+        <input class="other" type="text" data-other-for="q3" placeholder="your answer">
+      </label>
+    </div>
+    <textarea class="notes" data-q="FYI 3 - notes" placeholder="Notes..."></textarea>
   </div>
 
-  <div class="decision fyi">
-    <h3>The timing was re-confirmed, not just inherited</h3>
-    <p>You had already chosen to leave the check at 60 seconds with a 15-second confirmation. That decision was made believing the watcher covered vanished folders instantly and the periodic check was a backstop for Dropbox. Since it is now known to be the only mechanism that fires, the question was put again with that correction, and the answer was the same: <strong>leave it</strong>.</p>
-    <p>The reasoning holds up. What this card fixes is going <em>hours</em> unaware; nobody loses work in 75 seconds, they just see slightly stale status for a minute. And the confirmation delay cannot usefully drop below 15 seconds anyway, because the Dropbox reachability answer is cached for 10 — a faster second look would simply return the first one and confirm nothing.</p>
+  <div class="item">
+    <h3>4. What next?</h3>
+    <p>Whatever you choose above, the branch is green and the PR is a draft. Nothing was promoted to human review by this
+      run &mdash; that is <code>pr-ready-for-human</code>'s job, and John is already looking at it in any case.</p>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4a" data-q="Next step" value="Implement the choices above now, then re-run the gauntlet" checked>
+      <label class="body" for="q4a"><span class="tag">RECOMMENDED</span> Implement whatever I chose above now, then re-run the gauntlet.</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4b" data-q="Next step" value="Discuss first, before any more code changes">
+      <label class="body" for="q4b">Let's talk it through before any more code changes.</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4c" data-q="Next step" value="Leave as is">
+      <label class="body" for="q4c">Leave as is</label>
+      <span class="leavecomment"><input type="checkbox" id="q4lc" data-leavecomment="1"><label for="q4lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q4" id="q4d" data-q="Next step" value="Other">
+      <label class="body" for="q4d">Other:
+        <input class="other" type="text" data-other-for="q4" placeholder="your answer">
+      </label>
+    </div>
+    <textarea class="notes" data-q="Next step - notes" placeholder="Notes..."></textarea>
   </div>
 
-  <div class="decision fyi">
-    <h3>Manual testing: essentially done, and it passed</h3>
-    <p><strong>Detection.</strong> A drive physically removed is detected; Dropbox being quit is detected. In both cases the red notification appears and the collection goes Disconnected, and restoring the folder and clicking Reload Collection returns it to normal.</p>
-    <p><strong>The negative cases — the ones that mattered most — both passed.</strong> An hour idle on a healthy Dropbox collection stayed connected. Unplugging the ethernet cable for five to ten seconds stayed connected. Those were the outcomes worth worrying about, because a wrong disconnect costs the user a full reload and there is no automatic way back from it. The confirm-before-believing rule is doing its job.</p>
-    <p><strong>Not run, and not runnable here:</strong> the Dropbox-folder-also-shared-on-a-LAN combination, for want of the setup. It stays on the card as untested rather than passed.</p>
-    <p><strong>One test turned out not to exist.</strong> The script asked for a Team Collection to be joined while its shared folder was incomplete. You cannot: the join fails outright in that state. See the note below.</p>
-  </div>
-
-  <div class="decision fyi">
-    <h3>A justification I had to withdraw</h3>
-    <p>The deferred-watcher work earlier in this run was justified on the grounds that a joiner's Dropbox might not have delivered the shared folder's <span class="numeral">Books</span> sub-folder yet. Testing showed that is not a real state: you cannot join a collection in that condition at all, because the join fails earlier on the missing folder.</p>
-    <p>What is genuinely reachable is narrower — <em>reopening</em> a collection already joined, at a moment when <span class="numeral">Books</span> is absent, such as while Dropbox restores the shared folder onto a new machine. Monitoring starts on every collection open, not only at join. And the sync still fails and still tells the user in that case; what the retry avoids is having to restart Bloom once the folder arrives.</p>
-    <p>Kept after weighing it, on the reasoning that its failure mode is inert and the same restructure independently stops a missing <span class="numeral">Books</span> folder from silently skipping the <span class="numeral">Other</span> watcher. The code comment and the QA step now state the real reachability instead of the version I had assumed, and the QA step's expected result is corrected too — it said the collection would open normally, when in fact it reports a sync error.</p>
-  </div>
-
-  <div class="decision fyi">
-    <h3>Investigated and dismissed: "the administrator has paused checkouts"</h3>
-    <p>After the Dropbox test, restarting Dropbox and reloading the collection left Bloom saying an administrator had paused checkouts. That turned out not to be caused by this work, and not to be a bug at all.</p>
-    <p>The shared folder's own collection settings have carried <span class="numeral">&lt;AllowCheckouts&gt;False&lt;/AllowCheckouts&gt;</span> since <strong>20 August</strong>, three weeks before this branch existed — almost certainly left behind by testing the administrator-pause feature, which has no UI to switch it back off. Bloom was reporting a real setting. Reopening a collection syncs that setting down from the shared folder, which is exactly what that feature is for.</p>
-    <p>Two things ruled out along the way. The pause feature is entirely on <span class="numeral">Version6.5</span> already and this branch does not touch it — no <span class="numeral">AllowCheckouts</span> lines in the diff, and no changes to the collection settings or the status panel. And the event log contains no "AllowCheckouts changed remotely" line, which is what the code writes whenever it changes that value, so nothing altered it during the session; it was already false.</p>
-    <p>It also looked at first as though a restart cleared the message and a reload did not, which would have been a genuine UI-refresh bug. It did not: the message only ever renders on a book that would otherwise be available to check out, so a checked-out book looks normal even while checkouts are paused. The setup section of the QA notes now warns testers about this, because a paused collection blocks most of the script and there is no UI hinting at why.</p>
-  </div>
-
-  <div class="decision fyi">
-    <h3>One unexplained test failure</h3>
-    <p>The first full test run at <span class="numeral">a7cddff18</span> reported one failure out of 3406, and I did not capture which test it was. Four subsequent full runs were clean, including one recorded to a results file, and the Team Collection tests have passed every time. So it is intermittent and not obviously related to this work — but "it passed on retry" is not the same as "it was fine", and I cannot tell you what it was. Worth remembering if a stray red appears in CI.</p>
-  </div>
-
-  <div class="decision">
-    <h3>Anything to send back?</h3>
-    <p>There are no questions outstanding this time. If you want changes after reading, put them here and paste the block into the session.</p>
-    <div class="notes"><label for="freenotes">Notes</label><textarea id="freenotes" data-q="notes" placeholder="…"></textarea></div>
-    <button id="copybtn" type="button">Copy</button><span id="copied" hidden>Copied</span>
+  <div class="item">
+    <h3>Send your answers back</h3>
+    <p>Copy this and paste it into the Claude Code session.</p>
+    <button id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>copied</span>
     <textarea id="payload" readonly></textarea>
   </div>
 
-</section>
 </div>
 </div>
 </div>
 
 <script>
 (function () {
-  var HEADER = "Preflight round 2 — BL-16729 / PR #8338 (HEAD 6790f07ec)";
+  var payload = document.getElementById('payload');
+
   function build() {
-    var t = (document.getElementById("freenotes").value || "").trim();
-    document.getElementById("payload").value =
-      HEADER + "\n\n" + (t ? t : "No changes requested.") + "\n";
+    var lines = ['Preflight decisions - BL-16729 (PR #8338, head f38cfff5c)', ''];
+    var seen = [];
+    document.querySelectorAll('input[type=radio]').forEach(function (r) {
+      if (seen.indexOf(r.name) === -1) seen.push(r.name);
+    });
+    seen.forEach(function (name) {
+      var any = document.querySelector('input[name="' + name + '"]');
+      var q = any.getAttribute('data-q');
+      var sel = document.querySelector('input[name="' + name + '"]:checked');
+      var val = sel ? sel.value : '(no answer)';
+      if (val === 'Other') {
+        var box = document.querySelector('input.other[data-other-for="' + name + '"]');
+        var typed = box && box.value.trim();
+        val = 'Other: ' + (typed ? typed : '(nothing typed)');
+      }
+      lines.push(q + ': ' + val);
+      var lc = document.getElementById(name + 'lc');
+      if (lc && lc.checked) {
+        lines.push('  Leave comment: yes - record this decision as a code comment in the repo');
+      }
+    });
+    document.querySelectorAll('textarea.notes').forEach(function (t) {
+      if (t.value.trim()) lines.push('', t.getAttribute('data-q') + ': ' + t.value.trim());
+    });
+    payload.value = lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
-  document.addEventListener("input", build);
+
+  document.addEventListener('input', build);
+  document.addEventListener('change', build);
   build();
-  document.getElementById("copybtn").addEventListener("click", function () {
-    var ta = document.getElementById("payload");
+
+  document.getElementById('copybtn').addEventListener('click', function () {
     var done = function () {
-      var c = document.getElementById("copied");
+      var c = document.getElementById('copied');
       c.hidden = false;
       setTimeout(function () { c.hidden = true; }, 2200);
     };
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value).then(done, function () {
-        ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      navigator.clipboard.writeText(payload.value).then(done, function () {
+        payload.select(); document.execCommand('copy'); done();
       });
     } else {
-      ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      payload.select(); document.execCommand('copy'); done();
     }
   });
 })();
