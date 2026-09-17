@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Language Name Preflight</title>
 <style>
   :root {
@@ -117,257 +122,227 @@
   @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
   :root:not([data-theme="light"]) { color-scheme: light; }
 </style>
+</head>
+<body>
 
 <div class="wrap">
 
 <header class="top">
-  <p class="eyebrow">Preflight · BloomDesktop · BL-16806</p>
   <h1>One language, two names, depending on the machine</h1>
-  <p class="runline">Branch <code>BL-16806-language-name</code> → <code>master</code>, at
-    <a href="https://github.com/BloomBooks/BloomDesktop/commit/d2f45cc7422ea8963787971a72fc3c3d9170c931" target="_blank" rel="noopener"><code>d2f45cc</code></a>.
-    One commit. Verified in the real Publish tab both before and after the fix.</p>
+  <p class="runline">Branch <code>BL-16806-language-name</code> &rarr; <code>master</code>, at
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/377e95b05444a7313dc87ddaf1228aada7c75986" target="_blank" rel="noopener"><code>377e95b</code></a>.
+    Rebased onto a master that had moved 371 commits, and one real bug found and fixed this run.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
-    <span class="chip ok">Devin clean</span>
-    <span class="chip attn">Greptile timed out</span>
-    <span class="chip attn">3 items for you</span>
+    <span class="chip ok">C# 3529 passed</span>
+    <span class="chip ok">CI green</span>
+    <span class="chip attn">2 items for you</span>
+  </div>
+  <div class="chips" style="margin-top:10px">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8286" target="_blank" rel="noopener">PR #8286</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8286/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8286/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16806" target="_blank" rel="noopener">BL-16806</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8286" target="_blank" rel="noopener">Devin review</a>
   </div>
 </header>
 
 <div class="cols">
 <div>
 
-  <section class="card">
-    <h2>What this PR is about</h2>
-
-    <h3>Problem</h3>
-    <p class="lede">A book can hold text in a language its collection no longer lists — you set a
-      collection to English, French and Spanish, made books, then changed it to English and French.
-      Publish ▸ Text Languages still lists that language, correctly. But the <em>name</em> it shows
-      depends on which machine Bloom is running on.</p>
-
-    <div class="split">
-      <table>
-        <tr><th>Machine</th><th>The Spanish row reads</th></tr>
-        <tr><td>GitHub <code>windows-latest</code> runner</td><td class="name a">espagnol</td></tr>
-        <tr><td>A developer Windows machine</td><td class="name b">español</td></tr>
-      </table>
-      <p class="gloss">“espagnol” is the <em>French</em> word for Spanish. Two people with the same
-        collection and the same book read different names for the same language, and neither is the
-        name they would look for.</p>
-    </div>
-
-    <h3>Cause</h3>
-    <p>For a language the collection does not name, Bloom asked LibPalaso for that language's name
-      <em>“in”</em> the collection's metadata language — French, above. That call honors the request
-      only where a native ICU library is findable, and Bloom ships <code>icu.net</code> but no
-      <code>icuuc.dll</code>. Where ICU is present it answers <code>espagnol</code>; where it is
-      absent it ignores the request and returns the autonym <code>español</code>. So the name is
-      decided by unrelated software on the user's PATH.</p>
-    <p><strong>It is per-machine, not intermittent.</strong> CI gives <code>espagnol</code> on
-      <em>every</em> run; this machine gives <code>español</code> every time.
-      <code>BookDataTests</code> has carried an
-      <code>Or.EqualTo(…)</code> around it for years with a comment that guessed ICU correctly and
-      concluded “I can't find anywhere this actually shows up”. This list is where it shows up.</p>
-
-    <h3>What the PR does</h3>
-    <ul>
-      <li>Looks the name up with <code>GetBestLanguageName</code>, which answers from the Ethnologue
-        data on every machine: <strong><code>Spanish</code>, everywhere</strong>. That is also what
-        Bloom already treats as a language's default name.</li>
-      <li>Routes it through <code>GetLanguageNameWithScriptVariants</code> like the method's other
-        branches, so BL-8174's script/region distinctions survive — otherwise a <code>zh-CN</code>
-        and a <code>zh-TW</code> row would both read “Chinese”.</li>
-      <li>Restores, explicitly, the name-the-user-gave lookup that the old call was doing as a side
-        effect for collection languages beyond Language1/2/3.</li>
-      <li>Turns the <code>Or.EqualTo(…)</code> pairs on this path into definite expectations, and
-        adds two tests: one that the name is the same whatever the metadata language is, one that
-        script variants survive.</li>
-      <li>Logs a lookup that fails rather than silently showing a bare tag.</li>
-    </ul>
-  </section>
-
-  <section class="card">
-    <h2>Quality gate</h2>
-    <div class="tablewrap">
+<section class="card">
+  <h2>What this PR is about</h2>
+  <h3>Problem</h3>
+  <p class="lede">A book can hold text in a language its collection has stopped listing: you set a collection to
+    English, French and Spanish, make some books, then drop Spanish. The books keep their Spanish text, so
+    Publish &#9656; Text Languages still offers that language. But the name shown for it depended on the machine.</p>
+  <div class="split">
     <table>
-      <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
-      <tbody>
-        <tr><td>C# tests — NUnit</td><td class="verdict pass">3318 passed</td><td>0 failed, 12 skipped, on the integrated tree. <code>BookDataTests</code> 162 pass with the new cases.</td></tr>
-        <tr><td>BloomE2E — real Bloom, post-fix</td><td class="verdict pass">7 / 7</td><td>Built <code>Bloom.exe</code> and drove the actual UI; the row reads <code>Spanish</code>.</td></tr>
-        <tr><td>BloomE2E — real Bloom, pre-fix</td><td class="verdict warn">reproduced</td><td>Same build with the fix reverted: the row reads <code>español</code>, confirming this machine's side of the split in the real app.</td></tr>
-        <tr><td>TypeScript — <code>src/BloomE2E</code></td><td class="verdict pass">pass</td><td><code>tsc --noEmit</code> clean; prettier clean.</td></tr>
-        <tr><td>TypeScript tests — vitest</td><td class="verdict na">not run</td><td>No front-end TypeScript in the diff — the change is C# plus one Playwright spec.</td></tr>
-        <tr><td>Merge with <code>master</code></td><td class="verdict pass">clean</td><td>Merged twice; both conflicts were the same comment block and mechanical.</td></tr>
-      </tbody>
+      <tr><td>The CI runner read</td><td class="name a">espagnol</td></tr>
+      <tr><td>A developer machine read</td><td class="name b">espa&ntilde;ol</td></tr>
     </table>
-    </div>
-  </section>
+    <p class="gloss">Two people opening the same book, in the same collection, saw different names for the same
+      language. Per-machine, not intermittent &mdash; CI failed it on every run.</p>
+  </div>
+  <h3>Cause</h3>
+  <p>Bloom asked LibPalaso for the language's name <em>in</em> the collection's metadata language (French, here).
+    LibPalaso honors that request only where a native ICU library is findable, and Bloom ships <code>icu.net</code>
+    but no <code>icuuc.dll</code> &mdash; so the answer turned on whatever else happened to be on the PATH.</p>
+  <h3>What the PR does</h3>
+  <p>For a language the collection does not name, Bloom now looks the name up in the Ethnologue data &mdash; the same
+    data it already treats as a language's default name &mdash; instead of asking for it "in" another language. Every
+    machine agrees, and the row reads <code>Spanish</code>.</p>
+  <ul>
+    <li>A name the user gave in Collection Settings still wins, as before.</li>
+    <li>The looked-up name keeps BL-8174's script/region distinctions, so <code>nsk-Latn</code> stays distinct from
+      <code>nsk</code>. Chinese is the one case this does not fully rescue &mdash; see the decision on the right.</li>
+    <li>An unlisted language (<code>qaa-x-&hellip;</code>) keeps the label the lookup builds, rather than nesting it
+      inside itself.</li>
+    <li>If no name can be found at all, Bloom logs why and falls back to the tag.</li>
+    <li>The e2e test that caught this is un-skipped here &mdash; it was skipped on master while this was in flight
+      &mdash; and now expects the stable name.</li>
+  </ul>
+</section>
 
-  <section class="card">
-    <h2>What changed this run</h2>
-    <p>The whole change was written in this run and squashed to a single commit: the fix, the
-      script-variant handling the review asked for, and logging for a lookup that finds nothing.
-      See the
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8286/commits" target="_blank" rel="noopener">commit</a>
-      and the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8286/files" target="_blank" rel="noopener">files changed</a>.</p>
-  </section>
+<section class="card">
+  <h2>Quality gate</h2>
+  <div class="tablewrap">
+  <table>
+    <tr><th>Check</th><th>Result</th><th></th></tr>
+    <tr><td>Typecheck (BloomE2E <code>tsc</code>)</td><td class="verdict pass">Pass</td><td>Clean, exit 0.</td></tr>
+    <tr><td>Formatting (Prettier)</td><td class="verdict pass">Pass</td><td>Via the pre-commit hook, on every commit.</td></tr>
+    <tr><td>Merge cleanliness</td><td class="verdict pass">Mergeable</td><td>Rebased onto <code>origin/master</code>; one conflict, resolved.</td></tr>
+    <tr><td>C# tests (<code>dotnet test</code>)</td><td class="verdict pass">Pass</td><td><span class="num">3529 passed &middot; 0 failed</span>, run against the committed tree.</td></tr>
+    <tr><td>BloomE2E (Playwright)</td><td class="verdict na">Not run</td><td>The developer's Bloom was running: it holds <code>output/Debug/AnyCPU/Bloom.exe</code>, and the suite launches its own Bloom. The spec was verified to compile and to register all 7 tests un-skipped.</td></tr>
+    <tr><td>Front-end tests (vitest)</td><td class="verdict na">Not run</td><td>No <code>src/BloomBrowserUI</code> in the diff; the suite neither reads nor builds any of it.</td></tr>
+  </table>
+  </div>
+</section>
 
-  <section class="card">
-    <h2>Reviewer outcomes</h2>
+<section class="card">
+  <h2>What changed this run</h2>
+  <ul>
+    <li>Rebased onto a master that had moved <span class="num">371</span> commits. The one conflict was this PR's fix
+      against the <code>test.skip</code> stopgap put on master two weeks ago; resolved by un-skipping, which is what
+      landing the fix means.</li>
+    <li>Found and fixed a real bug in the new fallback: an unlisted language was being nested inside its own name.
+      Added test cases pinning both that and <code>zh-CN</code>.</li>
+    <li>Replaced the PR description, which had been carrying a different PR's narrative.</li>
+    <li>Recorded the BL-15471 decision as a code comment next to the assertion it explains.</li>
+  </ul>
+  <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8286/commits" target="_blank" rel="noopener">All commits</a></p>
+</section>
 
-    <div class="reviewer">
-      <div><span class="who">Local review</span><span class="state">complete</span></div>
-      <p>Light sub-agent pass. One real finding, fixed: <code>GetBestLanguageName</code> returns the
-        base language's name, so the first version of the fallback would have labelled
-        <code>zh-CN</code> and <code>zh-TW</code> rows both “Chinese”. It also probed 30 language
-        tags to confirm the new call never returns true with an empty name, and checked every caller
-        of the method.</p>
-    </div>
+<section class="card">
+  <h2>Reviewer outcomes</h2>
 
-    <div class="reviewer">
-      <div><span class="who">Devin</span><span class="state" id="devin-state">complete — clean</span></div>
-      <p>0 bugs, 0 investigate flags, 0 informational, at each commit it reviewed.
-        <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8286" target="_blank" rel="noopener">Review page</a>.</p>
-    </div>
+  <div class="reviewer">
+    <span class="who">Local review</span><span class="state">Light sub-agent pass</span>
+    <p>Two findings, both real. One fixed here: <code>GetBestLanguageName</code> appends the full tag for an unlisted
+      language, so routing it through the script-variant helper produced a label nested inside itself. Confirmed
+      empirically against master before fixing. The second &mdash; Simplified Chinese &mdash; is the decision on the
+      right.</p>
+  </div>
 
-    <div class="reviewer">
-      <div><span class="who">Greptile</span><span class="state timeout">timed out</span></div>
-      <p>Reviewed <code>a843436</code> with no inline findings; its file summary flagged that the new
-        <code>catch</code> suppressed failures silently, which is what the logging commit answers. It
-        then did not pick up any later commit within two 25-minute waits, so its state is a timeout
-        rather than a pass. Re-running preflight would fold in a late result.</p>
-    </div>
+  <div class="reviewer">
+    <span class="who">Devin</span><span class="state">Complete</span>
+    <p>One Bug and two Investigate flags for this commit, each mirrored as its own thread.
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8286#discussion_r4042225639" target="_blank" rel="noopener">The Bug</a>
+      is the Simplified Chinese one &mdash; left <strong>open</strong>, because it is a user-facing naming decision.
+      Devin reached it independently of the local reviewer, with a sharper failure case. The two flags (the stale PR
+      description; the <code>Version6.5</code> branch rule) were answered and resolved &mdash; the branch one does not
+      apply, since <code>Version6.5</code> has no <code>src/BloomE2E</code>, which this PR changes.</p>
+  </div>
 
-    <div class="reviewer">
-      <div><span class="who">CodeRabbit</span><span class="state off">not a reviewer here</span></div>
-      <p><code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>.</p>
-    </div>
+  <div class="reviewer">
+    <span class="who">Greptile</span><span class="state timeout">Did not report</span>
+    <p>Posted no review for this commit. We stopped waiting ~17 minutes after the push, at the developer's instruction, rather than running the full 30-minute cap. Its last output on this PR is from 2026-09-02, against a much older commit, and it has a history here of not picking up later commits. So this HEAD has been seen by Devin and the local reviewer, but not by Greptile.</p>
+  </div>
 
-    <div class="reviewer">
-      <div><span class="who">CI</span><span class="state">complete</span></div>
-      <p><code>pr-automation</code> green on every commit.</p>
-    </div>
-  </section>
+  <div class="reviewer">
+    <span class="who">CI</span><span class="state">Complete</span>
+    <p><code>pr-automation</code> passed. It is the only required check on this PR, and it is what triggers Devin.</p>
+  </div>
+</section>
 
-  <section class="card">
-    <h2>Worth knowing</h2>
-    <ul>
-      <li><strong>The only <code>espagnol</code> observation is a CI runner.</strong> Whether an
-        ordinary user's install falls on that side is untested, so how many real users hit this is
-        inferred rather than measured.</li>
-      <li><strong>The same root cause survives on another path.</strong> <code>WritingSystem</code>'s
-        own name derivation still uses the machine-dependent call, so a <em>collection</em> language
-        whose name was never saved to the <code>.bloomCollection</code> can still differ per machine.
-        <code>BookDataTests</code> still carries an <code>Or.EqualTo(…)</code> for it. Out of scope
-        here — decision 2.</li>
-      <li><strong>This suite is unstable on a dev machine.</strong> Two of three local runs died
-        before reaching the test in question — a focus timeout in <code>clickInGroup</code>, then a
-        Node worker crash — so a local failure here is usually not this bug.</li>
-    </ul>
-  </section>
+<section class="card">
+  <h2>Worth knowing</h2>
+  <ul>
+    <li><strong>Nobody has run the e2e suite by hand against this code.</strong> The change to it is the un-skip plus
+      migration to master's renamed helpers, both verified statically, but the test itself has not executed since the
+      rebase. If you want one thing exercised for real before merge, it is that spec.</li>
+    <li><strong><code>src/BloomBrowserUI/package.json</code> on master has a duplicate
+      <code>bloom-ai-image-tools</code> key</strong> (<code>dist-v0.2.2</code> and <code>dist-v0.2.5</code>).
+      JSON parsing keeps the last, so the effective version is <code>0.2.5</code> and nothing is broken &mdash; but
+      editing the first entry would silently do nothing. Pre-existing and unrelated, so deliberately not fixed here;
+      <code>pnpm install</code> normalizes it away if you ever let it.</li>
+  </ul>
+</section>
 
 </div>
-
 <div>
 
-  <div class="q lead">
-    <h2>1. Is “Spanish” the right label?</h2>
-    <p>The fix makes the name stable, but it also settles <em>which</em> name. A language your
-      collection has stopped naming now reads <strong>Spanish</strong> — its standard name — where
-      before it read <code>español</code> or <code>espagnol</code> depending on the machine.</p>
-    <p>Two other candidates exist. The autonym (<code>español</code>) is what the method's old
-      documentation promised and what this machine happened to show. And <code>español (Spanish)</code>
-      is how bloom-player names languages, which is the direction the
-      <code>// TODO (default name BL-13703)</code> note on this very method points. Any of the three
-      is a one-line change at the same place; I picked the standard name because it is what Bloom
-      already treats as a language's default elsewhere.</p>
-    <div class="opts" data-q="1. Which label for a language the collection does not name">
-      <label class="opt"><input type="radio" name="q1" value="Keep the standard name (Spanish)" checked>
-        <span class="lbl">Keep the standard name — <code>Spanish</code><span class="rec">recommended</span>
-          <span class="fc">Already implemented and tested — recommended because it matches how Bloom names languages by default everywhere else, and it is the most legible of the three for the English-reading majority of users.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" value="Use the autonym instead (espanol)">
-        <span class="lbl">Use the autonym — <code>español</code>
-          <span class="fc">~1 line plus test updates; matches the method's old doc comment, but is the least useful label for a reader who does not know the language.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" value="Use autonym plus standard name (espanol (Spanish))">
-        <span class="lbl">Autonym plus standard name — <code>español (Spanish)</code>
-          <span class="fc">Small — matches bloom-player and BL-13703's direction, at the cost of a longer label in a narrow column.</span></span></label>
-      <div class="leaverow">
-        <label class="opt"><input type="radio" name="q1" value="Leave as is">
-          <span class="lbl">Leave as is</span></label>
-        <label class="leavecomment"><input type="checkbox" data-q="1. Leave comment"> Leave comment</label>
-      </div>
-      <div class="otherrow"><input type="radio" name="q1" value="__other__" id="q1o">
-        <label for="q1o" class="lbl">Other:</label>
-        <input type="text" data-q="1. Other" placeholder="your answer"></div>
+<section class="q lead">
+  <h2>Should a dropped Simplified Chinese still say "Simplified"?</h2>
+  <p>This is the one case where the new lookup loses information the old code had. When a collection stops listing
+    <code>zh-CN</code> but a book still holds Simplified Chinese text, the Text Languages row now reads just
+    <strong>Chinese</strong>, where it would previously have said Simplified (via whichever name that machine happened
+    to produce).</p>
+  <p>It still reads differently from Traditional Chinese, which shows as <code>Chinese-TW (Chinese)</code> &mdash; so
+    the two are distinguishable. But neither says which is which in the way a user would expect, and Devin points out
+    the sharper case: <strong>a book holding both <code>zh</code> and <code>zh-CN</code>, after both are dropped, shows
+    two rows that both read "Chinese"</strong>, with nothing to tell them apart.</p>
+  <p>Why it happens: the Ethnologue lookup lower-cases the tag before matching, and LibPalaso's
+    Simplified/Traditional special cases are case-sensitive, so <code>zh-CN</code> falls through to the base
+    <code>zh</code> &rarr; "Chinese". The script-variant helper then strips the <code>CN</code> marker, because a
+    collection-supplied Chinese name would already have carried "(Simplified)".</p>
+  <p>Either way you decide, this is recorded behavior rather than an oversight: it is pinned by a test case and
+    described in the comments on both the production code and the test.</p>
+  <div class="opts" data-q="1. Dropped Simplified Chinese: keep it saying Simplified?">
+    <label class="opt">
+      <input type="radio" name="q1" value="Fix it - make the fallback produce Chinese (Simplified)" checked>
+      <span class="lbl">Fix it &mdash; make the fallback produce <code>Chinese (Simplified)</code><span class="rec">Recommended</span>
+        <span class="fc">~8 lines in the one fallback, low risk: LibPalaso special-cases <code>zh-CN</code> and
+          <code>zh-TW</code> <em>before</em> it ever consults ICU, so asking it for those names is machine-independent
+          and does not reintroduce this bug. Recommended because it removes the only information this change loses,
+          while keeping the standard-name style you chose for the general case.</span></span>
+    </label>
+    <div class="leaverow">
+      <label class="opt">
+        <input type="radio" name="q1" value="Leave as is">
+        <span class="lbl">Leave as is</span>
+      </label>
+      <label class="leavecomment"><input type="checkbox" data-q="q1-comment"> Leave comment</label>
     </div>
-    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" data-q="1. Notes"></textarea></div>
-  </div>
-
-  <div class="q">
-    <h2>2. The other half of the same bug</h2>
-    <p>The machine-dependent LibPalaso call still backs <code>WritingSystem</code>'s own name
-      derivation. So a language your collection <em>does</em> list, but whose name you never
-      explicitly set, can still be named differently on different machines — the same class of
-      problem, a different code path. <code>BookDataTests</code> still carries an
-      <code>Is.EqualTo("français").Or.EqualTo("Französisch")</code> for exactly that.</p>
-    <p>I left it alone deliberately: that path decides names that get written into
-      <code>.bloomCollection</code> files, so changing it is a bigger call than this PR should make.</p>
-    <div class="opts" data-q="2. The residual WritingSystem path">
-      <label class="opt"><input type="radio" name="q2" value="File a follow-up card for it" checked>
-        <span class="lbl">File a follow-up card for it<span class="rec">recommended</span>
-          <span class="fc">No code — recommended because it is a real instance of the same bug with a known cause, and the surviving <code>Or.EqualTo</code> in the tests is a standing reminder that nobody is tracking it.</span></span></label>
-      <label class="opt"><input type="radio" name="q2" value="Fix it in this PR too">
-        <span class="lbl">Fix it in this PR too
-          <span class="fc">Moderate and riskier — it changes names persisted into collection settings files, so it wants its own testing and its own review.</span></span></label>
-      <div class="leaverow">
-        <label class="opt"><input type="radio" name="q2" value="Leave as is">
-          <span class="lbl">Leave as is</span></label>
-        <label class="leavecomment"><input type="checkbox" data-q="2. Leave comment"> Leave comment</label>
-      </div>
-      <div class="otherrow"><input type="radio" name="q2" value="__other__" id="q2o">
-        <label for="q2o" class="lbl">Other:</label>
-        <input type="text" data-q="2. Other" placeholder="your answer"></div>
+    <div class="otherrow">
+      <label class="opt" style="padding:0"><input type="radio" name="q1" value="__other__"><span class="lbl">Other:</span></label>
+      <input type="text" placeholder="your answer">
     </div>
-    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" data-q="2. Notes"></textarea></div>
   </div>
+  <div class="notes"><label>Notes</label><textarea placeholder="caveats, constraints, anything else"></textarea></div>
+</section>
 
-  <div class="q">
-    <h2>3. Next step</h2>
-    <p>The PR is a clean, mergeable draft. Devin is clean; Greptile reviewed the substance of the
-      change with no findings but never picked up the later commits, so its row is a timeout rather
-      than a pass.</p>
-    <div class="opts" data-q="3. Next step">
-      <label class="opt"><input type="radio" name="q3" value="I will review it myself, then run pr-ready-for-human" checked>
-        <span class="lbl">I'll review it myself, then run <code>pr-ready-for-human</code><span class="rec">recommended</span></span></label>
-      <label class="opt"><input type="radio" name="q3" value="Re-run preflight first to get a Greptile result">
-        <span class="lbl">Re-run preflight first, to get a Greptile result on the final commit</span></label>
-      <label class="opt"><input type="radio" name="q3" value="Implement my answers above first, then re-preflight">
-        <span class="lbl">Implement my answers above first, then re-preflight</span></label>
-      <div class="leaverow">
-        <label class="opt"><input type="radio" name="q3" value="Leave as is">
-          <span class="lbl">Leave as is</span></label>
-        <label class="leavecomment"><input type="checkbox" data-q="3. Leave comment"> Leave comment</label>
-      </div>
-      <div class="otherrow"><input type="radio" name="q3" value="__other__" id="q3o">
-        <label for="q3o" class="lbl">Other:</label>
-        <input type="text" data-q="3. Other" placeholder="your answer"></div>
+<section class="q">
+  <h2>Next step</h2>
+  <p>Everything else on this branch is green and quiet. The only open thread on the PR is the Simplified Chinese one
+    above; it gets a reply recording your decision either way.</p>
+  <div class="opts" data-q="2. Next step">
+    <label class="opt">
+      <input type="radio" name="q2" value="I will review it myself, then run pr-ready-for-human" checked>
+      <span class="lbl">I'll review it myself, then run <code>pr-ready-for-human</code><span class="rec">Recommended</span>
+        <span class="fc">The PR stays draft; nothing is promoted without you.</span></span>
+    </label>
+    <label class="opt">
+      <input type="radio" name="q2" value="Implement the decision above, then re-run preflight">
+      <span class="lbl">Implement the decision above first, then re-run preflight
+        <span class="fc">Only needed if you picked the fix &mdash; it is a new commit, so the gauntlet runs again.</span></span>
+    </label>
+    <div class="leaverow">
+      <label class="opt">
+        <input type="radio" name="q2" value="Leave as is">
+        <span class="lbl">Leave as is</span>
+      </label>
+      <label class="leavecomment"><input type="checkbox" data-q="q2-comment"> Leave comment</label>
     </div>
-    <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" data-q="3. Notes"></textarea></div>
+    <div class="otherrow">
+      <label class="opt" style="padding:0"><input type="radio" name="q2" value="__other__"><span class="lbl">Other:</span></label>
+      <input type="text" placeholder="your answer">
+    </div>
   </div>
+  <div class="notes"><label>Notes</label><textarea placeholder="caveats, constraints, anything else"></textarea></div>
+</section>
 
-  <div class="q" id="copyback">
-    <h2>Send your answers back</h2>
-    <p>Copy this and paste it into the session.</p>
-    <button type="button" id="copybtn">Copy answers</button><span class="done" id="copied" hidden>Copied</span>
-    <textarea id="payload" readonly></textarea>
-  </div>
+<section class="card" id="copyback">
+  <h2>Send your answers back</h2>
+  <p>Copy this and paste it into the session.</p>
+  <button id="copybtn" type="button">Copy answers</button><span class="done" id="copied" hidden>Copied</span>
+  <textarea id="payload" readonly></textarea>
+</section>
 
 </div>
 </div>
 </div>
-
 <script>
 (function () {
   "use strict";
@@ -421,3 +396,6 @@
   });
 })();
 </script>
+
+</body>
+</html>
