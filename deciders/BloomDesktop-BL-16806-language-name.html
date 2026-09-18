@@ -130,14 +130,14 @@
 <header class="top">
   <h1>One language, two names, depending on the machine</h1>
   <p class="runline">Branch <code>BL-16806-language-name</code> &rarr; <code>master</code>, at
-    <a href="https://github.com/BloomBooks/BloomDesktop/commit/377e95b05444a7313dc87ddaf1228aada7c75986" target="_blank" rel="noopener"><code>377e95b</code></a>.
-    Rebased onto a master that had moved 371 commits, and one real bug found and fixed this run.</p>
+    <a href="https://github.com/BloomBooks/BloomDesktop/commit/99532ff9b013850e26cf16e368503792e852becb" target="_blank" rel="noopener"><code>99532ff</code></a>.
+    Rebased onto a master that had moved 371 commits; three real bugs found and fixed this run.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
-    <span class="chip ok">C# 3529 passed</span>
+    <span class="chip ok">C# 3533 passed</span>
     <span class="chip ok">CI green</span>
-    <span class="chip attn">2 items for you</span>
+    <span class="chip ok">Nothing waiting on you</span>
   </div>
   <div class="chips" style="margin-top:10px">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8286" target="_blank" rel="noopener">PR #8286</a>
@@ -176,7 +176,11 @@
   <ul>
     <li>A name the user gave in Collection Settings still wins, as before.</li>
     <li>The looked-up name keeps BL-8174's script/region distinctions, so <code>nsk-Latn</code> stays distinct from
-      <code>nsk</code>. Chinese is the one case this does not fully rescue &mdash; see the decision on the right.</li>
+      <code>nsk</code>.</li>
+    <li><code>zh-CN</code>, <code>zh-TW</code> and <code>prs</code> are asked of LibPalaso directly. It special-cases
+      those three <em>before</em> it consults ICU, so their names are machine-independent anyway, and routing them
+      through the general lookup had been giving <code>Chinese</code> and <code>Chinese-TW (Chinese)</code> instead of
+      <code>Chinese (Simplified)</code> and <code>Chinese (Traditional)</code>.</li>
     <li>An unlisted language (<code>qaa-x-&hellip;</code>) keeps the label the lookup builds, rather than nesting it
       inside itself.</li>
     <li>If no name can be found at all, Bloom logs why and falls back to the tag.</li>
@@ -193,7 +197,7 @@
     <tr><td>Typecheck (BloomE2E <code>tsc</code>)</td><td class="verdict pass">Pass</td><td>Clean, exit 0.</td></tr>
     <tr><td>Formatting (Prettier)</td><td class="verdict pass">Pass</td><td>Via the pre-commit hook, on every commit.</td></tr>
     <tr><td>Merge cleanliness</td><td class="verdict pass">Mergeable</td><td>Rebased onto <code>origin/master</code>; one conflict, resolved.</td></tr>
-    <tr><td>C# tests (<code>dotnet test</code>)</td><td class="verdict pass">Pass</td><td><span class="num">3529 passed &middot; 0 failed</span>, run against the committed tree.</td></tr>
+    <tr><td>C# tests (<code>dotnet test</code>)</td><td class="verdict pass">Pass</td><td><span class="num">3533 passed &middot; 0 failed</span>, run against the committed tree.</td></tr>
     <tr><td>BloomE2E (Playwright)</td><td class="verdict na">Not run</td><td>The developer's Bloom was running: it holds <code>output/Debug/AnyCPU/Bloom.exe</code>, and the suite launches its own Bloom. The spec was verified to compile and to register all 7 tests un-skipped.</td></tr>
     <tr><td>Front-end tests (vitest)</td><td class="verdict na">Not run</td><td>No <code>src/BloomBrowserUI</code> in the diff; the suite neither reads nor builds any of it.</td></tr>
   </table>
@@ -206,8 +210,10 @@
     <li>Rebased onto a master that had moved <span class="num">371</span> commits. The one conflict was this PR's fix
       against the <code>test.skip</code> stopgap put on master two weeks ago; resolved by un-skipping, which is what
       landing the fix means.</li>
-    <li>Found and fixed a real bug in the new fallback: an unlisted language was being nested inside its own name.
-      Added test cases pinning both that and <code>zh-CN</code>.</li>
+    <li>Found and fixed three real bugs in the new fallback, each caught by a reviewer and each confirmed by running
+      the code both ways: an unlisted language nested inside its own name; Simplified/Traditional Chinese losing the
+      part that said which one it was; and, in the fix for that, every <code>zh-CN-x-&hellip;</code> variant collapsing
+      to one label. All pinned by test cases.</li>
     <li>Replaced the PR description, which had been carrying a different PR's narrative.</li>
     <li>Recorded the BL-15471 decision as a code comment next to the assertion it explains.</li>
   </ul>
@@ -219,20 +225,17 @@
 
   <div class="reviewer">
     <span class="who">Local review</span><span class="state">Light sub-agent pass</span>
-    <p>Two findings, both real. One fixed here: <code>GetBestLanguageName</code> appends the full tag for an unlisted
-      language, so routing it through the script-variant helper produced a label nested inside itself. Confirmed
-      empirically against master before fixing. The second &mdash; Simplified Chinese &mdash; is the decision on the
-      right.</p>
+    <p>Two findings, both real, both now fixed: an unlisted language nested inside its own name, and the Simplified
+      Chinese case that became the decision you answered. Confirmed empirically against master before acting on
+      either.</p>
   </div>
 
   <div class="reviewer">
     <span class="who">Devin</span><span class="state">Complete</span>
-    <p>One Bug and two Investigate flags for this commit, each mirrored as its own thread.
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8286#discussion_r4042225639" target="_blank" rel="noopener">The Bug</a>
-      is the Simplified Chinese one &mdash; left <strong>open</strong>, because it is a user-facing naming decision.
-      Devin reached it independently of the local reviewer, with a sharper failure case. The two flags (the stale PR
-      description; the <code>Version6.5</code> branch rule) were answered and resolved &mdash; the branch one does not
-      apply, since <code>Version6.5</code> has no <code>src/BloomE2E</code>, which this PR changes.</p>
+    <p>Ran on three commits this run. It found the Simplified Chinese bug, and then the variant-collapse bug that the
+      fix for it introduced &mdash; both real, both fixed, each thread carrying its before/after. Its final round on
+      <code>99532ff</code> re-reported all four earlier findings; each was screened against the commit under review and
+      all four are stale, three of them fixed in the commits Devin was looking at. No new findings.</p>
   </div>
 
   <div class="reviewer">
@@ -263,139 +266,24 @@
 </div>
 <div>
 
-<section class="q lead">
-  <h2>Should a dropped Simplified Chinese still say "Simplified"?</h2>
-  <p>This is the one case where the new lookup loses information the old code had. When a collection stops listing
-    <code>zh-CN</code> but a book still holds Simplified Chinese text, the Text Languages row now reads just
-    <strong>Chinese</strong>, where it would previously have said Simplified (via whichever name that machine happened
-    to produce).</p>
-  <p>It still reads differently from Traditional Chinese, which shows as <code>Chinese-TW (Chinese)</code> &mdash; so
-    the two are distinguishable. But neither says which is which in the way a user would expect, and Devin points out
-    the sharper case: <strong>a book holding both <code>zh</code> and <code>zh-CN</code>, after both are dropped, shows
-    two rows that both read "Chinese"</strong>, with nothing to tell them apart.</p>
-  <p>Why it happens: the Ethnologue lookup lower-cases the tag before matching, and LibPalaso's
-    Simplified/Traditional special cases are case-sensitive, so <code>zh-CN</code> falls through to the base
-    <code>zh</code> &rarr; "Chinese". The script-variant helper then strips the <code>CN</code> marker, because a
-    collection-supplied Chinese name would already have carried "(Simplified)".</p>
-  <p>Either way you decide, this is recorded behavior rather than an oversight: it is pinned by a test case and
-    described in the comments on both the production code and the test.</p>
-  <div class="opts" data-q="1. Dropped Simplified Chinese: keep it saying Simplified?">
-    <label class="opt">
-      <input type="radio" name="q1" value="Fix it - make the fallback produce Chinese (Simplified)" checked>
-      <span class="lbl">Fix it &mdash; make the fallback produce <code>Chinese (Simplified)</code><span class="rec">Recommended</span>
-        <span class="fc">~8 lines in the one fallback, low risk: LibPalaso special-cases <code>zh-CN</code> and
-          <code>zh-TW</code> <em>before</em> it ever consults ICU, so asking it for those names is machine-independent
-          and does not reintroduce this bug. Recommended because it removes the only information this change loses,
-          while keeping the standard-name style you chose for the general case.</span></span>
-    </label>
-    <div class="leaverow">
-      <label class="opt">
-        <input type="radio" name="q1" value="Leave as is">
-        <span class="lbl">Leave as is</span>
-      </label>
-      <label class="leavecomment"><input type="checkbox" data-q="q1-comment"> Leave comment</label>
-    </div>
-    <div class="otherrow">
-      <label class="opt" style="padding:0"><input type="radio" name="q1" value="__other__"><span class="lbl">Other:</span></label>
-      <input type="text" placeholder="your answer">
-    </div>
-  </div>
-  <div class="notes"><label>Notes</label><textarea placeholder="caveats, constraints, anything else"></textarea></div>
+<section class="card">
+  <h2>Nothing outstanding</h2>
+  <p>The Simplified Chinese question is answered and implemented: <code>zh-CN</code>, <code>zh-TW</code> and
+    <code>prs</code> now read <code>Chinese (Simplified)</code>, <code>Chinese (Traditional)</code> and
+    <code>Dari</code>, while variants built on them keep their own distinct labels.</p>
+  <p>Every reviewer thread on the PR is resolved with a documented outcome. The PR is still a draft and nothing has
+    been promoted &mdash; the next step is your own review, then <code>pr-ready-for-human</code>.</p>
+  <h3>Where to look hardest</h3>
+  <p>Two of this run's three bugs were in the few lines that pair <code>GetBestLanguageName</code> with
+    <code>GetLanguageNameWithScriptVariants</code>. That pairing has sharp edges around tags that are not plain
+    language codes, and two successive attempts stumbled on them. The tests now cover unlisted languages, the three
+    special tags and variants built on them, but this is the part worth your attention.</p>
 </section>
 
-<section class="q">
-  <h2>Next step</h2>
-  <p>Everything else on this branch is green and quiet. The only open thread on the PR is the Simplified Chinese one
-    above; it gets a reply recording your decision either way.</p>
-  <div class="opts" data-q="2. Next step">
-    <label class="opt">
-      <input type="radio" name="q2" value="I will review it myself, then run pr-ready-for-human" checked>
-      <span class="lbl">I'll review it myself, then run <code>pr-ready-for-human</code><span class="rec">Recommended</span>
-        <span class="fc">The PR stays draft; nothing is promoted without you.</span></span>
-    </label>
-    <label class="opt">
-      <input type="radio" name="q2" value="Implement the decision above, then re-run preflight">
-      <span class="lbl">Implement the decision above first, then re-run preflight
-        <span class="fc">Only needed if you picked the fix &mdash; it is a new commit, so the gauntlet runs again.</span></span>
-    </label>
-    <div class="leaverow">
-      <label class="opt">
-        <input type="radio" name="q2" value="Leave as is">
-        <span class="lbl">Leave as is</span>
-      </label>
-      <label class="leavecomment"><input type="checkbox" data-q="q2-comment"> Leave comment</label>
-    </div>
-    <div class="otherrow">
-      <label class="opt" style="padding:0"><input type="radio" name="q2" value="__other__"><span class="lbl">Other:</span></label>
-      <input type="text" placeholder="your answer">
-    </div>
-  </div>
-  <div class="notes"><label>Notes</label><textarea placeholder="caveats, constraints, anything else"></textarea></div>
-</section>
-
-<section class="card" id="copyback">
-  <h2>Send your answers back</h2>
-  <p>Copy this and paste it into the session.</p>
-  <button id="copybtn" type="button">Copy answers</button><span class="done" id="copied" hidden>Copied</span>
-  <textarea id="payload" readonly></textarea>
-</section>
 
 </div>
 </div>
 </div>
-<script>
-(function () {
-  "use strict";
-  var payload = document.getElementById("payload");
-
-  function serialize() {
-    var lines = ["Preflight answers - BL-16806 (PR 8286)", ""];
-    var groups = document.querySelectorAll(".opts[data-q]");
-    Array.prototype.forEach.call(groups, function (g) {
-      var q = g.getAttribute("data-q");
-      var chosen = g.querySelector("input[type=radio]:checked");
-      var answer = "(no answer)";
-      if (chosen) {
-        if (chosen.value === "__other__") {
-          var otherBox = g.querySelector(".otherrow input[type=text]");
-          var typed = otherBox && otherBox.value.trim();
-          answer = "Other: " + (typed ? typed : "(nothing typed)");
-        } else {
-          answer = chosen.value;
-        }
-      }
-      lines.push(q);
-      lines.push("  -> " + answer);
-      var lc = g.querySelector(".leavecomment input[type=checkbox]");
-      if (lc && lc.checked) lines.push("  -> Leave comment: record this decision as a code comment");
-      var card = g.closest(".q");
-      var notes = card && card.querySelector(".notes textarea");
-      if (notes && notes.value.trim()) lines.push("  -> Notes: " + notes.value.trim());
-      lines.push("");
-    });
-    payload.value = lines.join("\n");
-  }
-
-  document.addEventListener("input", serialize);
-  document.addEventListener("change", serialize);
-  serialize();
-
-  document.getElementById("copybtn").addEventListener("click", function () {
-    var done = document.getElementById("copied");
-    function ok() { done.hidden = false; setTimeout(function () { done.hidden = true; }, 2200); }
-    function fallback() {
-      payload.focus();
-      payload.select();
-      try { document.execCommand("copy"); ok(); } catch (e) { /* the textarea is there for Ctrl+C */ }
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(ok, fallback);
-    } else {
-      fallback();
-    }
-  });
-})();
-</script>
 
 </body>
 </html>
