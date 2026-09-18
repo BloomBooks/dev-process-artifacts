@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiet Update Book Preflight</title>
+<style>
+  :root {
+    --ground: #f6f8f8;
+    --card: #ffffff;
+    --ink: #17282b;
+    --ink-soft: #4b5d61;
+    --line: #d5dfe1;
+    --accent: #1d94a4;
+    --accent-soft: #e2f2f4;
+    --ok: #2e7d4f;
+    --ok-soft: #e4f3ea;
+    --warn: #a86a12;
+    --warn-soft: #fbf0dc;
+    --info-soft: #eef1f2;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding-block: 28px 56px;
+    padding-inline: 24px;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  h2 { font-size: 1.2rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin-top: 14px; margin-bottom: 4px; }
+  p { margin: 0 0 10px; max-width: 70ch; }
+  ul { margin: 0 0 10px; padding-left: 20px; }
+  li { margin-bottom: 5px; }
+  a { color: var(--accent); }
+  code { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 0.9em; background: var(--info-soft); padding: 0 4px; border-radius: 3px; }
+  .numeral { font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  header { max-width: 1320px; margin: 0 auto 22px; }
+  .summary { color: var(--ink-soft); margin-top: 6px; }
+  .chips, .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--line); background: var(--card); }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+  .chip.accent { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+  .links a { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--accent); text-decoration: none; }
+  .links a:hover, .links a:focus-visible { background: var(--accent-soft); }
+  .grid { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 22px; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+  .card.lead { border-left: 4px solid var(--accent); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--ink-soft); font-weight: 600; font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
+  td.state { white-space: nowrap; }
+  .pass { color: var(--ok); font-weight: 600; }
+  .skip { color: var(--ink-soft); }
+  .decision { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+  .decision:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .option { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0; }
+  .option label { flex: 1; }
+  .option .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; vertical-align: middle; }
+  .option .note { color: var(--ink-soft); font-size: 0.9em; }
+  .leave-comment { margin-left: auto; white-space: nowrap; font-size: 0.85rem; color: var(--ink-soft); display: flex; align-items: center; gap: 4px; }
+  .option input[type=text], textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--card); color: var(--ink); }
+  .option input[type=text] { margin-top: 4px; }
+  textarea { min-height: 56px; resize: vertical; margin-top: 6px; }
+  textarea#payload { min-height: 180px; font-family: Consolas, "SFMono-Regular", Menlo, monospace; font-size: 0.85rem; }
+  button { font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  button:hover, button:focus-visible { filter: brightness(1.08); outline: 2px solid var(--accent-soft); }
+  .copied { margin-left: 10px; color: var(--ok); font-weight: 600; display: none; }
+  input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Preflight: Quiet the Update Book progress dialog (BL-16893)</h1>
+  <p class="summary">Branch <code>BL-16893-quiet-image-progress</code> into <code>Version6.5</code>. Gate green, full C# suite green at the final commit, every reviewer terminal, Devin clean. <span id="waiting-summary">Checked in a running Bloom. One item is waiting on you: the next step.</span></p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8375" target="_blank" rel="noopener" style="text-decoration:none;color:inherit">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable, up to date with Version6.5</span>
+    <span class="chip ok">Devin complete, no findings</span>
+    <span class="chip warn">1 item waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8375" target="_blank" rel="noopener">PR #8375</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8375/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8375/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8375" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+  <div class="col">
+    <section class="card lead">
+      <h2>What this PR is about</h2>
+      <h3>Problem</h3>
+      <p>"Update Book" (Collections tab), and since BL-16852 the automatic page update that runs before the AI image editor opens or after a page-size change, show a progress dialog that fills with a running log: a line per stage ("Updating collection settings...", "Gathering Data...", "Updating pages...") and two lines per image ("Reading metadata from X", "Writing metadata to HTML for X"), plus "Preparing image: X" for every oversized picture. A 40-image book scrolls through some 80 lines that only repeat what the percent bar already shows, and bury the one sentence that explains why the dialog appeared.</p>
+      <h3>Cause</h3>
+      <p>Those lines are <code>IProgress.WriteStatus</code> calls dating from 2012. They were harmless while every caller showed status in a single overwriting WinForms label. BL-16870 (2026-09-14) moved Update Book onto the React progress dialog through <code>WebProgressAdapter</code>, whose <code>WriteStatus</code> appends a permanent line, and BL-16852 made the same pass run automatically.</p>
+      <h3>What the PR does</h3>
+      <ul>
+        <li>Adds <code>QuietStatusProgress</code>, an <code>IProgress</code> wrapper that drops status lines and forwards everything else: messages, warnings, errors and the percent.</li>
+        <li><code>BookProcessor.ProcessBook</code>, which both dialogs run, wraps the progress it is given in it for the whole run. Update Book now shows just its title and the moving bar; the automatic update shows its one explanatory sentence and the bar. Any warning or error still appears. A caller's own <code>NullProgress</code> (including subclasses that carry state) is left alone rather than replaced.</li>
+        <li><code>Book</code> hands the two per-image passes (mirroring image metadata into the HTML, shrinking oversized images) the same wrapper, so the other callers of bringing a book up to date (importing a .bloomSource, Update All Books) keep their stage lines but lose the line per image.</li>
+        <li>The Copyright and License dialog's "add this information to all images" is untouched: it runs a WinForms dialog with one overwriting status line, where naming each file as it goes is useful.</li>
+        <li>Tests cover the wrapper, the quiet bring-up-to-date path, and the still-verbose whole-book metadata path. A stale comment about who passes a real progress to the image-shrink migration is corrected.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>C# build</td><td class="state pass">Pass</td><td>Builds through the isolated wrapper; no warnings introduced in the changed files.</td></tr>
+          <tr><td>Merge with Version6.5</td><td class="state pass">Clean</td><td><code>origin/Version6.5</code> merged in (<a href="https://github.com/BloomBooks/BloomDesktop/commit/a064bf4735" target="_blank" rel="noopener">a064bf47</a>) with no conflicts; nothing it brought touches these files.</td></tr>
+          <tr><td>C# tests, related (dotnet test)</td><td class="state pass">Pass</td><td>The new fixtures plus the Book and BookStorage fixtures at the final commit: <span class="numeral">23 passed</span> in the narrow filter, <span class="numeral">242 passed · 1 skipped</span> in the wider one.</td></tr>
+          <tr><td>C# tests, full suite (dotnet test)</td><td class="state pass">Pass</td><td>Run at the final commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/919c326791941ebb8ee60997e53dd327e2b8e349" target="_blank" rel="noopener">919c3267</a>): <span class="numeral">3466 passed · 13 skipped</span>, 5 min 25 s. The skips are the usual opt-in and environment-gated tests.</td></tr>
+          <tr><td>TypeScript typecheck / lint / tests</td><td class="state skip">Not run</td><td>No TypeScript, LESS or XLF in the diff; the change is entirely C#.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>First run on this branch. Committed the wrapper and the per-image quieting, then at your request extended it so the Update Book dialog shows nothing but its bar (and the automatic update nothing but its explanation and the bar), merged Version6.5, and applied the local review's one note (keep a caller's own <code>NullProgress</code> instance). Three commits plus the merge; see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8375/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+        <tbody>
+          <tr><td>Local review (light sub-agent pass)</td><td class="state pass">Complete</td><td>Clean, with one dormant note: <code>ProcessBook</code> replaced any <code>NullProgress</code> with a fresh one, which would have lost the cancel state of a subclass such as the PDF maker's. Applied: a <code>NullProgress</code> instance is now passed through unchanged.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8375" target="_blank" rel="noopener">Devin</a></td><td class="state pass">Complete</td><td>One round, on the final commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/919c326791941ebb8ee60997e53dd327e2b8e349" target="_blank" rel="noopener">919c3267</a>). No bugs, no flags, no Informational items. Its overview matches the PR description. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8375#issuecomment-5735193928" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+          <tr><td>CodeRabbit</td><td class="state skip">Disabled</td><td>The repo's <code>.coderabbit.yml</code> turns automatic review off; nothing to wait for.</td></tr>
+          <tr><td>Greptile</td><td class="state skip">Not run</td><td>Posted nothing on this PR in the first 20 min after the push. You said Greptile is not working at present and not to wait for it, so the wait was ended there.</td></tr>
+          <tr><td>CI (pr-automation)</td><td class="state pass">Pass</td><td>The only workflow that runs on pull requests in this repo; it triggers Devin.</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>Checked in a running Bloom from this branch.</strong> Update Book on a 23-picture book shows the title, an empty log area and the moving bar; nothing else. The automatic update (AI image editor, page-size change) keeps its one explanatory sentence.</li>
+        <li><strong>Update All Books and .bloomSource import still show their stage lines</strong> ("Updating pages..." and so on), since both run behind a WinForms dialog whose status label overwrites in place. Only the line per image is gone there.</li>
+        <li><strong>The dialog title still says "Update Book"</strong> when the update runs because you launched the AI image editor or changed the page size. Changing that wording is the 6.6 card, BL-16852, and the QA notes on BL-16893 say so.</li>
+        <li><strong>Card housekeeping done with this PR:</strong> BL-16893 now also tracks the BL-16852 work already merged to 6.5 but not yet tested, with test ideas covering both; BL-16852 is narrowed to its 6.6-only changes and its test ideas rewritten to match.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>Decisions</h2>
+      <div class="decision">
+        <h3>Next step</h3>
+        <div class="option"><input type="radio" name="qn" id="qna" data-q="Next step" value="Ready for my own review, then hand to a colleague" checked><label for="qna">The PR is ready for my own review; nothing to change first <span class="tag">recommended</span></label></div>
+        <div class="option"><input type="radio" name="qn" id="qnb" data-q="Next step" value="Discuss first"><label for="qnb">Discuss the open points first</label></div>
+        <div class="option"><input type="radio" name="qn" id="qnc" data-q="Next step" value="Leave as is"><label for="qnc">Leave as is</label><span class="leave-comment"><input type="checkbox" id="qnlc" data-q="Next step" data-leave-comment="1"><label for="qnlc">Leave comment</label></span></div>
+        <div class="option"><input type="radio" name="qn" id="qnd" data-q="Next step" value="Other"><label for="qnd">Other:<input type="text" id="qnother" data-q="Next step" data-other="1" placeholder="Your answer"></label></div>
+        <textarea id="qnnotes" data-q="Next step" data-notes="1" placeholder="Notes (optional)"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Send your answers back</h2>
+      <p>Copy the block and paste it into the session.</p>
+      <button id="copy" type="button">Copy answers</button><span class="copied" id="copied">Copied</span>
+      <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+  const REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16893-quiet-image-progress.html";
+  function serialize() {
+    const lines = ["Preflight decisions for BloomDesktop PR #8375 (BL-16893-quiet-image-progress)", REPORT_URL, ""];
+    const questions = [];
+    document.querySelectorAll("[data-q]").forEach(el => { if (!questions.includes(el.dataset.q)) questions.push(el.dataset.q); });
+    questions.forEach(q => {
+      lines.push(q + ":");
+      const checked = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      if (checked) {
+        if (checked.value === "Other") {
+          const other = document.querySelector('input[data-other][data-q="' + q + '"]');
+          lines.push("  Answer: Other: " + (other ? other.value : ""));
+        } else {
+          lines.push("  Answer: " + checked.value);
+        }
+      }
+      const lc = document.querySelector('input[data-leave-comment][data-q="' + q + '"]');
+      if (lc && lc.checked) lines.push("  Leave comment: record this decision as a code comment near the relevant code");
+      const notes = document.querySelector('textarea[data-notes][data-q="' + q + '"]');
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  function refresh() { document.getElementById("payload").value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copy").addEventListener("click", async () => {
+    refresh();
+    const ta = document.getElementById("payload");
+    let ok = false;
+    try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) { ok = false; }
+    if (!ok) { ta.focus(); ta.select(); try { ok = document.execCommand("copy"); } catch (e) { ok = false; } }
+    const c = document.getElementById("copied");
+    c.style.display = ok ? "inline" : "none";
+    if (ok) setTimeout(() => { c.style.display = "none"; }, 2500);
+  });
+</script>
+</body>
+</html>
