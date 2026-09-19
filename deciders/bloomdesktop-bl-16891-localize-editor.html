@@ -92,12 +92,12 @@
 
 <header class="top">
   <h1>Preflight — letting the AI image editor's strings be translated</h1>
-  <p class="lede">Branch <span class="numeral">BL-16891-localize-editor</span> against <span class="numeral">Version6.5</span>, at <span class="numeral">b138e0f2</span>. Both test suites green, Devin complete with two flags, both waiting on you.</p>
+  <p class="lede">Branch <span class="numeral">BL-16891-localize-editor</span> against <span class="numeral">Version6.5</span>, at <span class="numeral">b138e0f2</span>. Both test suites green, Devin complete with two flags, and four decisions waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
     <span class="chip ok">CI green</span>
-    <span class="chip warn">3 items for you</span>
+    <span class="chip warn">4 items for you</span>
   </div>
   <div class="links">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8378" target="_blank" rel="noopener">PR #8378</a>
@@ -190,38 +190,66 @@
 <div class="col">
 
   <section class="item">
-    <h3>1. Spanish, French, Indonesian and Portuguese translations are committed directly</h3>
-    <p>Commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/968deb3b1c95e5e0dcc8e5da544ea3210b49c978" target="_blank" rel="noopener">968deb3b</a>, "Strings for AI-image-editor", adds 4,753 lines to <span class="numeral">DistFiles/localization/es/</span>, <span class="numeral">fr/</span>, <span class="numeral">id/</span> and <span class="numeral">pt/</span> — the four translated language folders. Each new entry is marked <span class="numeral">state="translated"</span>, which is how a translation that a human translator produced and approved looks in these files.</p>
-    <p>This repo's standing instruction, stated in <span class="numeral">AGENTS.md</span> and again in <span class="numeral">DistFiles/localization/README.md</span>, is that only <span class="numeral">DistFiles/localization/en/</span> is ever hand-edited; the other language folders are Crowdin's, and Bloom takes whatever Crowdin has. Devin flagged exactly this. Two things follow that are worth weighing: on the next Crowdin sync, whatever Crowdin holds for these ids wins, so translations added here can be replaced or reverted without anybody noticing; and in the meantime they are indistinguishable in the file from reviewed human work.</p>
-    <p>Against that: the point of the card is to get the editor out of English, and having four languages working now is real value that an empty Crowdin queue does not give.</p>
+    <h3>1. How the four languages actually reach translators</h3>
+    <p>The goal is for these translations to sit in Crowdin, un-approved, so translators can correct them. Committing them to git does not do that. <span class="numeral">DistFiles/localization/README.md</span> is explicit: modifying a translated xliff file and merging it "has no effect on what is seen on the Crowdin site — a translated xliff file must be explicitly uploaded." The GitHub integration runs one way: English sources flow master → Crowdin automatically, and finished translations come back as the periodic <span class="numeral">l10n_master</span> pull request. So commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/968deb3b1c95e5e0dcc8e5da544ea3210b49c978" target="_blank" rel="noopener">968deb3b</a> ships the machine translations to users but puts nothing in front of a translator, and the README warns that committed translated files "may complicate merging in changes from Crowdin."</p>
+    <p>The direct route is one command, <span class="numeral">crowdin upload translations</span>, run against the <span class="numeral">crowdin.yml</span> already in the repo. Its <span class="numeral">--auto-approve-imported</span> flag is what approves uploaded translations, so simply omitting it gives exactly "in Crowdin, un-approved." The README says to run it as <strong>SILCrowdinBot</strong>, so a developer's name is not attached to machine translations.</p>
+    <p><strong>One ordering constraint applies to every option below.</strong> Crowdin takes its source strings from the English xliff <em>on master</em>, and these 198 ids are not on master — this PR targets <span class="numeral">Version6.5</span>, and master currently carries exactly one <span class="numeral">AiImageEditor.*</span> id. Until the English entries land on master there is nothing in Crowdin for an upload to attach to. That is also what makes decision 2 load-bearing: <span class="numeral">translate="no"</span> would keep them out of Crowdin even once they are on master.</p>
     <div class="opt">
-      <input type="radio" name="q1" id="q1a" data-q="Decision 1 (direct translations in es/fr/id/pt)" value="Keep them, and record in the PR and the commit why this is a deliberate exception to the en-only rule" checked>
-      <label class="body" for="q1a">Keep them, and record in the PR and the commit why this is a deliberate exception to the en-only rule.<span class="tag">Recommended</span><span class="fn">No code — a note on the PR and a reply on the Devin thread. Recommended because you made the commit deliberately and the value is immediate; what is missing is only the written reason, which is what stops the next reviewer (human or bot) reading it as a rule broken by accident.</span></label>
+      <input type="radio" name="q1" id="q1a" data-q="Decision 1 (getting the translations into Crowdin un-approved)" value="Upload the four translated files to Crowdin as SILCrowdinBot with `crowdin upload translations`, without --auto-approve-imported, once the English entries are on master" checked>
+      <label class="body" for="q1a">Upload the four translated files to Crowdin as SILCrowdinBot — <span class="numeral">crowdin upload translations</span> without <span class="numeral">--auto-approve-imported</span> — once the English entries are on master.<span class="tag">Recommended</span><span class="fn">One command against the existing config, no code change. Recommended because it is the only route that actually puts these in front of translators, and un-approved is the default rather than something to arrange. Needs the bot's Crowdin credentials, which I do not have.</span></label>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1b" data-q="Decision 1 (direct translations in es/fr/id/pt)" value="Revert the four language folders and let the translations come back through Crowdin">
-      <label class="body" for="q1b">Revert the four language folders and let the translations come back through Crowdin.<span class="fn">One <span class="numeral">git revert</span> of a single commit, low risk — but the editor then ships English-only in every language until Crowdin round-trips.</span></label>
+      <input type="radio" name="q1" id="q1b" data-q="Decision 1 (getting the translations into Crowdin un-approved)" value="Use Crowdin's own Pre-Translation (MT/AI) instead of uploading files at all">
+      <label class="body" for="q1b">Use Crowdin's own Pre-Translation (MT/AI) instead of uploading files at all.<span class="fn">No files and no upload, results land un-approved, and it covers every project language rather than four — but it discards the context your translator notes gave the generation here, so quality is whatever Crowdin's engine produces.</span></label>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1c" data-q="Decision 1 (direct translations in es/fr/id/pt)" value="Keep them but change the entries from state=&quot;translated&quot; to state=&quot;needs-review-translation&quot; so nobody mistakes them for reviewed work">
-      <label class="body" for="q1c">Keep them, but mark the entries as needing review rather than translated, so nobody mistakes them for approved work.<span class="fn">Mechanical, scripted change across eight files, ~4,700 lines touched — worth checking first that Bloom and Crowdin treat that state the way you expect.</span></label>
+      <input type="radio" name="q1" id="q1c" data-q="Decision 1 (getting the translations into Crowdin un-approved)" value="Upload them to Crowdin's Translation Memory so they appear as suggestions rather than filled-in translations">
+      <label class="body" for="q1c">Upload them to Crowdin's Translation Memory, so they appear as suggestions rather than filled-in translations.<span class="fn">More conservative: a translator opts into each one instead of finding the field pre-filled. Same effort as the upload above; slower to produce finished translations.</span></label>
     </div>
     <div class="opt leaverow">
-      <input type="radio" name="q1" id="q1d" data-q="Decision 1 (direct translations in es/fr/id/pt)" value="Leave as is">
+      <input type="radio" name="q1" id="q1d" data-q="Decision 1 (getting the translations into Crowdin un-approved)" value="Leave as is">
       <label class="body" for="q1d">Leave as is</label>
-      <label class="lc"><input type="checkbox" data-q="Decision 1 (direct translations in es/fr/id/pt)" data-lc="1"> Leave comment</label>
+      <label class="lc"><input type="checkbox" data-q="Decision 1 (getting the translations into Crowdin un-approved)" data-lc="1"> Leave comment</label>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1e" data-q="Decision 1 (direct translations in es/fr/id/pt)" value="Other">
-      <label class="body" for="q1e">Other: <input type="text" data-q="Decision 1 (direct translations in es/fr/id/pt)" data-other="1" placeholder="your answer"></label>
+      <input type="radio" name="q1" id="q1e" data-q="Decision 1 (getting the translations into Crowdin un-approved)" value="Other">
+      <label class="body" for="q1e">Other: <input type="text" data-q="Decision 1 (getting the translations into Crowdin un-approved)" data-other="1" placeholder="your answer"></label>
     </div>
-    <div class="notes"><label for="n1">Notes</label><textarea id="n1" rows="2" data-q="Decision 1 (direct translations in es/fr/id/pt)" data-notes="1"></textarea></div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" rows="2" data-q="Decision 1 (getting the translations into Crowdin un-approved)" data-notes="1"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>1b. Whether the committed es/fr/id/pt files stay in this PR</h3>
+    <p>Separate from how Crowdin gets them: the four language folders currently carry 4,753 committed lines, each entry marked <span class="numeral">state="translated"</span> — which is how a translation a human produced and approved looks in these files. The repo's standing rule, in <span class="numeral">AGENTS.md</span> and the localization README, is that only <span class="numeral">en/</span> is hand-edited. Devin flagged this.</p>
+    <p>The trade-off is about shipping, not about Crowdin. The <span class="numeral">l10n_master</span> pull request lands on <strong>master</strong>, so if these files are reverted, 6.5 ships the editor English-only in every language until someone cherry-picks a Crowdin round-trip into <span class="numeral">Version6.5</span>. If they stay, 6.5 ships four working languages now, at the cost of files that diverge from Crowdin and complicate the next merge.</p>
+    <div class="opt">
+      <input type="radio" name="q1b" id="q1ba" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" value="Keep them so 6.5 ships the four languages, and record in the PR why this is a deliberate exception to the en-only rule" checked>
+      <label class="body" for="q1ba">Keep them so 6.5 ships the four languages, and record in the PR why this is a deliberate exception.<span class="tag">Recommended</span><span class="fn">No code — a note on the PR and a reply on the Devin thread. Recommended because the alternative ships nothing translated in 6.5, and what is actually missing is the written reason, which is what stops the next reviewer reading it as a rule broken by accident.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1b" id="q1bb" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" value="Revert the four language folders and let the translations come back only through Crowdin">
+      <label class="body" for="q1bb">Revert the four language folders and let the translations come back only through Crowdin.<span class="fn">One <span class="numeral">git revert</span> of a single commit, low risk, and leaves git and Crowdin in agreement — but the editor then ships English-only in 6.5.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1b" id="q1bc" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" value="Keep them but mark the entries as needing review rather than translated">
+      <label class="body" for="q1bc">Keep them, but mark the entries as needing review rather than translated, so nobody mistakes them for approved work.<span class="fn">Mechanical, scripted change across eight files, ~4,700 lines touched — worth confirming first that Bloom's runtime treats that state as usable, or the four languages stop working.</span></label>
+    </div>
+    <div class="opt leaverow">
+      <input type="radio" name="q1b" id="q1bd" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" value="Leave as is">
+      <label class="body" for="q1bd">Leave as is</label>
+      <label class="lc"><input type="checkbox" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" data-lc="1"> Leave comment</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1b" id="q1be" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" value="Other">
+      <label class="body" for="q1be">Other: <input type="text" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" data-other="1" placeholder="your answer"></label>
+    </div>
+    <div class="notes"><label for="n1b">Notes</label><textarea id="n1b" rows="2" data-q="Decision 1b (do the committed es/fr/id/pt files stay)" data-notes="1"></textarea></div>
   </section>
 
   <section class="item">
     <h3>2. The 198 new English entries have no <span class="numeral">translate="no"</span></h3>
     <p><span class="numeral">DistFiles/localization/README.md</span> says new entries are added with <span class="numeral">translate="no"</span>, which is what keeps them out of Crowdin until we say they are ready; <span class="numeral">.github/skills/xlf-strings/SKILL.md</span> repeats it as a rule for writing entries and again as a thing to check when reviewing them. None of the 198 new entries here carries it, so on the next Crowdin sync all 198 go to translators. Devin flagged this as the second of its two findings.</p>
-    <p>Since the whole point of BL-16891 is to get these strings in front of translators, sending them is very likely what you want — the recommendation below is to leave them open, and to say so on the thread so the next person sees a rule applied on purpose rather than missed.</p>
+    <p>Since the whole point of BL-16891 is to get these strings in front of translators, sending them is what you want — and decision 1 makes it load-bearing rather than merely defensible: Crowdin takes its sources from the English xliff on master, and <span class="numeral">translate="no"</span> would keep these ids out of Crowdin even once they land there, leaving nothing for a translation upload to attach to. The recommendation is to leave them open and say so on the thread, so the next person sees a rule applied on purpose rather than missed.</p>
     <div class="opt">
       <input type="radio" name="q2" id="q2a" data-q="Decision 2 (translate=&quot;no&quot; on the new entries)" value="Add translate=&quot;no&quot; to all 198 new entries so they stay staged until deliberately released">
       <label class="body" for="q2a">Add <span class="numeral">translate="no"</span> to all 198 new entries, so they stay staged until you deliberately release them.<span class="fn">Scripted attribute edit on two files, mechanical and low risk — but it also means the four languages already committed in decision 1 have no Crowdin path behind them.</span></label>
