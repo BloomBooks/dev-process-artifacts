@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Slot Numbering Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --ground:#f3f6f7; --surface:#ffffff; --sunk:#eef3f4;
+    --ink:#14242a; --ink-soft:#54666d; --ink-faint:#7d8d93;
+    --line:#dce5e8; --line-soft:#e9eff1;
+    --accent:#0d7c8c; --accent-soft:#e2f0f2;
+    --pass:#2c7048; --warn:#8d6210;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+  }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); font-size:15.5px; line-height:1.62;
+    padding-inline:24px; padding-block:34px 72px;
+  }
+  .wrap { max-width:1280px; margin:0 auto; }
+  h1,h2,h3 { font-family:var(--serif); font-weight:600; text-wrap:balance; margin:0; letter-spacing:-.01em; }
+  h1 { font-size:2.05rem; line-height:1.18; }
+  h2 { font-size:1.22rem; margin-bottom:.55rem; }
+  h3 { font-size:1rem; font-family:var(--sans); font-weight:650; margin:1.15rem 0 .3rem; }
+  p { margin:0 0 .85rem; }
+  p:last-child, ul:last-child { margin-bottom:0; }
+  a { color:var(--accent); text-underline-offset:2px; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  ul { margin:0 0 .85rem; padding-left:1.15rem; }
+  li { margin-bottom:.4rem; }
+  code, .numeral { font-family:var(--mono); font-size:.88em; font-variant-numeric:tabular-nums; }
+  code { background:var(--sunk); padding:.1em .34em; border-radius:3px; }
+
+  header.masthead { border-bottom:1px solid var(--line); padding-bottom:1.5rem; margin-bottom:1.9rem; }
+  .kicker { font-size:.78rem; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-faint); margin:0 0 .5rem; }
+  .lede { color:var(--ink-soft); max-width:62ch; margin:.7rem 0 0; }
+  .chips { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:1.15rem; }
+  .chip { display:inline-flex; align-items:center; gap:.4rem; font-size:.8rem; font-weight:600;
+          padding:.24rem .66rem; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink-soft); }
+  .chip.ok { color:var(--pass); border-color:#bcdcc8; background:#f1f8f3; }
+  .chip.att { color:var(--warn); border-color:#e6d5ab; background:#fdf8ec; }
+  .links { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:1rem; }
+  .links a { display:inline-flex; align-items:center; font-size:.82rem; font-weight:600; text-decoration:none;
+             padding:.26rem .7rem; border-radius:6px; border:1px solid var(--line); background:var(--surface); color:var(--accent); }
+  .links a:hover { border-color:var(--accent); background:var(--accent-soft); }
+  .links a.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .grid { display:grid; grid-template-columns:1.4fr 1fr; gap:1.75rem; align-items:start; }
+  .grid > * { min-width:0; }
+  @media (max-width:980px) { .grid { grid-template-columns:1fr; } }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:1.4rem 1.5rem; margin-bottom:1.25rem; }
+  .card.lead { border-left:3px solid var(--accent); }
+  .stack { display:flex; flex-direction:column; }
+
+  .tablewrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:.93rem; }
+  th, td { text-align:left; padding:.5rem .7rem .5rem 0; border-bottom:1px solid var(--line-soft); vertical-align:top; }
+  th { font-size:.74rem; letter-spacing:.07em; text-transform:uppercase; color:var(--ink-faint); font-weight:650; }
+  tr:last-child td { border-bottom:none; }
+  td.verdict { white-space:nowrap; font-weight:650; }
+  .ok { color:var(--pass); } .na { color:var(--ink-faint); font-weight:500; }
+
+  .rev { display:grid; grid-template-columns:minmax(110px,auto) 1fr; gap:.55rem 1rem; margin:0; }
+  .rev dt { font-weight:650; font-size:.93rem; }
+  .rev dd { margin:0; color:var(--ink-soft); font-size:.93rem; }
+  .rev dd .state { font-weight:650; color:var(--pass); }
+
+  .item { background:var(--surface); border:1px solid var(--line); border-radius:9px; padding:1.25rem 1.35rem; margin-bottom:1.1rem; }
+  .item h3 { margin-top:0; font-size:1.02rem; }
+  .item p { font-size:.93rem; color:var(--ink-soft); }
+  .opts { display:flex; flex-direction:column; gap:.1rem; margin:.9rem 0 .2rem; }
+  .opt { display:flex; align-items:flex-start; gap:.55rem; padding:.45rem .55rem; border-radius:6px; }
+  .opt:hover { background:var(--sunk); }
+  .opt input[type=radio] { margin:.35rem 0 0; flex:none; }
+  .opt .txt { font-size:.92rem; }
+  .foot { display:block; color:var(--ink-faint); font-size:.83rem; margin-top:.15rem; line-height:1.5; }
+  .tag { display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+         color:var(--accent); background:var(--accent-soft); border-radius:4px; padding:.05rem .35rem; margin-left:.35rem; vertical-align:2px; }
+  .leaverow { display:flex; align-items:flex-start; gap:.55rem; padding:.45rem .55rem; border-radius:6px; }
+  .leaverow:hover { background:var(--sunk); }
+  .leaverow input[type=radio] { margin:.35rem 0 0; flex:none; }
+  .leaverow .grow { flex:1 1 auto; min-width:0; font-size:.92rem; }
+  .leavecomment { display:inline-flex; align-items:center; gap:.35rem; font-size:.8rem; color:var(--ink-faint); white-space:nowrap; flex:none; }
+  input[type=text], textarea {
+    font-family:var(--sans); font-size:.9rem; color:var(--ink); background:var(--surface);
+    border:1px solid var(--line); border-radius:5px; padding:.35rem .5rem; width:100%;
+  }
+  .notes { margin-top:.7rem; }
+  .notes label { display:block; font-size:.78rem; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:.25rem; }
+  textarea { min-height:3.1rem; resize:vertical; }
+  button.copy {
+    font-family:var(--sans); font-size:.92rem; font-weight:650; cursor:pointer;
+    background:var(--accent); color:#fff; border:none; border-radius:6px; padding:.5rem 1.05rem;
+  }
+  button.copy:hover { background:#0a6b79; }
+  #payload { margin-top:.8rem; font-family:var(--mono); font-size:.78rem; min-height:7rem; background:var(--sunk); }
+  .said { margin-left:.7rem; font-size:.85rem; color:var(--pass); font-weight:650; }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; animation:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Preflight report &middot; BloomDesktop</p>
+  <h1>A picture landed on the drag target, not the picture you picked</h1>
+  <p class="lede">Preflight on <code>BL-16793-game-target-slots</code> at <span class="numeral">b23186c0</span>, base <code>Version6.5</code>. Every gate is green and every reviewer has finished; three things are waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">All suites green</span>
+    <span class="chip ok">Reviewers finished</span>
+    <span class="chip att">3 items for you</span>
+  </div>
+  <nav class="links">
+    <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8381" target="_blank" rel="noopener">PR #8381</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8381/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8381/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16793" target="_blank" rel="noopener">BL-16793</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8381" target="_blank" rel="noopener">Devin review</a>
+  </nav>
+</header>
+
+<div class="grid">
+<div class="stack">
+
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>On a Bloom Games page, choosing a picture in the AI image editor and clicking <strong>Use this image</strong> could put it on one of the drag <em>targets</em> instead of the picture the author had selected. The selected picture was left unchanged, a target ended up showing a picture that did not belong to it, and reloading the page lost the new picture altogether &mdash; Bloom rebuilds a target&rsquo;s content from its draggable, so the edit was thrown away. Reported against 6.5.3045 on page 15 of &ldquo;Butterfly gardens&rdquo;.</p>
+    <h3>Cause</h3>
+    <p>The editor identifies a slot by its position &mdash; <code>"{pageId}:{ordinal}"</code>, an index into the page&rsquo;s image containers in document order. C# builds that list from the <strong>saved</strong> HTML; the browser builds it from the <strong>live</strong> DOM. Both counted the copy of a draggable&rsquo;s picture that sits inside a game target.</p>
+    <p>That copy is generated, not authored: the browser writes it in when the draggable is selected or its picture changes, and an untouched target sits empty. So one page can honestly hold a different number of image containers in the two places &mdash; on the reported page, <span class="numeral">7</span> live against <span class="numeral">10</span> saved. The index then meant one slot on one side and a different one on the other.</p>
+    <h3>What the PR does</h3>
+    <p>Both sides now leave the target copies out of the numbering, so an index counts only what an author placed and means the same thing whatever state the targets are in.</p>
+    <ul>
+      <li><strong>C#</strong> &mdash; <a href="https://github.com/BloomBooks/BloomDesktop/blob/b23186c0976b33c0f42a473e69f61471c6953cd2/src/BloomExe/web/controllers/AiImageEditorApi.cs#L954" target="_blank" rel="noopener"><code>SelectImageSlotsOnPage</code></a> drops anything inside a <code>data-target-of</code>. The raw selector it used to be lives on as <a href="https://github.com/BloomBooks/BloomDesktop/blob/b23186c0976b33c0f42a473e69f61471c6953cd2/src/BloomExe/web/controllers/AiImageEditorApi.cs#L916" target="_blank" rel="noopener"><code>SelectImageContainersWithin</code></a>, which is still what pairs a draggable&rsquo;s containers with its target&rsquo;s copies.</li>
+      <li><strong>Browser</strong> &mdash; <a href="https://github.com/BloomBooks/BloomDesktop/blob/b23186c0976b33c0f42a473e69f61471c6953cd2/src/BloomBrowserUI/bookEdit/aiImageEditor/aiImageEditorPageCommands.ts#L89" target="_blank" rel="noopener"><code>imageSlotsOnPage</code></a> drops the same containers, through a <a href="https://github.com/BloomBooks/BloomDesktop/blob/b23186c0976b33c0f42a473e69f61471c6953cd2/src/BloomBrowserUI/bookEdit/js/imageTargetResolution.ts#L85" target="_blank" rel="noopener">constant</a> it now shares with the code that records each slot&rsquo;s share of its page.</li>
+      <li><strong>Tests</strong> on both sides pin the invariant: a game page numbers its slots identically whether its targets are filled or empty, and a replacement lands on the author&rsquo;s picture, not a target&rsquo;s copy.</li>
+    </ul>
+    <p>Verified against a running Bloom on the reported book: page 15 now numbers its slots the same with the targets filled (<span class="numeral">10</span> raw containers) and emptied (<span class="numeral">7</span>), matching the ids C# sends at launch.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck (TypeScript)</td><td>no errors</td><td class="verdict ok">pass</td></tr>
+        <tr><td>Lint (eslint + prettier)</td><td>clean on the changed files</td><td class="verdict ok">pass</td></tr>
+        <tr><td>Merge cleanliness</td><td>up to date with <code>Version6.5</code>, no conflicts</td><td class="verdict ok">mergeable</td></tr>
+        <tr><td>TypeScript tests (vitest)</td><td><span class="numeral">860 passed &middot; 5 skipped</span> across <span class="numeral">73</span> files</td><td class="verdict ok">pass</td></tr>
+        <tr><td>C# tests (dotnet test)</td><td><span class="numeral">3460 passed &middot; 13 skipped &middot; 0 failed</span></td><td class="verdict ok">pass</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p style="margin-top:.9rem; font-size:.88rem; color:var(--ink-faint);">Both suites were run in full against the final commit, because the diff touches both stacks.</p>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Two commits. <a href="https://github.com/BloomBooks/BloomDesktop/commit/33e5ea937b3d090456152568818ca992e1a6e028" target="_blank" rel="noopener"><span class="numeral">33e5ea9</span></a> is the fix and its tests; <a href="https://github.com/BloomBooks/BloomDesktop/commit/b23186c0976b33c0f42a473e69f61471c6953cd2" target="_blank" rel="noopener"><span class="numeral">b23186c</span></a> corrects two comments that still described the old numbering, which the review pass caught. The branch was created for this work and rebased onto <code>Version6.5</code>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <dl class="rev">
+      <dt>Local review</dt>
+      <dd><span class="state">complete</span> &mdash; light sub-agent pass. No correctness bugs. It confirmed the C# and TypeScript exclusion rules are exactly equivalent, that the target-copy pairing correctly moved to the raw selector, that every caller wants the new list, and that no ordinal is persisted in a book. Raised two stale comments; both fixed.</dd>
+      <dt>Devin</dt>
+      <dd><span class="state">complete</span>, on both commits. Zero bugs, zero informational. One Investigate flag &mdash; that the added C# uses spaces where the surrounding code uses tabs &mdash; which is the wrong way round: both files are entirely space-indented and are formatted by csharpier via the pre-commit hook. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8381#discussion_r4062893325" target="_blank" rel="noopener">Answered and resolved</a>. The re-review repeated it verbatim, so it was not mirrored again.</dd>
+      <dt>CodeRabbit</dt>
+      <dd class="na">not active on this repo &mdash; <code>auto_review</code> is disabled in <code>.coderabbit.yml</code>.</dd>
+      <dt>Greptile</dt>
+      <dd class="na">not configured on this repo.</dd>
+      <dt>CI</dt>
+      <dd><span class="state">complete</span> &mdash; <code>pr-automation</code> passed. (BloomDesktop&rsquo;s build runs on TeamCity, not GitHub checks.)</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li><strong>Nothing in a book stores an ordinal</strong>, so renumbering is safe for existing books: the ids live only inside one editor session, and the per-slot size hint is written on the element rather than by index.</li>
+      <li><strong>The AI image editor remembers its own last-selected picture</strong> between sessions, and it wins over the slot Bloom names at launch &mdash; observed while diagnosing this. Because ordinals on Games pages now mean something different, the first launch on a previously-edited book can open with a different picture loaded. It is in the tester notes; whether the editor should honour Bloom&rsquo;s choice is a question for <code>bloom-ai-image-tools</code>, not this PR.</li>
+      <li><strong>The fix was checked by hand, not only by tests</strong>, against the exact book and page from the report, in both target states.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="stack">
+
+  <section class="item">
+    <h3>A replacement on the page you are looking at is never saved</h3>
+    <p>Found while diagnosing this bug, and separate from it. When the AI editor replaces a picture on the page currently open, Bloom writes the new picture into the page on screen but nothing marks the page as needing saving. Navigate to another page and back, or let the next editor launch save, and the new picture is gone &mdash; the book on disk still has the old one. I reproduced it twice and confirmed against the saved file.</p>
+    <p>It is not Games-specific: it happened on an ordinary picture overlay. It is also what the reporter meant by &ldquo;reloading the page loses the image altogether&rdquo;, so part of that sentence is fixed by this PR and part is not.</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q1" data-q="Unsaved current-page replacement" value="File a separate YouTrack card for it" checked>
+        <span class="txt">File a separate YouTrack card for it<span class="tag">recommended</span>
+        <span class="foot">No code. Recommended because it is a different defect from the one this card describes, and this PR is green and ready &mdash; folding an unrelated fix in now would restart the whole review. I can create the card with the reproduction I already have.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" data-q="Unsaved current-page replacement" value="Fix it in this PR before review">
+        <span class="txt">Fix it in this PR before it goes to review
+        <span class="foot">Size unknown until the cause is pinned &mdash; probably small (mark the page dirty after the swap) but it touches the save path, and it restarts every reviewer.</span></span></label>
+      <div class="leaverow">
+        <input type="radio" name="q1" id="q1-leave" data-q="Unsaved current-page replacement" value="Leave as is">
+        <span class="grow"><label for="q1-leave">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-q="Unsaved current-page replacement :: leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q1" data-q="Unsaved current-page replacement" value="Other">
+        <span class="txt">Other: <input type="text" data-q="Unsaved current-page replacement :: other" placeholder="what you would rather do"></span></label>
+    </div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" data-q="Unsaved current-page replacement :: notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Every C# change trips git&rsquo;s whitespace check</h3>
+    <p><code>.gitattributes</code> turns on git&rsquo;s &ldquo;indent with non-tab&rdquo; rule for every file, and switches it back off only for <code>.js</code>, <code>.ts</code>, <code>.tsx</code>, <code>.htm*</code> and <code>.tmx</code>. C# is not in that list, but the project formats C# with csharpier, which indents with spaces. So <code>git diff --check</code> reports &ldquo;indent with spaces&rdquo; on <em>any</em> correctly-formatted C# change in this repo.</p>
+    <p>That is not only cosmetic noise: it is what produced Devin&rsquo;s one finding on this PR, and it will do the same on every C# PR until someone changes it.</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q2" data-q="gitattributes vs csharpier" value="Add *.cs to the override list, in its own small change" checked>
+        <span class="txt">Add <code>*.cs</code> to the override list, in its own small change<span class="tag">recommended</span>
+        <span class="foot">One line in <code>.gitattributes</code>, low risk &mdash; but repo-wide and unrelated to this card, so its own commit or PR, not this one. Recommended because it stops a recurring false finding for everybody.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" data-q="gitattributes vs csharpier" value="Log it as a papercut only">
+        <span class="txt">Just log it as a papercut
+        <span class="foot">No code; keeps the note without spending anyone&rsquo;s time now.</span></span></label>
+      <div class="leaverow">
+        <input type="radio" name="q2" id="q2-leave" data-q="gitattributes vs csharpier" value="Leave as is">
+        <span class="grow"><label for="q2-leave">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-q="gitattributes vs csharpier :: leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q2" data-q="gitattributes vs csharpier" value="Other">
+        <span class="txt">Other: <input type="text" data-q="gitattributes vs csharpier :: other" placeholder="what you would rather do"></span></label>
+    </div>
+    <div class="notes"><label for="n2">Notes</label><textarea id="n2" data-q="gitattributes vs csharpier :: notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Your test book was changed while reproducing this</h3>
+    <p>Diagnosing and verifying the fix meant running real AI replacements in &ldquo;Butterfly gardens&rdquo;. On page 15, the third draggable picture (the one that was <code>ai-image3.png</code>) now holds <code>ai-image5.png</code>, and its drag target matches. Nothing else on the page differs and the page structure is untouched. There are also two unreferenced <code>ai-image</code> files in the book folder, which is the same litter the original bug left.</p>
+    <div class="opts">
+      <div class="leaverow">
+        <input type="radio" name="q3" id="q3-leave" data-q="Test book modified" value="Leave as is" checked>
+        <span class="grow"><label for="q3-leave">Leave as is<span class="tag">recommended</span></label>
+          <span class="foot">It is a test book, both pictures are AI-generated butterflies, and the round-2 tester notes ask for these very pictures to be replaced again &mdash; so putting it back buys nothing.</span></span>
+        <label class="leavecomment"><input type="checkbox" data-q="Test book modified :: leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q3" data-q="Test book modified" value="Put the original picture back">
+        <span class="txt">Put the original picture back
+        <span class="foot">No production code &mdash; I would drive Bloom to reselect <code>ai-image3.png</code> on that draggable. A few minutes, and it needs Bloom pointed back at that book.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" data-q="Test book modified" value="Other">
+        <span class="txt">Other: <input type="text" data-q="Test book modified :: other" placeholder="what you would rather do"></span></label>
+    </div>
+    <div class="notes"><label for="n3">Notes</label><textarea id="n3" data-q="Test book modified :: notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Next step</h3>
+    <p>The PR is a draft, green and quiet. Promoting it to human review is <code>pr-ready-for-human</code>&rsquo;s job, which you run after your own read of the diff.</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q4" data-q="Next step" value="Act on the answers above, then stop" checked>
+        <span class="txt">Act on the answers above, then stop<span class="tag">recommended</span>
+        <span class="foot">Recommended because the PR needs nothing further from preflight; your own review comes next.</span></span></label>
+      <label class="opt"><input type="radio" name="q4" data-q="Next step" value="Discuss the items before doing anything">
+        <span class="txt">Discuss the items before doing anything</span></label>
+      <div class="leaverow">
+        <input type="radio" name="q4" id="q4-leave" data-q="Next step" value="Leave as is">
+        <span class="grow"><label for="q4-leave">Leave as is</label></span>
+        <label class="leavecomment"><input type="checkbox" data-q="Next step :: leave comment"> Leave comment</label>
+      </div>
+      <label class="opt"><input type="radio" name="q4" data-q="Next step" value="Other">
+        <span class="txt">Other: <input type="text" data-q="Next step :: other" placeholder="something else"></span></label>
+    </div>
+    <div class="notes"><label for="n4">Notes</label><textarea id="n4" data-q="Next step :: notes"></textarea></div>
+  </section>
+
+  <section class="item">
+    <h3>Send your answers back</h3>
+    <p>Copy this and paste it into the session.</p>
+    <button class="copy" id="copybtn" type="button">Copy answers</button><span class="said" id="said" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Your answers"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var payload = document.getElementById("payload");
+  var btn = document.getElementById("copybtn");
+  var said = document.getElementById("said");
+
+  function serialize() {
+    var lines = ["Preflight answers - BloomDesktop PR #8381 (BL-16793)", ""];
+    ["q1", "q2", "q3", "q4"].forEach(function (name) {
+      var chosen = document.querySelector('input[name="' + name + '"]:checked');
+      if (!chosen) return;
+      var q = chosen.getAttribute("data-q");
+      var val = chosen.value;
+      if (val === "Other") {
+        var box = document.querySelector('input[type=text][data-q="' + q + ' :: other"]');
+        val = "Other: " + ((box && box.value.trim()) || "(not filled in)");
+      }
+      lines.push(q + ": " + val);
+      var lc = document.querySelector('input[type=checkbox][data-q="' + q + ' :: leave comment"]');
+      if (lc && lc.checked) lines.push("  Leave comment: record this decision in the code");
+      var notes = document.querySelector('textarea[data-q="' + q + ' :: notes"]');
+      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    payload.value = lines.join("\n").trim() + "\n";
+  }
+
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  serialize();
+
+  btn.addEventListener("click", function () {
+    var text = payload.value;
+    function done() { said.hidden = false; setTimeout(function () { said.hidden = true; }, 2200); }
+    function fallback() {
+      payload.focus(); payload.select();
+      try { document.execCommand("copy"); done(); } catch (e) { /* textarea is visible; Ctrl+C works */ }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
