@@ -187,12 +187,12 @@
 <header class="masthead">
   <p class="kicker">Preflight report &middot; BloomDesktop &middot; BL-16893-compact-progress-dialog</p>
   <h1>Compact &ldquo;Update Book&rdquo; progress dialog</h1>
-  <p class="standfirst">Gate clean, both test suites green, every reviewer finished. Devin found one real bug (a dialog inheriting another&rsquo;s error state); it is fixed and its thread is resolved. Two questions are waiting on you, neither of them blocking.</p>
+  <p class="standfirst">Gate clean, both test suites green, every reviewer finished, and the two questions this report originally asked have been answered. Devin found one real bug (a dialog inheriting another&rsquo;s error state); it is fixed and its thread is resolved.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable &mdash; clean</span>
     <span class="chip ok">Reviewers all finished</span>
-    <span class="chip count">2 items for you</span>
+    <span class="chip ok">All questions answered</span>
   </div>
   <div class="links">
     <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8389" target="_blank" rel="noopener">PR #8389</a>
@@ -219,8 +219,8 @@
         <li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomBrowserUI/react_components/Progress/SimpleProgressDialog.tsx#L65" target="_blank" rel="noopener"><code>SimpleProgressDialog</code></a>, a new small dialog rather than another set of switches on <code>ProgressDialog</code>. The existing one exists to show a running commentary the user is meant to read, and the options for hiding the log, shrinking the box and reserving space for buttons had already piled up. The new one is a title bar, a bar with the percent beside it, and one sentence: <em>&ldquo;Please wait while Bloom does some housekeeping on your book...&rdquo;</em>. It shows no ordinary progress messages; a warning or error still colours the title bar and appears under the sentence, with Close and Report.</li>
         <li>The automatic update shows it in a 620&times;180 window instead of 620&times;400, and no longer writes its explanation as a progress message (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/Book/BookProcessor.cs#L390" target="_blank" rel="noopener">BookProcessor.cs:390</a>). The Collections tab command shows the same thing through a new embedded instance (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/CollectionTab/CollectionModel.cs#L733" target="_blank" rel="noopener">CollectionModel.cs:733</a>); it had been sharing the <code>collectionTab</code> dialog with .bloomSource import, which does want a log.</li>
         <li>Stops a progress dialog picking up another one&rsquo;s state. <code>progress</code> is a shared channel &mdash; every progress dialog in the document, and in Bloom&rsquo;s other browsers, hears every event &mdash; and each listener is alive from the moment it mounts, while the existing cleanup only runs for a dialog that has been open before. A dialog that had never opened therefore accumulated somebody else&rsquo;s percent, errors and <code>show-buttons</code>, then opened at the last job&rsquo;s percent with a red title bar and a live Close button; pressing it told Bloom the job was over while the book was still being rewritten.</li>
-        <li>A WinForms form cannot size itself to its HTML, so a failed run grows its window to 300px (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/Book/BookProcessor.cs#L350" target="_blank" rel="noopener"><code>GrowDialogForError</code></a>) to fit the error and the buttons, instead of standing that tall and empty for every run that goes well.</li>
-        <li>Strings: <code>BookProcessor.HousekeepingMessage</code> is new in <code>BloomMediumPriority.xlf</code>, without <code>translate="no"</code>; <code>BookProcessor.AutoUpdateExplanation</code> is marked obsolete as of 6.5 and left in place. Storybook stories cover the ordinary case, the error case, and the WinForms size.</li>
+        <li>A WinForms form cannot size itself to its HTML, so the automatic update grows its window to 300px (<a href="https://github.com/BloomBooks/BloomDesktop/blob/5f1306eccc213bd9f9305e7085a3c5f5ef2eacae/src/BloomExe/Book/BookProcessor.cs#L351" target="_blank" rel="noopener"><code>GrowDialogForProblem</code></a>) when there is a problem to show, instead of standing that tall and empty for every run that goes well. Both dialogs also stay up when a warning or error was reported without stopping the run, rather than closing the instant the work finishes and taking the unread message with them.</li>
+        <li>Strings: <code>BookProcessor.HousekeepingMessage</code> is new in <code>BloomMediumPriority.xlf</code>, without <code>translate="no"</code>; <code>BookProcessor.AutoUpdateExplanation</code> is deleted, which loses nothing because no translation of it has ever existed, it never shipped, and nothing references it. Storybook stories cover the ordinary case, the error case, and the WinForms size.</li>
       </ul>
     </section>
 
@@ -238,12 +238,12 @@
         </tbody>
       </table>
       </div>
-      <p style="margin-top:12px;font-size:13.5px;color:var(--muted)">Both suites are in scope and both ran against the final commit: the diff touches <code>.tsx</code> and three C# files.</p>
+      <p style="margin-top:12px;font-size:13.5px;color:var(--muted)">The C# suite ran against the final commit. The TypeScript suite last ran at <code>0e5e037fdc</code>; no <code>.ts</code> or <code>.tsx</code> file has changed since, so its tree is identical and it was not re-run.</p>
     </section>
 
     <section class="card">
       <h2>What changed this run</h2>
-      <p>The branch went from nothing to four commits: the compact dialog itself, a papercut note, a merge of <code>Version6.5</code>, and one round of review fixes for the cross-dialog leak that both the local reviewer and Devin found. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">commit list</a>, in particular <a href="https://github.com/BloomBooks/BloomDesktop/commit/7761754cd9" target="_blank" rel="noopener"><code>7761754</code></a> (the dialog) and <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> (the fixes).</p>
+      <p>The branch went from nothing to six commits: the compact dialog itself, a papercut note, a merge of <code>Version6.5</code>, review fixes for the cross-dialog leak that both the local reviewer and Devin found, the deletion of the obsolete trans-unit, and keeping the dialog up for a reported warning or error. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">commit list</a>, in particular <a href="https://github.com/BloomBooks/BloomDesktop/commit/7761754cd9" target="_blank" rel="noopener"><code>7761754</code></a> (the dialog) and <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> (the fixes).</p>
     </section>
 
     <section class="card">
@@ -256,12 +256,17 @@
 
       <div class="rev">
         <div><div class="who">Devin</div><div class="state">Complete</div></div>
-        <div><p>Two rounds. One Bug and two Investigate flags, all three mirrored as PR threads and all three now resolved: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076813655" target="_blank" rel="noopener">cross-dialog leak</a> (real, fixed), the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816370" target="_blank" rel="noopener">missing <code>translate="no"</code></a> and the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816614" target="_blank" rel="noopener">named props interface</a> (both replied to with the reasoning). The second round returned the same three titles and nothing new; its Bug points at lines that in the very commit it reviewed already carry the fix, so nothing was re-posted. No informational items either round.</p></div>
+        <div><p>Four rounds, one per pushed commit. One Bug and two Investigate flags in total, all three mirrored as PR threads and all three now resolved: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076813655" target="_blank" rel="noopener">cross-dialog leak</a> (real, fixed), the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816370" target="_blank" rel="noopener">missing <code>translate="no"</code></a> and the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816614" target="_blank" rel="noopener">named props interface</a> (both replied to with the reasoning). Every round after the first returned the same three titles and nothing new; each was screened against the commit under review rather than taken at face value, and each time the Bug pointed at lines that already carried the fix. Nothing was re-posted. No informational items in any round.</p></div>
       </div>
 
       <div class="rev">
         <div><div class="who">CI</div><div class="state">Complete</div></div>
         <div><p><code>pr-automation</code> green on both pushed commits, including the final one.</p></div>
+      </div>
+
+      <div class="rev">
+        <div><div class="who">Reviewable</div><div class="state">Discussions clear</div></div>
+        <div><p>The three mirrored Devin threads were acknowledged as satisfied and published, so Reviewable&rsquo;s unresolved-discussion count is zero. Its <code>code-review/reviewable</code> check stays pending until a human marks the files reviewed &mdash; that is the human-review step itself, not something outstanding from this run.</p></div>
       </div>
 
       <div class="rev">
@@ -284,155 +289,26 @@
   <!-- ================= RIGHT ================= -->
   <div>
 
-    <div class="decision" data-item="templates">
-      <h2>The card&rsquo;s other checklist item</h2>
-      <p>Hatton added two checkboxes to BL-16893 after the mock-up. One was &ldquo;when merged, please put in Ready for UI Review&rdquo;, which is a promotion step. The other was <strong>&ldquo;All template books we ship with should already be up to date&rdquo;</strong> &mdash; meaning the template books in the installer should already carry the &ldquo;pages brought up to date&rdquo; mark, so a user who starts a book from one never sees this dialog at all.</p>
-      <p>That is about regenerating shipped content, not about the dialog, and nothing in this PR touches it. It is also the kind of thing that can quietly not happen, because the card looks finished once the dialog lands.</p>
-      <fieldset>
-        <legend>What should happen to the template-books item?</legend>
-        <div class="opt">
-          <input type="radio" id="t-sep" name="templates" value="Open a separate card for it" checked>
-          <label class="body" for="t-sep"><span class="lbl">Open a separate card for it</span><span class="tag">Recommended</span>
-            <span class="cost">No code here. Recommended because it is a different kind of work (regenerating shipped books and checking the installer) from a dialog change on a release branch, and a card of its own is what stops it being lost when this one closes.</span></label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="t-here" name="templates" value="Do it on this PR">
-          <label class="body" for="t-here"><span class="lbl">Do it on this PR</span>
-            <span class="cost">Unknown size until the shipped templates are inspected &mdash; possibly just regenerating them, possibly a build-step change. Widens a release-branch PR that is currently small and verified.</span></label>
-        </div>
-        <div class="opt leaverow">
-          <input type="radio" id="t-leave" name="templates" value="Leave as is">
-          <label class="body" for="t-leave"><span class="lbl">Leave as is</span></label>
-          <label class="leavecomment"><input type="checkbox" data-q="templates:leave-comment"> Leave comment</label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="t-other" name="templates" value="Other">
-          <label class="body" for="t-other"><span class="lbl">Other:</span>
-            <input class="otherbox" type="text" id="t-other-text" data-q="templates:other" placeholder="Your answer"></label>
-        </div>
-      </fieldset>
-      <label class="noteslabel" for="t-notes">Notes</label>
-      <textarea class="notes" id="t-notes" data-q="templates:notes" placeholder="Anything to add?"></textarea>
+    <div class="decision">
+      <h2>Questions &mdash; answered</h2>
+      <p>Both questions this report originally asked were answered on 22 September, and acted on. They are recorded here so the page is not read as still waiting on someone.</p>
+
+      <h3>The card&rsquo;s other checklist item</h3>
+      <p><strong>Leave as is.</strong> &ldquo;All template books we ship with should already be up to date&rdquo; is about the maintenance level stamped into the shipped template books, not the dialog, and another developer has already taken it on. Noted on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a> and in the PR description.</p>
+
+      <h3>The unfiltered <code>close-progress</code> event</h3>
+      <p><strong>Leave as is.</strong> Only one progress dialog is ever open at a time, because the C# side driving them holds a single job, so a close aimed at the other one does nothing. Adding a <code>which</code> filter would mean touching shared C# that six other callers use, on a release branch, for something provably unreachable. Recorded on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#issuecomment-5784970961" target="_blank" rel="noopener">PR</a>, with the condition that would make it matter.</p>
+
+      <h3>Raised afterwards, and fixed</h3>
+      <p>Reading the report, John asked whether the dialog should also grow when the work <em>reports</em> a warning or error rather than throwing. It should &mdash; and the sizing turned out to be the smaller half: on that path the dialog closed the instant the work finished, so the message vanished unread. Both dialogs now stay up when anything was reported (<code>5f1306ec</code>).</p>
     </div>
 
-    <div class="decision" data-item="closeprogress">
-      <h2>One event is still unfiltered</h2>
-      <p>The Collections tab now hosts two progress dialogs: the existing log-showing one, and the new compact one for Update Book. When C# tells a dialog to open it names which one (<code>open-progress</code> carries a <code>which</code>), and each dialog ignores an open meant for the other. When C# tells a dialog to <em>close</em>, it names nobody &mdash; so both dialogs act on every close.</p>
-      <p>Today that cannot cause a problem: only one progress dialog is ever open at a time (the C# side that drives them holds a single job), and telling an already-closed dialog to close does nothing. So this is a latent coupling rather than a bug, and it is the one local-review finding not acted on.</p>
-      <fieldset>
-        <legend>Harden the close event now, or leave it?</legend>
-        <div class="opt leaverow">
-          <input type="radio" id="c-leave" name="closeprogress" value="Leave as is" checked>
-          <label class="body" for="c-leave"><span class="lbl">Leave as is</span><span class="tag">Recommended</span></label>
-          <label class="leavecomment"><input type="checkbox" data-q="closeprogress:leave-comment"> Leave comment</label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="c-fix" name="closeprogress" value="Add a which filter to close-progress">
-          <label class="body" for="c-fix"><span class="lbl">Add a <code>which</code> filter to <code>close-progress</code></span>
-            <span class="cost">~15 lines across <code>BrowserProgressDialog.cs</code> and both dialog components, low risk but it touches shared C# that six other callers use &mdash; on a release branch, for something provably unreachable today.</span></label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="c-other" name="closeprogress" value="Other">
-          <label class="body" for="c-other"><span class="lbl">Other:</span>
-            <input class="otherbox" type="text" id="c-other-text" data-q="closeprogress:other" placeholder="Your answer"></label>
-        </div>
-      </fieldset>
-      <label class="noteslabel" for="c-notes">Notes</label>
-      <textarea class="notes" id="c-notes" data-q="closeprogress:notes" placeholder="Anything to add?"></textarea>
-    </div>
-
-    <div class="decision" data-item="next">
-      <h2>Next step</h2>
-      <p>The PR is a draft, mergeable and quiet. Nothing here blocks your own review of it.</p>
-      <fieldset>
-        <legend>What should happen next?</legend>
-        <div class="opt">
-          <input type="radio" id="n-go" name="next" value="Implement my answers above" checked>
-          <label class="body" for="n-go"><span class="lbl">Implement my answers above</span><span class="tag">Recommended</span>
-            <span class="cost">Recommended because both questions are small and independent of each other; whichever way they go, the PR stays ready for your review.</span></label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="n-talk" name="next" value="Discuss first">
-          <label class="body" for="n-talk"><span class="lbl">Discuss first</span>
-            <span class="cost">No code changes until we have talked it through.</span></label>
-        </div>
-        <div class="opt leaverow">
-          <input type="radio" id="n-leave" name="next" value="Leave as is">
-          <label class="body" for="n-leave"><span class="lbl">Leave as is</span></label>
-          <label class="leavecomment"><input type="checkbox" data-q="next:leave-comment"> Leave comment</label>
-        </div>
-        <div class="opt">
-          <input type="radio" id="n-other" name="next" value="Other">
-          <label class="body" for="n-other"><span class="lbl">Other:</span>
-            <input class="otherbox" type="text" id="n-other-text" data-q="next:other" placeholder="Your answer"></label>
-        </div>
-      </fieldset>
-      <label class="noteslabel" for="n-notes">Notes</label>
-      <textarea class="notes" id="n-notes" data-q="next:notes" placeholder="Anything to add?"></textarea>
-    </div>
-
-    <div class="copyback">
-      <h2>Send your answers back</h2>
-      <p style="font-size:14px;color:var(--muted);margin-bottom:0">Copy this block and paste it into the Claude Code session.</p>
-      <button class="copy" id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
-      <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
     </div>
 
   </div>
 </div>
 </div>
 
-<script>
-(function () {
-  var TITLES = {
-    templates: "The card's other checklist item (template books already up to date)",
-    closeprogress: "One event is still unfiltered (close-progress)",
-    next: "Next step"
-  };
-  var ORDER = ["templates", "closeprogress", "next"];
 
-  function val(sel) { var e = document.querySelector(sel); return e ? e.value.trim() : ""; }
-
-  function build() {
-    var out = ["Preflight answers - BL-16893 - PR #8389", ""];
-    ORDER.forEach(function (key) {
-      var picked = document.querySelector('input[name="' + key + '"]:checked');
-      var choice = picked ? picked.value : "(no answer)";
-      if (choice === "Other") {
-        var typed = val("#" + key.charAt(0) + "-other-text");
-        choice = "Other: " + (typed || "(nothing typed)");
-      }
-      out.push(TITLES[key]);
-      out.push("  -> " + choice);
-      var lc = document.querySelector('[data-q="' + key + ':leave-comment"]');
-      if (lc && lc.checked) { out.push("  Leave comment: record this decision as a code comment near the relevant code"); }
-      var notes = val('[data-q="' + key + ':notes"]');
-      if (notes) { out.push("  Notes: " + notes); }
-      out.push("");
-    });
-    document.getElementById("payload").value = out.join("\n");
-  }
-
-  document.addEventListener("input", build);
-  document.addEventListener("change", build);
-  build();
-
-  document.getElementById("copybtn").addEventListener("click", function () {
-    var ta = document.getElementById("payload");
-    var done = function () {
-      var c = document.getElementById("copied");
-      c.hidden = false;
-      window.setTimeout(function () { c.hidden = true; }, 2200);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value).then(done, function () {
-        ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
-      });
-    } else {
-      ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
-    }
-  });
-})();
-</script>
 </body>
 </html>
