@@ -137,14 +137,15 @@
 
 <header>
   <h1>Pseudo-English Locale</h1>
-  <p class="runline">Preflight on <code>BL-16748-pseudo-english</code>. Master integrated, every gate green,
-    every reviewer terminal. One real bug was found and fixed this run; one question is waiting on you &mdash; and note Greptile no longer runs on this repo.</p>
+  <p class="runline">Preflight on <code>BL-16748-pseudo-english</code>, following John's review. Both of his
+    suggestions are done, master is integrated, every gate is green and every reviewer is terminal. Nothing is
+    waiting on you but the next step; the PR is back in draft.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable &middot; 0 behind master</span>
-    <span class="chip good">Devin complete</span>
-    <span class="chip warn">Greptile did not run</span>
-    <span class="chip note">1 item for you</span>
+    <span class="chip good">Devin complete &middot; nothing new</span>
+    <span class="chip good">John approved</span>
+    <span class="chip note">0 decisions for you</span>
   </div>
   <div class="links">
     <span class="linklabel">Links</span>
@@ -153,6 +154,7 @@
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8283/commits" target="_blank" rel="noopener">Commits</a>
     <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16748" target="_blank" rel="noopener">BL-16748</a>
     <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8283" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8283" target="_blank" rel="noopener">Reviewable</a>
   </div>
 </header>
 
@@ -169,39 +171,38 @@
         hits it.</p>
 
       <h3>What the PR does</h3>
-      <p>On the developer and alpha channels, the UI Language menu now offers <b>Pseudo-English (i18n test)</b>.
-        L10NSharp pseudolocalizes every lookup for the standard <code>qps-ploc</code> pseudo-locale by
-        transforming the live English at lookup time &mdash; each vowel doubled and accented, the whole string
-        bracketed, so <code>Title Missing</code> becomes <span class="pseudo">[T&icirc;itl&eacute;e
-        M&icirc;iss&icirc;ing]</span>. A tester then reads the problems straight off the screen: plain English
-        means the string was never internationalized, a visible <code>{0}</code> or <code>%0</code> means a
-        broken placeholder, a missing <code>]</code> means truncation, brackets mid-sentence mean the sentence is
-        concatenated at runtime, and clipped layout means we can't cope with the ~30&ndash;40% growth real
-        translations bring. No <code>qps-*</code> translation files exist or are ever written.</p>
+      <p>On the developer, alpha and staff-only internal channels (BetaInternal, ReleaseInternal), the UI
+        Language menu now offers <b>Pseudo-English (i18n test)</b>. L10NSharp pseudolocalizes every lookup for the
+        standard <code>qps-ploc</code> pseudo-locale by transforming the live English at lookup time &mdash; each
+        vowel doubled and accented, the whole string bracketed, so <code>Title Missing</code> becomes
+        <span class="pseudo">[T&icirc;itl&eacute;e M&icirc;iss&icirc;ing]</span>. A tester then reads the problems
+        straight off the screen: plain English means the string was never internationalized, a visible
+        <code>{0}</code> or <code>%0</code> means a broken placeholder, a missing <code>]</code> means truncation,
+        brackets mid-sentence mean the sentence is concatenated at runtime, and clipped layout means we can't cope
+        with the ~30&ndash;40% growth real translations bring. No <code>qps-*</code> translation files exist or are
+        ever written.</p>
       <ul class="bul">
         <li>Takes <b>L10NSharp 11.0.1</b>, whose only breaking change (dropping the <code>net461</code> target)
           cannot reach Bloom. All three co-located apps move together, because they share one
           <code>L10NSharp.dll</code> in the ship folder.</li>
-        <li><code>Program.SetUpLocalization</code> turns the locale on for developer and alpha only, and
-          <code>GetDesiredUiLanguage</code> refuses a stored <code>qps-ploc</code> on a channel that doesn't
-          offer it &mdash; otherwise a setting carried over would leave a user with a mangled UI and no menu
-          entry to escape it.</li>
-        <li><code>WorkspaceView</code> names the locale itself (Palaso has nothing useful to say about a
-          pseudo-locale) and puts it last in the menu rather than sorting it among real languages.</li>
+        <li>The locale is offered on developer, alpha and the internal channels only &mdash; never public Beta or
+          Release &mdash; and a stored <code>qps-ploc</code> falls back to English on a channel that doesn't offer
+          it, so nobody is left with a mangled UI and no menu entry to escape it.</li>
+        <li><code>WorkspaceView</code> names the locale itself and puts it last in the menu rather than sorting
+          it among real languages.</li>
         <li><code>I18NApi</code> pseudolocalizes the English fallback it returns for ids missing from the English
-          XLIFF &mdash; otherwise those look exactly like hard-coded text, which defeats the exercise. It also
-          stops the pseudo-locale defeating <code>GetTranslation</code>'s sentinel, which had been handing a
-          mangled sentinel to the user in the "requires a higher subscription tier" message.</li>
-        <li><b>Fixes bracket bugs the locale exposed</b>: several UI strings mark link text as
-          <code>[see our research]</code>, and the code found the pair by taking the <i>first</i> <code>[</code>,
-          which the locale's own wrapper brackets broke &mdash; swallowing whole sentences into links. Now
-          anchored on the first <code>]</code> via <code>findLinkTextBrackets</code>, with five call sites and
-          the markdown link regex updated.</li>
-        <li>Keeps the locale out of the two places the available-languages list feeds <b>book data</b> rather
-          than UI: the pre-translated content written into a new book, and the hint-bubble language chooser.</li>
-        <li>Adds an e2e test that a real Bloom offers the locale, plus unit coverage of the server-side
-          fallbacks; and documents in <code>DistFiles/localization/README.md</code> which surfaces stay plain
-          English on purpose, so the tester's rule stays exact.</li>
+          XLIFF, so those don't look like hard-coded text. It also stops the pseudo-locale defeating
+          <code>GetTranslation</code>'s sentinel, which had been showing a mangled sentinel in the "requires a
+          higher subscription tier" message.</li>
+        <li><b>Fixes bracket bugs the locale exposed</b>: link text marked as <code>[see our research]</code> was
+          found by taking the <i>first</i> <code>[</code>, which the locale's wrapper brackets broke. Now anchored
+          on the first <code>]</code> via <code>splitAtLinkText</code>, which hands callers the text before, inside
+          and after the link; five call sites and the markdown link regex updated.</li>
+        <li>Keeps the locale out of the two places that feed <b>book data</b> rather than UI: pre-translated
+          content in a new book, and the hint-bubble language chooser.</li>
+        <li>Adds an e2e test that a real Bloom offers the locale, unit coverage of the channel gate and the
+          server-side fallbacks, and a note in <code>DistFiles/localization/README.md</code> on which surfaces stay
+          plain English on purpose.</li>
       </ul>
     </section>
 
@@ -212,20 +213,21 @@
         <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
         <tbody>
           <tr><td class="what">Typecheck</td><td><span class="tag pass">pass</span></td>
-              <td>Re-run after the master merge, which folded hunks into files this branch also changes.</td></tr>
+              <td>After the rebase onto master.</td></tr>
           <tr><td class="what">Lint (eslint)</td><td><span class="tag pass">pass</span></td>
               <td><span class="numeral">0</span> errors; the <span class="numeral">778</span> warnings are the
                   pre-existing baseline.</td></tr>
           <tr><td class="what">C# tests (dotnet test)</td><td><span class="tag pass">pass</span></td>
-              <td><span class="numeral">3526 passed &middot; 0 failed</span> at the final HEAD.</td></tr>
+              <td><span class="numeral">3542 passed &middot; 0 failed</span> at the final HEAD.</td></tr>
           <tr><td class="what">Front-end tests (vitest)</td><td><span class="tag pass">pass</span></td>
-              <td><span class="numeral">868 passed &middot; 5 skipped &middot; 72 files</span></td></tr>
+              <td><span class="numeral">880 passed &middot; 5 skipped &middot; 74 files</span></td></tr>
           <tr><td class="what">Freeze Doctor tests</td><td><span class="tag pass">pass</span></td>
-              <td><span class="numeral">270 passed</span>. Run because its csproj is in the diff.</td></tr>
-          <tr><td class="what">e2e (BloomE2E)</td><td><span class="tag pass">pass</span></td>
-              <td>The new pseudo-locale spec, against a real Bloom.</td></tr>
-          <tr><td class="what">Merge with master</td><td><span class="tag pass">clean</span></td>
-              <td>96 commits, then 4 more, no conflicts; 0 behind at HEAD.</td></tr>
+              <td><span class="numeral">270 passed</span>. Run because its csproj is in the PR's diff.</td></tr>
+          <tr><td class="what">e2e (BloomE2E)</td><td>not re-run</td>
+              <td>This run only touched a comment in the e2e spec; it passed on the previous run.</td></tr>
+          <tr><td class="what">Integrate master</td><td><span class="tag pass">clean</span></td>
+              <td>Rebased onto 52 new commits, keeping the single commit; one trivial conflict in the append-only
+                  <code>AUTOMATION-DEBT.md</code> log, both entries kept. 0 behind.</td></tr>
         </tbody>
       </table>
       </div>
@@ -233,61 +235,44 @@
 
     <section class="card">
       <h2>What changed this run</h2>
-      <p>Integrated master, moved L10NSharp from the superseded <code>10.1.0-beta0001</code> prerelease to
-        stable <b>11.0.1</b> across all three co-located apps, added the e2e test, and fixed the
-        <code>GetTranslation</code> sentinel bug the local review turned up.</p>
-      <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8283/commits" target="_blank" rel="noopener">Commits</a>
+      <p>Took both of John's suggestions: link-text parsing now returns the three pieces with a whole-string
+        default (<code>splitAtLinkText</code>), and Pseudo-English is also offered on BetaInternal and
+        ReleaseInternal. Amended into the single commit, rebased onto master, and moved the PR back to draft.</p>
+      <p><a href="https://github.com/BloomBooks/BloomDesktop/commit/98cabe20dcb24adaafa8a9465e5b492f1c59eec6" target="_blank" rel="noopener"><code>98cabe20dc</code></a>
         &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8283/files" target="_blank" rel="noopener">Files changed</a></p>
     </section>
 
     <section class="card">
       <h2>Reviewer outcomes</h2>
       <ul class="rev">
-        <li><span class="who">Local review</span><span class="st">complete</span>
-          <p>Light read-only pass. Found the one real bug of this run: the pseudo-locale defeats
-            <code>GetTranslation</code>'s <code>***don'tusethis***</code> sentinel, because L10NSharp
-            pseudolocalizes the caller-supplied default instead of consulting the cache &mdash; so the method
-            returned a <i>transformed sentinel</i>, and <code>PublishHelper</code> showed it to the user in the
-            "requires a higher subscription tier" message. Fixed in <code>12a98b8966</code> with tests that fail
-            with <span class="pseudo">[***d&ouml;on't&ucirc;us&eacute;eth&icirc;is***]</span> when the fix is
-            reverted. It also independently raised the compounding concern that is the open question opposite.</p></li>
+        <li><span class="who">Local review</span><span class="st">clean</span>
+          <p>Light read-only pass over this run's changes: no findings. It compared all five link-text callers
+            before and after, and checked every real channel name against the new gate.</p></li>
+        <li><span class="who">John Thomson</span><span class="st">approved</span>
+          <p>LGTM with two ideas, both taken. Replied on each Reviewable thread
+            (<a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8283#-P29cCz97I3XBW-79rnE" target="_blank" rel="noopener">link parsing</a>,
+            <a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8283#-P29g4G67bys5KINrYcj" target="_blank" rel="noopener">BetaInternal</a>);
+            resolving them is his. The one part not taken &mdash; a front-end check for the pseudo-locale &mdash;
+            is explained in the first reply.</p></li>
         <li><span class="who">Devin</span><span class="st">complete</span>
-          <p>Five bugs, five flags, each with a documented outcome on its thread. One was real and is fixed
-            (the installer dependency check &mdash; see "Worth knowing"); three were already-settled repeats;
-            one is pre-existing and out of scope; one is
-            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8283#discussion_r4043904710" target="_blank" rel="noopener">left open</a>
-            as the question opposite.</p></li>
-        <li><span class="who">Greptile</span><span class="st" style="color:var(--warn)">did not run</span>
-          <p><b>No Greptile review exists for this commit, and none for any commit since 2026-09-02.</b> Its
-            check context is absent from the PR's status rollup entirely, it has posted no review and no inline
-            comment on this branch since that date, and the repo carries no <code>.greptile</code> config. It
-            looks to have been removed or disabled on this repo, so treat this PR as having had two reviewers
-            (the local pass and Devin), not three.</p></li>
+          <p>Re-reviewed the whole diff; nothing new. Every Bug and flag repeats an earlier round and already has a
+            resolved thread with its outcome
+            (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8283#issuecomment-5784150118" target="_blank" rel="noopener">log</a>).</p></li>
+        <li><span class="who">Greptile</span><span class="st" style="color:var(--warn)">not running</span>
+          <p>Has not reviewed this PR since 2026-09-02 and has no check context; it is not active on this repo.</p></li>
         <li><span class="who">CI</span><span class="st">complete</span>
-          <p><code>pr-automation</code> pass &mdash; the only check that runs itself. Reviewable's
-            <code>code-review/reviewable</code> context is pending <i>by design</i>: it waits on a human signing
-            off in Reviewable, so it never goes green on its own. It now reads "7 discussions left" because this
-            run added four threads to the three that were already there; Reviewable tracks their disposition
-            separately from GitHub, so they want clearing in its own UI.</p></li>
+          <p><code>pr-automation</code> pass. Reviewable's context is pending by design until John resolves his two
+            discussions.</p></li>
       </ul>
     </section>
 
     <section class="card">
       <h2>Worth knowing</h2>
       <ul class="bul">
-        <li>The L10NSharp bump nearly shipped a broken installer. Bloom.exe, BloomPdfMaker.exe and
-          BloomFreezeDoctor.exe share one <code>L10NSharp.dll</code> in the ship folder, and moving only
-          BloomExe left the Freeze Doctor asking for 10.x; whichever built last would win the file, and the host
-          rejects a version <i>lower</i> than requested. <code>check-dependency-versions.ps1</code> catches
-          this, but only under <code>Bloom.proj</code>'s BuildInternal &mdash; never a local build or the test
-          suites. Devin caught it; fixed in <code>2fc7a45e43</code>. Worth a reviewer's eye on the three
-          versions staying in step.</li>
-        <li>The pseudo-locale is a <b>testing device that ships in the binary</b>, gated only by channel. A
-          reviewer may want to confirm the gate is where they'd want it, since nothing else stops a release
-          build from having the code.</li>
-        <li>Not exercised by hand this run: the Publish tab's subscription-tier message in the pseudo-locale,
-          which is what the sentinel fix repairs. It is covered by a unit test and is in the card's test ideas
-          as a step for the tester.</li>
+        <li><b>The PR went back to draft</b> despite John's approval, because preflight always leaves a PR in
+          draft. His approval still stands; <code>pr-ready-for-human</code> is what promotes it again.</li>
+        <li>Testers can only check the BetaInternal entry once a <b>6.6</b> internal build exists, since this PR
+          targets master.</li>
       </ul>
     </section>
 
@@ -296,88 +281,35 @@
   <div class="col">
 
     <section class="qcard">
-      <h2>Should we guard against compounding the pseudo transform?</h2>
-      <p>Two reviewers independently raised the same concern about <code>I18NApi</code>. When a string id is in
-        none of Bloom's three English XLIFF files, <code>GetTranslationDefaultMayNotBeEnglish</code> falls back
-        to whatever the caller passed as the current text, and this PR then pseudolocalizes that. The transform
-        is not idempotent, so if the text handed in had <i>already</i> been transformed on an earlier pass, the
-        result compounds &mdash; <span class="pseudo">[[T&icirc;&icirc;itl&eacute;&eacute;e]]</span> &mdash; and
-        a tester would reasonably read that as a bug in the feature.</p>
-      <p>I traced every route and <b>could not make it happen</b>. The only caller that reads the DOM asks
-        solely for keys absent from the front end's dictionary, and every answer is cached there, so a key's
-        text is submitted at most once per document; later passes fill from the cache. The dictionary and the
-        DOM only ever reset together, with a fresh document in English. The other two callers pass the book's
-        own page label and never write the result back.</p>
-      <p>So this is not a known defect. It is a question of whether to spend a guard on a path that is one
-        front-end refactor away from becoming reachable, in exactly the place a tester in this locale is
-        looking.</p>
-      <div class="opts" data-q="Compounding guard">
-        <label class="opt">
-          <input type="radio" name="q1" value="Leave as is" checked>
-          <span class="lab"><b>Leave as is</b><span class="rec">recommended</span></span>
-          <span class="lc"><input type="checkbox" data-q="Leave comment (compounding)"> Leave comment</span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q1" value="Skip the transform when the text already looks transformed">
-          <span class="lab"><b>Guard: skip text that already looks transformed</b>
-            <span class="cost">~5 lines &mdash; don't re-transform a string already wrapped in the
-            pseudo brackets. Cheap and local, but it is a heuristic: a genuine English string that really
-            starts with "[" and ends with "]" would stop being transformed.</span></span>
-        </label>
-        <label class="opt">
-          <input type="radio" name="q1" value="Never transform the defaultCurrent fallback">
-          <span class="lab"><b>Never transform the caller's fallback text</b>
-            <span class="cost">~2 lines, and provably no compounding &mdash; but it gives back the problem
-            this feature exists to remove: a string missing from the XLIFF would show as plain English and so
-            look identical to hard-coded text.</span></span>
-        </label>
-        <label class="opt otherrow">
-          <input type="radio" name="q1" value="Other">
-          <span class="lab"><b>Other:</b>
-            <input type="text" data-q="Other (compounding)" placeholder="your answer"></span>
-        </label>
-      </div>
-      <p style="color:var(--ink-faint); font-size:13px;">Recommending <b>Leave as is</b> because it cannot
-        currently occur, the cheap guard trades a real (if unlikely) false negative for a hypothetical false
-        positive, and a <code>[[</code> in the UI would be obvious and reported rather than silent. Its Devin
-        thread stays open until you answer, and I will record whatever you decide there.</p>
-      <div class="notes">
-        <label for="n1">Notes</label>
-        <textarea id="n1" data-q="Notes (compounding)" rows="3" placeholder="caveats, constraints, anything else"></textarea>
-      </div>
-    </section>
-
-    <section class="qcard">
       <h2>Next step</h2>
-      <p>Nothing else is outstanding: every gate is green at the final HEAD, every reviewer is terminal, and
-        the only open review thread is the question above. The PR is left as a draft for your own review.</p>
+      <p>No decisions are open. Every gate is green at <code>98cabe20dc</code>, every reviewer is terminal, and
+        both of John's threads have replies. The PR is a draft again.</p>
       <div class="opts" data-q="Next step">
         <label class="opt">
-          <input type="radio" name="q2" value="Nothing more - I will review it myself next" checked>
+          <input type="radio" name="q1" value="Nothing more - I will review it myself next" checked>
           <span class="lab"><b>Nothing more &mdash; I'll review it myself next</b><span class="rec">recommended</span>
-            <span class="cost">Recommended because the one decision is a few lines either way; the next move is
-            your read of the PR, then <code>pr-ready-for-human</code>.</span></span>
+            <span class="cost">Then run <code>pr-ready-for-human</code> to promote it again; John has already
+            approved.</span></span>
         </label>
         <label class="opt">
-          <input type="radio" name="q2" value="Run a thorough /code-review pass first">
-          <span class="lab"><b>Run a thorough <code>/code-review</code> first</b>
-            <span class="cost">A full high-effort review-and-fix loop. Costs real tokens; the light pass already
-            found and fixed the one real bug here.</span></span>
+          <input type="radio" name="q1" value="Run pr-ready-for-human now">
+          <span class="lab"><b>Promote it now with <code>pr-ready-for-human</code></b>
+            <span class="cost">If this run's two small changes need no read from you first.</span></span>
         </label>
         <label class="opt">
-          <input type="radio" name="q2" value="Leave as is">
+          <input type="radio" name="q1" value="Leave as is">
           <span class="lab"><b>Leave as is</b></span>
           <span class="lc"><input type="checkbox" data-q="Leave comment (next step)"> Leave comment</span>
         </label>
         <label class="opt otherrow">
-          <input type="radio" name="q2" value="Other">
+          <input type="radio" name="q1" value="Other">
           <span class="lab"><b>Other:</b>
             <input type="text" data-q="Other (next step)" placeholder="your answer"></span>
         </label>
       </div>
       <div class="notes">
-        <label for="n2">Notes</label>
-        <textarea id="n2" data-q="Notes (next step)" rows="3" placeholder="anything else"></textarea>
+        <label for="n1">Notes</label>
+        <textarea id="n1" data-q="Notes (next step)" rows="3" placeholder="anything else"></textarea>
       </div>
     </section>
 
@@ -385,7 +317,7 @@
       <h2>Send your answers back</h2>
       <p>Copy this and paste it into the session.</p>
       <button id="copy" type="button">Copy answers</button><span class="ok" id="ok">Copied</span>
-      <textarea id="payload" readonly rows="7" aria-label="Answers to copy"></textarea>
+      <textarea id="payload" readonly rows="5" aria-label="Answers to copy"></textarea>
     </section>
 
   </div>
