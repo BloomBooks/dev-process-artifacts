@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compact Update Book Dialog</title>
+<style>
+  :root {
+    --ground: #f6f9f9;
+    --surface: #ffffff;
+    --ink: #172124;
+    --muted: #59696c;
+    --line: #dae3e4;
+    --line-soft: #eaf0f1;
+    --accent: #1d94a4;
+    --accent-soft: #e6f3f5;
+    --pass: #2f7d55;
+    --pass-soft: #e7f2ec;
+    --warn: #8a6008;
+    --warn-soft: #fbf1dd;
+    --fail: #ad2a20;
+    --fail-soft: #fbeae8;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  a { color: #14707d; }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  img { max-width: 100%; }
+
+  .wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding-left: 24px;
+    padding-right: 24px;
+    padding-block: 32px 64px;
+  }
+
+  /* ---- header ---- */
+  header.masthead { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 8px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(26px, 3.4vw, 36px);
+    line-height: 1.18;
+    letter-spacing: -0.012em;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .standfirst { margin: 0 0 18px; color: var(--muted); max-width: 62ch; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12.5px; font-weight: 600;
+    padding: 4px 11px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  }
+  .chip.ok { color: var(--pass); border-color: #bcdccb; background: var(--pass-soft); }
+  .chip.draft { color: var(--accent); border-color: #a9d8de; background: var(--accent-soft); }
+  .chip.count { color: var(--ink); }
+
+  .links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .links a {
+    font-size: 12.5px; text-decoration: none; color: #14707d;
+    border: 1px solid #b7dde2; background: var(--surface);
+    padding: 4px 11px; border-radius: 6px; white-space: nowrap;
+  }
+  .links a:hover { background: var(--accent-soft); }
+  .links a.primary { border-color: var(--accent); color: #0f5f6a; font-weight: 600; }
+
+  /* ---- grid ---- */
+  .cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .stack { display: flex; flex-direction: column; gap: 22px; }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+  section.card > :first-child { margin-top: 0; }
+  section.card > :last-child { margin-bottom: 0; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 21px; font-weight: 600; letter-spacing: -0.008em;
+    margin: 0 0 14px;
+  }
+  h3 {
+    font-size: 12px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--muted); margin: 20px 0 6px;
+  }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  ul { margin: 0 0 12px; padding-left: 20px; }
+  li { margin-bottom: 8px; max-width: 68ch; }
+  li:last-child { margin-bottom: 0; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--line-soft); padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  /* ---- gate table ---- */
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  th { font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+  tr:last-child td { border-bottom: none; }
+  .verdict { font-weight: 700; font-size: 12.5px; white-space: nowrap; }
+  .verdict.pass { color: var(--pass); }
+  .verdict.skip { color: var(--muted); }
+
+  /* ---- reviewer rows ---- */
+  .rev { display: grid; grid-template-columns: minmax(0, 170px) minmax(0, 1fr); gap: 4px 18px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+  .rev:last-child { border-bottom: none; padding-bottom: 0; }
+  .rev:first-of-type { padding-top: 0; }
+  .rev .who { font-weight: 700; font-size: 14px; }
+  .rev .state { font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pass); }
+  .rev .state.na { color: var(--muted); }
+  .rev p { margin: 0; font-size: 14px; }
+  @media (max-width: 560px) { .rev { grid-template-columns: minmax(0, 1fr); } }
+
+  /* ---- decisions ---- */
+  .decision { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 20px 22px; }
+  .decision + .decision { margin-top: 18px; }
+  .decision h2 { font-size: 18px; margin-bottom: 10px; }
+  .decision p { font-size: 14px; }
+  fieldset { border: none; margin: 14px 0 0; padding: 0; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line-soft); }
+  .opt:first-of-type { border-top: none; }
+  .opt input[type="radio"] { margin: 3px 0 0; flex: none; }
+  .opt .body { flex: 1 1 auto; min-width: 0; font-size: 14px; }
+  .opt .lbl { font-weight: 600; }
+  .tag { font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); border: 1px solid #a9d8de; background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; margin-left: 7px; white-space: nowrap; }
+  .cost { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+  .leaverow { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+  .leavecomment { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-left: auto; white-space: nowrap; }
+  .otherbox, .notes {
+    width: 100%; font: inherit; font-size: 14px; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: #fcfdfd;
+  }
+  .otherbox { margin-top: 6px; }
+  .notes { margin-top: 12px; min-height: 62px; resize: vertical; }
+  .noteslabel { display: block; font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-top: 14px; }
+
+  /* ---- copy back ---- */
+  .copyback { border: 1px solid var(--accent); border-radius: 10px; background: var(--surface); padding: 20px 22px; margin-top: 18px; }
+  .copyback h2 { margin-bottom: 6px; }
+  button.copy {
+    font: inherit; font-weight: 600; font-size: 14px;
+    background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    padding: 9px 18px; cursor: pointer; margin-top: 10px;
+  }
+  button.copy:hover { background: #17808e; }
+  #payload { width: 100%; min-height: 150px; margin-top: 12px; font-family: var(--mono); font-size: 12px; line-height: 1.5; border: 1px solid var(--line); border-radius: 6px; padding: 9px; background: #fbfdfd; color: var(--ink); resize: vertical; }
+  .copied { font-size: 13px; color: var(--pass); font-weight: 600; margin-left: 10px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <p class="kicker">Preflight report &middot; BloomDesktop &middot; BL-16893-compact-progress-dialog</p>
+  <h1>Compact &ldquo;Update Book&rdquo; progress dialog</h1>
+  <p class="standfirst">Gate clean, both test suites green, every reviewer finished. Devin found one real bug (a dialog inheriting another&rsquo;s error state); it is fixed and its thread is resolved. Two questions are waiting on you, neither of them blocking.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable &mdash; clean</span>
+    <span class="chip ok">Reviewers all finished</span>
+    <span class="chip count">2 items for you</span>
+  </div>
+  <div class="links">
+    <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8389" target="_blank" rel="noopener">PR #8389</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8389" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="cols">
+
+  <!-- ================= LEFT ================= -->
+  <div class="stack">
+
+    <section class="card">
+      <h2>What this PR is about</h2>
+
+      <h3>Problem</h3>
+      <p>&ldquo;Update Book&rdquo; &mdash; both the Collections tab command and the automatic pass that runs before the AI image editor opens or after a page-size change &mdash; shows a progress dialog that is mostly empty space. PR&nbsp;#8375 took the per-image log out of it but left the dialog alone: a tall window with the percent bar down at the bottom, three-quarters of it blank, and a three-sentence explanation set in the monospace log font. On the card, Hatton asked for something much shorter and attached a mock-up: the bar on top, one sentence under it. The explicit <strong>Update Book</strong> command came off worse than before, showing that title over a 400px-tall empty log box where the log used to be.</p>
+
+      <h3>What the PR does</h3>
+      <ul>
+        <li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomBrowserUI/react_components/Progress/SimpleProgressDialog.tsx#L65" target="_blank" rel="noopener"><code>SimpleProgressDialog</code></a>, a new small dialog rather than another set of switches on <code>ProgressDialog</code>. The existing one exists to show a running commentary the user is meant to read, and the options for hiding the log, shrinking the box and reserving space for buttons had already piled up. The new one is a title bar, a bar with the percent beside it, and one sentence: <em>&ldquo;Please wait while Bloom does some housekeeping on your book...&rdquo;</em>. It shows no ordinary progress messages; a warning or error still colours the title bar and appears under the sentence, with Close and Report.</li>
+        <li>The automatic update shows it in a 620&times;180 window instead of 620&times;400, and no longer writes its explanation as a progress message (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/Book/BookProcessor.cs#L390" target="_blank" rel="noopener">BookProcessor.cs:390</a>). The Collections tab command shows the same thing through a new embedded instance (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/CollectionTab/CollectionModel.cs#L733" target="_blank" rel="noopener">CollectionModel.cs:733</a>); it had been sharing the <code>collectionTab</code> dialog with .bloomSource import, which does want a log.</li>
+        <li>Stops a progress dialog picking up another one&rsquo;s state. <code>progress</code> is a shared channel &mdash; every progress dialog in the document, and in Bloom&rsquo;s other browsers, hears every event &mdash; and each listener is alive from the moment it mounts, while the existing cleanup only runs for a dialog that has been open before. A dialog that had never opened therefore accumulated somebody else&rsquo;s percent, errors and <code>show-buttons</code>, then opened at the last job&rsquo;s percent with a red title bar and a live Close button; pressing it told Bloom the job was over while the book was still being rewritten.</li>
+        <li>A WinForms form cannot size itself to its HTML, so a failed run grows its window to 300px (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/Book/BookProcessor.cs#L350" target="_blank" rel="noopener"><code>GrowDialogForError</code></a>) to fit the error and the buttons, instead of standing that tall and empty for every run that goes well.</li>
+        <li>Strings: <code>BookProcessor.HousekeepingMessage</code> is new in <code>BloomMediumPriority.xlf</code>, without <code>translate="no"</code>; <code>BookProcessor.AutoUpdateExplanation</code> is marked obsolete as of 6.5 and left in place. Storybook stories cover the ordinary case, the error case, and the WinForms size.</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2>Quality gate</h2>
+      <div class="tablewrap">
+      <table>
+        <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+        <tbody>
+          <tr><td>Typecheck (tsgo)</td><td class="verdict pass">PASS</td><td>No errors.</td></tr>
+          <tr><td>Lint (eslint)</td><td class="verdict pass">PASS</td><td><span class="numeral">0</span> errors. <span class="numeral">764</span> warnings, all pre-existing across the repo; the new files add none.</td></tr>
+          <tr><td>Base integration</td><td class="verdict pass">CLEAN</td><td><code>origin/Version6.5</code> merged; the one shared file (the XLF) auto-merged and both trans-units survived. PR is mergeable.</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="verdict pass">PASS</td><td><span class="numeral">860 passed &middot; 5 skipped</span> across <span class="numeral">72</span> files.</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="verdict pass">PASS</td><td><span class="numeral">3467 passed &middot; 13 skipped &middot; 3480 total</span>.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p style="margin-top:12px;font-size:13.5px;color:var(--muted)">Both suites are in scope and both ran against the final commit: the diff touches <code>.tsx</code> and three C# files.</p>
+    </section>
+
+    <section class="card">
+      <h2>What changed this run</h2>
+      <p>The branch went from nothing to four commits: the compact dialog itself, a papercut note, a merge of <code>Version6.5</code>, and one round of review fixes for the cross-dialog leak that both the local reviewer and Devin found. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">commit list</a>, in particular <a href="https://github.com/BloomBooks/BloomDesktop/commit/7761754cd9" target="_blank" rel="noopener"><code>7761754</code></a> (the dialog) and <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> (the fixes).</p>
+    </section>
+
+    <section class="card">
+      <h2>Reviewer outcomes</h2>
+
+      <div class="rev">
+        <div><div class="who">Local review</div><div class="state">Complete</div></div>
+        <div><p>Light read-only sub-agent pass over the full diff. Five findings; four fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> &mdash; the cross-dialog leak, the same leak reachable in the other direction through <code>ProgressDialog</code>, a failed dialog resize that could replace the real exception, and the Report button losing the run&rsquo;s messages. The fifth is the unfiltered <code>close-progress</code> event, which is question 2 on the right.</p></div>
+      </div>
+
+      <div class="rev">
+        <div><div class="who">Devin</div><div class="state">Complete</div></div>
+        <div><p>Two rounds. One Bug and two Investigate flags, all three mirrored as PR threads and all three now resolved: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076813655" target="_blank" rel="noopener">cross-dialog leak</a> (real, fixed), the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816370" target="_blank" rel="noopener">missing <code>translate="no"</code></a> and the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816614" target="_blank" rel="noopener">named props interface</a> (both replied to with the reasoning). The second round returned the same three titles and nothing new; its Bug points at lines that in the very commit it reviewed already carry the fix, so nothing was re-posted. No informational items either round.</p></div>
+      </div>
+
+      <div class="rev">
+        <div><div class="who">CI</div><div class="state">Complete</div></div>
+        <div><p><code>pr-automation</code> green on both pushed commits, including the final one.</p></div>
+      </div>
+
+      <div class="rev">
+        <div><div class="who">CodeRabbit</div><div class="state na">Not run</div></div>
+        <div><p>Auto-review is switched off for this repo in <code>.coderabbit.yml</code> (<code>auto_review.enabled: false</code>), so it posts nothing. No other comment-posting bot is configured here.</p></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Worth knowing</h2>
+      <ul>
+        <li><strong>The error layout was verified for real, not assumed.</strong> A failure was forced temporarily so the red title bar, the message and the grown window could be seen in a running Bloom; that scaffolding was removed and the final build re-checked. Screenshots of all three states are attached to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a>.</li>
+        <li><strong>The automatic dialog is a fixed-size window.</strong> 620&times;180 fits the sentence on one or two lines; a translation that runs longer will scroll inside the window rather than making it grow. That is a real limit of a WinForms-hosted dialog, not an oversight, but it is the thing most likely to look wrong in another language.</li>
+        <li><strong>The cross-dialog leak was pre-existing, not introduced here</strong> &mdash; both dialogs always had it. Splitting Update Book onto its own instance is what made it reachable, which is why the fix touches the shared <code>ProgressDialog</code> as well as the new one.</li>
+      </ul>
+    </section>
+
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div>
+
+    <div class="decision" data-item="templates">
+      <h2>The card&rsquo;s other checklist item</h2>
+      <p>Hatton added two checkboxes to BL-16893 after the mock-up. One was &ldquo;when merged, please put in Ready for UI Review&rdquo;, which is a promotion step. The other was <strong>&ldquo;All template books we ship with should already be up to date&rdquo;</strong> &mdash; meaning the template books in the installer should already carry the &ldquo;pages brought up to date&rdquo; mark, so a user who starts a book from one never sees this dialog at all.</p>
+      <p>That is about regenerating shipped content, not about the dialog, and nothing in this PR touches it. It is also the kind of thing that can quietly not happen, because the card looks finished once the dialog lands.</p>
+      <fieldset>
+        <legend>What should happen to the template-books item?</legend>
+        <div class="opt">
+          <input type="radio" id="t-sep" name="templates" value="Open a separate card for it" checked>
+          <label class="body" for="t-sep"><span class="lbl">Open a separate card for it</span><span class="tag">Recommended</span>
+            <span class="cost">No code here. Recommended because it is a different kind of work (regenerating shipped books and checking the installer) from a dialog change on a release branch, and a card of its own is what stops it being lost when this one closes.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="t-here" name="templates" value="Do it on this PR">
+          <label class="body" for="t-here"><span class="lbl">Do it on this PR</span>
+            <span class="cost">Unknown size until the shipped templates are inspected &mdash; possibly just regenerating them, possibly a build-step change. Widens a release-branch PR that is currently small and verified.</span></label>
+        </div>
+        <div class="opt leaverow">
+          <input type="radio" id="t-leave" name="templates" value="Leave as is">
+          <label class="body" for="t-leave"><span class="lbl">Leave as is</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="templates:leave-comment"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="t-other" name="templates" value="Other">
+          <label class="body" for="t-other"><span class="lbl">Other:</span>
+            <input class="otherbox" type="text" id="t-other-text" data-q="templates:other" placeholder="Your answer"></label>
+        </div>
+      </fieldset>
+      <label class="noteslabel" for="t-notes">Notes</label>
+      <textarea class="notes" id="t-notes" data-q="templates:notes" placeholder="Anything to add?"></textarea>
+    </div>
+
+    <div class="decision" data-item="closeprogress">
+      <h2>One event is still unfiltered</h2>
+      <p>The Collections tab now hosts two progress dialogs: the existing log-showing one, and the new compact one for Update Book. When C# tells a dialog to open it names which one (<code>open-progress</code> carries a <code>which</code>), and each dialog ignores an open meant for the other. When C# tells a dialog to <em>close</em>, it names nobody &mdash; so both dialogs act on every close.</p>
+      <p>Today that cannot cause a problem: only one progress dialog is ever open at a time (the C# side that drives them holds a single job), and telling an already-closed dialog to close does nothing. So this is a latent coupling rather than a bug, and it is the one local-review finding not acted on.</p>
+      <fieldset>
+        <legend>Harden the close event now, or leave it?</legend>
+        <div class="opt leaverow">
+          <input type="radio" id="c-leave" name="closeprogress" value="Leave as is" checked>
+          <label class="body" for="c-leave"><span class="lbl">Leave as is</span><span class="tag">Recommended</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="closeprogress:leave-comment"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="c-fix" name="closeprogress" value="Add a which filter to close-progress">
+          <label class="body" for="c-fix"><span class="lbl">Add a <code>which</code> filter to <code>close-progress</code></span>
+            <span class="cost">~15 lines across <code>BrowserProgressDialog.cs</code> and both dialog components, low risk but it touches shared C# that six other callers use &mdash; on a release branch, for something provably unreachable today.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="c-other" name="closeprogress" value="Other">
+          <label class="body" for="c-other"><span class="lbl">Other:</span>
+            <input class="otherbox" type="text" id="c-other-text" data-q="closeprogress:other" placeholder="Your answer"></label>
+        </div>
+      </fieldset>
+      <label class="noteslabel" for="c-notes">Notes</label>
+      <textarea class="notes" id="c-notes" data-q="closeprogress:notes" placeholder="Anything to add?"></textarea>
+    </div>
+
+    <div class="decision" data-item="next">
+      <h2>Next step</h2>
+      <p>The PR is a draft, mergeable and quiet. Nothing here blocks your own review of it.</p>
+      <fieldset>
+        <legend>What should happen next?</legend>
+        <div class="opt">
+          <input type="radio" id="n-go" name="next" value="Implement my answers above" checked>
+          <label class="body" for="n-go"><span class="lbl">Implement my answers above</span><span class="tag">Recommended</span>
+            <span class="cost">Recommended because both questions are small and independent of each other; whichever way they go, the PR stays ready for your review.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="n-talk" name="next" value="Discuss first">
+          <label class="body" for="n-talk"><span class="lbl">Discuss first</span>
+            <span class="cost">No code changes until we have talked it through.</span></label>
+        </div>
+        <div class="opt leaverow">
+          <input type="radio" id="n-leave" name="next" value="Leave as is">
+          <label class="body" for="n-leave"><span class="lbl">Leave as is</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="next:leave-comment"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="n-other" name="next" value="Other">
+          <label class="body" for="n-other"><span class="lbl">Other:</span>
+            <input class="otherbox" type="text" id="n-other-text" data-q="next:other" placeholder="Your answer"></label>
+        </div>
+      </fieldset>
+      <label class="noteslabel" for="n-notes">Notes</label>
+      <textarea class="notes" id="n-notes" data-q="next:notes" placeholder="Anything to add?"></textarea>
+    </div>
+
+    <div class="copyback">
+      <h2>Send your answers back</h2>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:0">Copy this block and paste it into the Claude Code session.</p>
+      <button class="copy" id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+(function () {
+  var TITLES = {
+    templates: "The card's other checklist item (template books already up to date)",
+    closeprogress: "One event is still unfiltered (close-progress)",
+    next: "Next step"
+  };
+  var ORDER = ["templates", "closeprogress", "next"];
+
+  function val(sel) { var e = document.querySelector(sel); return e ? e.value.trim() : ""; }
+
+  function build() {
+    var out = ["Preflight answers - BL-16893 - PR #8389", ""];
+    ORDER.forEach(function (key) {
+      var picked = document.querySelector('input[name="' + key + '"]:checked');
+      var choice = picked ? picked.value : "(no answer)";
+      if (choice === "Other") {
+        var typed = val("#" + key.charAt(0) + "-other-text");
+        choice = "Other: " + (typed || "(nothing typed)");
+      }
+      out.push(TITLES[key]);
+      out.push("  -> " + choice);
+      var lc = document.querySelector('[data-q="' + key + ':leave-comment"]');
+      if (lc && lc.checked) { out.push("  Leave comment: record this decision as a code comment near the relevant code"); }
+      var notes = val('[data-q="' + key + ':notes"]');
+      if (notes) { out.push("  Notes: " + notes); }
+      out.push("");
+    });
+    document.getElementById("payload").value = out.join("\n");
+  }
+
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  build();
+
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var ta = document.getElementById("payload");
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      window.setTimeout(function () { c.hidden = true; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () {
+        ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      });
+    } else {
+      ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+    }
+  });
+})();
+</script>
+</body>
+</html>
