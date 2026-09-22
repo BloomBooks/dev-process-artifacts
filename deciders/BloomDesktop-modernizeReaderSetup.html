@@ -81,20 +81,22 @@
   }
   button:hover { background: #14496f; }
   #copied { margin-left: 10px; font-size: 13.5px; color: #2c6b33; }
+  #copied.neutral { color: #6a635b; }
 </style>
+
 </head>
 <body>
 <div class="wrap">
 
 <header class="top">
   <h1>Preflight — Decodable Reader setup dialog</h1>
-  <p class="runline">Branch <code>modernizeReaderSetup</code> at <span class="numeral">ecffdac32e</span>. Rebased onto master, two bugs found and fixed, decisions answered and recorded, all gates green and every review thread resolved. Nothing is waiting on you.</p>
+  <p class="runline">Branch <code>modernizeReaderSetup</code> at <span class="numeral">06c8ba902d</span>. Rebased onto master, John's review addressed, every reviewer finished and every gate green. Two small questions for you.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip good">Nothing waiting on you</span>
-    <span class="chip good">All threads resolved</span>
+    <span class="chip warn">2 items waiting on you</span>
+    <span class="chip warn">Waiting on John's re-review</span>
   </div>
   <div class="links">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">PR #8132</a>
@@ -107,79 +109,57 @@
 </header>
 
 <div class="cols">
-
 <div class="left">
 
   <section class="card">
     <h2>What this PR is about</h2>
-
-    <div class="sub">Problem</div>
-    <p>The Decodable Reader tool's <strong>Set Up Stages</strong> dialog was still the original jQuery dialog, living in an iframe with its own styling and looking nothing like the rest of modern Bloom. It is the screen a teacher uses to define a collection's alphabet, its sample words, and the reading stages that decide which words count as decodable — so it is both prominent and hard to change.</p>
-
-    <div class="sub">What the PR does</div>
+    <p class="sub">Problem</p>
+    <p>The Decodable Reader tool's <strong>Set Up Stages</strong> dialog was a legacy jQuery page in a window of its own: styled unlike the rest of Bloom, and hard to change.</p>
+    <p class="sub">What the PR does</p>
     <ul>
-      <li>Rebuilds the Decodable side of the dialog as a React dialog rendered in the workspace root, with the Letters, Sample Words and Decodable Stages tabs as React components and a drag-sortable stage list. The Leveled Reader's dialog is deliberately untouched and still opens the legacy one.</li>
-      <li>Fixes what saving writes: sample words typed one per line are no longer run together into a single nonsense word, duplicates are dropped, and a stage left empty is discarded with the rest renumbered — matching what the old dialog did.</li>
-      <li>Stops deleted letters from going on affecting word analysis in allowed-words mode, by rebuilding the alphabet without discarding loaded vocabulary.</li>
-      <li>Restores what the old dialog told the user: unreadable files in the Sample Texts folder are listed again with an explanation instead of silently vanishing, an empty folder gets a message, and extension matching is case-insensitive.</li>
-      <li>Exposes the toolbox frame's Synphony data to the dialog across the bundle boundary, so the matching-words preview sees the same special symbols and word lists that Bloom itself uses.</li>
-      <li>Adds a Playwright e2e journey test covering the whole open &rarr; edit &rarr; save &rarr; reopen path across that frame boundary.</li>
+      <li>Rebuilds the dialog in React inside Bloom's standard dialog, with the same three tabs (Letters, Sample Words, Decodable Stages) and the same settings file.</li>
+      <li>On Decodable Stages you click letters into a stage, type sight words, and add, remove and drag stages to reorder them, with a live preview of the words that match.</li>
+      <li>Sample Words lists every file in the Sample Texts folder and says why a file won't be read, instead of hiding it. Words typed one per line are saved as separate words.</li>
+      <li>Fixes found along the way: <strong>Set Up Stages</strong> did nothing if pressed before the settings had loaded; the Sample Words tab failed after the toolbox reloaded; a letter combination removed from the alphabet kept affecting word analysis. It also removes a help link that pointed at the wrong page, and Help now shows even when a non-administrator can't edit.</li>
+      <li>The Leveled Reader's <strong>Set Up Levels</strong> dialog is deliberately untouched and still uses the legacy code, which goes when that dialog is converted.</li>
+      <li>Adds unit tests and an end-to-end journey test.</li>
     </ul>
   </section>
 
   <section class="card">
     <h2>Quality gate</h2>
-    <div class="tblwrap">
-    <table>
-      <tr><th>Check</th><th>State</th><th>Detail</th></tr>
-      <tr><td>Typecheck (TS)</td><td class="state ok">Pass</td><td>front-end and <code>src/BloomE2E</code>, exit 0</td></tr>
-      <tr><td>Lint</td><td class="state ok">Pass</td><td><span class="numeral">0</span> errors (<span class="numeral">767</span> warnings — unchanged baseline)</td></tr>
-      <tr><td>TypeScript tests (vitest)</td><td class="state ok">Pass</td><td><span class="numeral">902 passed &middot; 5 skipped</span></td></tr>
-      <tr><td>C# tests (dotnet)</td><td class="state ok">Pass</td><td><span class="numeral">3521 passed &middot; 0 failed</span> — run because the diff touches the English XLF, which L10NSharp loads under test</td></tr>
-      <tr><td>e2e (Playwright)</td><td class="state ok">Pass</td><td>journey test <span class="numeral">3/3</span> consecutive</td></tr>
-      <tr><td>Merge cleanliness</td><td class="state ok">Clean</td><td>rebased onto master, <span class="numeral">0</span> behind, mergeable</td></tr>
-    </table>
-    </div>
+    <div class="tblwrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck</td><td class="ok">Pass</td></tr>
+      <tr><td>Lint</td><td><span class="ok">0 errors</span> — <span class="numeral">149</span> warnings, all already present in legacy files this PR touches</td></tr>
+      <tr><td>Merge</td><td><span class="ok">Rebased onto master</span> (<span class="numeral">65</span> new commits, none touching this PR's files); mergeable</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td class="ok"><span class="numeral">75 files · 934 passed · 5 skipped</span></td></tr>
+      <tr><td>End-to-end (Playwright, real Bloom)</td><td><span class="ok"><span class="numeral">7 spec files · 15 tests</span> passed</span> on this code just before the rebase, which changed none of its files. The journey test is on this branch; the other six are on <code>readerSetupE2eTests</code>.</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="na">Not run — no C# in the diff</td></tr>
+    </table></div>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Rebased the branch onto master (<span class="numeral">86</span> commits, no conflicts) and fixed two bugs found during review: a replaced reader-tools model was left without its Sample Texts watcher, so the Sample Words tab threw on mount; and the Sample Words help link was a plain anchor to the help API, which navigated the whole edit view away from the book. Both are folded into the fix commit, with a regression test for the first.</p>
-    <p>Then, answering the decisions from the previous round, recorded two accepted limitations as code comments — how the word list file deletions could be deferred to save, and what the shared dialog host does and does not leak. Every review thread on the PR is now resolved.</p>
-    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/commits" target="_blank" rel="noopener">Commit list</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/fb73949d3a" target="_blank" rel="noopener">fb73949d3a (fixes + notes)</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/commit/ecffdac32e" target="_blank" rel="noopener">ecffdac32e (e2e test)</a></p>
+    <p>Addressed John Thomson's 13 review comments (clearer names, a clearer save rule, Help always shown, one piece of dead code removed) and Devin's one new flag, all folded into the second commit; then rebased onto master. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132/commits" target="_blank" rel="noopener">commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/d364d23dc3" target="_blank" rel="noopener">d364d23dc3</a> (Josiah's conversion), <a href="https://github.com/BloomBooks/BloomDesktop/commit/f4f7910521" target="_blank" rel="noopener">f4f7910521</a> (review and modernization), <a href="https://github.com/BloomBooks/BloomDesktop/commit/06c8ba902d" target="_blank" rel="noopener">06c8ba902d</a> (journey test).</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="tblwrap">
-    <table>
-      <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
-      <tr>
-        <td>Local review</td><td class="state">Complete</td>
-        <td>Light read-only sub-agent pass over the full diff. One finding, and a real one: a replaced model kept its settings but lost its Sample Texts watcher, so the Sample Words tab dereferenced undefined on mount. Fixed with a regression test that was confirmed to fail without the fix.</td>
-      </tr>
-      <tr>
-        <td>Devin</td><td class="state">Complete</td>
-        <td>Listed 22 bugs and 26 investigate flags, but its own <code>incremental</code> field shows the prior round re-reviewed the whole diff from scratch, so most are repeats of findings already fixed or decided. Each was screened against the code at this commit: 16 already fixed here, 2 refuted as not-an-issue (replied and resolved), 1 fixed this run, and 4 escalated. Of those 4, checking each against the code showed 3 were false positives (the stage-removal cleanup has been there since the first commit; the focus listener was measured at a net zero across three open/close cycles) and 1 was a real, deliberate carry-over from the legacy dialog. All are now <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r4041622981" target="_blank" rel="noopener">replied to and resolved</a>.</td>
-      </tr>
-      <tr>
-        <td>CodeRabbit</td><td class="state na">Not a reviewer here</td>
-        <td>Configured but disabled — <code>.coderabbit.yml</code> sets <code>auto_review.enabled: false</code>, and it has never commented on any PR in this repo.</td>
-      </tr>
-      <tr>
-        <td>CI</td><td class="state ok">Pass</td>
-        <td><code>pr-automation</code> green at this commit. <code>code-review/reviewable</code> is still pending — see the third decision.</td>
-      </tr>
-    </table>
-    </div>
+    <div class="tblwrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td class="ok">Clean — no findings on this run's changes.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">Devin</a></td><td>Complete on <span class="numeral">06c8ba902d</span>. The rebase made it re-review everything, so it repeated earlier findings, each of which already has a resolved thread. One flag was new, and it was already fixed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#discussion_r4077239004" target="_blank" rel="noopener">replied and resolved</a>. All 16 Devin threads are resolved (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8132#issuecomment-5785386431" target="_blank" rel="noopener">consultation log</a>).</td></tr>
+      <tr><td>CI (<code>pr-automation</code>)</td><td class="ok">Pass</td></tr>
+      <tr><td><a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8132" target="_blank" rel="noopener">John Thomson</a> (human)</td><td>Requested changes. All 13 threads have been answered and the fixes pushed; the threads stay open until he re-reviews, so the Reviewable check shows pending.</td></tr>
+    </table></div>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The two fixes this run were both found by review rather than by tests, and the first was <em>introduced</em> by an earlier fix in this same branch: guaranteeing the settings load before the dialog opens turned a dead button into a crash further along. The e2e journey test covers the happy path but neither of these states.</li>
-      <li>The C# suite is green but was run once, before the last two TypeScript-only commits. Nothing in those commits touches C# or the XLF, so the C#-reachable surface is byte-identical.</li>
-      <li>GitHub CI on this repo does not run the C# or front-end suites on a PR — only <code>pr-automation</code> and Reviewable. The suite results above are local.</li>
+      <li>Preflight put the PR back into <strong>draft</strong>, as it always does, while John is part-way through reviewing it. <code>/pr-ready-for-human</code> takes it out again.</li>
+      <li>The legacy dialog's <em>stages</em> code is now unreachable but deliberately left in place. It is shared with the Leveled Reader dialog and goes when that is converted, so a reviewer need not chase it.</li>
     </ul>
   </section>
 
@@ -188,9 +168,58 @@
 <div class="right">
 
   <div class="item">
-    <h3>Nothing needs a decision</h3>
-    <p>The questions from the previous round have been answered and acted on. Where the answer was to keep the current behaviour, the reasoning now lives in a comment next to the code rather than in this report, and every review thread on the PR has been replied to and resolved.</p>
-    <p>One thing is still outstanding, but not as a decision: the <a href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8132" target="_blank" rel="noopener">Reviewable</a> check stays pending because it is waiting on a reviewer who has left the team. That was deliberately left as is. It blocks promotion to human review, not the code, and it cannot be cleared from this session.</p>
+    <h3>Give the PR a description that says what it does?</h3>
+    <p>The PR's description on GitHub is still the single sentence Josiah wrote when he opened it: <em>"This pr is for converting the decodable reader's setup dialog to React; the leveled reader's dialog still needs to be converted."</em> John is reviewing now and that is all the description tells him. Preflight never overwrites a description a person wrote, so it has left it alone; the summary it would have used is the "What this PR is about" card on this page.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" data-q="PR description" value="a" checked
+          data-instruction="On GitHub PR BloomBooks/BloomDesktop#8132 (branch modernizeReaderSetup), keep Josiah's existing one-sentence description and append below it the preflight narrative from the report's 'What this PR is about' card, wrapped in <!-- preflight-narrative:begin --> / <!-- preflight-narrative:end --> marker lines so later preflight runs keep it current.">
+        <label class="lab" for="q1a">Keep Josiah's sentence and add the summary below it<span class="rec">Recommended</span>
+          <span class="fn">No code; one edit to the PR, easy to undo. Recommended because it gives John and later readers the context without deleting what Josiah wrote, and later runs keep it current.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" data-q="PR description" value="b"
+          data-instruction="On GitHub PR BloomBooks/BloomDesktop#8132 (branch modernizeReaderSetup), replace the whole description with the preflight narrative from the report's 'What this PR is about' card, wrapped in <!-- preflight-narrative:begin --> / <!-- preflight-narrative:end --> marker lines.">
+        <label class="lab" for="q1b">Replace the description with the summary
+          <span class="fn">No code; removes Josiah's sentence.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1c" data-q="PR description" value="leave"
+          data-instruction="Leave as is — take no action on: PR BloomBooks/BloomDesktop#8132's description is still Josiah's one-sentence original.">
+        <label class="lab" for="q1c">Leave as is</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" data-q="PR description" value="other">
+        <label class="lab" for="q1d">Other: <input type="text" data-q="PR description — other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" rows="2" data-q="PR description — notes"></textarea></div>
+  </div>
+
+  <div class="item">
+    <h3>Rebase the e2e branch onto the new PR commits?</h3>
+    <p>The branch <code>readerSetupE2eTests</code> holds six more end-to-end tests for this dialog, plus the small test hooks they need, stacked on top of this PR. This run rebased the PR onto master, so that branch is now sitting on the PR's old commits. Its content already passed all its tests against this code.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" data-q="e2e branch" value="a" checked
+          data-instruction="In C:\dev\_worktrees\BloomDesktop\converted-decodable-reader-setup-dialog-to-react, rebase the two commits of branch readerSetupE2eTests onto the current tip of modernizeReaderSetup (git rebase --onto modernizeReaderSetup f402c64af5 readerSetupE2eTests, f402c64af5 being the pre-rebase PR tip it currently sits on), confirm the result differs from the PR only by the e2e commits, and force-push readerSetupE2eTests with --force-with-lease.">
+        <label class="lab" for="q2a">Rebase it onto the new PR tip and push<span class="rec">Recommended</span>
+          <span class="fn">No code change, a couple of minutes. Recommended so the branch stays one clean step on top of the PR.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" data-q="e2e branch" value="leave"
+          data-instruction="Leave as is — take no action on: branch readerSetupE2eTests is still based on the pre-rebase commits of PR #8132.">
+        <label class="lab" for="q2b">Leave as is</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2c" data-q="e2e branch" value="other">
+        <label class="lab" for="q2c">Other: <input type="text" data-q="e2e branch — other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="n2">Notes</label><textarea id="n2" rows="2" data-q="e2e branch — notes"></textarea></div>
   </div>
 
   <div class="item">
@@ -198,33 +227,35 @@
     <p>Once you have answered the above, how would you like to proceed?</p>
     <div class="opts">
       <div class="opt">
-        <input type="radio" name="q4" id="q4a" data-q="Next step" value="Implement the chosen options, then re-run preflight" checked>
-        <label class="lab" for="q4a">Implement what you picked, then re-run preflight<span class="rec">Recommended</span>
-          <span class="fn">Each fix is a new commit, so the bot gauntlet runs again.</span>
+        <input type="radio" name="q3" id="q3a" data-q="Next step" value="a" checked
+          data-instruction="Carry out the options chosen above for PR BloomBooks/BloomDesktop#8132 and branch readerSetupE2eTests, then report back.">
+        <label class="lab" for="q3a">Do what I picked above<span class="rec">Recommended</span>
+          <span class="fn">Neither item changes code, so there is nothing to re-review.</span>
         </label>
       </div>
       <div class="opt">
-        <input type="radio" name="q4" id="q4b" data-q="Next step" value="Discuss first before any code changes">
-        <label class="lab" for="q4b">Discuss first, before any code changes
-          <span class="fn">No code yet — talk through the trade-offs, especially on the second item.</span>
+        <input type="radio" name="q3" id="q3b" data-q="Next step" value="b"
+          data-instruction="Discuss the open items for PR BloomBooks/BloomDesktop#8132 before doing anything.">
+        <label class="lab" for="q3b">Discuss first
+          <span class="fn">Nothing happens until we have talked it through.</span>
         </label>
       </div>
       <div class="opt">
-        <input type="radio" name="q4" id="q4c" data-q="Next step" value="Leave as is">
-        <label class="lab" for="q4c">Leave as is</label>
-        <label class="leavec"><input type="checkbox" data-q="Next step — leave comment"> Leave comment</label>
+        <input type="radio" name="q3" id="q3c" data-q="Next step" value="leave"
+          data-instruction="Leave as is — take no action on: the open preflight items for PR BloomBooks/BloomDesktop#8132.">
+        <label class="lab" for="q3c">Leave as is</label>
       </div>
       <div class="opt">
-        <input type="radio" name="q4" id="q4d" data-q="Next step" value="Other">
-        <label class="lab" for="q4d">Other: <input type="text" data-q="Next step — other" placeholder="your answer"></label>
+        <input type="radio" name="q3" id="q3d" data-q="Next step" value="other">
+        <label class="lab" for="q3d">Other: <input type="text" data-q="Next step — other" placeholder="your answer"></label>
       </div>
     </div>
-    <div class="notes"><label for="n4">Notes</label><textarea id="n4" rows="2" data-q="Next step — notes"></textarea></div>
+    <div class="notes"><label for="n3">Notes</label><textarea id="n3" rows="2" data-q="Next step — notes"></textarea></div>
   </div>
 
   <div class="item">
     <h3>Send your answers back</h3>
-    <p>Copy this and paste it into the Claude session.</p>
+    <p>Copy this and paste it into a Claude session.</p>
     <p><button id="copybtn" type="button">Copy answers</button><span id="copied"></span></p>
     <textarea id="payload" rows="10" readonly></textarea>
   </div>
@@ -235,23 +266,36 @@
 
 <script>
 (function () {
+  var URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-modernizeReaderSetup.html";
+  var TITLES = {
+    "PR description": "Give the PR a description that says what it does?",
+    "e2e branch": "Rebase the e2e branch onto the new PR commits?",
+    "Next step": "Next step"
+  };
   function build() {
-    var out = ["Preflight decisions — BL-16607 / PR 8132 (54fe49ca8a)", ""];
-    var groups = {};
+    var out = [
+      "Decisions from a preflight decider form",
+      "Repo: BloomBooks/BloomDesktop — PR #8132 (branch modernizeReaderSetup at 06c8ba902d), card BL-16607; also branch readerSetupE2eTests",
+      "Date: 2026-09-22",
+      "Full report: " + URL,
+      ""
+    ];
+    var chosen = {};
     document.querySelectorAll('input[type=radio]').forEach(function (r) {
-      if (!r.checked) return;
-      var q = r.getAttribute('data-q');
-      var v = r.value;
-      if (v === 'Other') {
-        var box = r.closest('.opt').querySelector('input[type=text]');
-        v = 'Other: ' + ((box && box.value.trim()) || '(not filled in)');
-      }
-      groups[q] = v;
+      if (r.checked) chosen[r.getAttribute('data-q')] = r;
     });
-    Object.keys(groups).forEach(function (q) {
-      out.push(q + ': ' + groups[q]);
+    Object.keys(TITLES).forEach(function (q) {
+      var r = chosen[q];
+      if (!r) return;
+      out.push(TITLES[q]);
+      if (r.value === 'other') {
+        var box = document.querySelector('input[type=text][data-q="' + q + ' — other"]');
+        out.push('  Other: ' + ((box && box.value.trim()) || '(not filled in)'));
+      } else {
+        out.push('  ' + r.getAttribute('data-instruction'));
+      }
       var lc = document.querySelector('input[type=checkbox][data-q="' + q + ' — leave comment"]');
-      if (lc && lc.checked) out.push('  Leave comment: yes');
+      if (lc && lc.checked) out.push('  Also record this decision as a code comment next to the relevant code.');
       var nt = document.querySelector('textarea[data-q="' + q + ' — notes"]');
       if (nt && nt.value.trim()) out.push('  Notes: ' + nt.value.trim());
       out.push('');
@@ -262,18 +306,18 @@
   document.addEventListener('input', refresh);
   document.addEventListener('change', refresh);
   refresh();
-  document.getElementById('copybtn').addEventListener('click', function () {
+  document.getElementById('copybtn').addEventListener('click', async function () {
     var ta = document.getElementById('payload');
-    var done = function () {
-      var c = document.getElementById('copied');
-      c.textContent = 'Copied';
-      setTimeout(function () { c.textContent = ''; }, 2500);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); document.execCommand('copy'); done(); });
-    } else {
-      ta.select(); document.execCommand('copy'); done();
-    }
+    var status = document.getElementById('copied');
+    function ok() { status.className = ''; status.textContent = 'Copied ✓'; }
+    function fail() { status.className = 'neutral'; status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    try {
+      refresh();
+      ta.focus(); ta.select();
+      try { await navigator.clipboard.writeText(ta.value); ok(); return; } catch (e) { /* fall through */ }
+      ta.select();
+      if (document.execCommand && document.execCommand('copy')) { ok(); } else { fail(); }
+    } catch (e) { ta.select(); fail(); }
   });
 })();
 </script>
