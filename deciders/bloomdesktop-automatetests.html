@@ -86,12 +86,12 @@
 <div class="wrap">
 <header>
   <h1>UI-language e2e tests (BL-16832)</h1>
-  <p class="summary">Preflight after rebasing onto master and reconciling with the overlapping Pseudo-English and per-instance-settings work. Every gate green except one known e2e flake; one question for you.</p>
+  <p class="summary">Preflight after rebasing onto master and reconciling with the overlapping Pseudo-English and per-instance-settings work. Every gate green except one known e2e flake; nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip warn">1 decision waiting</span>
+    <span class="chip good">No decisions waiting</span>
   </div>
   <div class="chips">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8275" target="_blank" rel="noopener">PR #8275</a>
@@ -114,7 +114,7 @@
       <li>A workspace test switches the real language menu through English, French, Spanish and Turkish, checking one visible string per translation route after each switch. It then checks the unapproved-translations gate both ways, using Turkish text that is translated but never approved.</li>
       <li>A second test starts Bloom at the Choose Collection dialog, switches the dialog to French, then opens a collection and checks the whole workspace comes up in French.</li>
       <li>The e2e fixture gains a Choose-Collection launch mode and a way to re-find Bloom's page after a language change rebuilds it. It shares master's per-launch settings folder, so no test touches the developer's own settings. The language helpers extend master's Pseudo-English ones.</li>
-      <li>Bloom itself changes only when started by the test tools. It skips its self-restart when the unapproved option is toggled (the test restarts it instead). Its Choose Collection dialog and React dialogs follow the same "don't take focus, use the monitor you are told" rule the main window already follows.</li>
+      <li>Bloom itself changes in one place, and only when started by the tests: it skips its self-restart when the unapproved option is toggled, and the test restarts it instead.</li>
     </ul>
   </section>
 
@@ -127,11 +127,12 @@
         <tr><td>Typecheck (BloomE2E)</td><td><span class="ok">Pass</span></td></tr>
         <tr><td>Formatting (Prettier on changed TypeScript)</td><td><span class="ok">Pass</span></td></tr>
         <tr><td>Lint</td><td class="na">N/A: BloomE2E has no lint script, and no front-end source is in the diff</td></tr>
-        <tr><td>Merge with master</td><td><span class="ok">Clean</span>, merged at <span class="numeral">0f2bc4e518</span></td></tr>
-        <tr><td>C# build (Bloom.exe)</td><td><span class="ok">Pass</span></td></tr>
-        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="ok">Pass</span> <span class="numeral">3552 passed · 1 skipped</span></td></tr>
-        <tr><td>BloomE2E, the three UI-language specs</td><td><span class="ok">Pass</span> <span class="numeral">3 / 3</span>, Bloom on monitor 1</td></tr>
+        <tr><td>Merge with master</td><td><span class="ok">Clean</span>, merged again at <span class="numeral">391f653da3</span></td></tr>
+        <tr><td>C# build (Bloom.exe)</td><td><span class="ok">Pass</span>, rebuilt after the revert</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="ok">Pass</span> <span class="numeral">3552 passed · 1 skipped</span> (before the revert, which only restores master's code in two files)</td></tr>
+        <tr><td>BloomE2E, the three UI-language specs</td><td><span class="ok">Pass</span> <span class="numeral">3 / 3</span>, Bloom on monitor 1, after the revert</td></tr>
         <tr><td>BloomE2E, full suite</td><td><span class="note">73 / 74</span> — <code>copy-page.spec.ts</code> failed on a known, pre-existing flake (see below); it failed again run alone, and passed on this morning's master nightly (a machine-specific issue, now noted in the debt entry)</td></tr>
+        <tr><td>BloomE2E, master's new decodable-reader test</td><td><span class="ok">Pass</span> <span class="numeral">1 / 1</span>, through this branch's fixture</td></tr>
         <tr><td>Front-end unit tests (vitest)</td><td class="na">Not run — the diff has no front-end source; the only BloomBrowserUI change came in with master</td></tr>
       </tbody>
     </table>
@@ -140,7 +141,7 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Rebased the branch onto master, then reconciled it with the overlapping work: merged <code>uiLanguage.ts</code>, and removed the back-up-and-restore of the developer's <code>user.config</code> in favor of master's per-launch settings folder. Then built and ran the tests for real. That surfaced a genuine interaction: "English" matched the new "Pseudo-English" menu entry, so language entries are now matched on their whole label. It also led to two review fixes. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    <p>After your answer, took the dialog focus and placement change back out (<code>ReactDialog.cs</code> and <code>Program.cs</code> are master's again), recorded the resulting gap in AUTOMATION-DEBT.md, and merged master again. Earlier in the run: rebased the branch onto master, then reconciled it with the overlapping work: merged <code>uiLanguage.ts</code>, and removed the back-up-and-restore of the developer's <code>user.config</code> in favor of master's per-launch settings folder. Then built and ran the tests for real. That surfaced a genuine interaction: "English" matched the new "Pseudo-English" menu entry, so language entries are now matched on their whole label. It also led to two review fixes. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275/commits" target="_blank" rel="noopener">commit list</a>.</p>
   </section>
 
   <section class="card">
@@ -149,8 +150,8 @@
     <table>
       <thead><tr><th>Reviewer</th><th>State</th></tr></thead>
       <tbody>
-        <tr><td>Local review</td><td>Light sub-agent pass (Opus): 3 raised, 2 fixed (the Choose Collection page search now ignores another Bloom's pages; a close-wait can no longer leave an unhandled error), 1 escalated (the decision on the right).</td></tr>
-        <tr><td>Devin</td><td>Complete for <span class="numeral">d8e7a15147</span>. Nothing new against current code. Ten earlier bugs are now marked resolved, and the remaining flags describe fixed or deleted code. Outcomes recorded on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275#issuecomment-5802381379" target="_blank" rel="noopener">consultation log</a> and each thread.</td></tr>
+        <tr><td>Local review</td><td>Light sub-agent pass (Opus): 3 raised, 2 fixed (the Choose Collection page search now ignores another Bloom's pages; a close-wait can no longer leave an unhandled error), 1 escalated: you chose to take the dialog focus change out of this PR, and it is gone.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">391f653da3</span>. Nothing new against current code. Ten earlier bugs are now marked resolved, and the remaining flags describe fixed or deleted code. Outcomes recorded on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275#issuecomment-5802381379" target="_blank" rel="noopener">consultation log</a> and each thread.</td></tr>
         <tr><td>Reviewable</td><td>All 7 mirrored discussions resolved; the check waits only on a human marking files reviewed.</td></tr>
         <tr><td>Greptile / CodeRabbit</td><td>Not reviewing this repo: CodeRabbit is turned off here, and Greptile is not working.</td></tr>
         <tr><td>CI</td><td><code>pr-automation</code> passed.</td></tr>
@@ -163,6 +164,7 @@
     <h2>Worth knowing</h2>
     <ul>
       <li>The one full-suite failure is the <code>selectPage</code> drop that <a href="https://github.com/BloomBooks/BloomDesktop/blob/d5863419fcb4fd7c22eb35834fbddbe9ccf39b98/src/BloomE2E/AUTOMATION-DEBT.md#L339" target="_blank" rel="noopener">AUTOMATION-DEBT.md</a> already records for this very test on developer machines. Nothing in this PR touches page selection.</li>
+      <li>While <code>ui-language-chooser.spec.ts</code> runs, its Choose Collection dialog opens in front of you and takes the keyboard for about a minute, whatever <code>BLOOM_AUTOMATION_MONITOR</code> says. That is expected for now and recorded in AUTOMATION-DEBT.md.</li>
       <li>Andrew approved before the rebase. Preflight put the PR back to draft, and the rebase changed a good deal, so it needs a fresh look.</li>
       <li>A fresh test Bloom's interface language follows the operating system's, so on a machine set up in another language the chooser test fails at its first English check, by design.</li>
     </ul>
@@ -170,77 +172,12 @@
 </div>
 
 <div>
-  <section class="card decision">
-    <h2>Dialogs don't take keyboard focus in ./go.sh sessions</h2>
-    <p>To keep test runs from grabbing the keyboard while you work, this PR makes every React dialog open without activating, and stops the Choose Collection dialog from bringing itself to the front, whenever Bloom runs with <code>--automation</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d5863419fcb4fd7c22eb35834fbddbe9ccf39b98/src/BloomExe/MiscUI/ReactDialog.cs#L27" target="_blank" rel="noopener">ReactDialog.cs:27</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/d5863419fcb4fd7c22eb35834fbddbe9ccf39b98/src/BloomExe/Program.cs#L2294" target="_blank" rel="noopener">Program.cs:2294</a>). The main window and splash screen already follow that rule.</p>
-    <p>But <code>./go.sh</code> also passes <code>--automation</code> to every dev Bloom. So when you test by hand through the dev launcher, a dialog such as Collection Settings may open without the keyboard: Enter, Escape and typing do nothing until you click in it, and the Choose Collection dialog can open behind other windows. An installed Bloom is unaffected.</p>
-    <fieldset>
-      <label class="opt"><input type="radio" name="q1" id="q1-e2e" value="Key the no-focus rule for dialogs to --e2e (the test runs) instead of --automation" data-q="Q1" checked>
-        <span>Key the two no-focus rules to <code>--e2e</code>, which only the test runs use, and leave window placement on <code>--automation</code>.<span class="tag">Recommended</span><br><span class="foot">Recommended because the e2e suite is what needed it, and a developer testing dialogs by hand through go.sh gets normal focus back. (~5 lines in two places, low risk.)</span></span></label>
-      <label class="opt"><input type="radio" name="q1" id="q1-flag" value="Make it opt-in through an environment variable the e2e fixture sets" data-q="Q1">
-        <span>Make it opt-in through an environment variable the e2e fixture sets.<br><span class="foot">(~15 lines; one more knob to document.)</span></span></label>
-      <div class="leave-row">
-        <label class="opt"><input type="radio" name="q1" id="q1-leave" value="Leave as is" data-q="Q1"><span>Leave as is</span></label>
-        <label class="lc"><input type="checkbox" id="q1-comment" data-q="Q1-comment"> Leave comment</label>
-      </div>
-      <label class="opt"><input type="radio" name="q1" id="q1-other" value="Other" data-q="Q1"><span>Other:</span><input type="text" class="other-text" id="q1-other-text" data-q="Q1-other" aria-label="Other answer for dialogs focus question"></label>
-    </fieldset>
-    <div class="notes"><label for="q1-notes">Notes</label><textarea id="q1-notes" rows="2" data-q="Q1-notes"></textarea></div>
-  </section>
-
-  <section class="card decision">
-    <h2>Next step</h2>
-    <fieldset>
-      <label class="opt"><input type="radio" name="q2" id="q2-impl" value="Implement the choices above and re-run preflight" data-q="Q2" checked><span>Implement the choice above and re-run preflight.<span class="tag">Recommended</span></span></label>
-      <label class="opt"><input type="radio" name="q2" id="q2-discuss" value="Discuss first" data-q="Q2"><span>Discuss first.</span></label>
-      <div class="leave-row">
-        <label class="opt"><input type="radio" name="q2" id="q2-leave" value="Leave as is" data-q="Q2"><span>Leave as is</span></label>
-        <label class="lc"><input type="checkbox" id="q2-comment" data-q="Q2-comment"> Leave comment</label>
-      </div>
-      <label class="opt"><input type="radio" name="q2" id="q2-other" value="Other" data-q="Q2"><span>Other:</span><input type="text" class="other-text" id="q2-other-text" data-q="Q2-other" aria-label="Other answer for next step"></label>
-    </fieldset>
-    <div class="notes"><label for="q2-notes">Notes</label><textarea id="q2-notes" rows="2" data-q="Q2-notes"></textarea></div>
-  </section>
-
   <section class="card">
-    <h2>Send your answers back</h2>
-    <p>Copies your choices as text to paste into the session.</p>
-    <div><button type="button" id="copy">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></div>
-    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+    <h2>Decisions</h2>
+    <p>None waiting. The one question from this run, whether dialogs should stop taking the keyboard under <code>--automation</code>, was answered: the change is out of this PR, the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275#discussion_r4087581225" target="_blank" rel="noopener">review thread</a> records why, and the wider question is going to the developers.</p>
   </section>
 </div>
 </div>
 </div>
-<script>
-  const items = [
-    { q: "Q1", title: "Dialogs don't take keyboard focus in ./go.sh sessions" },
-    { q: "Q2", title: "Next step" },
-  ];
-  function serialize() {
-    const lines = ["Preflight answers for BloomBooks/BloomDesktop PR #8275 (BL-16832):", ""];
-    for (const it of items) {
-      const chosen = document.querySelector(`input[type=radio][data-q="${it.q}"]:checked`);
-      let answer = chosen ? chosen.value : "(none)";
-      if (answer === "Other") answer = "Other: " + (document.querySelector(`[data-q="${it.q}-other"]`).value.trim() || "(blank)");
-      lines.push(`${it.title}: ${answer}`);
-      if (document.querySelector(`[data-q="${it.q}-comment"]`).checked) lines.push("  Leave comment");
-      const notes = document.querySelector(`[data-q="${it.q}-notes"]`).value.trim();
-      if (notes) lines.push("  Notes: " + notes);
-    }
-    const text = lines.join("\n");
-    document.getElementById("payload").value = text;
-    return text;
-  }
-  document.addEventListener("input", serialize);
-  document.addEventListener("change", serialize);
-  document.getElementById("copy").addEventListener("click", async () => {
-    const text = serialize();
-    const box = document.getElementById("payload");
-    try { await navigator.clipboard.writeText(text); }
-    catch { box.select(); document.execCommand("copy"); }
-    document.getElementById("copied").hidden = false;
-  });
-  serialize();
-</script>
 </body>
 </html>
