@@ -187,12 +187,12 @@
 <header class="masthead">
   <p class="kicker">Preflight report &middot; BloomDesktop &middot; BL-16893-compact-progress-dialog</p>
   <h1>Compact &ldquo;Update Book&rdquo; progress dialog</h1>
-  <p class="standfirst">Gate clean, both test suites green, every reviewer finished, and the two questions this report originally asked have been answered. Devin found one real bug (a dialog inheriting another&rsquo;s error state); it is fixed and its thread is resolved.</p>
+  <p class="standfirst">Gate clean, both suites green, every reviewer finished. This run replaced the standalone WinForms dialog with one hosted at the top level of Bloom&rsquo;s UI, which deleted most of the machinery the earlier revision needed. Two real bugs were found and fixed along the way. One question is waiting on you, and it is not a defect but a trade.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip ok" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
-    <span class="chip ok">Mergeable &mdash; clean</span>
+    <!-- pr-state:begin --><span class="chip draft" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
     <span class="chip ok">Reviewers all finished</span>
-    <span class="chip ok">All questions answered</span>
+    <span class="chip count">1 item for you</span>
   </div>
   <div class="links">
     <a class="primary" href="https://github.com/BloomBooks/BloomDesktop/pull/8389" target="_blank" rel="noopener">PR #8389</a>
@@ -204,23 +204,22 @@
 </header>
 
 <div class="cols">
-
-  <!-- ================= LEFT ================= -->
   <div class="stack">
 
     <section class="card">
       <h2>What this PR is about</h2>
 
       <h3>Problem</h3>
-      <p>&ldquo;Update Book&rdquo; &mdash; both the Collections tab command and the automatic pass that runs before the AI image editor opens or after a page-size change &mdash; shows a progress dialog that is mostly empty space. PR&nbsp;#8375 took the per-image log out of it but left the dialog alone: a tall window with the percent bar down at the bottom, three-quarters of it blank, and a three-sentence explanation set in the monospace log font. On the card, Hatton asked for something much shorter and attached a mock-up: the bar on top, one sentence under it. The explicit <strong>Update Book</strong> command came off worse than before, showing that title over a 400px-tall empty log box where the log used to be.</p>
+      <p>&ldquo;Update Book&rdquo; &mdash; both the Collections tab command and the automatic pass that runs before the AI image editor opens or after a page-size change &mdash; showed a progress dialog that was mostly empty space. PR&nbsp;#8375 took the per-image log out of it but left the dialog alone: a tall window with the percent bar down at the bottom, three-quarters of it blank, and a three-sentence explanation set in the monospace log font. On the card, Hatton asked for something much shorter and attached a mock-up: the bar on top, one sentence under it. The explicit <strong>Update Book</strong> command came off worse than before, showing that title over a 400px-tall empty log box where the log used to be.</p>
 
       <h3>What the PR does</h3>
       <ul>
-        <li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomBrowserUI/react_components/Progress/SimpleProgressDialog.tsx#L65" target="_blank" rel="noopener"><code>SimpleProgressDialog</code></a>, a new small dialog rather than another set of switches on <code>ProgressDialog</code>. The existing one exists to show a running commentary the user is meant to read, and the options for hiding the log, shrinking the box and reserving space for buttons had already piled up. The new one is a title bar, a bar with the percent beside it, and one sentence: <em>&ldquo;Please wait while Bloom does some housekeeping on your book...&rdquo;</em>. It shows no ordinary progress messages; a warning or error still colours the title bar and appears under the sentence, with Close and Report.</li>
-        <li>The automatic update shows it in a 620&times;180 window instead of 620&times;400, and no longer writes its explanation as a progress message (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/Book/BookProcessor.cs#L390" target="_blank" rel="noopener">BookProcessor.cs:390</a>). The Collections tab command shows the same thing through a new embedded instance (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0e5e037fdc4313f1761dc73d080818f0c982bae9/src/BloomExe/CollectionTab/CollectionModel.cs#L733" target="_blank" rel="noopener">CollectionModel.cs:733</a>); it had been sharing the <code>collectionTab</code> dialog with .bloomSource import, which does want a log.</li>
-        <li>Stops a progress dialog picking up another one&rsquo;s state. <code>progress</code> is a shared channel &mdash; every progress dialog in the document, and in Bloom&rsquo;s other browsers, hears every event &mdash; and each listener is alive from the moment it mounts, while the existing cleanup only runs for a dialog that has been open before. A dialog that had never opened therefore accumulated somebody else&rsquo;s percent, errors and <code>show-buttons</code>, then opened at the last job&rsquo;s percent with a red title bar and a live Close button; pressing it told Bloom the job was over while the book was still being rewritten.</li>
-        <li>A WinForms form cannot size itself to its HTML, so the automatic update grows its window to 300px (<a href="https://github.com/BloomBooks/BloomDesktop/blob/5f1306eccc213bd9f9305e7085a3c5f5ef2eacae/src/BloomExe/Book/BookProcessor.cs#L351" target="_blank" rel="noopener"><code>GrowDialogForProblem</code></a>) when there is a problem to show, instead of standing that tall and empty for every run that goes well. Both dialogs also stay up when a warning or error was reported without stopping the run, rather than closing the instant the work finishes and taking the unread message with them.</li>
-        <li>Strings: <code>BookProcessor.HousekeepingMessage</code> is new in <code>BloomMediumPriority.xlf</code>, without <code>translate="no"</code>; <code>BookProcessor.AutoUpdateExplanation</code> is deleted, which loses nothing because no translation of it has ever existed, it never shipped, and nothing references it. Storybook stories cover the ordinary case, the error case, and the WinForms size.</li>
+        <li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/3394828ce21a711cfb82d181fc3587523a31b074/src/BloomBrowserUI/react_components/Progress/SimpleProgressDialog.tsx#L68" target="_blank" rel="noopener"><code>SimpleProgressDialog</code></a>: a title bar, a bar with the percent beside it, and one sentence &mdash; <em>&ldquo;Please wait while Bloom does some housekeeping on your book...&rdquo;</em> It shows no ordinary progress messages; a warning or error still colours the title bar and appears under the sentence, with Close and Report. It is a separate component from <code>ProgressDialog</code> rather than more switches on it, because that one exists to show a running commentary the user is meant to read.</li>
+        <li><strong>One instance lives in <code>App.tsx</code></strong>, at the top level of Bloom&rsquo;s UI, and both callers open it over the websocket (<a href="https://github.com/BloomBooks/BloomDesktop/blob/3394828ce21a711cfb82d181fc3587523a31b074/src/BloomExe/Book/BookProcessor.cs#L336" target="_blank" rel="noopener"><code>MakeUpdateBookProgressProps</code></a> is shared, so they cannot drift). That is the one document all three tabs render into, so the dialog is visible whichever tab is active and sits outside the page iframe the Edit tab empties while the pass runs.</li>
+        <li><strong>The automatic update no longer needs a window of its own.</strong> It used a standalone WinForms <code>ReactDialog</code>, which is what required a separate JS bundle, a WinForms wrapper component, hard-coded window sizes, and code to resize a form that cannot size itself to its HTML. It never needed the WinForms modal in order to wait either &mdash; only a way to run its follow-up once the work finished, which is what <code>doWhenDialogCloses</code> is for, the mechanism Update Book already used. <code>EnsurePerPageFixupIfNeeded</code> became <code>EnsurePerPageFixupIfNeededThen</code>, and <code>EditingModel</code>&rsquo;s tail moved into <code>ReturnToPageAfterFixup</code>, reached through <code>RunOffTheApiLock</code> so it lands back on the UI thread and off the API lock.</li>
+        <li><strong>No dialog picks up another&rsquo;s state.</strong> <code>progress</code> is a shared channel heard by every dialog in the document, and each listener is alive from the moment it mounts, while the existing cleanup only ran for a dialog that had been open before. <code>SimpleProgressDialog</code> now ignores events unless it is the one showing, and <code>ProgressDialog</code> clears all of its per-run state when it opens &mdash; including the spinner, which is only ever switched <em>off</em>, by an event broadcast to everyone.</li>
+        <li><strong>A reported problem holds the dialog open</strong> (<code>HaveProblemsBeenReported</code> covers Warning, Error and Fatal), instead of closing the instant the work finishes and taking the unread message with it. And a failure to even open the dialog is caught and recovered rather than dropped, because by that point the editor has been emptied and the continuation is the only thing that puts a page back.</li>
+        <li><strong>Strings:</strong> <code>BookProcessor.HousekeepingMessage</code> is new in <code>BloomMediumPriority.xlf</code>, without <code>translate="no"</code> (319 of the 320 trans-units added to <code>en/</code> on <code>Version6.5</code> in the last 30 days omit it). <code>BookProcessor.AutoUpdateExplanation</code> is deleted, which loses nothing: no translation of it has ever existed, it never shipped, and nothing references it.</li>
       </ul>
     </section>
 
@@ -231,19 +230,18 @@
         <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
         <tbody>
           <tr><td>Typecheck (tsgo)</td><td class="verdict pass">PASS</td><td>No errors.</td></tr>
-          <tr><td>Lint (eslint)</td><td class="verdict pass">PASS</td><td><span class="numeral">0</span> errors. <span class="numeral">764</span> warnings, all pre-existing across the repo; the new files add none.</td></tr>
-          <tr><td>Base integration</td><td class="verdict pass">CLEAN</td><td><code>origin/Version6.5</code> merged; the one shared file (the XLF) auto-merged and both trans-units survived. PR is mergeable.</td></tr>
-          <tr><td>TypeScript tests (vitest)</td><td class="verdict pass">PASS</td><td><span class="numeral">860 passed &middot; 5 skipped</span> across <span class="numeral">72</span> files.</td></tr>
-          <tr><td>C# tests (dotnet test)</td><td class="verdict pass">PASS</td><td><span class="numeral">3467 passed &middot; 13 skipped &middot; 3480 total</span>.</td></tr>
+          <tr><td>Lint (eslint)</td><td class="verdict pass">PASS</td><td><span class="numeral">0</span> errors. <span class="numeral">764</span> warnings, all pre-existing across the repo; the changed files add none.</td></tr>
+          <tr><td>Base integration</td><td class="verdict pass">CLEAN</td><td><code>origin/Version6.5</code> merged (<span class="numeral">17</span> files); none of them files this PR touches. PR is mergeable.</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td class="verdict pass">PASS</td><td><span class="numeral">860 passed &middot; 5 skipped</span> across <span class="numeral">72</span> files, at <code>ac0b2567</code>. The final commit is C#-only, so that tree is unchanged and it was not re-run.</td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="verdict pass">PASS</td><td><span class="numeral">3467 passed &middot; 13 skipped &middot; 3480 total</span>, at the final commit.</td></tr>
         </tbody>
       </table>
       </div>
-      <p style="margin-top:12px;font-size:13.5px;color:var(--muted)">The C# suite ran against the final commit. The TypeScript suite last ran at <code>0e5e037fdc</code>; no <code>.ts</code> or <code>.tsx</code> file has changed since, so its tree is identical and it was not re-run.</p>
     </section>
 
     <section class="card">
       <h2>What changed this run</h2>
-      <p>The branch went from nothing to six commits: the compact dialog itself, a papercut note, a merge of <code>Version6.5</code>, review fixes for the cross-dialog leak that both the local reviewer and Devin found, the deletion of the obsolete trans-unit, and keeping the dialog up for a reported warning or error. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">commit list</a>, in particular <a href="https://github.com/BloomBooks/BloomDesktop/commit/7761754cd9" target="_blank" rel="noopener"><code>7761754</code></a> (the dialog) and <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> (the fixes).</p>
+      <p>Four commits. The main one replaced the standalone WinForms dialog with the single top-level instance, deleting the JS bundle and its two registrations, the WinForms wrapper component, the hard-coded sizes and the resize code &mdash; a net <span class="numeral">86</span> lines fewer before the fixes below. Then two review fixes: the spinner reset Devin found, and a dropped faulted task the local review found. Plus a merge of <code>Version6.5</code>. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389/commits" target="_blank" rel="noopener">commit list</a>.</p>
     </section>
 
     <section class="card">
@@ -251,64 +249,165 @@
 
       <div class="rev">
         <div><div class="who">Local review</div><div class="state">Complete</div></div>
-        <div><p>Light read-only sub-agent pass over the full diff. Five findings; four fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/0e5e037fdc" target="_blank" rel="noopener"><code>0e5e037</code></a> &mdash; the cross-dialog leak, the same leak reachable in the other direction through <code>ProgressDialog</code>, a failed dialog resize that could replace the real exception, and the Report button losing the run&rsquo;s messages. The fifth is the unfiltered <code>close-progress</code> event, which is question 2 on the right.</p></div>
+        <div><p>Light read-only sub-agent pass over the rework. Two findings. One fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/3394828ce2" target="_blank" rel="noopener"><code>3394828c</code></a>: <code>DoWorkWithProgressDialogAsync</code> is <code>async Task</code> with no <code>await</code> in its own body, so a failure to open the dialog landed in the returned task and was discarded &mdash; which, with the editor already emptied and the continuation the only thing that puts a page back, would have left a blank Edit tab with no dialog and no error. The other is the question on the right.</p></div>
       </div>
 
       <div class="rev">
         <div><div class="who">Devin</div><div class="state">Complete</div></div>
-        <div><p>Four rounds, one per pushed commit. One Bug and two Investigate flags in total, all three mirrored as PR threads and all three now resolved: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076813655" target="_blank" rel="noopener">cross-dialog leak</a> (real, fixed), the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816370" target="_blank" rel="noopener">missing <code>translate="no"</code></a> and the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4076816614" target="_blank" rel="noopener">named props interface</a> (both replied to with the reasoning). Every round after the first returned the same three titles and nothing new; each was screened against the commit under review rather than taken at face value, and each time the Bug pointed at lines that already carried the fix. Nothing was re-posted. No informational items in any round.</p></div>
+        <div><p>Four rounds. One new Bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#discussion_r4085308345" target="_blank" rel="noopener">&ldquo;Later progress dialogs lose spinner&rdquo;</a> &mdash; real, and fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/ac0b256774" target="_blank" rel="noopener"><code>ac0b2567</code></a>. Every later round returned the same five titles and nothing new; each was screened against the commit under review, and each is stale (both Bugs now point at anchors whose own surrounding lines carry the fix, and the two XLF flags are the same trans-unit reported at two lines). All threads resolved; no informational items in any round.</p></div>
       </div>
 
       <div class="rev">
         <div><div class="who">CI</div><div class="state">Complete</div></div>
-        <div><p><code>pr-automation</code> green on both pushed commits, including the final one.</p></div>
+        <div><p><code>pr-automation</code> green on every pushed commit.</p></div>
       </div>
 
       <div class="rev">
         <div><div class="who">Reviewable</div><div class="state">Discussions clear</div></div>
-        <div><p>The three mirrored Devin threads were acknowledged as satisfied and published, so Reviewable&rsquo;s unresolved-discussion count is zero. Its <code>code-review/reviewable</code> check stays pending until a human marks the files reviewed &mdash; that is the human-review step itself, not something outstanding from this run.</p></div>
+        <div><p>All four mirrored Devin threads acknowledged as satisfied and published; its unresolved-discussion count is zero. The <code>code-review/reviewable</code> check stays pending until a human marks the files reviewed &mdash; that is the review itself, not something outstanding from this run.</p></div>
       </div>
 
       <div class="rev">
         <div><div class="who">CodeRabbit</div><div class="state na">Not run</div></div>
-        <div><p>Auto-review is switched off for this repo in <code>.coderabbit.yml</code> (<code>auto_review.enabled: false</code>), so it posts nothing. No other comment-posting bot is configured here.</p></div>
+        <div><p>Auto-review is off for this repo in <code>.coderabbit.yml</code>. No other comment-posting bot is configured here.</p></div>
       </div>
     </section>
 
     <section class="card">
       <h2>Worth knowing</h2>
       <ul>
-        <li><strong>The error layout was verified for real, not assumed.</strong> A failure was forced temporarily so the red title bar, the message and the grown window could be seen in a running Bloom; that scaffolding was removed and the final build re-checked. Screenshots of all three states are attached to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a>.</li>
-        <li><strong>The automatic dialog is a fixed-size window.</strong> 620&times;180 fits the sentence on one or two lines; a translation that runs longer will scroll inside the window rather than making it grow. That is a real limit of a WinForms-hosted dialog, not an oversight, but it is the thing most likely to look wrong in another language.</li>
-        <li><strong>The cross-dialog leak was pre-existing, not introduced here</strong> &mdash; both dialogs always had it. Splitting Update Book onto its own instance is what made it reachable, which is why the fix touches the shared <code>ProgressDialog</code> as well as the new one.</li>
+        <li><strong>The Edit tab keeps its page painted behind the dialog</strong> during the automatic pass, which contradicts the &ldquo;editor is deliberately empty&rdquo; description on the card. That is not new: the promoted WinForms revision was rebuilt and run side by side to check, and behaves identically. The emptying that <code>SetLayout</code> triggers clears the page-thumbnail list but leaves the main page painted. The test ideas have been corrected accordingly.</li>
+        <li><strong>The error layout was exercised, not assumed.</strong> A failure was forced temporarily so the red title bar, the message, the self-sizing dialog and the Close/Report buttons could be seen in a running Bloom &mdash; and, importantly, so that clicking Close could be seen to fire the continuation and put the editor back. The scaffolding was removed and the final tree re-checked.</li>
+        <li><strong>The &ldquo;nothing to do&rdquo; branch was exercised too</strong> &mdash; a second page-size change on a book whose pass had already failed, where the continuation runs synchronously with no dialog. The editor came back correctly.</li>
+        <li><code>BrowserProgressDialog</code> keeps <strong>one static slot</strong> for the after-the-dialog action. The automatic pass now holds it for the whole run rather than blocking, so anything that opened a second progress dialog in that window would silently drop the Edit tab&rsquo;s continuation. Every current caller needs a click in the browser, which the backdrop blocks, so it is not reachable today &mdash; but it is worth knowing if a progress dialog is ever started from a background or toast path.</li>
       </ul>
     </section>
 
   </div>
 
-  <!-- ================= RIGHT ================= -->
   <div>
 
-    <div class="decision">
-      <h2>Questions &mdash; answered</h2>
-      <p>Both questions this report originally asked were answered on 22 September, and acted on. They are recorded here so the page is not read as still waiting on someone.</p>
-
-      <h3>The card&rsquo;s other checklist item</h3>
-      <p><strong>Leave as is.</strong> &ldquo;All template books we ship with should already be up to date&rdquo; is about the maintenance level stamped into the shipped template books, not the dialog, and another developer has already taken it on. Noted on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16893" target="_blank" rel="noopener">BL-16893</a> and in the PR description.</p>
-
-      <h3>The unfiltered <code>close-progress</code> event</h3>
-      <p><strong>Leave as is.</strong> Only one progress dialog is ever open at a time, because the C# side driving them holds a single job, so a close aimed at the other one does nothing. Adding a <code>which</code> filter would mean touching shared C# that six other callers use, on a release branch, for something provably unreachable. Recorded on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8389#issuecomment-5784970961" target="_blank" rel="noopener">PR</a>, with the condition that would make it matter.</p>
-
-      <h3>Raised afterwards, and fixed</h3>
-      <p>Reading the report, John asked whether the dialog should also grow when the work <em>reports</em> a warning or error rather than throwing. It should &mdash; and the sizing turned out to be the smaller half: on that path the dialog closed the instant the work finished, so the message vanished unread. Both dialogs now stay up when anything was reported (<code>5f1306ec</code>).</p>
+    <div class="decision" data-item="modality">
+      <h2>Bloom can now be closed mid-update</h2>
+      <p>The old automatic-update dialog was a WinForms window shown with <code>ShowDialog</code>, which disables every window in the application. While it was up, Bloom&rsquo;s title-bar close button, the system menu and Alt+F4 were all dead.</p>
+      <p>The replacement is HTML inside the main browser. Its backdrop covers everything Bloom draws, so the user cannot click any control &mdash; but it cannot cover the window&rsquo;s own chrome. So a user can now close Bloom while the pass is still running: a background worker is rewriting every page of the book and heading for a save at the end. Closing there abandons the run. The book on disk is left as the whole-book update left it and Bloom will offer to redo the pass next time, so the expected outcome is &ldquo;nothing gained&rdquo; rather than &ldquo;book damaged&rdquo; &mdash; but the final save is a window where a hard shutdown could catch a write in progress.</p>
+      <p>You accepted the loss of OS-level modality when you approved this design; this is the same trade with its consequence spelled out. Note the Collections tab&rsquo;s <strong>Update Book</strong> has always been in exactly this position, so this is not new to Bloom, only to the automatic pass.</p>
+      <fieldset>
+        <legend>What should we do about closing Bloom mid-update?</legend>
+        <div class="opt leaverow">
+          <input type="radio" id="m-leave" name="modality" value="Leave as is" checked>
+          <label class="body" for="m-leave"><span class="lbl">Leave as is</span><span class="tag">Recommended</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="modality:leave-comment"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="m-guard" name="modality" value="Block closing Bloom while a book update is running">
+          <label class="body" for="m-guard"><span class="lbl">Block closing Bloom while a book update is running</span>
+            <span class="cost">Small but it pulls WinForms coupling back in &mdash; a busy flag the shell&rsquo;s closing handler honours, set around the pass &mdash; which is the kind of thing this rework just removed. It would also cover Update Book, which has the same exposure today.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="m-card" name="modality" value="Open a follow-up card">
+          <label class="body" for="m-card"><span class="lbl">Open a follow-up card for 6.6</span>
+            <span class="cost">No code here. Keeps the release branch small and records the exposure for both callers rather than only the new one.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="m-other" name="modality" value="Other">
+          <label class="body" for="m-other"><span class="lbl">Other:</span>
+            <input class="otherbox" type="text" id="m-other-text" data-q="modality:other" placeholder="Your answer"></label>
+        </div>
+      </fieldset>
+      <label class="noteslabel" for="m-notes">Notes</label>
+      <textarea class="notes" id="m-notes" data-q="modality:notes" placeholder="Anything to add?"></textarea>
     </div>
 
+    <div class="decision" data-item="next">
+      <h2>Next step</h2>
+      <p>The PR is a draft, mergeable and quiet. Nothing above blocks your own review of it.</p>
+      <fieldset>
+        <legend>What should happen next?</legend>
+        <div class="opt">
+          <input type="radio" id="n-go" name="next" value="Implement my answer above" checked>
+          <label class="body" for="n-go"><span class="lbl">Implement my answer above</span><span class="tag">Recommended</span>
+            <span class="cost">Recommended because the one question is independent of the rest of the PR; whichever way it goes, the branch stays ready for your review.</span></label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="n-talk" name="next" value="Discuss first">
+          <label class="body" for="n-talk"><span class="lbl">Discuss first</span>
+            <span class="cost">No code changes until we have talked it through.</span></label>
+        </div>
+        <div class="opt leaverow">
+          <input type="radio" id="n-leave" name="next" value="Leave as is">
+          <label class="body" for="n-leave"><span class="lbl">Leave as is</span></label>
+          <label class="leavecomment"><input type="checkbox" data-q="next:leave-comment"> Leave comment</label>
+        </div>
+        <div class="opt">
+          <input type="radio" id="n-other" name="next" value="Other">
+          <label class="body" for="n-other"><span class="lbl">Other:</span>
+            <input class="otherbox" type="text" id="n-other-text" data-q="next:other" placeholder="Your answer"></label>
+        </div>
+      </fieldset>
+      <label class="noteslabel" for="n-notes">Notes</label>
+      <textarea class="notes" id="n-notes" data-q="next:notes" placeholder="Anything to add?"></textarea>
+    </div>
+
+    <div class="copyback">
+      <h2>Send your answers back</h2>
+      <p style="font-size:14px;color:var(--muted);margin-bottom:0">Copy this block and paste it into the Claude Code session.</p>
+      <button class="copy" id="copybtn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span>
+      <textarea id="payload" readonly aria-label="Your answers, ready to paste"></textarea>
     </div>
 
   </div>
 </div>
 </div>
 
+<script>
+(function () {
+  var TITLES = {
+    modality: "Bloom can now be closed mid-update",
+    next: "Next step"
+  };
+  var NL = String.fromCharCode(10);
+  var ORDER = ["modality", "next"];
+  function val(sel) { var e = document.querySelector(sel); return e ? e.value.trim() : ""; }
+  function build() {
+    var out = ["Preflight answers - BL-16893 - PR #8389", ""];
+    ORDER.forEach(function (key) {
+      var picked = document.querySelector('input[name="' + key + '"]:checked');
+      var choice = picked ? picked.value : "(no answer)";
+      if (choice === "Other") {
+        var typed = val("#" + key.charAt(0) + "-other-text");
+        choice = "Other: " + (typed || "(nothing typed)");
+      }
+      out.push(TITLES[key]);
+      out.push("  -> " + choice);
+      var lc = document.querySelector('[data-q="' + key + ':leave-comment"]');
+      if (lc && lc.checked) { out.push("  Leave comment: record this decision as a code comment near the relevant code"); }
+      var notes = val('[data-q="' + key + ':notes"]');
+      if (notes) { out.push("  Notes: " + notes); }
+      out.push("");
+    });
+    document.getElementById("payload").value = out.join(NL);
+  }
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  build();
+  document.getElementById("copybtn").addEventListener("click", function () {
+    var ta = document.getElementById("payload");
+    var done = function () {
+      var c = document.getElementById("copied");
+      c.hidden = false;
+      window.setTimeout(function () { c.hidden = true; }, 2200);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, function () {
+        ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+      });
+    } else {
+      ta.select(); try { document.execCommand("copy"); } catch (e) {} done();
+    }
+  });
+})();
+</script>
 
 </body>
 </html>
