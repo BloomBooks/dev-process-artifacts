@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight — Decodable Reader e2e tests (BL-16607)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #f7f5f2;
+    color: #22201d;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  h2 { font-size: 19px; margin: 0 0 12px; }
+  h3 { font-size: 15.5px; margin: 0 0 6px; font-family: inherit; font-weight: 700; }
+  a { color: #1a5b8f; }
+  a:hover { color: #0d3f68; }
+  .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.93em; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; background: #efece7; padding: 1px 4px; border-radius: 3px; }
+
+  .wrap { max-width: 1340px; margin: 0 auto; padding: 26px 20px 60px; }
+
+  header.top { margin-bottom: 20px; }
+  .runline { color: #5c554c; margin: 0 0 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+  .chip {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid #d9d2c8; background: #fff; font-size: 13px; color: #453f38;
+  }
+  .chip.good { border-color: #bcd6bd; background: #eef6ee; color: #2c5c31; }
+  .chip.warn { border-color: #e2cfa6; background: #fbf4e4; color: #6d5320; }
+  .links { display: flex; flex-wrap: wrap; gap: 7px; }
+  .links a {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    border: 1px solid #cfd8e2; background: #fff; font-size: 13px; text-decoration: none;
+  }
+  .links a:hover { background: #eef4fa; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .cols > * { min-width: 0; }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: #fff; border: 1px solid #e4ded5; border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card p { margin: 0 0 10px; }
+  .card ul { margin: 0 0 10px; padding-left: 20px; }
+  .card li { margin-bottom: 6px; }
+  .sub { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: #8a8078; margin: 14px 0 4px; font-weight: 700; }
+  .sub:first-of-type { margin-top: 0; }
+
+  .tblwrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid #ece7df; vertical-align: top; }
+  th { font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: #8a8078; }
+  td.state { white-space: nowrap; }
+  .ok { color: #2c6b33; font-weight: 600; }
+  .na { color: #7a736b; }
+
+  .item { border: 1px solid #e4ded5; border-radius: 10px; background: #fff; padding: 16px 18px; margin-bottom: 16px; }
+  .item h3 { margin-bottom: 8px; }
+  .item p { margin: 0 0 10px; font-size: 15px; }
+  .opts { margin: 12px 0 0; }
+  .opt { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-top: 1px solid #f0ebe3; }
+  .opt:first-child { border-top: none; }
+  .opt input[type=radio] { margin-top: 4px; flex: none; }
+  .opt .lab { flex: 1; font-size: 14.5px; }
+  .fn { display: block; color: #7a736b; font-size: 13px; margin-top: 2px; }
+  .rec { display: inline-block; font-size: 11.5px; text-transform: uppercase; letter-spacing: .05em; background: #eef6ee; color: #2c5c31; border: 1px solid #bcd6bd; border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+  .leavec { flex: none; font-size: 13px; color: #6a635b; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+  input[type=text] { font: inherit; font-size: 14px; padding: 5px 8px; border: 1px solid #d5cec4; border-radius: 6px; width: 100%; background: #fdfcfa; }
+  .notes { margin-top: 10px; }
+  .notes label { display: block; font-size: 13px; color: #6a635b; margin-bottom: 4px; }
+  textarea { font: inherit; font-size: 14px; width: 100%; padding: 7px 9px; border: 1px solid #d5cec4; border-radius: 6px; background: #fdfcfa; resize: vertical; }
+  button {
+    font: inherit; font-weight: 600; font-size: 14.5px; padding: 8px 16px; border-radius: 7px;
+    border: 1px solid #1a5b8f; background: #1a5b8f; color: #fff; cursor: pointer;
+  }
+  button:hover { background: #14496f; }
+  #copied { margin-left: 10px; font-size: 13.5px; color: #2c6b33; }
+  #copied.neutral { color: #6a635b; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <h1>Preflight — e2e tests for the Decodable Reader setup dialog</h1>
+  <p class="runline">Branch <code>readerSetupE2eTests</code> at <span class="numeral">0f1a60f3d5</span>, rebased onto master after #8132 merged. Fourteen of the fifteen reader-setup e2e tests pass reliably. The coexist test fails about half the time, and it appears to have found a real problem in the merged dialog. Two decisions for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip warn">1 open Devin thread (waits on you)</span>
+    <span class="chip warn">2 decisions waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8396" target="_blank" rel="noopener">PR #8396</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8396/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8396/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16607" target="_blank" rel="noopener">BL-16607</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8396" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="cols">
+<div class="left">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <p class="sub">Bloom production code changes</p>
+    <p>Test hooks only, with no change in behavior, in three files of the setup dialog: test ids on the typed-words box, each Sample Texts file row, each matching-word chip and the Remove Stage button; a <code>data-valid-type</code> attribute on each file row; and an id on the "no sample texts yet" message.</p>
+    <p class="sub">Problem</p>
+    <p>The React Decodable Reader setup dialog (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8132" target="_blank" rel="noopener">#8132</a>, now merged) shipped with one end-to-end test, a happy-path journey. Its riskiest parts had no automated coverage: the Sample Texts listing and matching-words preview, which cross into the toolbox frame; what OK saves and Cancel discards; and living alongside the Leveled Reader's legacy dialog.</p>
+    <p class="sub">What the PR does</p>
+    <ul>
+      <li>Adds six Playwright spec files (14 tests) that drive the real Bloom: sample texts, saving, Cancel, editing the stage list, and the two dialogs coexisting.</li>
+      <li>Puts every step in shared helpers in <code>src/BloomE2E/helpers/readerSetup.ts</code>, and records one limitation in <code>AUTOMATION-DEBT.md</code>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tblwrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck</td><td class="ok">Pass (front end and e2e)</td></tr>
+      <tr><td>Lint</td><td class="ok">0 errors, 0 warnings on the three touched files</td></tr>
+      <tr><td>Merge</td><td><span class="ok">Rebased onto master</span> after #8132 merged; mergeable</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td class="ok"><span class="numeral">75 files · 934 passed · 5 skipped</span></td></tr>
+      <tr><td>End-to-end (Playwright, real Bloom), three passes</td><td>Six spec files <span class="ok">passed all three times</span>, with no Bloom left running. <code>reader-setup-dialogs-coexist</code> <strong>failed in pass 2</strong>, and in 3 of 5 further runs on its own; see the first decision.</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="na">Not run — no C# in the diff</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Rebased the branch onto master and opened the draft PR. Fixed what the local review found: the empty-folder test could pass before the folder was ever read, so opening the Sample Words tab now waits for Bloom's listing. Also moved two raw test steps into helpers. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8396/commits" target="_blank" rel="noopener">commits</a>, including the fix, <a href="https://github.com/BloomBooks/BloomDesktop/commit/0f1a60f3d5" target="_blank" rel="noopener">0f1a60f3d5</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tblwrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Three findings, all fixed: a test that could pass without checking what its title said, and two spec steps that were not helper calls.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8396" target="_blank" rel="noopener">Devin</a></td><td>Complete on <span class="numeral">0f1a60f3d5</span>. No bugs. One Investigate flag, that the coexist test fails about half the time: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8396#discussion_r4087725780" target="_blank" rel="noopener">thread left open</a> for your decision (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8396#issuecomment-5803645939" target="_blank" rel="noopener">consultation log</a>).</td></tr>
+      <tr><td>CI (<code>pr-automation</code>)</td><td class="ok">Pass. The e2e suite itself runs only in the nightly build, not on PRs.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The card is in Ready For UI Review, so a tester may be on it now. The test notes now ask them to try Set Up Levels straight after cancelling Set Up Stages, and to report it if nothing happens.</li>
+      <li>Once merged, the coexist test's failures would show up in the nightly e2e run, which runs this suite after every Release build.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="right">
+
+  <div class="item">
+    <h3>Set Up Levels can stop working after the new Stages dialog is cancelled</h3>
+    <p>The coexist test opens the new React "Set Up Stages" dialog, presses Cancel, then presses "Set Up Levels" on the Leveled Reader tool. About half the time the Levels dialog never appears. The screenshot shows the button pressed and nothing opened, and Bloom never makes the dialog's first request.</p>
+    <p>I checked whether the cause is the test or Bloom. With the same setup but <em>without</em> opening and cancelling the Stages dialog, the Levels dialog opened 5 times out of 5, and it also did with only the Leveled tool enabled. So something the Stages dialog leaves behind seems to stop the legacy dialog opening. That code is already merged in #8132 and is on master. I have not found the root cause.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q1" id="q1a" data-q="Set Up Levels problem" value="a" checked
+          data-instruction="Create a YouTrack card for: after the React Decodable Reader 'Set Up Stages' dialog is opened and cancelled, the Leveled Reader's 'Set Up Levels' button sometimes does nothing (repro: the reader-setup-dialogs-coexist e2e spec on branch readerSetupE2eTests, PR BloomBooks/BloomDesktop#8396, fails about half the time; the Levels dialog opens 5/5 without the Stages step). Investigate and fix it on its own branch off master. Leave PR #8396 as a draft with the coexist test unchanged, as the regression guard, until the fix lands; then re-run preflight on #8396.">
+        <label class="lab" for="q1a">Card it, and fix it on its own branch; keep this test as the guard<span class="rec">Recommended</span>
+          <span class="fn">Investigation of unknown size in merged production code. Recommended because it is a real user-facing problem in code already on master, it deserves its own review, and this test is the ready-made way to prove the fix.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1b" data-q="Set Up Levels problem" value="b"
+          data-instruction="On branch readerSetupE2eTests (PR BloomBooks/BloomDesktop#8396), investigate why the Leveled Reader's 'Set Up Levels' sometimes does nothing after the React 'Set Up Stages' dialog is opened and cancelled, fix it in this same PR, and re-run preflight.">
+        <label class="lab" for="q1b">Investigate and fix it in this PR
+          <span class="fn">Same investigation. It mixes a production fix into a tests PR, which is harder to review on its own.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1c" data-q="Set Up Levels problem" value="c"
+          data-instruction="On branch readerSetupE2eTests (PR BloomBooks/BloomDesktop#8396), mark the reader-setup-dialogs-coexist test as test.fixme with a comment naming the Set Up Levels problem, create a YouTrack card for that problem, and re-run preflight so the rest of the tests can merge now.">
+        <label class="lab" for="q1c">Park the test as "fixme", card the problem, merge the rest now
+          <span class="fn">Small. The regression goes unguarded until someone un-parks the test.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1d" data-q="Set Up Levels problem" value="leave"
+          data-instruction="Leave as is — take no action on: the reader-setup-dialogs-coexist e2e test on PR BloomBooks/BloomDesktop#8396 fails about half the time, apparently because Set Up Levels sometimes does nothing after the React Set Up Stages dialog is cancelled.">
+        <label class="lab" for="q1d">Leave as is</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q1" id="q1e" data-q="Set Up Levels problem" value="other">
+        <label class="lab" for="q1e">Other: <input type="text" data-q="Set Up Levels problem — other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="n1">Notes</label><textarea id="n1" rows="2" data-q="Set Up Levels problem — notes"></textarea></div>
+  </div>
+
+  <div class="item">
+    <h3>How to tie these tests to the Notion test inventory?</h3>
+    <p>The e2e procedure asks that every automated test appear in the Notion "Test Case Runs" inventory, with its Test Case ID in the test's title. None of these do yet, and neither does the journey test that merged with #8132. Existing manual cases overlap in part, notably TC 427 (Build a Spanish Decodable From Scratch), TC 429 (Set Up Stages Sources) and TC 446 (Allowed Words Define Stages). The procedure says a card a test only partly covers must be split into automated and manual portions.</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q2" id="q2a" data-q="Notion inventory" value="a" checked
+          data-instruction="In the Notion 'Test Case Runs' inventory, add one new row per e2e spec file for the Decodable Reader setup dialog (the six on branch readerSetupE2eTests plus the merged decodable-reader-setup.spec.ts journey test), each with the next free Test Case ID, a title and summary, and Automation set to 'PR Pending' with PR BloomBooks/BloomDesktop#8396 in Automation Notes ('Automated' for the merged journey test); put each Test Case ID into its test titles as '[Test Case ID N]'; leave the existing manual cards (TC 427, 429, 446) untouched.">
+        <label class="lab" for="q2a">New inventory rows for these tests; leave the manual cards alone<span class="rec">Recommended</span>
+          <span class="fn">Seven Notion rows plus a one-line title change per test. Recommended because these tests were written from the code, not from those cards, so they don't cleanly match any card's steps, and splitting the manual cards would be guesswork.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2b" data-q="Notion inventory" value="b"
+          data-instruction="Map the Decodable Reader setup e2e tests (PR BloomBooks/BloomDesktop#8396) onto the existing manual Notion cards they overlap (TC 427, 429, 446), splitting each into an '[Automated portion]' and a '[Manual portion]' card per the add-e2e-test skill, and put the Test Case IDs in the test titles.">
+        <label class="lab" for="q2b">Map them onto the existing manual cards, splitting those cards
+          <span class="fn">Larger; needs a careful step-by-step comparison per card.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2c" data-q="Notion inventory" value="leave"
+          data-instruction="Leave as is — take no action on: the Decodable Reader setup e2e tests (PR BloomBooks/BloomDesktop#8396) are not tied to the Notion test inventory.">
+        <label class="lab" for="q2c">Leave as is</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q2" id="q2d" data-q="Notion inventory" value="other">
+        <label class="lab" for="q2d">Other: <input type="text" data-q="Notion inventory — other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="n2">Notes</label><textarea id="n2" rows="2" data-q="Notion inventory — notes"></textarea></div>
+  </div>
+
+  <div class="item">
+    <h3>Next step</h3>
+    <p>Once you have answered the above, how would you like to proceed?</p>
+    <div class="opts">
+      <div class="opt">
+        <input type="radio" name="q3" id="q3a" data-q="Next step" value="a" checked
+          data-instruction="Carry out the options chosen above for PR BloomBooks/BloomDesktop#8396 (branch readerSetupE2eTests), then re-run preflight if any code changed and report back.">
+        <label class="lab" for="q3a">Do what I picked above<span class="rec">Recommended</span>
+          <span class="fn">Any code change means another preflight run.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3b" data-q="Next step" value="b"
+          data-instruction="Discuss the open items for PR BloomBooks/BloomDesktop#8396 before doing anything.">
+        <label class="lab" for="q3b">Discuss first
+          <span class="fn">Nothing happens until we have talked it through.</span>
+        </label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3c" data-q="Next step" value="leave"
+          data-instruction="Leave as is — take no action on: the open preflight items for PR BloomBooks/BloomDesktop#8396.">
+        <label class="lab" for="q3c">Leave as is</label>
+      </div>
+      <div class="opt">
+        <input type="radio" name="q3" id="q3d" data-q="Next step" value="other">
+        <label class="lab" for="q3d">Other: <input type="text" data-q="Next step — other" placeholder="your answer"></label>
+      </div>
+    </div>
+    <div class="notes"><label for="n3">Notes</label><textarea id="n3" rows="2" data-q="Next step — notes"></textarea></div>
+  </div>
+
+  <div class="item">
+    <h3>Send your answers back</h3>
+    <p>Copy this and paste it into a Claude session.</p>
+    <p><button id="copybtn" type="button">Copy answers</button><span id="copied"></span></p>
+    <textarea id="payload" rows="10" readonly></textarea>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/BloomDesktop-readerSetupE2eTests.html";
+  var TITLES = {
+    "Set Up Levels problem": "Set Up Levels can stop working after the new Stages dialog is cancelled",
+    "Notion inventory": "How to tie these tests to the Notion test inventory?",
+    "Next step": "Next step"
+  };
+  function build() {
+    var out = [
+      "Decisions from a preflight decider form",
+      "Repo: BloomBooks/BloomDesktop — PR #8396 (branch readerSetupE2eTests at 0f1a60f3d5), card BL-16607",
+      "Date: 2026-09-23",
+      "Full report: " + URL,
+      ""
+    ];
+    var chosen = {};
+    document.querySelectorAll('input[type=radio]').forEach(function (r) {
+      if (r.checked) chosen[r.getAttribute('data-q')] = r;
+    });
+    Object.keys(TITLES).forEach(function (q) {
+      var r = chosen[q];
+      if (!r) return;
+      out.push(TITLES[q]);
+      if (r.value === 'other') {
+        var box = document.querySelector('input[type=text][data-q="' + q + ' — other"]');
+        out.push('  Other: ' + ((box && box.value.trim()) || '(not filled in)'));
+      } else {
+        out.push('  ' + r.getAttribute('data-instruction'));
+      }
+      var nt = document.querySelector('textarea[data-q="' + q + ' — notes"]');
+      if (nt && nt.value.trim()) out.push('  Notes: ' + nt.value.trim());
+      out.push('');
+    });
+    return out.join('\n');
+  }
+  function refresh() { document.getElementById('payload').value = build(); }
+  document.addEventListener('input', refresh);
+  document.addEventListener('change', refresh);
+  refresh();
+  document.getElementById('copybtn').addEventListener('click', async function () {
+    var ta = document.getElementById('payload');
+    var status = document.getElementById('copied');
+    function ok() { status.className = ''; status.textContent = 'Copied ✓'; }
+    function fail() { status.className = 'neutral'; status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    try {
+      refresh();
+      ta.focus(); ta.select();
+      try { await navigator.clipboard.writeText(ta.value); ok(); return; } catch (e) { /* fall through */ }
+      ta.select();
+      if (document.execCommand && document.execCommand('copy')) { ok(); } else { fail(); }
+    } catch (e) { ta.select(); fail(); }
+  });
+})();
+</script>
+</body>
+</html>
