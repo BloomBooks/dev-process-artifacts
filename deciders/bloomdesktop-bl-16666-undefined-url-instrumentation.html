@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16666 undefined-url preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --ground: #f4f5f2;
+    --card: #ffffff;
+    --ink: #1d2320;
+    --muted: #5d6862;
+    --rule: #d9ddd7;
+    --accent: #1f5f5b;
+    --accent-soft: #e3efed;
+    --good: #2e6b38;
+    --good-soft: #e5f1e5;
+    --warn: #8a5a00;
+    --warn-soft: #f7ecd6;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding: 28px 20px 48px; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  header h1 { font: 600 26px/1.2 var(--serif); margin: 0 0 6px; text-wrap: balance; }
+  header p { margin: 0 0 12px; color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; border: 1px solid var(--rule); background: var(--card); }
+  .chip.good { background: var(--good-soft); border-color: #bcd9bf; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: #e6cf9f; color: var(--warn); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .links a { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 13px; background: var(--accent-soft); text-decoration: none; }
+  .links a:first-child { font-weight: 600; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  section { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+  section.lead { border-color: #b9d3cf; }
+  h2 { font: 600 19px/1.3 var(--serif); margin: 0 0 10px; }
+  h3 { font: 600 14px/1.3 var(--sans); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 4px; }
+  h3:first-of-type { margin-top: 0; }
+  p { margin: 0 0 10px; max-width: 70ch; }
+  ul { margin: 0 0 10px; padding-left: 20px; max-width: 70ch; }
+  li { margin-bottom: 4px; }
+  code { font: 13px var(--mono); background: #eef1ee; padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: 13px; }
+  td.state { white-space: nowrap; }
+  .ok { color: var(--good); font-weight: 600; }
+  .note { color: var(--warn); font-weight: 600; }
+  .q p.desc { font-size: 14px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 0; border-top: 1px dashed var(--rule); }
+  .opt:first-of-type { border-top: 0; }
+  .opt label { flex: 1; }
+  .opt .foot { display: block; font-size: 13px; color: var(--muted); }
+  .tag { font-size: 12px; background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 4px; margin-left: 4px; }
+  .lc { font-size: 13px; color: var(--muted); white-space: nowrap; display: flex; gap: 4px; align-items: center; }
+  .opt input[type=text] { width: 100%; margin-top: 4px; font: inherit; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+  textarea { width: 100%; font: 14px var(--sans); padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; }
+  .notes { margin-top: 8px; }
+  .notes span { font-size: 13px; color: var(--muted); }
+  button { font: 600 14px var(--sans); background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+  #copied { margin-left: 8px; color: var(--good); font-size: 13px; }
+  #payload { margin-top: 10px; font: 12px var(--mono); min-height: 120px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>BL-16666: make the next "undefined" url name itself</h1>
+  <p>Resumed preflight after rebasing onto current master: branch rebased cleanly in substance, all suites green, Devin re-reviewed, PR promoted. One question for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip good" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip">Card: Ready For Code Review</span>
+    <span class="chip warn">1 item waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175" target="_blank" rel="noopener">PR #8175</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16666" target="_blank" rel="noopener">BL-16666</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8175" target="_blank" rel="noopener">Devin review</a>
+    <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8175" target="_blank" rel="noopener">Reviewable</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+  <section class="lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Sentry has years of "Cannot Find File" reports for paths like <code>Temp/undefined</code>. The server can say that a file called <code>undefined</code> is missing, but never which part of Bloom asked for it, so these reports have been almost impossible to act on. Finding the one instance we did fix (BL-16447) took a lot of guessing.</p>
+    <h3>Cause</h3>
+    <p>The C# side isn't building a bad temp path. Front-end code does the equivalent of <code>img.src = somethingUndefined</code>, the browser turns the value into the text "undefined" and asks the server for a file by that name. The temp folder is incidental. The book-folder suppression had been hiding every instance that happened on a book page, so Sentry only ever showed a filtered slice.</p>
+    <h3>What the PR does</h3>
+    <p>This fixes no particular instance. It makes the next one name itself.</p>
+    <ul>
+      <li><strong>Server:</strong> a request whose path has a whole segment that is exactly <code>undefined</code>, <code>null</code> or <code>NaN</code> is treated as our own bug. It is no longer hidden by the book-folder suppression. It goes to Sentry silently (no toast or dialog on any channel) under its own message, naming the page that made the request (the <code>Referer</code> header, now passed through to the report) and the raw url.</li>
+      <li><strong>Front end:</strong> a new detector, installed wherever Bloom's global error handler loads, watches <code>src</code> assignment, <code>setAttribute("src")</code>, <code>fetch</code> and <code>XMLHttpRequest</code>. It reports a source-mapped stack naming the offending line, then lets the call go ahead unchanged. It reports each call site once, at most ten per session. Alpha users see a small "A JavaScript error occurred" notice for each one, as you decided.</li>
+    </ul>
+    <p>Expect more "Url built from a JavaScript value" reports in Sentry. That is the point.</p>
+  </section>
+
+  <section>
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+      <tr><td>Rebase onto master</td><td class="state ok">clean</td><td>One conflict in <code>ReportMissingFile</code>, resolved the same way as the earlier merge (keep both kinds of diagnostics). The PR's changed lines are identical before and after the rebase.</td></tr>
+      <tr><td>TypeScript typecheck</td><td class="state ok">pass</td><td>No blunder-class type errors.</td></tr>
+      <tr><td>Lint (eslint)</td><td class="state ok">pass</td><td>The three touched front-end files are clean.</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td class="state ok">pass</td><td><span class="numeral">904 passed · 5 skipped</span>, including <span class="numeral">14</span> detector tests.</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="state ok">pass</td><td><span class="numeral">3564 passed · 0 failed · 1 skipped</span>, full suite at the final tree.</td></tr>
+      <tr><td>Production bundle</td><td class="state ok">compiles</td><td>Via <code>build/agent-vite.sh</code>. This touches a module every bundle imports.</td></tr>
+      <tr><td>CI (pr-automation)</td><td class="state ok">pass</td><td>TeamCity's C# run isn't visible from <code>gh</code>. The local full run above covers it.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>What changed this run</h2>
+    <p>Rebased the branch onto current master and fixed one stale code comment that Devin flagged (it named an <code>extraDiagnostics</code> variable that no longer exists). Updated the card's test ideas now that the alpha notice is settled. Squashed to a single commit, <a href="https://github.com/BloomBooks/BloomDesktop/commit/b2fbb30aec2ccfed4223d451f5e06ee81cfbef24" target="_blank" rel="noopener"><code>b2fbb30a</code></a>, whose tree is identical to the one reviewed. Moved the card to Ready For Code Review.</p>
+  </section>
+
+  <section>
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+      <tr><td>Local review</td><td class="state ok">complete</td><td>Light pass, done inline. Since the PR's own changed lines were unchanged, I checked that master's changes around them didn't break anything. Clean, no findings.</td></tr>
+      <tr><td>Devin</td><td class="state ok">complete</td><td>Full re-review at HEAD. Everything it raised repeats a finding that already has a resolved thread. It raised two new Investigate flags, both answered and resolved: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175#discussion_r4083701266" target="_blank" rel="noopener">bundle coverage</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175#discussion_r4083701707" target="_blank" rel="noopener">tests unavailable in its sandbox</a>. It also made one informational note, the stale comment, which is fixed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8175#issuecomment-5796903904" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+      <tr><td>Andrew (human, Reviewable)</td><td class="state note">in review</td><td>His one question, about pulling this error handling out of <code>BloomServer</code>, you have answered. Reviewable still counts three discussions against him: that one, plus the two new Devin threads mirrored from GitHub. Only his own disposition clears them.</td></tr>
+      <tr><td>Other bots</td><td class="state ok">none active</td><td>CodeRabbit is off and Greptile isn't working on this repo.</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The previous preflight report page is gone: a history squash of the artifacts repo dropped it. I recovered it from history and carried its content forward. This page replaces it, and the card links here.</li>
+      <li>Both questions from the last run were already answered by you and recorded on their threads: <a href="https://github.com/BloomBooks/BloomDesktop/blob/b2fbb30aec2ccfed4223d451f5e06ee81cfbef24/src/BloomBrowserUI/lib/errorHandler.ts#L164" target="_blank" rel="noopener">alpha notice stays</a>, and <a href="https://github.com/BloomBooks/BloomDesktop/blob/b2fbb30aec2ccfed4223d451f5e06ee81cfbef24/src/BloomExe/web/BloomServer.cs#L1473" target="_blank" rel="noopener">server side stays uncapped</a>.</li>
+      <li>Nothing here has been exercised by hand in a running Bloom since the rebase. The test ideas on the card cover that, and they are broad on purpose.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="q" data-item="1">
+    <h2>The PR description is out of date</h2>
+    <p class="desc">The PR's description was written on the first run, before several review rounds changed the design, and it has no preflight markers, so preflight leaves it alone. Andrew is reading it now. Three things in it are no longer accurate or are missing. It says the server-side reports "will increase reported volume" but not that they are now silent to users (no toast, no dialog) under their own Sentry message. It doesn't say that alpha users will see a notice from the front-end half. Its Testing section gives the counts from the first run ("78 pass", "13 new tests"). The story itself (the cause, the two layers, the passive design) is still right.</p>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1-a" value="Refresh the description" data-q="1. PR description" checked>
+      <label for="q1-a">Refresh the description<span class="tag">recommended</span>
+        <span class="foot">No code. I'd replace it with the narrative on this page between preflight markers, and keep its "worth a careful look" notes (the <code>fetch</code>-on-window point, the two diagnostics). Recommended because the reviewer is reading it now, and it currently understates what users will and won't see.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1-b" value="Only add a short 'Since first written' note at the top" data-q="1. PR description">
+      <label for="q1-b">Only add a short note at the top listing the three corrections
+        <span class="foot">No code, a few lines. The original text stays as it was.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1-c" value="Leave as is" data-q="1. PR description">
+      <label for="q1-c">Leave as is</label>
+      <span class="lc"><input type="checkbox" id="q1-lc" data-q="1. PR description" data-kind="leave-comment"><label for="q1-lc">Leave comment</label></span>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1-d" value="Other" data-q="1. PR description">
+      <label for="q1-d">Other:
+        <input type="text" id="q1-other" data-q="1. PR description" data-kind="other" aria-label="Other answer"></label>
+    </div>
+    <div class="notes"><span>Notes</span>
+      <textarea id="q1-notes" rows="2" data-q="1. PR description" data-kind="notes"></textarea></div>
+  </section>
+
+  <section>
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the session.</p>
+    <button type="button" id="copy">Copy answers</button><span id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var header = "Preflight decisions — BL-16666 / PR #8175\nhttps://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16666-undefined-url-instrumentation.html\n";
+  function build() {
+    var out = [header];
+    document.querySelectorAll("section.q").forEach(function (sec) {
+      var q = sec.querySelector("[data-q]").getAttribute("data-q");
+      var sel = sec.querySelector("input[type=radio]:checked");
+      var line = q + ": " + (sel ? sel.value : "(none)");
+      if (sel && sel.value === "Other") {
+        var o = sec.querySelector("[data-kind=other]").value.trim();
+        line += " — " + (o || "(blank)");
+      }
+      out.push(line);
+      var lc = sec.querySelector("[data-kind=leave-comment]");
+      if (lc && lc.checked) out.push("  Leave comment");
+      var n = sec.querySelector("[data-kind=notes]").value.trim();
+      if (n) out.push("  Notes: " + n);
+    });
+    document.getElementById("payload").value = out.join("\n");
+  }
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  build();
+  document.getElementById("copy").addEventListener("click", function () {
+    build();
+    var ta = document.getElementById("payload"), done = document.getElementById("copied");
+    function ok() { done.hidden = false; setTimeout(function () { done.hidden = true; }, 2000); }
+    function fallback() { ta.focus(); ta.select(); try { document.execCommand("copy"); ok(); } catch (e) {} }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(ok, fallback); else fallback();
+  });
+})();
+</script>
+</body>
+</html>
