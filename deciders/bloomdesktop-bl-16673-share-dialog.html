@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Share dialog preflight</title>
+<style>
+:root {
+  --ground: #f6f3ee;
+  --card: #ffffff;
+  --line: #e2ddd4;
+  --ink: #23262a;
+  --muted: #6a6f75;
+  --accent: #1d7f8c;
+  --accent-soft: #e3f1f2;
+  --good: #2f7d4f;
+  --good-soft: #e5f2ea;
+  --warn: #9a6a12;
+  --warn-soft: #f7eed9;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.55 -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  padding: 24px 20px 48px;
+}
+h1, h2, h3 { font-family: Georgia, "Iowan Old Style", "Palatino Linotype", Cambria, serif; font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.7rem; line-height: 1.2; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 0 0 10px; }
+ul { margin: 0 0 10px; padding-left: 20px; }
+li { margin-bottom: 4px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-size: 0.88em; background: #f1ede6; padding: 1px 4px; border-radius: 3px; }
+.numeral { font-family: Consolas, "Cascadia Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.summary { color: var(--muted); max-width: 70ch; }
+.chips, .links { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--line); background: var(--card); }
+.chip.good { background: var(--good-soft); border-color: #bfdcc9; color: var(--good); }
+.chip.warn { background: var(--warn-soft); border-color: #e6d3a6; color: var(--warn); }
+.chip.state { background: var(--accent-soft); border-color: #bcdcdf; color: var(--accent); }
+.links a { display: inline-block; padding: 3px 10px; border-radius: 4px; background: var(--card); border: 1px solid var(--line); text-decoration: none; font-size: 0.85rem; }
+.links a:first-child { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; }
+.card.lead { border-color: #bcdcdf; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.pass { color: var(--good); font-weight: 600; }
+.tablewrap { overflow-x: auto; }
+.reviewer { padding: 8px 0; border-bottom: 1px solid var(--line); }
+.reviewer:last-child { border-bottom: none; }
+.reviewer strong { display: block; }
+.decision { display: flex; flex-direction: column; gap: 8px; }
+.decision .context { color: var(--ink); }
+.option { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 4px; }
+.option:hover { background: #faf8f4; }
+.option input[type=radio] { margin-top: 4px; }
+.option .foot { color: var(--muted); font-size: 0.85rem; }
+.tag { display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 3px; margin-left: 4px; }
+.leave { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.leave label.lc { font-size: 0.85rem; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+.other-text { flex: 1; min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 3px; }
+textarea { width: 100%; font: inherit; font-size: 0.9rem; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+.src { font-size: 0.85rem; color: var(--muted); }
+button.copy { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; }
+.copied { color: var(--good); margin-left: 10px; font-size: 0.9rem; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Share dialog preflight: BloomDesktop PR #8394</h1>
+  <p class="summary">Preflight run on branch <code>BL-16673-share-dialog</code> (base <code>master</code>), ending at <code>eb0801d9b8</code>. All gates green, every reviewer finished, 2 questions for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">2 decisions waiting</span>
+  </div>
+  <nav class="links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8394" target="_blank" rel="noopener">PR #8394</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8394/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8394/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16673" target="_blank" rel="noopener">BL-16673</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8394" target="_blank" rel="noopener">Devin review</a>
+    <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">Backend PR #13</a>
+  </nav>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card lead">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom has no way for someone to share a collection with other people. Sharing is moving to a cloud backend (Supabase, from the BL-16531 work), and that needs a UI where a collection's administrators decide who can work on it and in what role. It will eventually replace the Team Collection settings panel. The backend ships separately from bloom-core-supabase and isn't deployed yet.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>A new <strong>Share</strong> button in the Collection tab's top bar opens a <strong>Share dialog</strong> built from the card's mockups.</li>
+      <li><strong>Admins</strong> invite people by email as Admin or Editor, change roles from a menu that describes each role, and remove people. The last admin can be neither demoted nor removed. <strong>Editors</strong> see the list read-only.</li>
+      <li>People are identified by their <strong>BloomLibrary.org sign-in</strong>, the identity the cloud backend will authenticate; a signed-out user is asked to sign in first.</li>
+      <li>The <strong>first invitation shares the collection</strong>. In a folder Team Collection only its administrators can do that, and the people its history shows are offered as suggestions to invite.</li>
+      <li><code>SharingApi</code> talks to an <code>ICollectionSharingService</code>. Its only implementation, a stand-in, keeps the record in <code>sharing.local.json</code> in the collection folder. It enforces the backend's rules: all-or-nothing invitations, safe writes. Invitations aren't sent anywhere yet.</li>
+      <li><code>TopBarButton</code>/<code>BloomButton</code> can take an icon element (the MUI Share icon) instead of an image file.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td><code>eb0801d9b8</code></td></tr>
+        <tr><td>ESLint (changed files)</td><td class="pass">pass</td><td>only the existing unused-destructure warnings in <code>bloomButton.tsx</code></td></tr>
+        <tr><td>Front-end tests (vitest, full)</td><td class="pass">pass</td><td><span class="numeral">910 passed · 5 skipped</span> at <code>eb0801d9b8</code></td></tr>
+        <tr><td>C# tests (dotnet test, full)</td><td class="pass">pass</td><td><span class="numeral">3580 passed · 1 skipped</span> at <code>ea412e3dbb</code>, the last commit touching C#</td></tr>
+        <tr><td>CI (pr-automation)</td><td class="pass">pass</td><td>the Devin trigger</td></tr>
+        <tr><td>Merge with master</td><td class="pass">clean</td><td>already up to date</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Committed and published the work as a draft PR, then made four rounds of fixes from Devin's reviews: all-or-nothing invitations (including the first one, which shares the collection), no dismissing suggestions after a failed invite, visits recorded on collection open, safe writes of the sharing file, and invite controls disabled while an invitation is on its way. Also clicked through the real dialog, signed in as the dev.bloomlibrary.org e2e test account (invite, promote, self-demote to the read-only view, remove), then cleaned up. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8394/commits" target="_blank" rel="noopener">5 commits</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Clean. It asked whether the state endpoint could read the book list off the UI thread; it now runs on the UI thread, as the history endpoint does.</div>
+    <div class="reviewer"><strong>Devin: complete (5 runs, the last clean at <code>eb0801d9b8</code>)</strong>It raised 7 bugs across the rounds, all fixed and marked resolved by Devin, and 7 points to check, all answered. Each has its own <a href="https://github.com/BloomBooks/BloomDesktop/pull/8394" target="_blank" rel="noopener">resolved thread</a>.</div>
+    <div class="reviewer"><strong>Greptile / CodeRabbit</strong>Not active on BloomDesktop: CodeRabbit's auto-review is off, and Greptile isn't working on this repo.</div>
+    <div class="reviewer"><strong>CI</strong>Complete: pr-automation passed.</div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The Team Collection suggestions panel was checked with fake data and unit tests only. It hasn't been clicked through in a real Team Collection with history.</li>
+      <li>Testing the dialog for real writes <code>sharing.local.json</code> into the collection's own folder. Delete it to reset a collection to "not shared". A whole-collection archive carries it along (answered on the PR; it's a stand-in).</li>
+      <li>Nothing links to "Learn about sharing" yet, and the enterprise-subscription badge mentioned on the card isn't included.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card decision" data-item="1">
+    <h2>An admin can hand admin rights to someone who has never signed in</h2>
+    <p class="context">Right now an admin may demote or remove themselves as long as another Admin remains, even if that other Admin is only <em>invited</em> and has never signed in. With the real backend that can leave a collection whose only admin has never actually joined, so nobody can manage sharing until they do. The card's comments ask whether changing your own role should be allowed at all; it currently is, with the last-admin rule as the only guard.</p>
+    <p class="src">Source: card comment on BL-16673 ("it should not be possible to remove the last admin… should it be possible to change your own status?") and the self-demotion check in this run.</p>
+    <label class="option"><input type="radio" name="q1" id="q1-a" value="Require another active admin" data-q="1" checked><span>Require another <strong>active</strong> admin before an admin can demote or remove themselves, recommended because it prevents a collection being left with only never-joined admins. <span class="tag">recommended</span><br><span class="foot">(~20 lines in the service and the menu's disabled logic, plus tests. Low risk. In the local stand-in no invitee ever becomes active, so self-demotion would effectively be blocked until the backend lands.)</span></span></label>
+    <label class="option"><input type="radio" name="q1" id="q1-b" value="Never allow changing your own role" data-q="1"><span>Never let an admin change their own role or remove themselves; another admin has to do it.<br><span class="foot">(~10 lines, low risk.)</span></span></label>
+    <div class="leave"><label class="option"><input type="radio" name="q1" id="q1-c" value="Leave as is" data-q="1"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q1-lc" data-q="1" data-kind="leave-comment"> Leave comment</label></div>
+    <label class="option"><input type="radio" name="q1" id="q1-d" value="Other" data-q="1"><span>Other:</span><input class="other-text" type="text" id="q1-other" data-q="1" data-kind="other"></label>
+    <textarea id="q1-notes" rows="2" placeholder="Notes" data-q="1" data-kind="notes"></textarea>
+  </section>
+
+  <section class="card decision" data-item="2">
+    <h2>"Learn about sharing" link</h2>
+    <p class="context">The mockups put a "Learn about sharing" link at the top right of the dialog. I left it out because there's no help page for it yet, and I didn't want to invent a URL. Adding it is trivial once there's somewhere to point.</p>
+    <label class="option"><input type="radio" name="q2" id="q2-a" value="Add later" data-q="2" checked><span>Add it later, when the docs page exists, recommended because a link to nothing is worse than no link. <span class="tag">recommended</span><br><span class="foot">(no code now; ~10 lines later)</span></span></label>
+    <label class="option"><input type="radio" name="q2" id="q2-b" value="Add now with URL" data-q="2"><span>Add it now. Put the URL in Other.<br><span class="foot">(~10 lines, one new string)</span></span></label>
+    <div class="leave"><label class="option"><input type="radio" name="q2" id="q2-c" value="Leave as is" data-q="2"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q2-lc" data-q="2" data-kind="leave-comment"> Leave comment</label></div>
+    <label class="option"><input type="radio" name="q2" id="q2-d" value="Other" data-q="2"><span>Other:</span><input class="other-text" type="text" id="q2-other" data-q="2" data-kind="other"></label>
+    <textarea id="q2-notes" rows="2" placeholder="Notes" data-q="2" data-kind="notes"></textarea>
+  </section>
+
+  <section class="card decision" data-item="3">
+    <h2>Next step</h2>
+    <label class="option"><input type="radio" name="q3" id="q3-a" value="Implement the choices above, then re-run preflight" data-q="3" checked><span>Implement the choices above, then re-run preflight. <span class="tag">recommended</span></span></label>
+    <label class="option"><input type="radio" name="q3" id="q3-b" value="Discuss first" data-q="3"><span>Discuss first.</span></label>
+    <div class="leave"><label class="option"><input type="radio" name="q3" id="q3-c" value="Leave as is" data-q="3"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q3-lc" data-q="3" data-kind="leave-comment"> Leave comment</label></div>
+    <label class="option"><input type="radio" name="q3" id="q3-d" value="Other" data-q="3"><span>Other:</span><input class="other-text" type="text" id="q3-other" data-q="3" data-kind="other"></label>
+    <textarea id="q3-notes" rows="2" placeholder="Notes" data-q="3" data-kind="notes"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copies every answer as plain text to paste into the session.</p>
+    <p><button class="copy" id="copy-btn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></p>
+    <textarea id="payload" rows="9" readonly></textarea>
+  </section>
+</aside>
+</div>
+</div>
+<script>
+const TITLES = {
+  "1": "Admin rights for never-signed-in admins",
+  "2": "\"Learn about sharing\" link",
+  "3": "Next step",
+};
+function serialize() {
+  const lines = ["Preflight answers for BloomDesktop PR #8394 (BL-16673)", ""];
+  for (const q of Object.keys(TITLES)) {
+    lines.push(`${q}. ${TITLES[q]}`);
+    const picked = document.querySelector(`input[type=radio][data-q="${q}"]:checked`);
+    let choice = picked ? picked.value : "(none)";
+    if (choice === "Other") choice = "Other: " + (document.getElementById(`q${q}-other`).value || "");
+    lines.push(`   Choice: ${choice}`);
+    if (document.getElementById(`q${q}-lc`).checked) lines.push("   Leave comment");
+    const notes = document.getElementById(`q${q}-notes`).value.trim();
+    if (notes) lines.push(`   Notes: ${notes}`);
+    lines.push("");
+  }
+  document.getElementById("payload").value = lines.join("\n");
+}
+document.addEventListener("input", serialize);
+document.addEventListener("change", serialize);
+document.getElementById("copy-btn").addEventListener("click", async () => {
+  serialize();
+  const box = document.getElementById("payload");
+  try { await navigator.clipboard.writeText(box.value); }
+  catch { box.select(); document.execCommand("copy"); }
+  document.getElementById("copied").hidden = false;
+});
+serialize();
+</script>
+</body>
+</html>
