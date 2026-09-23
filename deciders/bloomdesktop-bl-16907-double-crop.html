@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16907 Double Crop Preflight</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    color-scheme: light;
+    --ground: #f7f6f2;
+    --card: #ffffff;
+    --line: #e3e0d8;
+    --ink: #22262b;
+    --muted: #5d6470;
+    --accent: #2f5d8a;
+    --accent-soft: #e8eff6;
+    --good: #2d6a3e;
+    --good-soft: #e6f1e8;
+    --warn: #8a5a12;
+    --warn-soft: #f7eedd;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    --sans: -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+    padding-inline: 16px; padding-block: 24px 48px;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.2rem; }
+  h3 { font-size: 1rem; font-family: var(--sans); font-weight: 650; }
+  p { margin: 0; max-width: 70ch; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font-family: var(--mono); font-size: 0.88em; background: #f1efe9; padding: 0 3px; border-radius: 3px; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 11px; font-size: 0.85rem; text-decoration: none; color: var(--ink); }
+  .chip.ok { background: var(--good-soft); border-color: #c5dccb; color: var(--good); }
+  .chip.ask { background: var(--warn-soft); border-color: #e8d5b0; color: var(--warn); }
+  a.chip { color: var(--accent); }
+  a.chip:first-child { font-weight: 650; border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .card.lead { border-color: #c9d6e3; }
+  ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.82rem; }
+  .pass { color: var(--good); font-weight: 600; }
+  .na { color: var(--muted); }
+  .q { display: flex; flex-direction: column; gap: 10px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .foot { color: var(--muted); font-size: 0.85rem; }
+  .tag { font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-left: 4px; }
+  .row { display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .other { flex: 1; min-width: 0; }
+  input[type=text], textarea { font: inherit; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; width: 100%; background: #fff; color: var(--ink); }
+  textarea { resize: vertical; }
+  label.small { font-size: 0.85rem; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; align-self: flex-start; }
+  #status { font-size: 0.88rem; color: var(--muted); }
+  #status.ok { color: var(--good); }
+  #payload { font-family: var(--mono); font-size: 0.82rem; min-height: 10em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BL-16907: cover image cropped twice after upload</h1>
+    <p class="summary">Preflight of branch <code>BL-16907-double-crop</code> against <code>Version6.4</code>: gates green, Devin quiet after three rounds, one question for you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip ok">Mergeable</span>
+      <span class="chip ok">Bots quiet</span>
+      <span class="chip ask">1 decision waiting</span>
+    </div>
+    <div class="chips">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8393" target="_blank" rel="noopener">PR #8393</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8393/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8393/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16907" target="_blank" rel="noopener">BL-16907</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8393" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="card lead">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>After upload, a book's cover image on Bloom Library (the online reader, the thumbnail and the BloomPUB) is cropped more than the author chose in Bloom. Example: <a href="https://dev.bloomlibrary.org/player/NfmITM59fL" target="_blank" rel="noopener">this book</a>'s cover lost 83 more pixels off the top than the author's crop.</p>
+        <h3>Cause</h3>
+        <p>Upload really crops image files and adjusts the page image's style to match. But the book's data-div entry for the same image (<code>coverImage</code>) kept the old crop style. When the uploaded book is opened again (by the harvester, or after "download for edit"), Bloom copies the data-div onto the page, so the old crop is applied again to the already-cropped file, and the BloomPUB step crops it a second time. This started with BL-16173's change to keep the crop structure on upload; uploads from 6.3 don't reproduce it.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li>When really-crop successfully crops an image and rewrites or removes its style, the matching data-div entry gets the same style (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f338eef0b11363e23dc8ac886f3b078bb21c51aa/src/BloomExe/ImageProcessing/ImageUtils.cs#L2720" target="_blank" rel="noopener"><code>SyncDataDivStyle</code></a>).</li>
+          <li>A failed crop leaves the data-div alone, including for a second use of the same image, so the author's crop survives for reopening to restore it.</li>
+          <li>A custom-layout cover also leaves the data-div alone; its style must never reach the data-div (BL-16357).</li>
+          <li>New tests cover the upload → reopen → publish sequence (it <a href="https://github.com/BloomBooks/BloomDesktop/blob/f338eef0b11363e23dc8ac886f3b078bb21c51aa/src/BloomTests/ImageProcessing/ImageUtilsTests.cs#L1579" target="_blank" rel="noopener">reproduces the 1001×607 result</a> without the fix), the publish-mode path, failed crops, and a custom-layout cover.</li>
+        </ul>
+        <p>This does not repair books already uploaded with the stale data-div; see the decision.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>C# build</td><td class="pass">Pass</td><td>Warnings only, all pre-existing.</td></tr>
+            <tr><td>C# tests, related</td><td class="pass">Pass</td><td><span class="numeral">92/92</span> ImageProcessing; <span class="numeral">265/265</span> BookData, BookUpload, PublishHelper.</td></tr>
+            <tr><td>C# tests, full suite</td><td class="pass">Pass*</td><td><span class="numeral">2901 passed · 13 skipped · 1 failed</span> of <span class="numeral">2915</span>. *The one failure is the Reading App Builder real-build test (Reading App Builder finished without producing an APK). It depends on the local machine setup and has nothing to do with image cropping.</td></tr>
+            <tr><td>TypeScript typecheck, lint, tests</td><td class="na">Not run</td><td>No front-end files in the diff, and nothing in it is read by the front end.</td></tr>
+            <tr><td>Merge with Version6.4</td><td class="pass">Up to date</td><td>No conflicts.</td></tr>
+            <tr><td>CI (pr-automation)</td><td class="pass">Pass</td><td>At the latest commit.</td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="summary">Version6.4 has no <code>build/agent-dotnet</code> wrapper, so tests ran with plain <code>dotnet test</code> in this separate worktree; nothing else was using its output.</p>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Created the draft PR from the agent's fix, then fixed three review findings: the local review's custom-layout case and two Devin bugs about failed crops. Linked the PR and posted test ideas on the card. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8393/commits" target="_blank" rel="noopener">Four commits</a>, to be squashed before human review.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr><td>Local review</td><td class="pass">Complete</td><td>Light sub-agent pass: 1 finding, fixed. The custom-layout cover's style was being copied into the data-div.</td></tr>
+            <tr><td>Devin</td><td class="pass">Complete</td><td>2 bugs over three rounds, both fixed (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8393#discussion_r4079260183" target="_blank" rel="noopener">failed crop</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8393#discussion_r4079317158" target="_blank" rel="noopener">duplicate failed crop</a>). The last round marks both resolved. No Investigate flags.</td></tr>
+            <tr><td>Other review bots</td><td class="na">None</td><td>None active on this PR.</td></tr>
+            <tr><td>CI</td><td class="pass">Complete</td><td>pr-automation passed.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Not exercised by hand: no real upload to the dev library has been done with this build. The test ideas on the card cover that.</li>
+          <li>Pre-existing, unchanged: on a custom-layout cover, the standard layout's data-div entry still keeps the old crop style while its source file now points at the cropped file. Switching such a book back to the standard layout after upload could still show a double crop.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card q" id="q1">
+        <h2>Books already on Bloom Library</h2>
+        <p>This PR fixes new uploads only. Books uploaded with a 6.4 build that has BL-16173 (roughly since May 2026) and a cropped cover already have the stale crop in their data-div on Bloom Library. Every time the harvester processes one of them, it copies that crop back onto the page before any of this code runs, so their online reader, thumbnail and BloomPUB covers stay over-cropped. The authors' own copies are fine, because upload crops a temporary copy.</p>
+        <label class="opt"><input type="radio" name="q1" id="q1-harvester" data-q="q1" checked
+          data-instruction="Create a YouTrack card (6.4 board) for a harvester-side repair of BL-16907 books: before the harvester loads a downloaded book, for each bloomDataDiv image entry with a data-book whose style differs from the page img with the same data-book (skipping custom-layout pages), copy the page img's style into the data-div entry; then re-harvest books uploaded with a 6.4 build containing commit f34507fe57 that have a cropped cover. Link it from BL-16907.">
+          <span>File a card for a harvester-side repair plus re-harvest of affected books<span class="tag">Recommended</span><br><span class="foot">recommended because authors don't know their books are affected and re-uploading is manual; this keeps PR #8393 focused (moderate: a small fix in the harvester's Bloom, plus finding and re-harvesting the affected books)</span></span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1-reupload" data-q="q1"
+          data-instruction="Take no code action for already-uploaded BL-16907 books; once PR #8393 (BloomBooks/BloomDesktop, branch BL-16907-double-crop) ships in a 6.4 release, ask the authors of affected books (uploaded with 6.4 since f34507fe57, with a cropped cover) to re-upload them, starting with the reporter of BL-16907.">
+          <span>Ask affected authors to re-upload once the fix ships<br><span class="foot">no code; relies on reaching authors, and books whose authors don't act stay wrong</span></span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1-leave" data-q="q1"
+          data-instruction="Leave as is — take no action on: books already on Bloom Library with a stale data-div crop from BL-16907 stay over-cropped.">
+          <span>Leave as is</span></label>
+        <div class="opt row"><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="q1" id="q1-other" data-q="q1" data-instruction="OTHER"> Other:</label><input class="other" type="text" id="q1-other-text" data-q="q1-other" aria-label="Other answer for books already on Bloom Library"></div>
+        <textarea id="q1-notes" data-q="q1-notes" rows="2" placeholder="Notes" aria-label="Notes on books already on Bloom Library"></textarea>
+      </section>
+
+      <section class="card q" id="q2">
+        <h2>Next step</h2>
+        <label class="opt"><input type="radio" name="q2" id="q2-review" data-q="q2" checked
+          data-instruction="Act on the answer above, then leave PR #8393 (BloomBooks/BloomDesktop, branch BL-16907-double-crop, base Version6.4) in draft for the developer's own review; the developer runs pr-ready-for-human afterwards.">
+          <span>Act on the answer above, then leave the PR draft for your own review<span class="tag">Recommended</span><br><span class="foot">recommended because the code is done and green; next is your review, then pr-ready-for-human (no code)</span></span></label>
+        <label class="opt"><input type="radio" name="q2" id="q2-discuss" data-q="q2"
+          data-instruction="Before acting, discuss PR #8393 (BloomBooks/BloomDesktop, branch BL-16907-double-crop) and the handling of already-uploaded books with the developer.">
+          <span>Discuss first<br><span class="foot">no code</span></span></label>
+        <label class="opt"><input type="radio" name="q2" id="q2-leave" data-q="q2"
+          data-instruction="Leave as is — take no action on: PR #8393 stays draft and nothing else happens.">
+          <span>Leave as is</span></label>
+        <div class="opt row"><label style="display:flex;gap:8px;align-items:center"><input type="radio" name="q2" id="q2-other" data-q="q2" data-instruction="OTHER"> Other:</label><input class="other" type="text" id="q2-other-text" data-q="q2-other" aria-label="Other next step"></div>
+        <textarea id="q2-notes" data-q="q2-notes" rows="2" placeholder="Notes" aria-label="Notes on next step"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="summary">Paste this into a Claude Code session.</p>
+        <button type="button" id="copy">Copy answers</button>
+        <span id="status" role="status"></span>
+        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16907-double-crop.html";
+  var questions = [
+    { id: "q1", title: "Books already on Bloom Library with a stale data-div crop (BL-16907)" },
+    { id: "q2", title: "Next step for PR #8393" }
+  ];
+  function build() {
+    var lines = [
+      "Decisions from a preflight report",
+      "Repo: BloomBooks/BloomDesktop, branch BL-16907-double-crop (PR #8393, base Version6.4), card BL-16907",
+      "Worktree: C:\\dev\\_worktrees\\BloomDesktop\\BL-16907-double-crop",
+      "Date: 2026-09-22",
+      "Full report: " + URL_,
+      ""
+    ];
+    questions.forEach(function (q) {
+      lines.push("## " + q.title);
+      var chosen = document.querySelector('input[name="' + q.id + '"]:checked');
+      if (chosen) {
+        if (chosen.getAttribute("data-instruction") === "OTHER") {
+          lines.push("Other: " + (document.getElementById(q.id + "-other-text").value.trim() || "(no text)"));
+        } else {
+          lines.push(chosen.getAttribute("data-instruction"));
+        }
+      }
+      var notes = document.getElementById(q.id + "-notes").value.trim();
+      if (notes) lines.push("Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n").trim();
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  document.querySelectorAll(".other").forEach(function (box) {
+    box.addEventListener("focus", function () {
+      document.getElementById(box.id.replace("-text", "")).checked = true; refresh();
+    });
+  });
+  refresh();
+  var status = document.getElementById("status");
+  document.getElementById("copy").addEventListener("click", async function () {
+    status.className = ""; status.textContent = "";
+    try {
+      refresh(); payload.focus(); payload.select();
+      var copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; } catch (e) {
+        try { payload.select(); copied = document.execCommand("copy"); } catch (e2) { copied = false; }
+      }
+      if (copied) { status.className = "ok"; status.textContent = "Copied ✓"; }
+      else { status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
