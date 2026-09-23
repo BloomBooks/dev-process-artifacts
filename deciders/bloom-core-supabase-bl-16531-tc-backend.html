@@ -81,12 +81,12 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <div class="wrap">
 <header>
   <h1>Team Collections backend preflight: bloom-core-supabase PR #13</h1>
-  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>730a7bb0fe</code>. Gates green, every reviewer finished. Devin and Greptile both found real problems in the backend logic carried over from BloomDesktop#8052; 4 questions for you.</p>
+  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>25d31cd</code>. Your decisions are implemented, all gates are green, and every reviewer finished clean. Nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
-    <span class="chip warn">9 bot threads open for your decision</span>
-    <span class="chip warn">4 decisions waiting</span>
+    <span class="chip good">Bots quiet · 17/17 threads resolved</span>
+    <span class="chip good">No decisions waiting</span>
   </div>
   <nav class="links">
     <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">PR #13</a>
@@ -103,16 +103,16 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
   <section class="card lead">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend sitting in the Bloom Editor repo by mistake. The backend belongs in bloom-core-supabase so it can be reviewed, merged and deployed separately from the Bloom client. The client side, starting with the Share dialog (BloomDesktop #8394), is written against it.</p>
+    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend sitting in the Bloom Editor repo by mistake. The backend belongs in bloom-core-supabase so it can be reviewed, merged and deployed separately from the Bloom client. The client, starting with the Share dialog (BloomDesktop #8394), is written against it. Reviewing the port also turned up real security and concurrency problems in that carried-over backend.</p>
     <h3>What the PR does</h3>
-    <p>It brings the backend over from #8052 with its behavior unchanged, fitted to this repo's conventions:</p>
     <ul>
-      <li><strong>Database:</strong> the <code>tc</code> Postgres schema as declarative files in <code>supabase/schemas/tc/</code>, plus the initial migration generated from them. It covers collections, members and roles, books, checkouts and history, with row-level security and the RPCs the client calls. Its pgTAP tests run on Postgres 17 (the source used 15).</li>
-      <li><strong>Edge functions:</strong> seven functions (two-phase check-in and download, and the stale-upload sweep), with names unchanged. Shared helpers are in <code>_shared/tc/</code>, the AWS SDK is pinned exactly, and the Deno tests moved to where CI runs them.</li>
-      <li><strong>Local dev stack and ops:</strong> MinIO via compose, dev credentials, a smoke test, AWS provisioning and Firebase claim scripts, plus the contract, schema and go-live docs. All of it is under <code>team-collections/</code>.</li>
-      <li><strong>Config:</strong> <code>config.toml</code> exposes the <code>tc</code> schema and seeds TC dev accounts. Existing functions are untouched. Also an <code>AGENTS.md</code> declaring the repo basics and the YouTrack tracker.</li>
+      <li><strong>Port (first commit):</strong> the <code>tc</code> schema as declarative files plus its generated migration, the seven edge functions and their tests, the local dev stack and ops scripts under <code>team-collections/</code>, and an <code>AGENTS.md</code>.</li>
+      <li><strong>Security:</strong> members can no longer call the "finish" functions directly. The edge function identifies the caller from their own token, then calls finish with the service role. Taking over someone else's checkout now needs a secret checkout token, stored only as a hash.</li>
+      <li><strong>Concurrency and data safety:</strong> finish rechecks the lock and base version, so stale work can't overwrite newer work. Row locks are taken in one order, so retries are idempotent and there are no deadlocks. The stale-upload sweep waits a 48-hour grace period and rechecks each file before deleting it. Paths are Unicode-normalized, and rename conflicts and oversized sizes are refused, all at start.</li>
+      <li><strong>Ops:</strong> the S3 endpoint is optional on hosted deployments, and the sweep's IAM permissions are complete.</li>
+      <li><strong>CI:</strong> a new <code>db-tests</code> job runs the pgTAP suite on every PR.</li>
     </ul>
-    <p>Nothing is live until someone applies the migration and sets the TC secrets on a hosted project.</p>
+    <p>The contract changes the Bloom client must follow are in <code>team-collections/docs/CONTRACTS.md</code> v1.8. Nothing is live until the migration is applied and the TC secrets are set on a hosted project.</p>
   </section>
 
   <section class="card">
@@ -121,12 +121,11 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <table>
       <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
       <tbody>
-        <tr><td>Deno type-check (<code>deno check --frozen</code>, all functions)</td><td class="pass">pass</td><td><span class="numeral">51 files</span></td></tr>
-        <tr><td>Deno tests (<code>pnpm test:ci</code>)</td><td class="pass">pass</td><td><span class="numeral">121 passed · 0 failed · 9 ignored</span> (the ignored ones are existing tests that need secrets); <span class="numeral">38</span> are TC tests</td></tr>
-        <tr><td>Database tests (pgTAP, local Supabase on Podman, Postgres 17)</td><td class="pass">pass</td><td><span class="numeral">102/102 in 3 files</span>; migration and seed applied cleanly. Not run in CI (question 3).</td></tr>
-        <tr><td>Generated migration matches the schema files</td><td class="pass">pass</td><td>byte-identical to the concatenation</td></tr>
+        <tr><td>Deno type-check (<code>deno check --frozen</code>)</td><td class="pass">pass</td><td>CI <code>test</code> job at <code>25d31cd</code></td></tr>
+        <tr><td>Deno tests (<code>pnpm test:ci</code>)</td><td class="pass">pass</td><td>CI at <code>25d31cd</code>; locally <span class="numeral">132 passed · 9 ignored</span> (ignored = existing tests that need secrets)</td></tr>
+        <tr><td>Database tests (pgTAP)</td><td class="pass">pass</td><td>new CI <code>db-tests</code> job at <code>25d31cd</code>; locally <span class="numeral">158/158</span> on Postgres 17 before the last three small commits</td></tr>
+        <tr><td>Generated migration matches the schema files</td><td class="pass">pass</td><td>regenerated with every schema change</td></tr>
         <tr><td>Lint / format</td><td>N/A</td><td>this repo doesn't use them</td></tr>
-        <tr><td>CI (<code>test</code>)</td><td class="pass">pass</td><td>type-check + <code>pnpm test:ci</code></td></tr>
         <tr><td>Merge with develop</td><td class="pass">clean</td><td>already up to date</td></tr>
       </tbody>
     </table>
@@ -135,106 +134,46 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Created the branch from the latest <code>develop</code>, ported the backend (one commit), and added <code>AGENTS.md</code>/<code>CLAUDE.md</code> declaring the tracker. Then ran the database tests on Postgres 17, opened the draft PR, and linked it on BL-16531. No code was changed in response to the reviews: every finding is in carried-over logic and waits on question 1. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">2 commits</a>.</p>
+    <p>Put your decisions in place:
+    <ul>
+      <li>All the bots' findings are fixed in this PR, in their own commits after the port, so you can review them separately.</li>
+      <li>The pgTAP CI job is added, and the staging deploy is left as is.</li>
+    </ul>
+    Then four more short rounds with Devin and the local review. They turned up a lock-order deadlock, an abort/finish race, an oversized-size 500, and two knock-ons of the abort fix, all fixed with tests. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">8 commits</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Clean for the port. It checked import paths, the per-function import maps, the config merge, the regenerated migration, script paths and Postgres 17 compatibility.</div>
-    <div class="reviewer"><strong>Devin: complete, at <code>730a7bb0fe</code></strong>It found 3 bugs: the <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4085055690" target="_blank" rel="noopener">sweep deleting a just-committed version</a>, <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4085056160" target="_blank" rel="noopener">stale check-ins overwriting newer work</a>, and <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4085056588" target="_blank" rel="noopener">Unicode paths</a>. It also raised 2 points to check: <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4085057378" target="_blank" rel="noopener">rename conflicts</a> (open) and the realtime topic (answered, resolved).</div>
-    <div class="reviewer"><strong>Greptile: complete</strong>It found 6 P1s: the production S3 endpoint is required although the docs say to leave it unset; the sweep lacks IAM permissions; the <em>finish</em> RPCs let a member skip S3 verification (security); lock takeover can be replayed from visible metadata (security); a check-in lock race; and non-idempotent concurrent retries. Each has a reply and is open.</div>
-    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> passed.</div>
+    <div class="reviewer"><strong>Local review: light sub-agent pass (on the port, and again on the fixes)</strong>The port was clean. On the fixes it found one lock-order deadlock between check-in start and finish, since fixed. It confirmed the checkout-token hash isn't readable by members and that nothing else reaches the finish logic.</div>
+    <div class="reviewer"><strong>Devin: complete (6 runs, the last clean at <code>25d31cd</code>)</strong>It raised 7 bugs across the rounds, all marked fixed by Devin, plus points to check. Every one has a resolved thread with its outcome.</div>
+    <div class="reviewer"><strong>Greptile: complete (3 reviews, the last at <code>25d31cd</code>)</strong>"The PR appears safe to merge; the previous findings were manually resolved, and the changes since the prior review introduce no actionable regression." Its 6 P1s from the first review are fixed.</div>
+    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> and <code>db-tests</code> both pass.</div>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>None of these problems is a regression from the port. The same code is in #8052, where only the final tree was ever tested.</li>
-      <li>Merging to <code>develop</code> deploys all seven TC functions to staging. Without the <code>tc</code> schema and secrets there they fail straight away, and existing functions are unaffected.</li>
-      <li>The edge functions haven't been served end to end here: the MinIO smoke test wasn't run. Only the unit and database tests ran.</li>
+      <li>The Bloom client in #8052 isn't on master and doesn't yet follow CONTRACTS.md v1.8. It will need the checkout token (save it, and send it on takeover), NFC upload paths, and the new InvalidManifest / LockHeldByOther / BaseVersionSuperseded answers.</li>
+      <li>Merging to <code>develop</code> deploys the seven TC functions to staging (you chose to leave that as is). They fail straight away until the schema and secrets exist.</li>
+      <li>The functions haven't been served end to end against MinIO (the smoke test); only unit and database tests ran.</li>
+      <li>The last three commits (the abort fixes) were verified by CI's database tests only. A local run was stopped by Claude Code when the machine ran low on memory.</li>
     </ul>
   </section>
 </main>
 
 <aside>
-  <section class="card decision" data-item="1">
-    <h2>Where to fix the backend problems the bots found</h2>
-    <p class="context">Devin and Greptile together raised about ten real problems in the backend logic, all carried over unchanged from #8052. Two are security holes: a member can call the internal "finish" functions directly and skip the server's check of what was uploaded, and a member can take over someone else's checkout by replaying machine details anyone in the collection can see. Several are races that can lose or overwrite work: the sweep, stale check-ins, lock acquisition, retries. Two are small operational mistakes: the S3 endpoint setting and missing IAM permissions. Some are one-line fixes; the security two and the sweep need design decisions. None of it is reachable until the schema and secrets are set up on a hosted project.</p>
-    <label class="option"><input type="radio" name="q1" id="q1-a" value="Follow-up hardening PR stacked on #13" data-q="1" checked><span>Keep #13 a straight port and fix these in a follow-up hardening PR on top of it, before go-live. Recommended because reviewers can then check the port against #8052 line for line, and see each fix on its own. <span class="tag">recommended</span><br><span class="foot">(moderate to large: about six small SQL/config fixes with tests, plus design work for finish verification, takeover and the sweep)</span></span></label>
-    <label class="option"><input type="radio" name="q1" id="q1-b" value="Fix in this PR" data-q="1"><span>Fix them in this PR before it merges.<br><span class="foot">(same work; makes #13 harder to review as a port)</span></span></label>
-    <div class="leave"><label class="option"><input type="radio" name="q1" id="q1-c" value="Leave as is" data-q="1"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q1-lc" data-q="1" data-kind="leave-comment"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q1" id="q1-d" value="Other" data-q="1"><span>Other:</span><input class="other-text" type="text" id="q1-other" data-q="1" data-kind="other"></label>
-    <textarea id="q1-notes" rows="2" placeholder="Notes" data-q="1" data-kind="notes"></textarea>
-  </section>
-
-  <section class="card decision" data-item="2">
-    <h2>Deploying the TC functions to staging on merge</h2>
-    <p class="context">The staging and production workflows run <code>supabase functions deploy</code> with no names, so merging deploys all seven TC functions. Until someone applies the schema and sets the secrets, those endpoints just return errors. Existing functions are unaffected.</p>
-    <label class="option"><input type="radio" name="q2" id="q2-a" value="Deploy only named functions until go-live" data-q="2"><span>Change both workflows to deploy only the existing functions by name until TC goes live.<br><span class="foot">(~4 lines in two workflows; someone has to remember to undo it at go-live)</span></span></label>
-    <div class="leave"><label class="option"><input type="radio" name="q2" id="q2-c" value="Leave as is" data-q="2" checked><span>Leave as is <span class="tag">recommended</span>: the functions fail straight away without the schema and secrets, so deploying them early does no harm, and it proves they bundle and deploy.</span></label><label class="lc"><input type="checkbox" id="q2-lc" data-q="2" data-kind="leave-comment"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q2" id="q2-d" value="Other" data-q="2"><span>Other:</span><input class="other-text" type="text" id="q2-other" data-q="2" data-kind="other"></label>
-    <textarea id="q2-notes" rows="2" placeholder="Notes" data-q="2" data-kind="notes"></textarea>
-  </section>
-
-  <section class="card decision" data-item="3">
-    <h2>Run the database tests in CI</h2>
-    <p class="context">The 102 pgTAP tests pass locally but no workflow runs them, so a schema change could break them unnoticed. A CI job would start the local database in the GitHub runner, apply the migration, and run <code>supabase test db</code>.</p>
-    <label class="option"><input type="radio" name="q3" id="q3-a" value="Add a pgTAP CI job" data-q="3" checked><span>Add a CI job for the database tests, recommended because the schema is the riskiest part and the tests already exist. <span class="tag">recommended</span><br><span class="foot">(~25 lines of workflow; adds a couple of minutes to each PR run)</span></span></label>
-    <div class="leave"><label class="option"><input type="radio" name="q3" id="q3-c" value="Leave as is" data-q="3"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q3-lc" data-q="3" data-kind="leave-comment"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q3" id="q3-d" value="Other" data-q="3"><span>Other:</span><input class="other-text" type="text" id="q3-other" data-q="3" data-kind="other"></label>
-    <textarea id="q3-notes" rows="2" placeholder="Notes" data-q="3" data-kind="notes"></textarea>
-  </section>
-
-  <section class="card decision" data-item="4">
-    <h2>Next step</h2>
-    <label class="option"><input type="radio" name="q4" id="q4-a" value="Implement the choices above, then re-run preflight" data-q="4" checked><span>Implement the choices above, then re-run preflight. <span class="tag">recommended</span></span></label>
-    <label class="option"><input type="radio" name="q4" id="q4-b" value="Discuss first" data-q="4"><span>Discuss first.</span></label>
-    <div class="leave"><label class="option"><input type="radio" name="q4" id="q4-c" value="Leave as is" data-q="4"><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q4-lc" data-q="4" data-kind="leave-comment"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q4" id="q4-d" value="Other" data-q="4"><span>Other:</span><input class="other-text" type="text" id="q4-other" data-q="4" data-kind="other"></label>
-    <textarea id="q4-notes" rows="2" placeholder="Notes" data-q="4" data-kind="notes"></textarea>
-  </section>
-
   <section class="card">
-    <h2>Send your answers back</h2>
-    <p>Copies every answer as plain text to paste into the session.</p>
-    <p><button class="copy" id="copy-btn" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></p>
-    <textarea id="payload" rows="10" readonly></textarea>
+    <h2>Nothing waiting on you</h2>
+    <p>Your answers from the last report are in place:</p>
+    <ul>
+      <li><strong>Where to fix:</strong> in this PR, as separate commits after the port, ready to squash before another person reviews it.</li>
+      <li><strong>Staging deploy:</strong> left as is.</li>
+      <li><strong>Database tests in CI:</strong> added (<code>db-tests</code>).</li>
+    </ul>
+    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review, and squashes it if you want.</p>
   </section>
 </aside>
 </div>
 </div>
-<script>
-const TITLES = {
-  "1": "Where to fix the backend problems",
-  "2": "Deploying TC functions to staging",
-  "3": "Database tests in CI",
-  "4": "Next step",
-};
-function serialize() {
-  const lines = ["Preflight answers for bloom-core-supabase PR #13 (BL-16531)", ""];
-  for (const q of Object.keys(TITLES)) {
-    lines.push(`${q}. ${TITLES[q]}`);
-    const picked = document.querySelector(`input[type=radio][data-q="${q}"]:checked`);
-    let choice = picked ? picked.value : "(none)";
-    if (choice === "Other") choice = "Other: " + (document.getElementById(`q${q}-other`).value || "");
-    lines.push(`   Choice: ${choice}`);
-    if (document.getElementById(`q${q}-lc`).checked) lines.push("   Leave comment");
-    const notes = document.getElementById(`q${q}-notes`).value.trim();
-    if (notes) lines.push(`   Notes: ${notes}`);
-    lines.push("");
-  }
-  document.getElementById("payload").value = lines.join("\n");
-}
-document.addEventListener("input", serialize);
-document.addEventListener("change", serialize);
-document.getElementById("copy-btn").addEventListener("click", async () => {
-  serialize();
-  const box = document.getElementById("payload");
-  try { await navigator.clipboard.writeText(box.value); }
-  catch { box.select(); document.execCommand("copy"); }
-  document.getElementById("copied").hidden = false;
-});
-serialize();
-</script>
 </body>
 </html>
