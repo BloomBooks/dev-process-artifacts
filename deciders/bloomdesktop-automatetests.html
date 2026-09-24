@@ -1,4 +1,183 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UI-language e2e tests — preflight #8275</title>
+<style>
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --ink: #22262b;
+    --muted: #5d6570;
+    --rule: #dcdad3;
+    --accent: #2f5d7c;
+    --accent-soft: #e6eef4;
+    --good: #2e6b3f;
+    --good-soft: #e5f1e7;
+    --warn: #8a5a12;
+    --warn-soft: #f7eddb;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+    padding-block: 28px 48px; padding-inline: 20px;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  h2 { font-size: 1.2rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin: 14px 0 4px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--accent); }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px;
+    font-size: 0.82rem; border: 1px solid var(--rule); background: var(--card); color: var(--ink);
+    text-decoration: none;
+  }
+  .chip.good { background: var(--good-soft); border-color: #bcd9c2; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: #e6cfa4; color: var(--warn); }
+  .chip.state { background: var(--accent-soft); border-color: #c3d5e3; color: var(--accent); }
+  a.chip:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  section.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+  section.card ul { margin: 0 0 8px; padding-left: 1.2em; }
+  section.card li { margin-bottom: 5px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.86rem; }
+  .ok { color: var(--good); font-weight: 600; }
+  .note { color: var(--warn); font-weight: 600; }
+  .na { color: var(--muted); }
+  code { font-family: var(--mono); font-size: 0.86em; background: #f1f0eb; padding: 0 3px; border-radius: 3px; }
+  .decision p { max-width: 62ch; }
+  fieldset { border: 0; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .foot { color: var(--muted); font-size: 0.85rem; }
+  .tag { font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-left: 4px; }
+  .leave-row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .leave-row .lc { font-size: 0.85rem; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+  .other-text { flex: 1; min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+  textarea { width: 100%; font: inherit; font-size: 0.9rem; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+  .notes { margin-top: 10px; }
+  .notes label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 3px; }
+  button {
+    font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+    padding: 8px 16px; cursor: pointer;
+  }
+  .copied { color: var(--good); font-size: 0.88rem; margin-left: 8px; }
+  #payload { margin-top: 10px; font-family: var(--mono); font-size: 0.82rem; min-height: 150px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>UI-language e2e tests (BL-16832)</h1>
+  <p class="summary">Preflight after rebasing onto master and reconciling with the overlapping Pseudo-English and per-instance-settings work. Every gate green except one known e2e flake; nothing waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">No decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8275" target="_blank" rel="noopener">PR #8275</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8275/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8275/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16832" target="_blank" rel="noopener">BL-16832</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8275" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8275" target="_blank" rel="noopener">Reviewable</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Nothing automatically checked that changing Bloom's interface language actually changes what is on screen, although translated text reaches the UI by several separate routes, any of which can break silently. The "Show translations which have not been approved yet" option, and the language menu in the Choose Collection dialog, had no automated coverage at all. This is manual Test Case 69, "change UI language repeatedly".</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>A workspace test switches the real language menu through English, French, Spanish and Turkish, checking one visible string per translation route after each switch. It then checks the unapproved-translations gate both ways, using Turkish text that is translated but never approved.</li>
+      <li>A second test starts Bloom at the Choose Collection dialog, switches the dialog to French, then opens a collection and checks the whole workspace comes up in French.</li>
+      <li>The e2e fixture gains a Choose-Collection launch mode and a way to re-find Bloom's page after a language change rebuilds it. It shares master's per-launch settings folder, so no test touches the developer's own settings. The language helpers extend master's Pseudo-English ones.</li>
+      <li>Bloom itself changes in one place, and only when started by the tests: it skips its self-restart when the unapproved option is toggled, and the test restarts it instead.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck (BloomE2E)</td><td><span class="ok">Pass</span></td></tr>
+        <tr><td>Formatting (Prettier on changed TypeScript)</td><td><span class="ok">Pass</span></td></tr>
+        <tr><td>Lint</td><td class="na">N/A: BloomE2E has no lint script, and no front-end source is in the diff</td></tr>
+        <tr><td>Merge with master</td><td><span class="ok">Clean</span>, merged again at <span class="numeral">391f653da3</span></td></tr>
+        <tr><td>C# build (Bloom.exe)</td><td><span class="ok">Pass</span>, rebuilt after the revert</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="ok">Pass</span> <span class="numeral">3552 passed · 1 skipped</span> (before the revert, which only restores master's code in two files)</td></tr>
+        <tr><td>BloomE2E, the three UI-language specs</td><td><span class="ok">Pass</span> <span class="numeral">3 / 3</span>, Bloom on monitor 1, after the revert</td></tr>
+        <tr><td>BloomE2E, full suite</td><td><span class="note">73 / 74</span> — <code>copy-page.spec.ts</code> failed on a known, pre-existing flake (see below); it failed again run alone, and passed on this morning's master nightly (a machine-specific issue, now noted in the debt entry)</td></tr>
+        <tr><td>BloomE2E, master's new decodable-reader test</td><td><span class="ok">Pass</span> <span class="numeral">1 / 1</span>, through this branch's fixture</td></tr>
+        <tr><td>Front-end unit tests (vitest)</td><td class="na">Not run — the diff has no front-end source; the only BloomBrowserUI change came in with master</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>After your answer, took the dialog focus and placement change back out (<code>ReactDialog.cs</code> and <code>Program.cs</code> are master's again), recorded the resulting gap in AUTOMATION-DEBT.md, and merged master again. Earlier in the run: rebased the branch onto master, then reconciled it with the overlapping work: merged <code>uiLanguage.ts</code>, and removed the back-up-and-restore of the developer's <code>user.config</code> in favor of master's per-launch settings folder. Then built and ran the tests for real. That surfaced a genuine interaction: "English" matched the new "Pseudo-English" menu entry, so language entries are now matched on their whole label. It also led to two review fixes. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275/commits" target="_blank" rel="noopener">commit list</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td>Local review</td><td>Light sub-agent pass (Opus): 3 raised, 2 fixed (the Choose Collection page search now ignores another Bloom's pages; a close-wait can no longer leave an unhandled error), 1 escalated: you chose to take the dialog focus change out of this PR, and it is gone.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">391f653da3</span>. Nothing new against current code. Ten earlier bugs are now marked resolved, and the remaining flags describe fixed or deleted code. Outcomes recorded on the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275#issuecomment-5802381379" target="_blank" rel="noopener">consultation log</a> and each thread.</td></tr>
+        <tr><td>Reviewable</td><td>All 7 mirrored discussions resolved; the check waits only on a human marking files reviewed.</td></tr>
+        <tr><td>Greptile / CodeRabbit</td><td>Not reviewing this repo: CodeRabbit is turned off here, and Greptile is not working.</td></tr>
+        <tr><td>CI</td><td><code>pr-automation</code> passed.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The one full-suite failure is the <code>selectPage</code> drop that <a href="https://github.com/BloomBooks/BloomDesktop/blob/d5863419fcb4fd7c22eb35834fbddbe9ccf39b98/src/BloomE2E/AUTOMATION-DEBT.md#L339" target="_blank" rel="noopener">AUTOMATION-DEBT.md</a> already records for this very test on developer machines. Nothing in this PR touches page selection.</li>
+      <li>While <code>ui-language-chooser.spec.ts</code> runs, its Choose Collection dialog opens in front of you and takes the keyboard for about a minute, whatever <code>BLOOM_AUTOMATION_MONITOR</code> says. That is expected for now and recorded in AUTOMATION-DEBT.md.</li>
+      <li>Andrew approved before the rebase. Preflight put the PR back to draft, and the rebase changed a good deal, so it needs a fresh look.</li>
+      <li>A fresh test Bloom's interface language follows the operating system's, so on a machine set up in another language the chooser test fails at its first English check, by design.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None waiting. The one question from this run, whether dialogs should stop taking the keyboard under <code>--automation</code>, was answered: the change is out of this PR, the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8275#discussion_r4087581225" target="_blank" rel="noopener">review thread</a> records why, and the wider question is going to the developers.</p>
+  </section>
+</div>
+</div>
+</div>
+</body>
+</html>
