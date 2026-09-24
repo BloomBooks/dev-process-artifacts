@@ -41,38 +41,40 @@ table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #eee;pad
 <div>
 <section class="card"><h2>What this PR is about</h2>
 <h3>Problem</h3>
-<p>A user on Bloom 6.4 could not select a book. Writing license.png failed with "access denied", and writing the QR code picture failed with a GDI+ "generic error", which stopped book selection. The ACLs allowed the write and ReadOnly was off, so the existing diagnostic explained nothing. The card blamed antivirus, with no evidence either way.</p>
-<h3>Investigation</h3>
-<p>In one book update Bloom writes license.png twice (two calls that set the license metadata), overwriting in place each time. It deletes the file only when the license has no image. The QR code picture is only ever overwritten. So Bloom does not delete and recreate these files in one pass, and a file left "delete pending" by Bloom is not the cause. The reporter's machine had Avast with real-time protection on and Defender passive; that shows what was running, not that Avast blocked the write.</p>
+<p>Users on Bloom 6.3 and 6.4 get "access denied" when Bloom refreshes small pictures in a book folder (license.png, thumbnail.png, branding logos, the QR code). The file's owner is the user, ReadOnly is off and the permissions allow writing, so our existing diagnostic explained nothing. A failed QR code write also stopped the book from being selected at all.</p>
+<h3>Cause (suspected, not confirmed)</h3>
+<p>Every report of this kind so far (<a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16507">BL-16507</a>, <a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16915">BL-16915</a>, <a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16919">BL-16919</a>) had Avast running with real-time protection on and the book under Documents, which Avast's Ransomware Shield protects by default. Bloom itself is not at fault: within one book update it overwrites these files in place and never deletes and recreates them.</p>
 <h3>What the PR does</h3>
 <ul>
-<li>The shared file-error report (PNGs, support files, service keys, so any file-write refusal gets this) now records whether the file exists, full file and folder attributes including cloud-placeholder flags, whether a read-only open works, the innermost sync-provider folder containing the file, Defender's Controlled Folder Access setting, and each antivirus product's real-time protection state. It is read-only and never throws.</li>
-<li>The PNG failure message names a suspect only when that evidence supports it: Controlled Folder Access on, or a sync provider or cloud placeholder. Otherwise it names none.</li>
-<li>A failed QR code write is now a small nonfatal notice, so the book still opens. The badge then shows no QR code, rather than a broken image or an old code that leads to a different page.</li>
+<li>When any file write is refused, the error report now also records whether the file exists (telling "missing" from "hidden from Bloom"), its and its folder's attributes, its cloud placeholder state, whether it can be opened for reading, which sync provider owns the folder (from the Windows Cloud Files API), Defender's Controlled Folder Access setting, which antivirus products have real-time protection on, and whether the file is under Documents. All of it only reads and never throws.</li>
+<li>The notice names a likely cause only when that evidence supports one: Controlled Folder Access on; Avast active with the book under Documents; or a sync provider or cloud placeholder.</li>
+<li>A failed QR code write is now a nonfatal notice, so the book still opens. The badge keeps pointing at the QR code file: the old picture if there is one, or a broken image if not, which makes the problem visible.</li>
 </ul>
 </section>
 <section class="card"><h2>Quality gate</h2>
 <table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>C# build</td><td>Pass</td></tr>
-<tr><td>C# tests (dotnet test, full suite)</td><td>Pass, <span class="numeral">3479 passed · 13 skipped</span> at HEAD</td></tr>
+<tr><td>C# tests (dotnet test, full suite)</td><td>Pass, <span class="numeral">3487 passed · 13 skipped</span> at HEAD</td></tr>
 <tr><td>Front-end typecheck, lint, vitest</td><td>Not run: no front-end files in the diff</td></tr>
-<tr><td>Merge with origin/Version6.5</td><td>Clean (fast-forward)</td></tr>
+<tr><td>Merge with origin/Version6.5</td><td>Clean</td></tr>
 </table>
 </section>
 <section class="card"><h2>What changed this run</h2>
-<p>First run. Opened the draft PR, then fixed two Devin findings: the badge now drops its QR code when the file can't be written, and the innermost sync folder is named. See the <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8398/commits">commits</a>.</p>
+<p>Merged the latest Version6.5, then fixed three Devin findings: the read-only open check no longer opens cloud files whose content isn't on disk (opening them would start a download), and the antivirus query now releases its Windows objects. Earlier in the day, outside a preflight run: the QR code behaviour was settled, sync providers now come from the Cloud Files API, the Avast cause was added, and the tests were trimmed. See the <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8398/commits">commits</a>.</p>
 </section>
 <section class="card"><h2>Reviewer outcomes</h2>
 <table>
-<tr><td>Local review (light sub-agent pass)</td><td>2 findings, both fixed: an accidental byte-order mark in three files, and one unguarded path parse.</td></tr>
-<tr><td>Devin</td><td>Complete for HEAD. 4 findings on the first commit, 2 fixed and 2 answered as not issues. The re-review raised one new one (an old QR code could come back after a layout change in the same session), answered and left as is. All threads have replies and are resolved.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings. It checked the Windows API declarations and struct sizes against the documented layouts.</td></tr>
+<tr><td>Devin</td><td>Complete for HEAD (9aebef59be), with no new findings. Across the PR every finding has a thread with its outcome: fixed, decided by Hatton, or answered as not an issue. No GitHub review threads are left open.</td></tr>
 <tr><td>CI (pr-automation)</td><td>Pass</td></tr>
+<tr><td>Reviewable</td><td>Its status shows open discussions. Reviewable counts the Devin threads separately from GitHub's resolved state; all of them are resolved on GitHub.</td></tr>
 </table>
 </section>
 <section class="card"><h2>Worth knowing</h2>
 <ul>
-<li>This has not been run by hand in a live Bloom. The unit tests cover it, including a real access-denied QR code write. The test ideas on the card say how to reproduce each failure.</li>
+<li>This has not been run by hand in a live Bloom. The unit tests cover it, including real access-denied QR code writes, and the collector was run once against real Dropbox and OneDrive folders.</li>
+<li>The Avast message rests on the pattern in error reports; no user has yet confirmed that allowing Bloom in Avast fixes it. <a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16919">BL-16919</a> has a comment asking the user to try.</li>
 </ul>
 </section>
 </div>
