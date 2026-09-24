@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bulk-upload flake preflight #8405</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ground: #f5f6f3;
+    --card: #ffffff;
+    --ink: #20262b;
+    --muted: #5b6570;
+    --rule: #d9ddd6;
+    --accent: #2b5f70;
+    --accent-soft: #e3eef1;
+    --good: #2e6b3f;
+    --good-soft: #e5f1e7;
+    --warn: #8a5a12;
+    --warn-soft: #f7eddb;
+    --code-bg: #eef0ec;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding-block: 28px 48px; padding-inline: 20px; }
+  .wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; line-height: 1.2; }
+  h2 { font-size: 1.2rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin: 14px 0 4px; }
+  p { margin: 0 0 10px; }
+  a { color: var(--accent); }
+  a:focus-visible, input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); max-width: 72ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 0.82rem; border: 1px solid var(--rule); background: var(--card); color: var(--ink); text-decoration: none; }
+  .chip.good { background: var(--good-soft); border-color: #bcd9c2; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: #e6cfa4; color: var(--warn); }
+  .chip.state { background: var(--accent-soft); border-color: #bcd3da; color: var(--accent); }
+  a.chip:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  section.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+  section.card ul { margin: 0 0 8px; padding-left: 1.2em; }
+  section.card li { margin-bottom: 5px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.86rem; }
+  .ok { color: var(--good); font-weight: 600; }
+  .note { color: var(--warn); font-weight: 600; }
+  .na { color: var(--muted); }
+  code { font-family: var(--mono); font-size: 0.86em; background: var(--code-bg); padding: 0 3px; border-radius: 3px; }
+  .decision p { max-width: 62ch; }
+  fieldset { border: 0; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .foot { color: var(--muted); font-size: 0.85rem; }
+  .tag { font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--accent); font-weight: 700; margin-left: 4px; }
+  .leave-row { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .leave-row .lc { font-size: 0.85rem; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+  .other-text { flex: 1; min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; background: var(--card); color: var(--ink); }
+  textarea { width: 100%; font: inherit; font-size: 0.9rem; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; background: var(--card); color: var(--ink); }
+  .notes { margin-top: 10px; }
+  .notes label { font-size: 0.82rem; color: var(--muted); display: block; margin-bottom: 3px; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+  .copied { color: var(--good); font-size: 0.88rem; margin-left: 8px; }
+  #payload { margin-top: 10px; font-family: var(--mono); font-size: 0.82rem; min-height: 130px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Bulk-upload test: check what Bloom uploaded (#8405, BL-16922)</h1>
+  <p class="summary">Preflight: the flaky test's cause is found (a server-side harvester race, filed as BL-16921), and the fix passes repeatedly. Nothing waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">No decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8405" target="_blank" rel="noopener">PR #8405</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8405/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16922" target="_blank" rel="noopener">BL-16922</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16921" target="_blank" rel="noopener">BL-16921 (harvester)</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8405" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+<div class="grid">
+<div>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p><code>bulk-upload-quick-test.spec.ts</code> (Test Case 211) failed about two runs in three. After the collection moves to another bookshelf and is re-uploaded, one book, a different one each time, still showed only the old shelf.</p>
+    <h3>Cause</h3>
+    <p>The sandbox's harvester, not Bloom. When a harvest finishes, it writes the whole book record back from the copy it read when it started. So a re-upload that lands mid-harvest is overwritten with older metadata, possibly including the record's pointer to the uploaded files, and is never re-harvested. Captured in one failing run: Book 2's harvest started 18:02:46, the re-upload landed 18:03:03, and the harvest finished 18:03:07, leaving the old shelf. Filed as BL-16921.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Bloom's bulk-upload log now says where each book's files went ("Uploaded files are at …"). Each upload goes to a new folder, and the record can later point elsewhere.</li>
+      <li>The test reads each book's uploaded <code>meta.json</code> (bookshelf) and HTML (front/back matter) from those logged folders, not from the server's records, and matches each folder to its own book.</li>
+      <li>The shelf check is stricter: exactly the new shelf, since Bloom sends only the current one.</li>
+    </ul>
+  </section>
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck (BloomE2E)</td><td><span class="ok">Pass</span></td></tr>
+        <tr><td>C# build and upload tests</td><td><span class="ok">Pass</span> <span class="numeral">22 / 22</span></td></tr>
+        <tr><td><code>bulk-upload-quick-test.spec.ts</code></td><td><span class="ok">Pass</span> in every run of the fix (six, across its versions); before it, two failures in three</td></tr>
+        <tr><td>Other e2e specs</td><td class="na">Not run: nothing else uses the changed helpers or the new log line</td></tr>
+        <tr><td>Front-end, visual regression</td><td class="na">Not run: nothing in the diff reaches them</td></tr>
+        <tr><td>Merge with master</td><td><span class="ok">Up to date</span></td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Replaced a first attempt (wait for the harvester) with checking what Bloom uploaded. Then fixed two review findings: Greptile's (the record's folder pointer can revert too, hence the new log line) and Devin's (tie each logged folder to its own book). The PR replaces #8404, which renaming the branch closed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a></p>
+  </section>
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Reviewer</th><th>State</th></tr></thead>
+      <tbody>
+        <tr><td>Local review</td><td>Light sub-agent pass (Opus): clean.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">e2d43b7f96</span>. Its one flag (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097664839" target="_blank" rel="noopener">book identity</a>) is fixed; the last round was clean.</td></tr>
+        <tr><td>Greptile</td><td>Reviewed only the first commit. Its P1 finding (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097630603" target="_blank" rel="noopener">stale record folder</a>) is fixed. A re-review needs someone signed in to Greptile.</td></tr>
+        <tr><td>CI</td><td><code>pr-automation</code> passed.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+<div>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None waiting.</p>
+  </section>
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The one Bloom change is an extra line in the bulk-upload log, which people read too; it names the public S3 folder each book went to.</li>
+      <li>The server-side bug the old check tripped over is real, and could affect a person who re-uploads a book quickly. It is BL-16921, Ready For Work on 6.6.</li>
+    </ul>
+  </section>
+</div>
+</div>
+</div>
+</body>
+</html>
