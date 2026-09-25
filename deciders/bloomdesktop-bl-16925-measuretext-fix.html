@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16925 MeasureText Fix Preflight</title>
+<style>
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5b616b;
+    --rule: #dcd9d0;
+    --accent: #2f5d8a;
+    --good: #1f7a45;
+    --good-bg: #e6f3eb;
+    --warn: #8a5a00;
+    --warn-bg: #fbf1dc;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: 24px 16px 48px;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 10px; }
+  h3 { font-size: 0.95rem; font-family: inherit; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 4px; }
+  p { margin: 0 0 8px; max-width: 70ch; }
+  ul { margin: 0 0 8px; padding-left: 20px; }
+  li { margin-bottom: 4px; max-width: 70ch; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font: 0.88em ui-monospace, Consolas, monospace; background: #efede7; padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .85rem; border: 1px solid var(--rule); background: var(--card); }
+  .chip.good { background: var(--good-bg); border-color: #b9dcc6; color: var(--good); }
+  .chip.warn { background: var(--warn-bg); border-color: #ecd6a6; color: var(--warn); }
+  .links a { font-size: .9rem; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); text-decoration: none; }
+  .links a:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); border-top: none; }
+  td.st { white-space: nowrap; font-weight: 600; }
+  td.st.good { color: var(--good); }
+  td.st.warn { color: var(--warn); }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+
+</head><body><div class="wrap">
+<header>
+<h1>BL-16925: MeasureText's measuring div stays usable</h1>
+<p class="summary">Preflight run on 2026-09-25, on <code>BL-16925-measuretext-fix</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/a85ceb271a118d506583f6569ec14a1f3902036c" target="_blank" rel="noopener"><span class="numeral">a85ceb2</span></a>.</p>
+<div class="row">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip good">Mergeable</span><span class="chip good">All threads resolved</span><span class="chip good">0 decisions waiting</span>
+</div>
+<div class="row links"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8410" target="_blank" rel="noopener">PR #8410</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8410/files" target="_blank" rel="noopener">Files changed</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8410/commits" target="_blank" rel="noopener">Commits</a> <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16925" target="_blank" rel="noopener">BL-16925</a> <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8410" target="_blank" rel="noopener">Devin review</a></div>
+</header>
+<div class="grid"><div class="col">
+<section class="card"><h2>What this PR is about</h2><h3>Problem</h3><p>MeasureText reuses one hidden div to measure a font's descent. After it measured text that started with a newline, every measurement over the next ~2 s came out about a line too big. OverflowChecker subtracts that amount, so up to about a line of real overflow could go unreported.</p>
+<h3>Cause</h3><p>The div was seeded by setting <code>innerText</code> to the text's first character. For a newline that inserts a <code>&lt;br&gt;</code>, so the later reuse updated nothing and measured from the wrong element.</p>
+<h3>What the PR does</h3><ul>
+<li>The div always holds a text node containing the first visible character, so each reuse has a text node to update.</li>
+<li>Its 2-second cleanup uses <code>remove()</code>, which doesn't throw if the div is already gone.</li>
+<li><code>utils/measureText.browser.spec.ts</code> checks measurements after text that starts with a newline or is only whitespace. Those cases fail without the fix.</li></ul>
+<p>There's no known user-visible symptom: Bloom's Edit tab strips that whitespace before overflow is checked. Stacked on #8408.</p></section>
+<section class="card"><h2>Quality gate</h2><div class="tablewrap"><table><tr><th>Check</th><th>Result</th><th>Detail</th></tr><tr><td>Typecheck</td><td class="st good">Pass</td><td><code>pnpm typecheck</code></td></tr>
+<tr><td>Lint</td><td class="st good">Pass</td><td>No errors on the two changed files.</td></tr>
+<tr><td>Base</td><td class="st good">Stacked</td><td>Based on the <code>BL-16925-overflow-tests</code> head (9b5cc14).</td></tr>
+<tr><td>TypeScript tests (Vitest, both projects)</td><td class="st good">Pass</td><td><span class="numeral">79 files · 972 passed · 2 skipped</span>. The browser project passes (<span class="numeral">29</span> tests) on the final head.</td></tr>
+<tr><td>C# tests (NUnit)</td><td class="st ">Not run</td><td>No C# in the diff.</td></tr></table></div></section>
+<section class="card"><h2>What changed this run</h2><p>First run: split out of #8408, opened as a draft PR against that branch, and linked on the card. Rebased once onto #8408's fixture fix.</p></section>
+<section class="card"><h2>Reviewer outcomes</h2><div class="tablewrap"><table><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr><tr><td>Local review (light sub-agent pass)</td><td class="st good">Complete</td><td>The production change is clean. It noted that the empty-text case passes without the fix too, so that case's comment now says it guards the new code path rather than the old bug.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8410" target="_blank" rel="noopener">Devin</a></td><td class="st good">Complete</td><td>Clean: no bugs and no flags, on both the first head and the rebased one.</td></tr>
+<tr><td>Greptile</td><td class="st good">Complete</td><td>It reviewed the first head, which has the same PR diff as now: safe to merge, nothing actionable.</td></tr>
+<tr><td>CodeRabbit</td><td class="st ">Not active</td><td>It isn't reviewing PRs on this repo.</td></tr>
+<tr><td>CI (GitHub checks)</td><td class="st good">Pass</td><td><code>pr-automation</code> passed.</td></tr></table></div></section>
+<section class="card"><h2>Worth knowing</h2><ul><li>When #8408 merges, retarget this PR's base to master.</li></ul></section>
+</div><div class="col"><section class="card"><h2>Decisions</h2><p>Nothing needs your decision.</p><p>Next step: your own review, then <code>pr-ready-for-human</code>.</p></section></div></div>
+</div></body></html>
