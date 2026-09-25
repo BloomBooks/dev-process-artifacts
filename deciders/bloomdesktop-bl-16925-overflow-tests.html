@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16925 Overflow Tests Preflight</title>
+<style>
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #5b616b;
+    --rule: #dcd9d0;
+    --accent: #2f5d8a;
+    --good: #1f7a45;
+    --good-bg: #e6f3eb;
+    --warn: #8a5a00;
+    --warn-bg: #fbf1dc;
+  }
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif;
+    padding: 24px 16px 48px;
+  }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.15rem; margin-bottom: 10px; }
+  h3 { font-size: 0.95rem; font-family: inherit; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 4px; }
+  p { margin: 0 0 8px; max-width: 70ch; }
+  ul { margin: 0 0 8px; padding-left: 20px; }
+  li { margin-bottom: 4px; max-width: 70ch; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font: 0.88em ui-monospace, Consolas, monospace; background: #efede7; padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .85rem; border: 1px solid var(--rule); background: var(--card); }
+  .chip.good { background: var(--good-bg); border-color: #b9dcc6; color: var(--good); }
+  .chip.warn { background: var(--warn-bg); border-color: #ecd6a6; color: var(--warn); }
+  .links a { font-size: .9rem; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); text-decoration: none; }
+  .links a:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .col { display: flex; flex-direction: column; gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 16px 18px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); border-top: none; }
+  td.st { white-space: nowrap; font-weight: 600; }
+  td.st.good { color: var(--good); }
+  td.st.warn { color: var(--warn); }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BL-16925: the OverflowChecker layout tests run again</h1>
+    <p class="summary">Preflight run on 2026-09-25, on <code>BL-16925-overflow-tests</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/c470393ebd41f71b959ab7e6bf888d29b0cbfd9b" target="_blank" rel="noopener" class="numeral">c470393</a>.</p>
+    <div class="row">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable</span>
+      <span class="chip good">Bots quiet</span>
+      <span class="chip good">0 decisions waiting</span>
+    </div>
+    <div class="row links">
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408" target="_blank" rel="noopener">PR #8408</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408/files" target="_blank" rel="noopener">Files changed</a>
+      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408/commits" target="_blank" rel="noopener">Commits</a>
+      <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16925" target="_blank" rel="noopener">BL-16925</a>
+      <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8408" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>The OverflowChecker layout tests (self, margin, and fixed-ancestor overflow) have been skipped since the move from Karma to Vitest, because jsdom has no layout. So nothing has been checking the code that turns a text box red when its text doesn't fit.</p>
+        <h3>Cause</h3>
+        <p>An earlier attempt at browser mode reused <code>vitest.setup.ts</code>. Its jsdom mocks (a fake canvas, a fake <code>innerText</code>) break real measurement in a browser. What looked like a "jQuery won't resolve" error was really old plugins expecting a global <code>jQuery</code>.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li><code>pnpm test</code> now has two Vitest projects: <code>unit</code> (jsdom, unchanged) and <code>browser</code>, which runs <code>*.browser.spec.ts</code> in headless Edge, the engine behind WebView2. The browser project has its own small setup file and doesn't extend the app config.</li>
+          <li>The layout tests moved to <code>OverflowChecker.browser.spec.ts</code>, with one named test per fixture case. There's also a test that checks every case in turn in one document, the way Bloom checks a page.</li>
+          <li>It fixes a latent MeasureText bug the tests exposed. Measuring text that starts with a newline left a line break in the measuring div it reuses, so every measurement for the next ~2 s came out about a line too big and could hide real overflow. The div now always holds a text node with the first visible character (<a href="https://github.com/BloomBooks/BloomDesktop/blob/c470393ebd41f71b959ab7e6bf888d29b0cbfd9b/src/BloomBrowserUI/utils/measureText.ts#L51" target="_blank" rel="noopener">measureText.ts:51</a>).</li>
+          <li>It deletes the unused <code>vitest-notused.browser.config.ts</code> and git-ignores what browser-mode failures leave behind.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap"><table>
+          <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+          <tr><td>Typecheck</td><td class="st good">Pass</td><td><code>pnpm typecheck</code></td></tr>
+          <tr><td>Lint</td><td class="st good">Pass</td><td>No errors. The changed <code>measureText.ts</code> has 7 old warnings, none added here.</td></tr>
+          <tr><td>Merge with master</td><td class="st good">Clean</td><td>Merged <code>origin/master</code> with no conflicts (XLF cleanup and one test mock came in).</td></tr>
+          <tr><td>TypeScript tests (Vitest, both projects)</td><td class="st good">Pass</td><td><span class="numeral">79 files · 970 passed · 2 skipped</span>, including the <span class="numeral">27</span> new browser tests, on the merged tree.</td></tr>
+          <tr><td>C# tests (NUnit)</td><td class="st">Not run</td><td>No C# in the diff, and the .NET suite doesn't read or build any of the changed files.</td></tr>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>The first run on this branch: it merged master, opened draft PR #8408, linked it on the card, and posted the test ideas. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408/commits" target="_blank" rel="noopener">commit list</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap"><table>
+          <tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td class="st good">Complete</td><td>Clean, no findings. It confirmed the <code>unit</code> project picks up exactly the same tests as before.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8408" target="_blank" rel="noopener">Devin</a></td><td class="st good">Complete</td><td>Finished in about 3 min. No bugs, and one Investigate flag: the browser tests need Edge installed. Not an issue, because Bloom and every CI runner are Windows. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408#discussion_r4106966384" target="_blank" rel="noopener">Replied and resolved</a>.</td></tr>
+          <tr><td>Greptile</td><td class="st good">Complete</td><td>Finished in about 8 min with one P2 on the same Edge point, and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8408#discussion_r4106972905" target="_blank" rel="noopener">got the same answer</a>. Its summary called the PR safe to merge.</td></tr>
+          <tr><td>CodeRabbit</td><td class="st">Not active</td><td>The repo has a <code>.coderabbit.yml</code>, but CodeRabbit hasn't commented on any of the last 15 PRs, and it didn't review this one.</td></tr>
+          <tr><td>CI (GitHub checks)</td><td class="st good">Pass</td><td><code>pr-automation</code> and Greptile passed. TeamCity doesn't build PR branches, so the new browser tests first run there after merge.</td></tr>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>TeamCity's <code>Bloom-Default-Continuous</code> build runs <code>pnpm test:ci</code> on a Windows 11 agent, so the browser tests will run there after merge, in its preinstalled Edge. Nothing runs them on this PR before merge, and I haven't seen them run on that agent. A failure there would show up as a launch error in the JavaScript tests step.</li>
+          <li>I couldn't make the MeasureText bug happen in a running Bloom. Saved books do have editables whose content starts with a newline (checked in "03. The Flood"), but the Edit tab's page content had none, and typing past the bottom of a story box turned it red at once. The fix and its tests guard the code, not a symptom anyone has reported.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card">
+        <h2>Decisions</h2>
+        <p>Nothing needs your decision.</p>
+        <p>Next step: your own review of the PR, then <code>pr-ready-for-human</code> when you're happy with it.</p>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>
