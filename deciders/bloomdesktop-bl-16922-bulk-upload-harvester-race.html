@@ -77,7 +77,7 @@
 <div class="wrap">
 <header>
   <h1>Bulk-upload test: check what Bloom uploaded (#8405, BL-16922)</h1>
-  <p class="summary">Preflight: the flaky test's cause is found (a server-side harvester race, filed as BL-16921), and the fix passes repeatedly. Nothing waiting on you.</p>
+  <p class="summary">Preflight: the flaky test's cause is found (a server-side harvester race, filed as BL-16921), and the fix passes repeatedly. Upload locations now come from a results file rather than the log. Nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
@@ -103,9 +103,10 @@
     <p>The sandbox's harvester, not Bloom. When a harvest finishes, it writes the whole book record back from the copy it read when it started. So a re-upload that lands mid-harvest is overwritten with older metadata, possibly including the record's pointer to the uploaded files, and is never re-harvested. Captured in one failing run: Book 2's harvest started 18:02:46, the re-upload landed 18:03:03, and the harvest finished 18:03:07, leaving the old shelf. Filed as BL-16921.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>Bloom's bulk-upload log now says where each book's files went ("Uploaded files are at …"). Each upload goes to a new folder, and the record can later point elsewhere.</li>
-      <li>The test reads each book's uploaded <code>meta.json</code> (bookshelf) and HTML (front/back matter) from those logged folders, not from the server's records, and matches each folder to its own book.</li>
+      <li>Bulk upload now writes <code>BloomBulkUploadResults.json</code> beside its log. It holds the tallies and, for each book, its folder, outcome (new / updated / skipped / failed) and where its files went. Each upload goes to a new folder, and the record can later point elsewhere.</li>
+      <li>The test reads each book's uploaded <code>meta.json</code> (bookshelf) and HTML (front/back matter) at those locations, not from the server's records. It matches each location to its own book and requires no failures in any round.</li>
       <li>The shelf check is stricter: exactly the new shelf, since Bloom sends only the current one.</li>
+      <li>The e2e launch fixture gives each probe for the Bloom it started a 5&nbsp;s timeout. A probe that reached Bloom while its server was starting could hang until the 120&nbsp;s launch deadline, which failed two runs.</li>
     </ul>
   </section>
   <section class="card">
@@ -115,8 +116,8 @@
       <tbody>
         <tr><td>Typecheck (BloomE2E)</td><td><span class="ok">Pass</span></td></tr>
         <tr><td>C# build and upload tests</td><td><span class="ok">Pass</span> <span class="numeral">22 / 22</span></td></tr>
-        <tr><td><code>bulk-upload-quick-test.spec.ts</code></td><td><span class="ok">Pass</span> in every run of the fix (six, across its versions); before it, two failures in three</td></tr>
-        <tr><td>Other e2e specs</td><td class="na">Not run: nothing else uses the changed helpers or the new log line</td></tr>
+        <tr><td><code>bulk-upload-quick-test.spec.ts</code></td><td><span class="ok">Pass</span>: seven runs across the fix's versions, the last two on the current code. Two runs in between failed in the launch fixture, now fixed. Before the fix: two failures in three.</td></tr>
+        <tr><td>Other e2e specs</td><td class="na">Not run: the fixture's change is a timeout on its discovery probe, which every spec already passes through</td></tr>
         <tr><td>Front-end, visual regression</td><td class="na">Not run: nothing in the diff reaches them</td></tr>
         <tr><td>Merge with master</td><td><span class="ok">Up to date</span></td></tr>
       </tbody>
@@ -124,7 +125,7 @@
   </section>
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Replaced a first attempt (wait for the harvester) with checking what Bloom uploaded. Then fixed two review findings: Greptile's (the record's folder pointer can revert too, hence the new log line) and Devin's (tie each logged folder to its own book). The PR replaces #8404, which renaming the branch closed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a></p>
+    <p>At your request, the upload locations now come from a machine-readable results file instead of a log line; the log line is gone. Verifying that turned up a launch-fixture hang, now fixed with a probe timeout. The PR replaces #8404, which renaming the branch closed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a></p>
   </section>
   <section class="card">
     <h2>Reviewer outcomes</h2>
@@ -132,7 +133,7 @@
       <thead><tr><th>Reviewer</th><th>State</th></tr></thead>
       <tbody>
         <tr><td>Local review</td><td>Light sub-agent pass (Opus): clean.</td></tr>
-        <tr><td>Devin</td><td>Complete for <span class="numeral">e2d43b7f96</span>. Its one flag (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097664839" target="_blank" rel="noopener">book identity</a>) is fixed; the last round was clean.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">a85b7dc333</span>. No bugs. It repeated its earlier <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097664839" target="_blank" rel="noopener">book identity</a> flag, which the current check already covers; answered on the thread.</td></tr>
         <tr><td>Greptile</td><td>Reviewed only the first commit. Its P1 finding (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097630603" target="_blank" rel="noopener">stale record folder</a>) is fixed. A re-review needs someone signed in to Greptile.</td></tr>
         <tr><td>CI</td><td><code>pr-automation</code> passed.</td></tr>
       </tbody>
@@ -147,7 +148,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The one Bloom change is an extra line in the bulk-upload log, which people read too; it names the public S3 folder each book went to.</li>
+      <li>The one Bloom change is a new file, <code>BloomBulkUploadResults.json</code>, left in the collection folder after a bulk upload, next to the log that is already written there. It names the public S3 folder each book went to.</li>
       <li>The server-side bug the old check tripped over is real, and could affect a person who re-uploads a book quickly. It is BL-16921, Ready For Work on 6.6.</li>
     </ul>
   </section>
