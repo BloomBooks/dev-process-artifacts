@@ -91,7 +91,8 @@
       <section class="card">
         <h2>What this PR is about</h2>
         <h3>Problem</h3>
-        <p>In a debug build, selecting another book in the Collection tab while a large (2 MB+) image in the current book's preview was still loading could stop Bloom with the assert "Cannot close stream until all bytes are written". Release builds only logged it.</p>
+        <p>In a debug build, Bloom could stop with the assert "Cannot close stream until all bytes are written" when the user selected another book while a large (2 MB+) image from the previous one was still being sent. It came up after a long session in the Eric Ding dictionary using the multi-page view, where hundreds of images were being requested, followed by switching back to the Collection tab and selecting a different book. Release builds only logged it.</p>
+        <img width="560" style="max-width:100%;height:auto;display:block;margin:6px 0 4px" alt="Debug.Assert failed dialog: (Debug Only) Cannot close stream until all bytes are written, at Bloom.Api.BloomServer.RequestProcessorLoop in BloomServer.cs line 2087" src="https://github.com/user-attachments/assets/283ff68a-8235-4ccc-8529-8ebcc0cf7097">
         <h3>Cause</h3>
         <p>Bloom's local server sends files of 2 MB or more in 512 KB pieces, reopening the file between pieces so it is never held locked, after telling the browser the full length in <code>Content-Length</code>. If the file was deleted part way through (most likely the processed copy in the image cache, cleared when the user selects another book), the send loop stopped early, and closing the response threw because fewer bytes had gone out than were promised. A file that shrank, a deleted folder, or a file that grew so one piece crossed the promised length each threw in the same place.</p>
         <h3>What the PR does</h3>
