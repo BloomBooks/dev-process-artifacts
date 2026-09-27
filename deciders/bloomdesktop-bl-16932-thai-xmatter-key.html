@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-16932 Thai xMatter preflight</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box}
+  :root{
+    --ground:#f6f5f1; --card:#ffffff; --ink:#1f2328; --muted:#5b6168; --rule:#dcdad3;
+    --accent:#1f5f8b; --accent-soft:#e6eef5; --good:#1d6b3a; --good-soft:#e5f2ea;
+    --warn:#8a5a00; --warn-soft:#fbf1dc;
+    color-scheme:light;
+  }
+  html,body{margin:0}
+  body{background:var(--ground);color:var(--ink);font:15px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;padding:24px 16px 48px}
+  .wrap{max-width:1280px;margin:0 auto;display:grid;gap:20px}
+  h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-weight:600;text-wrap:balance;margin:0}
+  h1{font-size:1.6rem}
+  h2{font-size:1.2rem;margin-bottom:10px}
+  h3{font-size:1rem;margin:14px 0 4px}
+  p{margin:0 0 8px;max-width:72ch}
+  ul{margin:4px 0 8px;padding-left:20px}
+  li{margin:3px 0;max-width:72ch}
+  a{color:var(--accent)}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  code{font-family:Consolas,"Cascadia Mono",monospace;font-size:.88em;background:var(--accent-soft);padding:0 4px;border-radius:3px}
+  .numeral{font-family:Consolas,"Cascadia Mono",monospace;font-variant-numeric:tabular-nums;font-size:.92em}
+  header{display:grid;gap:10px}
+  .summary{color:var(--muted);margin:0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-block;border:1px solid var(--rule);background:var(--card);border-radius:999px;padding:3px 12px;font-size:.85rem;text-decoration:none;color:var(--ink)}
+  .chip.good{background:var(--good-soft);border-color:#b9dcc5;color:var(--good)}
+  .chip.warn{background:var(--warn-soft);border-color:#ecd4a0;color:var(--warn)}
+  a.chip{color:var(--accent)}
+  a.chip:hover{border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:20px;align-items:start}
+  .grid > *{min-width:0}
+  .col{display:grid;gap:20px}
+  .card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:18px 20px}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%}
+  th,td{text-align:left;padding:7px 10px;border-top:1px solid var(--rule);vertical-align:top}
+  th{font-weight:600;font-size:.85rem;color:var(--muted);border-top:none}
+  .pass{color:var(--good);font-weight:600}
+  .note{color:var(--warn);font-weight:600}
+  @media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BL-16932: Thai regional format breaks string searches</h1>
+    <p class="summary">Preflight, run 1, at <span class="numeral">57ce149aaa</span>. Gates green, Devin clean, nothing waiting on you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable into Version6.4</span>
+      <span class="chip good">Devin clean</span>
+      <span class="chip good">Greptile: no further issues</span>
+      <span class="chip good">0 decisions waiting</span>
+      <span class="chip">Board: Personal Review</span>
+    </div>
+    <div class="chips">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8419" target="_blank" rel="noopener">PR #8419</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8419/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8419/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16932" target="_blank" rel="noopener">BL-16932</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8419" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>A Thai user clicking <b>OK</b> in Collection Settings got a crash (a <code>NullReferenceException</code> in <code>XMatterPackFinder.GetValidXmatter</code>). The same user's log also showed missing page-list thumbnails.</p>
+        <h3>Cause</h3>
+        <p>The user's Windows regional format is Thai (th-TH). <code>IndexOf</code>, <code>LastIndexOf</code> and <code>EndsWith</code> compare using the current culture unless told otherwise, and Thai collation ignores punctuation and spaces. So <code>IndexOf("-xmatter")</code> matched one character late and left the hyphen on every xMatter key, and a search for <code>"?"</code> or <code>"@"</code> "matched" at position 0 of text that does not contain it. No pack matched <code>Factory</code>, so the default pack was null.</p>
+        <h3>What the PR does</h3>
+        <p>Those searches now use <code>StringComparison.Ordinal</code> (<code>OrdinalIgnoreCase</code> for the xMatter key). For a th-TH user:</p>
+        <ul>
+          <li>xMatter keys and labels are right, so Collection Settings OK no longer crashes and the collection keeps its pack.</li>
+          <li>Page-list thumbnails show again.</li>
+          <li>CSS comment stripping works, so finding a book's fonts no longer throws.</li>
+          <li>Trimming the title-page location no longer loops forever.</li>
+          <li>BloomPUB preview serves the host's fonts, ePUB copyright metadata splits correctly, and PDF progress reports page numbers.</li>
+          <li>Record Video narration URLs, the UI-language button label, and problem-report user names come out right.</li>
+        </ul>
+        <p>Eleven new th-TH unit tests cover these paths; all fail without the fix. The remaining culture-sensitive comparisons and a CA1310 analyzer rule are <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16934" target="_blank" rel="noopener">BL-16934</a> for 6.5.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>C# build</td><td class="pass">Pass</td></tr>
+          <tr><td>C# formatting (CSharpier)</td><td class="pass">Pass, 14 files</td></tr>
+          <tr><td>New th-TH tests</td><td><span class="pass">Pass</span> <span class="numeral">11 / 11</span> at HEAD</td></tr>
+          <tr><td>Full C# suite (<code>dotnet test</code>)</td><td><span class="pass">Pass</span> <span class="numeral">2912 passed · 14 skipped · 0 failed</span>, on the same tree before it was committed; the merge from Version6.4 was a no-op, and the later commit adds only comments</td></tr>
+          <tr><td>TypeScript tests (vitest)</td><td>Not run: no front-end code in the diff</td></tr>
+          <tr><td>Merge with Version6.4</td><td class="pass">Already up to date; mergeable</td></tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Committed the fix and its two test files (<a href="https://github.com/BloomBooks/BloomDesktop/commit/d8acf6b76b4bd7552b5690562c5389983b8a259b" target="_blank" rel="noopener"><span class="numeral">d8acf6b76b</span></a>), opened the draft PR against Version6.4, and added doc comments to two touched public members after Greptile's note (<a href="https://github.com/BloomBooks/BloomDesktop/commit/57ce149aaac05e01f7ea069889d822569b4faedd" target="_blank" rel="noopener"><span class="numeral">57ce149aaa</span></a>).</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr><td>Local review</td><td>Light sub-agent pass. Clean: no findings. It confirmed each new test fails on the old code under th-TH.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8419" target="_blank" rel="noopener">Devin</a></td><td>Complete for <span class="numeral">57ce149aaa</span> (and the commit before it). No bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8419#issuecomment-5860096324" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+          <tr><td>Greptile</td><td>Complete for <span class="numeral">d8acf6b76b</span>. Its summary asked for doc comments on public methods; added them in <span class="numeral">57ce149aaa</span> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8419#issuecomment-5860080014" target="_blank" rel="noopener">replied</a>. Greptile answered "No further issues from me." It posted no new check for the comment-only commit.</td></tr>
+          <tr><td>CI (<code>pr-automation</code>)</td><td class="pass">Pass</td></tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Nothing was tried by hand in a running Bloom under a Thai regional format; the evidence is the th-TH unit tests. The <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16932" target="_blank" rel="noopener">test ideas on the card</a> list the checks.</li>
+          <li>Scope is deliberately limited to sites with a known user-visible failure. Other culture-sensitive comparisons and the CA1310 rule are BL-16934 for 6.5.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card">
+        <h2>Decisions</h2>
+        <p>None waiting. When you have reviewed the PR yourself, run <code>pr-ready-for-human</code> to hand it to a teammate.</p>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>
