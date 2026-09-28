@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Team Collections backend preflight</title>
+<title>Cloud TC backend preflight</title>
 <style>
 :root {
   --ground: #f6f3ee;
@@ -61,7 +61,6 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: u
 .reviewer:last-child { border-bottom: none; }
 .reviewer strong { display: block; }
 .decision { display: flex; flex-direction: column; gap: 8px; }
-.decision .context { color: var(--ink); }
 .option { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border-radius: 4px; }
 .option:hover { background: #faf8f4; }
 .option input[type=radio] { margin-top: 4px; }
@@ -80,12 +79,12 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <body>
 <div class="wrap">
 <header>
-  <h1>Team Collections backend preflight: bloom-core-supabase PR #13</h1>
-  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>25d31cd</code>. Your decisions are implemented, all gates are green, and every reviewer finished clean. Nothing is waiting on you.</p>
+  <h1>Cloud Team Collections backend preflight: bloom-core-supabase PR #13</h1>
+  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>d5c8689</code>. Gates green, every reviewer finished, nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
-    <span class="chip good">Bots quiet · 17/17 threads resolved</span>
+    <span class="chip good">Bots answered</span>
     <span class="chip good">No decisions waiting</span>
   </div>
   <nav class="links">
@@ -94,7 +93,7 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">Commits</a>
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16531" target="_blank" rel="noopener">BL-16531</a>
     <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">Devin review</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8052" target="_blank" rel="noopener">Source: BloomDesktop #8052</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/blob/BL-16673-share-dialog/Design/CloudTeamCollections.md" target="_blank" rel="noopener">Design doc</a>
   </nav>
 </header>
 
@@ -103,29 +102,43 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
   <section class="card lead">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend sitting in the Bloom Editor repo by mistake. The backend belongs in bloom-core-supabase so it can be reviewed, merged and deployed separately from the Bloom client. The client, starting with the Share dialog (BloomDesktop #8394), is written against it. Reviewing the port also turned up real security and concurrency problems in that carried-over backend.</p>
+    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend (database schema, edge functions, local dev stack) sitting in the Bloom Editor repo by mistake. The backend belongs here, so it can be reviewed, merged and deployed separately from the Bloom client. The client side, including the new Share dialog (BloomDesktop #8394), is written against it. Reviewing the port also turned up real security and concurrency problems in the carried-over backend.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><strong>Port (first commit):</strong> the <code>tc</code> schema as declarative files plus its generated migration, the seven edge functions and their tests, the local dev stack and ops scripts under <code>team-collections/</code>, and an <code>AGENTS.md</code>.</li>
-      <li><strong>Security:</strong> members can no longer call the "finish" functions directly. The edge function identifies the caller from their own token, then calls finish with the service role. Taking over someone else's checkout now needs a secret checkout token, stored only as a hash.</li>
-      <li><strong>Concurrency and data safety:</strong> finish rechecks the lock and base version, so stale work can't overwrite newer work. Row locks are taken in one order, so retries are idempotent and there are no deadlocks. The stale-upload sweep waits a 48-hour grace period and rechecks each file before deleting it. Paths are Unicode-normalized, and rename conflicts and oversized sizes are refused, all at start.</li>
-      <li><strong>Ops:</strong> the S3 endpoint is optional on hosted deployments, and the sweep's IAM permissions are complete.</li>
-      <li><strong>CI:</strong> a new <code>db-tests</code> job runs the pgTAP suite on every PR.</li>
+      <li><strong>Port:</strong> the <code>tc</code> schema as declarative files plus its generated migration, the seven edge functions (check-in, download, stale-upload sweep) with Deno tests, and the local dev stack and ops scripts under <code>team-collections/</code>.</li>
+      <li><strong>Security:</strong> the "finish" functions can be called only by the edge functions, after they have identified the caller from their own token. A checkout belongs to one copy of the book, identified by a GUID the client makes and saves before asking. The server stores only its hash, and check-in, unlock, delete and takeover all need the GUID.</li>
+      <li><strong>Concurrency and data safety:</strong>
+        <ul>
+          <li>Check-in finish rechecks the lock and base version.</li>
+          <li>Row locks follow one consistent order, including the expiry reaper and delete/unlock/force-unlock.</li>
+          <li>Event ids now commit in order per collection, so polling never skips a change.</li>
+          <li>The sweep waits a 48-hour grace period.</li>
+          <li>Paths are normalized and validated up front.</li>
+        </ul>
+      </li>
+      <li><strong>Last seen:</strong> each member's <code>last_seen_at</code> is updated when they open or poll the collection, at most every 10 minutes.</li>
+      <li><strong>Starting a cloud collection</strong> (BL-16676):
+        <ul>
+          <li>An "initial upload in progress" flag hides a collection from the joinable list until the admin clears it.</li>
+          <li>While the flag is set, <code>legacy:&lt;old email&gt;</code> placeholder locks let old-system checkouts carry over; their owners take them over later with the GUID.</li>
+          <li>A service-role support function and script delete a failed migration.</li>
+        </ul>
+      </li>
+      <li><strong>CI:</strong> a <code>db-tests</code> job runs the pgTAP suite on every PR.</li>
     </ul>
-    <p>The contract changes the Bloom client must follow are in <code>team-collections/docs/CONTRACTS.md</code> v1.8. Nothing is live until the migration is applied and the TC secrets are set on a hosted project.</p>
+    <p>The contract the Bloom client follows is <code>team-collections/docs/CONTRACTS.md</code> v1.12. Nothing is live until someone applies the migration and sets the secrets on a hosted project.</p>
   </section>
 
   <section class="card">
     <h2>Quality gate</h2>
     <div class="tablewrap">
     <table>
-      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <thead><tr><th>Check</th><th>Result</th><th>Where</th></tr></thead>
       <tbody>
-        <tr><td>Deno type-check (<code>deno check --frozen</code>)</td><td class="pass">pass</td><td>CI <code>test</code> job at <code>25d31cd</code></td></tr>
-        <tr><td>Deno tests (<code>pnpm test:ci</code>)</td><td class="pass">pass</td><td>CI and locally at <code>25d31cd</code>: <span class="numeral">132 passed · 9 ignored</span> (ignored = existing tests that need secrets)</td></tr>
-        <tr><td>Database tests (pgTAP)</td><td class="pass">pass</td><td>CI <code>db-tests</code> job and locally (Postgres 17, Podman) at <code>25d31cd</code>: <span class="numeral">161/161 in 4 files</span></td></tr>
-        <tr><td>Generated migration matches the schema files</td><td class="pass">pass</td><td>regenerated with every schema change</td></tr>
-        <tr><td>Lint / format</td><td>N/A</td><td>this repo doesn't use them</td></tr>
+        <tr><td>Database tests (pgTAP, full)</td><td class="pass">pass</td><td><span class="numeral">7 files · 375 tests</span>, locally and in CI's <code>db-tests</code> at <code>d5c8689</code></td></tr>
+        <tr><td>Edge-function tests (Deno, full)</td><td class="pass">pass</td><td><span class="numeral">153 passed · 9 ignored</span>, locally and in CI's <code>test</code>. No edge function changed this run.</td></tr>
+        <tr><td>Migration matches schema</td><td class="pass">pass</td><td>regenerated after each schema change; the diff matched the schema edits</td></tr>
+        <tr><td>Support delete script</td><td>not run</td><td>no AWS CLI on this machine and the test stack is database-only; parse-checked, and its argument handling verified in PowerShell 5.1</td></tr>
         <tr><td>Merge with develop</td><td class="pass">clean</td><td>already up to date</td></tr>
       </tbody>
     </table>
@@ -134,28 +147,23 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Put your decisions in place:
-    <ul>
-      <li>All the bots' findings are fixed in this PR, in their own commits after the port, so you can review them separately.</li>
-      <li>The pgTAP CI job is added, and the staging deploy is left as is.</li>
-    </ul>
-    Then four more short rounds with Devin and the local review. They turned up a lock-order deadlock, an abort/finish race, an oversized-size 500, and two knock-ons of the abort fix, all fixed with tests. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">8 commits</a>.</p>
+    <p>Added per-collection "last seen" and the server side of starting a cloud collection, and fixed the three concurrency bugs Devin then found. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">4d1eb61 … d5c8689</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="reviewer"><strong>Local review: light sub-agent pass (on the port, and again on the fixes)</strong>The port was clean. On the fixes it found one lock-order deadlock between check-in start and finish, since fixed. It confirmed the checkout-token hash isn't readable by members and that nothing else reaches the finish logic.</div>
-    <div class="reviewer"><strong>Devin: complete (6 runs, the last clean at <code>25d31cd</code>)</strong>It raised 7 bugs across the rounds, all marked fixed by Devin, plus points to check. Every one has a resolved thread with its outcome.</div>
-    <div class="reviewer"><strong>Greptile: complete (3 reviews, the last at <code>25d31cd</code>)</strong>"The PR appears safe to merge; the previous findings were manually resolved, and the changes since the prior review introduce no actionable regression." Its 6 P1s from the first review are fixed.</div>
-    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> and <code>db-tests</code> both pass.</div>
+    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Clean on the two feature commits; it checked permissions, the placeholder guard, delete ordering and the S3 prefix.</div>
+    <div class="reviewer"><strong>Devin: complete (last run at <code>d5c8689</code>)</strong>It found 3 real bugs, all fixed, which Devin confirmed resolved. Its 3 later bugs can't occur, and its other points need no change. Each is answered in its own <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">resolved thread</a>.</div>
+    <div class="reviewer"><strong>Greptile</strong>It posted on the first commit only; all of its threads are resolved.</div>
+    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> and <code>db-tests</code> pass.</div>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The Bloom client in #8052 isn't on master and doesn't yet follow CONTRACTS.md v1.8. It will need the checkout token (save it, and send it on takeover), NFC upload paths, and the new InvalidManifest / LockHeldByOther / BaseVersionSuperseded answers.</li>
-      <li>Merging to <code>develop</code> deploys the seven TC functions to staging (you chose to leave that as is). They fail straight away until the schema and secrets exist.</li>
-      <li>The functions haven't been served end to end against MinIO (the smoke test); only unit and database tests ran.</li>
+      <li>The support delete script has never actually deleted anything. Try it against a MinIO or sandbox bucket before relying on it.</li>
+      <li>Polls and writes in the same collection now briefly wait for each other (the event-order fix). That is cheap at Bloom's scale, but worth knowing if many members poll one collection.</li>
+      <li>A future realtime client shouldn't advance its cursor from realtime event ids, which can arrive out of order. Only polling is safe for the cursor.</li>
     </ul>
   </section>
 </main>
@@ -163,13 +171,7 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <aside>
   <section class="card">
     <h2>Nothing waiting on you</h2>
-    <p>Your answers from the last report are in place:</p>
-    <ul>
-      <li><strong>Where to fix:</strong> in this PR, as separate commits after the port, ready to squash before another person reviews it.</li>
-      <li><strong>Staging deploy:</strong> left as is.</li>
-      <li><strong>Database tests in CI:</strong> added (<code>db-tests</code>).</li>
-    </ul>
-    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review, and squashes it if you want.</p>
+    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review.</p>
   </section>
 </aside>
 </div>
