@@ -80,9 +80,9 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <div class="wrap">
 <header>
   <h1>Shared-folder pause preflight: BloomDesktop PR #8414</h1>
-  <p class="summary">Preflight run on branch <code>BL-16928-shared-folder-changes</code> (base <code>Version6.5</code>), ending at <code>b941139faa</code>. Gates green, every reviewer finished, nothing waiting on you.</p>
+  <p class="summary">Preflight run on branch <code>BL-16928-shared-folder-changes</code> (base <code>master</code>), ending at <code>eb5f4fe0bb</code>. Gates green, every reviewer finished, nothing waiting on you.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip state" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots answered</span>
     <span class="chip good">No decisions waiting</span>
@@ -93,6 +93,7 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8414/commits" target="_blank" rel="noopener">Commits</a>
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16928" target="_blank" rel="noopener">BL-16928</a>
     <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8414" target="_blank" rel="noopener">Devin review</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/blob/BL-16673-share-dialog/Design/CloudTeamCollections.md" target="_blank" rel="noopener">Design doc</a>
   </nav>
 </header>
 
@@ -101,13 +102,13 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
   <section class="card lead">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>In Bloom 6.6, an administrator will be able to move a folder (Dropbox or LAN) Team Collection to the new cloud collections (BL-16531, BL-16676). While that happens, the old shared folder must stop changing, or a check-in, rename or delete made on the old system after a book was copied to the cloud would be lost. <code>AllowCheckouts=False</code> (BL-16691) only stops new checkouts, and <code>MinimumBloomVersion</code> (BL-16690) would lock people out of the books they have checked out. The fix has to ship in 6.5, well before 6.6.</p>
+    <p>In Bloom 6.6, an administrator will be able to move a folder (Dropbox or LAN) Team Collection to the new cloud collections (BL-16531, BL-16676). While the books are uploaded, the old shared folder must stop changing, or a check-in, rename or delete made on the old system after a book was copied would be lost. Blooms older than 6.6 are shut out by the existing <code>MinimumBloomVersion</code> gate (BL-16690, in 6.4 and 6.5), which the migration sets to 6.6. This PR is for the 6.6 Blooms that are still on the old system until the upload finishes. It was first written as a 6.5 patch, but that was judged too large a change right before the 6.5 beta, so it now targets <code>master</code>.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>A new <code>AllowSharedFolderChanges</code> collection setting, on the same pattern as <code>AllowCheckouts</code>: default true, written only while false, picked up mid-session. The <strong>shared folder's copy decides</strong>. Local settings are used only when the shared copy can't be read, so an administrator's hand edit is pushed up and then pauses everyone, the administrator included.</li>
+      <li>A new <code>AllowSharedFolderChanges</code> collection setting, on the same pattern as <code>AllowCheckouts</code>: default true, written only while false, picked up mid-session. The <strong>shared folder's copy decides</strong>. Local settings are used only when the shared copy can't be read, so an administrator's hand edit is pushed up and then pauses everyone.</li>
       <li>While it's false, <strong>nothing writes to the shared folder</strong>: check in (including first check-ins), check out, rename, delete, Forget Changes, Force Unlock, collection files and color palettes. The core write methods refuse before doing anything, and the API layer refuses too.</li>
-      <li><strong>Editing books already checked out keeps working</strong>, as does deleting a never-shared book. Collection Settings and the reader-tool settings refuse to open, because their changes couldn't be shared.</li>
-      <li>The <strong>status panel</strong> disables the affected buttons and explains. The message says the collection has moved to Bloom's cloud sharing (Bloom 6.6 needed) when the shared settings carry a <code>CloudCollectionId</code>, and otherwise that the administrator has paused changes. These and BL-16691's paused-checkouts note are all translatable, in <code>Bloom.xlf</code>.</li>
+      <li><strong>Editing books already checked out keeps working</strong>, as does deleting a never-shared book. Collection Settings and the reader-tool settings refuse to open while paused.</li>
+      <li>The <strong>status panel</strong> disables the affected buttons and explains. Once the shared settings carry a <code>CloudCollectionId</code>, it says the collection has moved to Bloom's cloud sharing and to reopen the collection to switch over; before that, that the administrator has paused changes. The strings, and BL-16691's paused-checkouts note, are <code>translate="no"</code> in <code>Bloom.xlf</code> while the feature is in development.</li>
       <li>A <strong>new Team Collection</strong> made from a copy of a paused collection starts out unpaused.</li>
     </ul>
   </section>
@@ -118,12 +119,12 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <table>
       <thead><tr><th>Check</th><th>Result</th><th>Where</th></tr></thead>
       <tbody>
-        <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td><code>34a576abcb</code> (later commits are C# only)</td></tr>
+        <tr><td>TypeScript typecheck</td><td class="pass">pass</td><td>on the <code>master</code> base</td></tr>
         <tr><td>ESLint (changed files)</td><td class="pass">pass</td><td>one existing hooks warning in the panel</td></tr>
-        <tr><td>Front-end tests (vitest, full)</td><td class="pass">pass</td><td><span class="numeral">852 passed · 5 skipped</span> at <code>34a576abcb</code></td></tr>
-        <tr><td>C# tests (dotnet test, full)</td><td class="pass">pass</td><td><span class="numeral">3525 passed · 13 skipped · 1 failed</span> at <code>b941139faa</code>. The one failure was L10NSharp's setup in <code>BookDataTests</code>, which passed <span class="numeral">171/171</span> when re-run.</td></tr>
+        <tr><td>Front-end tests (vitest)</td><td class="pass">pass</td><td><span class="numeral">852 passed · 5 skipped</span> on the <code>Version6.5</code> base. The front-end diff is unchanged on <code>master</code> apart from one string.</td></tr>
+        <tr><td>C# tests (dotnet test)</td><td class="pass">pass</td><td>On <code>master</code>: <span class="numeral">440</span> Team Collection, settings, collection-tab and reader tests, and <span class="numeral">65</span> after the message change. The full suite, <span class="numeral">3525 passed</span>, ran on the <code>Version6.5</code> base. It hasn't been re-run on <code>master</code>, because the machine is short of memory.</td></tr>
         <tr><td>CI (pr-automation)</td><td class="pass">pass</td><td>the Devin trigger</td></tr>
-        <tr><td>Merge with Version6.5</td><td class="pass">clean</td><td>already up to date</td></tr>
+        <tr><td>Merge with master</td><td class="pass">clean</td><td>rebased onto master; mergeable</td></tr>
       </tbody>
     </table>
     </div>
@@ -131,21 +132,22 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>No code changes. You chose "Leave as is" on all three decisions, and the rare error dialog is now listed as known behavior in the test ideas on the card. The gauntlet was re-checked against the same HEAD, <a href="https://github.com/BloomBooks/BloomDesktop/commit/b941139faa" target="_blank" rel="noopener">b941139faa</a>.</p>
+    <p>The PR moved from <code>Version6.5</code> to <code>master</code>: the commit was rebased cleanly and the strings are now <code>translate="no"</code>. The "moved to cloud" message now says to reopen the collection instead of to upgrade, since only 6.6 can show it. The card, the test ideas and §5 of the design doc were updated to match. <a href="https://github.com/BloomBooks/BloomDesktop/commit/8bc4145b98" target="_blank" rel="noopener">8bc4145b98</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/eb5f4fe0bb" target="_blank" rel="noopener">eb5f4fe0bb</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Found no unguarded write path. It raised one real bug (new Team Collection from a paused copy), which is fixed, and two narrow races, left as they are by your decision and listed in the test ideas.</div>
-    <div class="reviewer"><strong>Devin: complete (2 runs, the last at <code>b941139faa</code>)</strong>It raised 2 bugs and 3 points to check. None needed a change: the palette write can't really happen, the startup-sync refusal is the pause working as intended, and translate="no" doesn't apply to a 6.5 patch. Each is answered in its own <a href="https://github.com/BloomBooks/BloomDesktop/pull/8414" target="_blank" rel="noopener">resolved thread</a>. The second run found nothing new.</div>
-    <div class="reviewer"><strong>Greptile: complete</strong>It raised 3 findings on the first commit (the open-dialog race on Collection Settings and the reader settings, and the palette write). All are answered and resolved; the dialog race is left as is by your decision.</div>
-    <div class="reviewer"><strong>CI</strong>Complete: pr-automation passed.</div>
+    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>It found no unguarded write path and one real bug, a new Team Collection made from a paused copy, which is fixed. It also found two narrow races, which you chose to leave, and which are listed in the test ideas.</div>
+    <div class="reviewer"><strong>Devin: complete (last run at <code>eb5f4fe0bb</code>)</strong>Its bugs across the runs either can't occur or are the pause working as intended. Its points to check need no change, and the <code>translate="no"</code> ones are now settled. Each is answered in its own <a href="https://github.com/BloomBooks/BloomDesktop/pull/8414" target="_blank" rel="noopener">resolved thread</a>.</div>
+    <div class="reviewer"><strong>Greptile: complete</strong>3 findings on the first commit, all answered and resolved.</div>
+    <div class="reviewer"><strong>CI</strong>Complete: pr-automation passed. Reviewable is waiting only for a human reviewer.</div>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
       <li>Nothing has been clicked through in a running Bloom with two installations; it's covered by unit tests only (38 new C# tests). The test ideas on the card describe how to switch the pause on by hand.</li>
+      <li>Nothing sets the flag yet. The migration that will set it, along with <code>MinimumBloomVersion=6.6</code>, is the Share dialog's Start sharing work on #8394.</li>
     </ul>
   </section>
 </main>
@@ -153,11 +155,11 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <aside>
   <section class="card">
     <h2>Nothing waiting on you</h2>
-    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review.</p>
+    <p>Your earlier decisions (leave the unpause, the two rare races and the settings dialogs as they are) are recorded in the test ideas and on the PR threads.</p>
+    <p>The PR is a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review.</p>
   </section>
 </aside>
 </div>
 </div>
-
 </body>
 </html>
