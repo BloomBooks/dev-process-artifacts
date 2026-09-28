@@ -78,7 +78,7 @@
 <p class="sub">
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">PR #8338</a> (draft) ·
   <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16729" target="_blank" rel="noopener">BL-16729</a> ·
-  base <code>master</code> · head <span class="numeral">cb927984b8</span> ·
+  base <code>master</code> · head <span class="numeral">70be9a549d</span> ·
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/files" target="_blank" rel="noopener">files changed</a> ·
   <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338/commits" target="_blank" rel="noopener">commits</a> ·
   <a href="https://app.devin.ai/review/BloomBooks/BloomDesktop/pull/8338" target="_blank" rel="noopener">Devin review</a> ·
@@ -97,12 +97,12 @@
       <tr><td>Front-end typecheck (<code>tsgo --noEmit</code>)</td><td class="pass">pass — no blunder-class type errors</td></tr>
       <tr><td>Front-end lint (<code>eslint</code>)</td><td class="pass">pass — <span class="numeral">0</span> errors (<span class="numeral">775</span> warnings, all pre-existing repo-wide)</td></tr>
       <tr><td>C# build</td><td class="pass">pass — <span class="numeral">0</span> errors, <span class="numeral">2</span> warnings (the known SQLite advisory, already exempted on master)</td></tr>
-      <tr><td>C# tests (<code>dotnet test</code>, whole suite)</td><td class="pass">pass — <span class="numeral">3640 passed · 0 failed · 1 skipped</span></td></tr>
-      <tr><td>TypeScript tests (<code>vitest</code>, whole suite)</td><td class="pass">pass — <span class="numeral">971 passed · 0 failed</span> across <span class="numeral">79</span> files</td></tr>
+      <tr><td>C# tests (<code>dotnet test</code>, whole suite)</td><td class="pass">pass — <span class="numeral">3643 passed · 0 failed · 1 skipped</span></td></tr>
+      <tr><td>TypeScript tests (<code>vitest</code>, whole suite)</td><td class="pass">pass — <span class="numeral">971 passed · 0 failed</span> across <span class="numeral">79</span> files (not re-run for the final commit, which contains no TypeScript)</td></tr>
       <tr><td>Playwright e2e (<code>src/BloomE2E</code>)</td><td class="note">not run — the only change to those files is whitespace applied by the pre-commit formatter, and the two tests in them are <code>test.fixme</code> (skipped on master already)</td></tr>
       <tr><td>Merge with <code>origin/master</code></td><td class="pass">clean, no conflicts; GitHub reports the PR <strong>MERGEABLE</strong></td></tr>
     </table>
-    <p class="foot" style="margin-top:10px">The C# and TypeScript suites were each run twice this session — once before the fixes below and once against this exact head.</p>
+    <p class="foot" style="margin-top:10px">The C# suite was run at every stage of this session, most recently against this exact head. Front-end typecheck and lint were re-run too, and are clean.</p>
   </div>
 
   <div class="card">
@@ -145,6 +145,12 @@
       <tr>
         <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/cb927984b8" target="_blank" rel="noopener"><span class="numeral">cb927984b8</span></a></td>
         <td><strong>A user-visible regression this PR's own new behaviour introduced.</strong> See the panel below.</td>
+      </tr>
+      <tr>
+        <td><a href="https://github.com/BloomBooks/BloomDesktop/commit/70be9a549d" target="_blank" rel="noopener"><span class="numeral">70be9a549d</span></a></td>
+        <td>Your decisions, implemented: the reload-window fix for the &ldquo;may have missed changes&rdquo;
+          warning, the status-aware catch-up scan, and the <code>StartMonitoring</code> guard &mdash; plus
+          the <code>RobustFileIO</code> move the pre-commit hook required. See the right-hand column.</td>
       </tr>
     </table>
   </div>
@@ -240,277 +246,134 @@
 
 </div>
 
-<!-- ============ RIGHT: the decisions ============ -->
+<!-- ============ RIGHT: what was decided ============ -->
 <div>
 
   <div class="card">
-    <h3>1 · Repeat "you may have missed changes" warnings are swallowed <span class="sev">DEVIN · SEVERE</span></h3>
-    <p class="src">Devin, mirrored as
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4125799222" target="_blank" rel="noopener">an open thread</a>
-      · <code>TeamCollection.cs:664</code></p>
-    <p>When the shared folder delivers a very large batch of changes at once, Bloom can be told that more happened than it
-      could take in, and it warns: <em>"Bloom may have missed some changes your teammates made. Please click Reload
-      Collection."</em> The user reloads, and all is well.</p>
-    <p>If it happens <strong>again</strong> later in the same session, they get no second warning. The message log treats an
-      error carrying the same id as a duplicate and drops it, and it looks across the whole session rather than since the
-      last reload — so the user is left believing they are up to date when Bloom has just told itself otherwise.</p>
-    <p>That de-duplication is deliberate and predates this branch: the comment on <code>IsRedundantMessage</code> explains
-      that some repo problems repeat constantly and would otherwise flood the log. What is new is that this PR writes
-      <em>this particular</em> message from the overflow path, where "it happened again, after you reloaded" really is new
-      information rather than noise.</p>
+    <h2>Your decisions, and what happened</h2>
+    <p class="foot" style="margin-top:0">All seven answers are in. Nothing is waiting on you.</p>
+    <table>
+      <tr><th>Decision</th><th>Outcome</th></tr>
+      <tr>
+        <td>1 &middot; Repeat &ldquo;may have missed changes&rdquo; warnings swallowed</td>
+        <td><span class="pass">fixed</span> &mdash; let through again after a Reloaded milestone
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/70be9a549d/src/BloomExe/TeamCollection/TeamCollectionMessageLog.cs#L462" target="_blank" rel="noopener">TeamCollectionMessageLog.cs:462</a>).
+          Ordinary errors still de-duplicate across the whole session, and a test asserts that too, so the
+          narrowing cannot quietly widen. I checked the new test fails with the narrowing removed.</td>
+      </tr>
+      <tr>
+        <td>2 &middot; Teammates' checkouts invisible after a late folder arrival</td>
+        <td><span class="pass">fixed</span> &mdash; the catch-up scan is now status-aware. New
+          <code>HasCheckoutChangedRemotely</code>
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/70be9a549d/src/BloomExe/TeamCollection/TeamCollection.cs#L1906" target="_blank" rel="noopener">TeamCollection.cs:1906</a>)
+          compares the repo's <code>lockedBy</code>/<code>lockedWhere</code> against the local copy's &mdash;
+          the part a checkout actually changes, and the part a checksum cannot see. Both directions are
+          covered, each with a sanity check that the old checksum test finds nothing.</td>
+      </tr>
+      <tr>
+        <td>3 &middot; A failed catch-up scan never retries</td>
+        <td><span class="note">left as is</span>, as you chose. The reasoning is recorded on its PR thread,
+          so whoever meets it next can see it was a decision rather than an oversight. No code comment was
+          added, since you did not tick that box.</td>
+      </tr>
+      <tr>
+        <td>4 &middot; A vanishing folder can throw out of <code>StartMonitoring</code></td>
+        <td><span class="pass">fixed</span> &mdash; guarded the way the retry path already is
+          (<a href="https://github.com/BloomBooks/BloomDesktop/blob/70be9a549d/src/BloomExe/TeamCollection/FolderTeamCollection.cs#L1024" target="_blank" rel="noopener">FolderTeamCollection.cs:1024</a>).
+          Not separately unit tested: the window is two adjacent statements wide.</td>
+      </tr>
+      <tr>
+        <td>5 &middot; Andrew's complexity concern</td>
+        <td><span class="pass">answered</span> on the PR
+          (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#issuecomment-5877162672" target="_blank" rel="noopener">comment</a>).
+          It sets out which parts are irreducible &mdash; the periodic probe, the confirmation delay, the
+          thread marshalling &mdash; and is straight with him about the two that are separable, the
+          message-log rework and the late-folder catch-up, offering to lift the second onto its own card if
+          he wants this smaller. <strong>Worth reading before he does</strong>: it commits you to nothing,
+          but it is written in your voice.</td>
+      </tr>
+      <tr>
+        <td>6 &middot; Leftover e2e reformatting</td>
+        <td><span class="note">left as is</span>, as you chose &mdash; still about 190 lines of
+          correct-but-noisy whitespace in the two spec files.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>One thing the pre-commit hook forced</h2>
+    <p>The commit was blocked by <code>check-csharp-robustfile.sh</code>, which refuses a raw
+      <code>File.</code> call outside <code>RobustFileIO.cs</code>. The offender was not new: the message
+      log's quick append has called <code>File.AppendAllText</code> since <code>26dbdcd754</code>, earlier
+      in this PR, and slipped past the hook then. Staging that file again brought it up.</p>
+    <p>That call is deliberate &mdash; <code>RobustFile</code>'s retry runs for seconds and this often runs
+      on the UI thread &mdash; so rather than undo a reviewed decision or bypass the hook, I moved it into
+      <code>RobustFileIO</code> as <code>QuickAppendAllText</code>
+      (<a href="https://github.com/BloomBooks/BloomDesktop/blob/70be9a549d/src/BloomExe/RobustFileIO.cs#L101" target="_blank" rel="noopener">RobustFileIO.cs:101</a>),
+      which is the file the rule exempts as the home for Bloom's reviewed uses of that API. Same retry
+      policy, same encoding, no behaviour change.</p>
+  </div>
+
+  <div class="card">
+    <h2>Devin's last word</h2>
+    <p>The re-review of this commit raised <strong>four findings</strong>. All four are on the PR with a
+      documented outcome, and <strong>no review thread is open</strong>. Two were its localization and
+      flaky-e2e flags re-raised under new titles, already answered earlier in this review. The other two
+      were new, and neither survived examination:</p>
+    <ul>
+      <li><strong>Stale failure disconnects recovered collection</strong> (flagged severe) &mdash; the
+        mechanism is half right, but Reload Collection is not an in-place recovery: it closes and reopens
+        the whole project, so a stale callback acts on a discarded manager and the recovered collection is
+        untouched. What could leak through is a stale toast, which is cosmetic.</li>
+      <li><strong>Late Other folder remains unwatched</strong> &mdash; accurate, but pre-existing and
+        already a written-down decision from BL-15838, in a comment directly above the code.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>Two optional follow-up cards</h3>
+    <p>Neither is needed for this PR. Flagged only so they are not lost.</p>
     <div class="opt">
-      <input type="radio" name="q1" id="q1a" data-q="Decision 1 - repeat overflow warnings" value="Let this one message through again after a Reloaded milestone" checked>
-      <label class="body" for="q1a"><span class="tag">RECOMMENDED</span><br>
-        Narrow the de-duplication window for this one message, so an overflow warning issued after the last
-        <em>Reloaded</em> milestone is allowed through.
-        <span class="foot">Small and contained — a milestone check inside <code>IsRedundantMessage</code>, perhaps ten
-        lines. Recommended because the user-facing failure is silence about lost data, which is the exact thing this card
-        exists to stop, and because the fix keeps the flood protection everywhere else.</span></label>
+      <input type="radio" name="q1" id="q1a" data-q="Follow-up cards" value="File neither for now" checked>
+      <label class="body" for="q1a"><span class="tag">RECOMMENDED</span><br>File neither for now.
+        <span class="foot">Both are small and speculative, and neither has been seen in the wild.</span></label>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1b" data-q="Decision 1 - repeat overflow warnings" value="Show the toast again even when the log entry is suppressed">
-      <label class="body" for="q1b">
-        Leave the log alone and only re-show the notification, so the user is told even though the history records it once.
-        <span class="foot">Smaller still, but it splits the two channels: the history would no longer explain why the
-        notification appeared.</span></label>
+      <input type="radio" name="q1" id="q1b" data-q="Follow-up cards" value="File a card for retrying the Other watcher">
+      <label class="body" for="q1b">File a card for the <code>Other</code>-folder watcher never being
+        retried &mdash; Devin's fair consistency point.</label>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1c" data-q="Decision 1 - repeat overflow warnings" value="Leave as is">
-      <label class="body" for="q1c">Leave as is</label>
+      <input type="radio" name="q1" id="q1c" data-q="Follow-up cards" value="File a card for the stale disconnect toast">
+      <label class="body" for="q1c">File a card for the stale &ldquo;lost contact&rdquo; toast that could
+        appear just after a reload.</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1d" data-q="Follow-up cards" value="File both">
+      <label class="body" for="q1d">File both.</label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1e" data-q="Follow-up cards" value="Leave as is">
+      <label class="body" for="q1e">Leave as is</label>
       <span class="lc"><input type="checkbox" id="q1lc"> Leave comment</span>
     </div>
     <div class="opt">
-      <input type="radio" name="q1" id="q1d" data-q="Decision 1 - repeat overflow warnings" value="Other">
-      <label class="body" for="q1d">Other:
+      <input type="radio" name="q1" id="q1f" data-q="Follow-up cards" value="Other">
+      <label class="body" for="q1f">Other:
         <input class="other" data-other-for="q1" type="text" placeholder="your answer"></label>
     </div>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on decision 1"></textarea></label>
+    <label class="lbl">Notes<textarea class="notes" data-q="Notes on follow-ups"></textarea></label>
   </div>
 
   <div class="card">
-    <h3>2 · Teammates' checkouts stay invisible after a late folder arrival <span class="sev">DEVIN · SEVERE</span></h3>
-    <p class="src">Devin, mirrored as
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4125799053" target="_blank" rel="noopener">an open thread</a>
-      · <code>FolderTeamCollection.cs:1211</code></p>
-    <p>In the narrow case this PR adds support for — the shared folder's <code>Books</code> arriving late, while Dropbox is
-      still delivering it — Bloom starts watching part way through the session and then scans to work out what it missed.
-      That scan notices books that were <em>added</em> or whose content <em>changed</em>, but not books a teammate merely
-      <strong>checked out</strong> while nobody was watching. Those books keep showing as available to check out until
-      something else touches them or the user reloads.</p>
-    <p>The cause is that the scan asks <code>HasBeenChangedRemotely</code>, which compares book checksums, and a checkout
-      does not change a book's checksum — it changes the status stored alongside it. The live watcher path has no such gap,
-      because it reacts to the file write itself.</p>
-    <p>The direction of the error is the unsafe one: a book shown as available that someone else has out is how two people
-      end up editing the same book.</p>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2a" data-q="Decision 2 - checkouts invisible after late folder arrival" value="Make the catch-up scan status-aware as well as checksum-aware" checked>
-      <label class="body" for="q2a"><span class="tag">RECOMMENDED</span><br>
-        Have the catch-up scan compare the saved status too, not just the checksum, so a checkout that happened while we
-        were not watching is announced like any other change.
-        <span class="foot">Moderate — it changes what the recovery scan considers "changed", and wants a test per case
-        (checked out by a teammate, checked back in, checked out to you). Recommended because the failure is silent and
-        points the wrong way, but it is a real widening of an already-large PR, which is why it is a question.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2b" data-q="Decision 2 - checkouts invisible after late folder arrival" value="Track it on its own card for 6.6">
-      <label class="body" for="q2b">
-        Leave this PR as it is and raise a separate card, so the recovery scan gets looked at on its own.
-        <span class="foot">No code here; keeps this PR's size where a reviewer has already said it is too big. The cost is
-        that the gap ships.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2c" data-q="Decision 2 - checkouts invisible after late folder arrival" value="Leave as is">
-      <label class="body" for="q2c">Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q2lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2d" data-q="Decision 2 - checkouts invisible after late folder arrival" value="Other">
-      <label class="body" for="q2d">Other:
-        <input class="other" data-other-for="q2" type="text" placeholder="your answer"></label>
-    </div>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on decision 2"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>3 · A failed catch-up scan never runs again <span class="sev minor">DEVIN · NON-SEVERE</span></h3>
-    <p class="src">Devin, mirrored as
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4125806856" target="_blank" rel="noopener">an open thread</a>
-      · <code>FolderTeamCollection.cs:1188</code></p>
-    <p>When the <code>Books</code> folder turns up late and Bloom starts watching it, it then scans to work out what it
-      missed. If that scan's directory listing fails — the share blinks out at exactly that moment — the scan gives up. The
-      watcher itself is running by then, so <em>future</em> changes are picked up fine; but the catch-up never runs again,
-      so whatever was already sitting in the folder stays unannounced until the user reloads.</p>
-    <p>Narrow window, bounded damage, and not quite a one-liner to fix: the flag that would make the heartbeat retry is the
-      same one that controls whether the watcher gets created, and the watcher has by then been created successfully, so
-      retrying needs a little more care than flipping it back.</p>
-    <div class="opt">
-      <input type="radio" name="q3" id="q3a" data-q="Decision 3 - failed catch-up scan" value="Leave as is" checked>
-      <label class="body" for="q3a"><span class="tag">RECOMMENDED</span><br>Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q3lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q3" id="q3b" data-q="Decision 3 - failed catch-up scan" value="Add a separate retry flag for the scan">
-      <label class="body" for="q3b">
-        Give the scan its own retry flag, separate from the watcher-deferred one, so a later heartbeat tick can redo just
-        the scan.
-        <span class="foot">Small but fiddly — a second piece of state on a path that already has several, in a change a
-        reviewer has called complex.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q3" id="q3c" data-q="Decision 3 - failed catch-up scan" value="Other">
-      <label class="body" for="q3c">Other:
-        <input class="other" data-other-for="q3" type="text" placeholder="your answer"></label>
-    </div>
-    <p class="foot" style="margin-top:8px">Recommended as-is because the user can always reload, the window needs the share
-      to fail in one specific instant, and the alternative adds state to the part of this change the reviewer is already
-      unhappy about.</p>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on decision 3"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>4 · A vanishing folder can throw out of <code>StartMonitoring</code> <span class="sev minor">DEVIN · NON-SEVERE</span></h3>
-    <p class="src">Devin, mirrored as
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#discussion_r4125806643" target="_blank" rel="noopener">an open thread</a>
-      · <code>FolderTeamCollection.cs:1074</code></p>
-    <p><code>StartMonitoring</code> checks that the <code>Books</code> folder exists and then calls
-      <code>StartBooksWatcher</code>, which assigns the watcher's <code>Path</code>. That assignment throws if the folder
-      has gone in the meantime. The deferred-retry path was taught to catch exactly this in an earlier round of Devin
-      review; the startup path was not, so there the exception escapes without the failure being reported and without
-      Bloom going Disconnected.</p>
-    <p>The window is two adjacent statements wide, which is why this is a question rather than something I just fixed —
-      the same <code>try</code>/<code>catch</code> treatment would close it, but it is one more piece of defensive code in
-      a change already under fire for size.</p>
-    <div class="opt">
-      <input type="radio" name="q4" id="q4a" data-q="Decision 4 - vanishing folder at StartMonitoring" value="Guard it the same way the retry path is guarded" checked>
-      <label class="body" for="q4a"><span class="tag">RECOMMENDED</span><br>
-        Wrap the call the same way <code>RetryDeferredWatching</code> already does, reporting the failure instead of
-        letting it escape.
-        <span class="foot">Genuinely small — a <code>try</code>/<code>catch</code> of about eight lines, mirroring code
-        that already exists a few lines away. Recommended because it costs almost nothing and makes the two paths
-        consistent, which is easier to review than an explained asymmetry.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q4" id="q4b" data-q="Decision 4 - vanishing folder at StartMonitoring" value="Leave as is">
-      <label class="body" for="q4b">Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q4lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q4" id="q4c" data-q="Decision 4 - vanishing folder at StartMonitoring" value="Other">
-      <label class="body" for="q4c">Other:
-        <input class="other" data-other-for="q4" type="text" placeholder="your answer"></label>
-    </div>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on decision 4"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>5 · Andrew's "this is a lot more complex than I was hoping"</h3>
-    <p class="src">Human —
-      <a href="https://github.com/BloomBooks/BloomDesktop/pull/8338#issuecomment-5638660230" target="_blank" rel="noopener">comment, 11 Sep</a></p>
-    <blockquote>This is a lot more complex than I was hoping.<br>It feels like too much for 6.5 to me.<br>What do you think?</blockquote>
-    <p>He raised two things. The <em>release</em> half is settled — the PR was retargeted from <code>Version6.5</code> to
-      <code>master</code>, you said so on the thread, and the card now reads <code>[6.6]</code>. The <em>complexity</em>
-      half was never answered, and the PR has grown since: it is now 18 files against master, and John has reviewed it
-      twice with changes requested.</p>
-    <p>This is yours to answer, not mine — I am not going to argue a design position with a reviewer on your behalf. But
-      it is the one thing most likely to come back at you the moment this goes to peer review, so it is better answered
-      before than after.</p>
-    <div class="opt">
-      <input type="radio" name="q5" id="q5a" data-q="Decision 5 - Andrew's complexity concern" value="Reply on the thread explaining why the complexity is irreducible" checked>
-      <label class="body" for="q5a"><span class="tag">RECOMMENDED</span><br>
-        Answer him on the thread: what the complexity actually buys, and which parts are irreducible (the double-check
-        before disconnecting, the thread marshalling, the catch-up scan) versus incidental.
-        <span class="foot">No code — a considered reply. Recommended because the question is still formally open on a PR
-        about to go for peer review, and an unanswered "is this too much?" from a colleague reads worse the longer it
-        sits.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q5" id="q5b" data-q="Decision 5 - Andrew's complexity concern" value="Split the PR: land the detection, defer the catch-up work">
-      <label class="body" for="q5b">
-        Take the concern at face value and split it — land the disconnect detection, move the late-folder catch-up work to
-        its own card.
-        <span class="foot">Large and disruptive at this stage: it would mean unpicking commits John has already reviewed
-        and starting his review over.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q5" id="q5c" data-q="Decision 5 - Andrew's complexity concern" value="Leave as is">
-      <label class="body" for="q5c">Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q5lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q5" id="q5d" data-q="Decision 5 - Andrew's complexity concern" value="Other">
-      <label class="body" for="q5d">Other:
-        <input class="other" data-other-for="q5" type="text" placeholder="your answer"></label>
-    </div>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on decision 5"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>6 · The leftover reformatting in the two e2e spec files <span class="sev minor">FYI</span></h3>
-    <p>About 190 lines of the diff are pure formatting in
-      <code>toolbox-sections.spec.ts</code> and <code>reader-tool-stage-and-level.spec.ts</code>, left by the pre-commit
-      formatter when a merge staged them. The formatting is correct — master's copies are simply stale — and the tests in
-      those files are skipped anyway, so nothing is at risk. It is only noise in the review diff, and reverting it needs
-      the hook bypassed, which I would not do on my own.</p>
-    <div class="opt">
-      <input type="radio" name="q6" id="q6a" data-q="FYI 6 - leftover e2e reformatting" value="Leave as is" checked>
-      <label class="body" for="q6a"><span class="tag">RECOMMENDED</span><br>Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q6lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q6" id="q6b" data-q="FYI 6 - leftover e2e reformatting" value="Revert the two files with the hook bypassed">
-      <label class="body" for="q6b">
-        Revert both files to master's content, bypassing the hook for that one commit.
-        <span class="foot">Two minutes, and it takes ~190 lines out of the review diff — but it needs
-        <code>--no-verify</code>, which the repo's own rules treat as something you authorize, not something I decide.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q6" id="q6c" data-q="FYI 6 - leftover e2e reformatting" value="Other">
-      <label class="body" for="q6c">Other:
-        <input class="other" data-other-for="q6" type="text" placeholder="your answer"></label>
-    </div>
-    <p class="foot" style="margin-top:8px">Recommended as-is because the formatting is what the repo's own config asks for,
-      and a reviewer can collapse whitespace in the GitHub diff.</p>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on FYI 6"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>7 · Next step</h3>
-    <p>The gate is green, both suites pass at this head, Devin is clean, and the PR is mergeable and still a draft. What
-      remains is the five decisions above plus your own read of the change.</p>
-    <div class="opt">
-      <input type="radio" name="q7" id="q7a" data-q="Next step" value="Implement the chosen options, then hand back for review" checked>
-      <label class="body" for="q7a"><span class="tag">RECOMMENDED</span><br>
-        Implement whatever you pick above, re-run the gauntlet, and hand it back for your own read.
-        <span class="foot">Recommended because decisions 1, 2 and 4 all have small, self-contained fixes and the branch is
-        otherwise ready.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q7" id="q7b" data-q="Next step" value="Discuss first before I change anything else">
-      <label class="body" for="q7b">
-        Talk it through first — particularly decisions 2 and 5, where the right answer depends on how much more this PR
-        should carry.</label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q7" id="q7c" data-q="Next step" value="Leave as is">
-      <label class="body" for="q7c">Leave as is</label>
-      <span class="lc"><input type="checkbox" id="q7lc"> Leave comment</span>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q7" id="q7d" data-q="Next step" value="Other">
-      <label class="body" for="q7d">Other:
-        <input class="other" data-other-for="q7" type="text" placeholder="your answer"></label>
-    </div>
-    <label class="lbl">Notes<textarea class="notes" data-q="Notes on next step"></textarea></label>
-  </div>
-
-  <div class="card">
-    <h3>Send your answers back</h3>
-    <p class="foot" style="margin-top:0">Copy this and paste it into the session.</p>
-    <button id="copybtn" type="button">Copy answers</button>
+    <h3>Send your answer back</h3>
+    <p class="foot" style="margin-top:0">Only needed if you want one of the follow-up cards.</p>
+    <button id="copybtn" type="button">Copy answer</button>
     <span id="copied" hidden style="margin-left:10px;color:var(--ok);font-weight:600">copied</span>
     <textarea id="payload" readonly></textarea>
   </div>
 
+</div>
 </div>
 </div>
 </div>
@@ -520,7 +383,7 @@
   var payload = document.getElementById('payload');
 
   function build() {
-    var lines = ['Preflight decisions - BL-16729 (PR #8338, head cb927984b8)', ''];
+    var lines = ['Preflight follow-up - BL-16729 (PR #8338, head 70be9a549d)', ''];
     var seen = [];
     document.querySelectorAll('input[type=radio]').forEach(function (r) {
       if (seen.indexOf(r.name) === -1) seen.push(r.name);
