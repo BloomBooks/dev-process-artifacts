@@ -80,12 +80,12 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <div class="wrap">
 <header>
   <h1>Shared-folder pause preflight: BloomDesktop PR #8414</h1>
-  <p class="summary">Preflight run on branch <code>BL-16928-shared-folder-changes</code> (base <code>Version6.5</code>), ending at <code>b941139faa</code>. Gates green, every reviewer finished; three small decisions for you, all recommended "Leave as is".</p>
+  <p class="summary">Preflight run on branch <code>BL-16928-shared-folder-changes</code> (base <code>Version6.5</code>), ending at <code>b941139faa</code>. Gates green, every reviewer finished, nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots answered</span>
-    <span class="chip warn">3 decisions waiting</span>
+    <span class="chip good">No decisions waiting</span>
   </div>
   <nav class="links">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8414" target="_blank" rel="noopener">PR #8414</a>
@@ -131,14 +131,14 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>The paused-checkouts note from BL-16691 is now translatable, and the local review found one real bug, now fixed: making a new Team Collection from a copy of a paused collection pushed the pause up and then refused every book. The PR description gained the narrative markers, and the test ideas are on the card. <a href="https://github.com/BloomBooks/BloomDesktop/commit/34a576abcb" target="_blank" rel="noopener">34a576abcb</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/b941139faa" target="_blank" rel="noopener">b941139faa</a>.</p>
+    <p>No code changes. You chose "Leave as is" on all three decisions, and the rare error dialog is now listed as known behavior in the test ideas on the card. The gauntlet was re-checked against the same HEAD, <a href="https://github.com/BloomBooks/BloomDesktop/commit/b941139faa" target="_blank" rel="noopener">b941139faa</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Found no unguarded write path. It raised one real bug (new Team Collection from a paused copy), which is fixed, and two narrow races, which are decision 2 here.</div>
+    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Found no unguarded write path. It raised one real bug (new Team Collection from a paused copy), which is fixed, and two narrow races, left as they are by your decision and listed in the test ideas.</div>
     <div class="reviewer"><strong>Devin: complete (2 runs, the last at <code>b941139faa</code>)</strong>It raised 2 bugs and 3 points to check. None needed a change: the palette write can't really happen, the startup-sync refusal is the pause working as intended, and translate="no" doesn't apply to a 6.5 patch. Each is answered in its own <a href="https://github.com/BloomBooks/BloomDesktop/pull/8414" target="_blank" rel="noopener">resolved thread</a>. The second run found nothing new.</div>
-    <div class="reviewer"><strong>Greptile: complete</strong>It raised 3 findings on the first commit (the open-dialog race on Collection Settings and the reader settings, and the palette write). All are answered and resolved; the dialog race is decision 3's background.</div>
+    <div class="reviewer"><strong>Greptile: complete</strong>It raised 3 findings on the first commit (the open-dialog race on Collection Settings and the reader settings, and the palette write). All are answered and resolved; the dialog race is left as is by your decision.</div>
     <div class="reviewer"><strong>CI</strong>Complete: pr-automation passed.</div>
   </section>
 
@@ -151,90 +151,13 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 </main>
 
 <aside>
-  <section class="card decision" data-item="1">
-    <h2>1. Switching the pause off</h2>
-    <p class="context">Once the shared folder's settings say changes are paused, every Bloom refuses to write there, the administrator's included. That also stops the administrator writing the setting that would switch the pause off. So, as built, the only way to undo it is for someone to edit the settings inside the shared folder's <code>Other/Other Collection Files.zip</code> by hand. In real use the pause is meant to be permanent, because the collection is moving to the cloud, and the design doc's recovery step already has support staff reset it. It does make testing awkward, and a pause set by mistake can't be undone from Bloom. I recommend leaving it: an "unpause" exception would reopen a gap in exactly the rule this PR exists to enforce.</p>
-    <label class="option"><input type="radio" name="q1" value="Let an administrator lift the pause: allow the collection-settings push when its only change is setting AllowSharedFolderChanges back to True" data-q="1. Switching the pause off"><span>Let an administrator lift the pause from Bloom, by allowing the settings push when its only change is setting the pause back off. <span class="foot">(moderate: a special case in the settings sync, plus tests; a new path around the guard)</span></span></label>
-    <div class="option leave"><label style="display:flex;gap:8px"><input type="radio" name="q1" value="Leave as is" checked data-q="1. Switching the pause off"><span>Leave as is <span class="tag">recommended</span></span></label><label class="lc"><input type="checkbox" data-q="1. Switching the pause off" data-lc="1"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q1" value="Other" data-q="1. Switching the pause off"><span>Other:</span> <input type="text" class="other-text" data-q="1. Switching the pause off" data-other="1" aria-label="Other answer for item 1"></label>
-    <textarea rows="2" data-q="1. Switching the pause off" data-notes="1" placeholder="Notes" aria-label="Notes for item 1"></textarea>
-  </section>
-
-  <section class="card decision" data-item="2">
-    <h2>2. Two rare races show an error dialog</h2>
-    <p class="context">Both need the pause to arrive at an exact moment. In each case no work is lost; the person just sees Bloom's "something went wrong" dialog instead of the friendly explanation.</p>
-    <ul>
-      <li><strong>Deleting a book</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b941139faaea20d9555d7ec7faddddf18a0e6883/src/BloomExe/CollectionTab/CollectionModel.cs#L654" target="_blank" rel="noopener">CollectionModel.cs:654</a>). If the pause arrives while the "delete this book?" confirmation is open, the book isn't deleted, the selection is cleared, and the error dialog appears (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b941139faaea20d9555d7ec7faddddf18a0e6883/src/BloomExe/CollectionTab/CollectionModel.cs#L684" target="_blank" rel="noopener">line 684</a>).</li>
-      <li><strong>Closing the collection</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b941139faaea20d9555d7ec7faddddf18a0e6883/src/BloomExe/TeamCollection/TeamCollectionManager.cs#L287" target="_blank" rel="noopener">TeamCollectionManager.cs:287</a>). If the pause arrives in the instant between checking and pushing the collection files, the refusal escapes the closing handler.</li>
-    </ul>
-    <p class="context">The pause is set once, during a migration, so hitting either is very unlikely. I recommend leaving them.</p>
-    <label class="option"><input type="radio" name="q2" value="Catch the pause refusal in both places and show the friendly message" data-q="2. Two rare races"><span>Catch the refusal in both places and show the explanation instead. <span class="foot">(~15 lines, localized, low risk)</span></span></label>
-    <div class="option leave"><label style="display:flex;gap:8px"><input type="radio" name="q2" value="Leave as is" checked data-q="2. Two rare races"><span>Leave as is <span class="tag">recommended</span></span></label><label class="lc"><input type="checkbox" data-q="2. Two rare races" data-lc="1"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q2" value="Other" data-q="2. Two rare races"><span>Other:</span> <input type="text" class="other-text" data-q="2. Two rare races" data-other="1" aria-label="Other answer for item 2"></label>
-    <textarea rows="2" data-q="2. Two rare races" data-notes="1" placeholder="Notes" aria-label="Notes for item 2"></textarea>
-  </section>
-
-  <section class="card decision" data-item="3">
-    <h2>3. Settings dialogs while paused</h2>
-    <p class="context">While paused, <strong>Collection Settings</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b941139faaea20d9555d7ec7faddddf18a0e6883/src/BloomExe/Workspace/WorkspaceView.cs#L1463" target="_blank" rel="noopener">WorkspaceView.cs:1463</a>) and the <strong>reader-tool settings</strong> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b941139faaea20d9555d7ec7faddddf18a0e6883/src/BloomExe/web/ReadersApi.cs#L361" target="_blank" rel="noopener">ReadersApi.cs:361</a>) show the pause message instead of opening. Saving them would change this computer only: nobody else would get the change, and the shared folder's copy would replace it at the next start. This is behavior the implementing agent chose, so it's here for your confirmation. I recommend leaving it; it's the least surprising outcome.</p>
-    <label class="option"><input type="radio" name="q3" value="Let the dialogs open, with a warning that changes stay on this computer and will be replaced at the next start" data-q="3. Settings dialogs while paused"><span>Let them open, with a warning that changes stay on this computer and will be replaced at the next start. <span class="foot">(~20 lines, low risk)</span></span></label>
-    <div class="option leave"><label style="display:flex;gap:8px"><input type="radio" name="q3" value="Leave as is" checked data-q="3. Settings dialogs while paused"><span>Leave as is <span class="tag">recommended</span></span></label><label class="lc"><input type="checkbox" data-q="3. Settings dialogs while paused" data-lc="1"> Leave comment</label></div>
-    <label class="option"><input type="radio" name="q3" value="Other" data-q="3. Settings dialogs while paused"><span>Other:</span> <input type="text" class="other-text" data-q="3. Settings dialogs while paused" data-other="1" aria-label="Other answer for item 3"></label>
-    <textarea rows="2" data-q="3. Settings dialogs while paused" data-notes="1" placeholder="Notes" aria-label="Notes for item 3"></textarea>
-  </section>
-
-  <section class="card decision" data-item="4">
-    <h2>Next step</h2>
-    <label class="option"><input type="radio" name="q4" value="Implement the choices above, then re-run preflight" checked data-q="Next step"><span>Implement the choices above, then re-run preflight <span class="tag">recommended</span></span></label>
-    <label class="option"><input type="radio" name="q4" value="Discuss first" data-q="Next step"><span>Discuss first</span></label>
-    <label class="option"><input type="radio" name="q4" value="Other" data-q="Next step"><span>Other:</span> <input type="text" class="other-text" data-q="Next step" data-other="1" aria-label="Other next step"></label>
-    <textarea rows="2" data-q="Next step" data-notes="1" placeholder="Notes" aria-label="Notes for next step"></textarea>
-  </section>
-
   <section class="card">
-    <h2>Send your answers back</h2>
-    <p>Copies your choices as text to paste into the session.</p>
-    <p><button class="copy" id="copy" type="button">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></p>
-    <textarea id="payload" rows="10" readonly aria-label="Answers to paste back"></textarea>
+    <h2>Nothing waiting on you</h2>
+    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review.</p>
   </section>
 </aside>
 </div>
 </div>
-<script>
-(function () {
-  function build() {
-    var lines = ["Preflight decisions for BloomDesktop PR #8414 (BL-16928), report at b941139faa:"];
-    document.querySelectorAll("section.decision").forEach(function (sec) {
-      var title = sec.querySelector("h2").textContent;
-      var checked = sec.querySelector('input[type=radio]:checked');
-      var val = checked ? checked.value : "(none)";
-      if (val === "Other") {
-        var o = sec.querySelector('input[data-other]');
-        val = "Other: " + (o && o.value ? o.value : "");
-      }
-      lines.push("");
-      lines.push(title + " -> " + val);
-      var lc = sec.querySelector('input[data-lc]');
-      if (lc && lc.checked) lines.push("  Leave comment");
-      var notes = sec.querySelector('textarea[data-notes]');
-      if (notes && notes.value.trim()) lines.push("  Notes: " + notes.value.trim());
-    });
-    return lines.join("\n");
-  }
-  var payload = document.getElementById("payload");
-  function refresh() { payload.value = build(); }
-  document.addEventListener("input", refresh);
-  document.addEventListener("change", refresh);
-  refresh();
-  document.getElementById("copy").addEventListener("click", function () {
-    refresh();
-    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
-    var fallback = function () { payload.select(); try { document.execCommand("copy"); } catch (e) {} done(); };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(payload.value).then(done, fallback);
-    } else { fallback(); }
-  });
-})();
-</script>
+
 </body>
 </html>
