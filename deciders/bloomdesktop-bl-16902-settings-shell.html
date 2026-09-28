@@ -64,7 +64,7 @@
 <div class="wrap">
   <header>
     <h1>Collection Settings in React: dialog shell and save pipeline</h1>
-    <p class="summary">Preflight on <code>BL-16902-settings-shell</code> against <code>master</code>, at <a href="https://github.com/BloomBooks/BloomDesktop/commit/ee2e072e6dfcfcf24b00481dd975d77b2912e415" target="_blank" rel="noopener"><span class="numeral">ee2e072e6d</span></a>. Every gate is green, every reviewer finished, and nothing is waiting on you.</p>
+    <p class="summary">Preflight on <code>BL-16902-settings-shell</code> against <code>master</code>, at <a href="https://github.com/BloomBooks/BloomDesktop/commit/b94be35423ff6cac8536f1a3a562d1ad8d14718d" target="_blank" rel="noopener"><span class="numeral">b94be35423</span></a>. Every gate is green, every reviewer finished, and nothing is waiting on you.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
@@ -86,17 +86,17 @@
       <section class="card">
         <h2>What this PR is about</h2>
         <h3>Problem</h3>
-        <p>BL-16271 is moving Bloom's collection Settings dialog off WinForms and onto React with Config-R, and nothing on master was ready for that work to start. The React side was an empty two-page skeleton that nothing launched, backed by a placeholder endpoint. Everything that actually saves collection settings lived inside the WinForms dialog's OK handler, reachable from anywhere else only through a static pointer to the open WinForms dialog. None of the seven per-tab cards could begin against that.</p>
+        <p>BL-16271 is moving Bloom's collection Settings dialog off WinForms and onto React with Config-R, and nothing on master was ready for that work to start. The React side was an empty two-page skeleton that nothing launched, backed by a placeholder endpoint, and everything that saves collection settings lived inside the WinForms dialog's OK handler. None of the seven per-tab cards could begin against that.</p>
         <h3>What the PR does</h3>
         <ul>
           <li><strong>A real React dialog shell.</strong> Seven Config-R pages in the new design's order, with localized labels and placeholder content, sized like Book Settings. A second Settings button on the collections toolbar opens it; the WinForms button is relabelled "Old Settings" until the cutover.</li>
           <li><strong>Opened from the browser, from any tab.</strong> <code>showCollectionSettingsDialog(pageKey?)</code> raises the dialog's launch event directly, with no round trip through C#, and <code>App</code> renders the dialog, so later callers on any tab can open it on a named page.</li>
           <li><strong>Real save behaviour.</strong> OK saves everything in one POST and Cancel saves nothing. A change that needs a restart shows the reminder and relabels OK as "Restart". A validation problem shows in place; a save that fails outright is reported and keeps the user's edits for a retry.</li>
           <li><strong>Team Collection administrators only.</strong> The settings request applies the old button's rule: a non-administrator gets just the reason, in a small dialog with Close, and no editing session opens.</li>
-          <li><strong>One place where pending settings live.</strong> A <code>PendingCollectionSettings</code> session replaces the static <code>DialogBeingEdited</code> pointer, so both dialogs and the existing React tabs (Subscription, Team Collection, bookshelf) share the same pending state during the overlap.</li>
-          <li><strong>The save logic is testable.</strong> <code>CollectionSettingsUpdater.Validate/Apply</code> holds what the WinForms OK handler did, with unit tests; the legacy dialog keeps working through it.</li>
+          <li><strong>Its own save pipeline.</strong> <code>collection/settings</code> GET/POST/cancel, a <code>PendingCollectionSettings</code> session, and <code>CollectionSettingsUpdater</code> (a copy of the WinForms apply logic) with unit tests.</li>
+          <li><strong>The WinForms dialog is untouched.</strong> It and the endpoints its tabs use are exactly as on master; the two only coexist on alpha until cutover, when the old one and its copy of the logic go.</li>
         </ul>
-        <p>The plan for the rest of BL-16271 is <a href="https://github.com/BloomBooks/BloomDesktop/blob/ee2e072e6dfcfcf24b00481dd975d77b2912e415/docs/collection-settings-react/PLAN.md" target="_blank" rel="noopener"><code>docs/collection-settings-react/PLAN.md</code></a>.</p>
+        <p>The plan for the rest of BL-16271 is <a href="https://github.com/BloomBooks/BloomDesktop/blob/b94be35423ff6cac8536f1a3a562d1ad8d14718d/docs/collection-settings-react/PLAN.md" target="_blank" rel="noopener"><code>docs/collection-settings-react/PLAN.md</code></a>; §3.0 records what was built.</p>
       </section>
 
       <section class="card">
@@ -106,11 +106,11 @@
             <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
             <tbody>
               <tr><td>TypeScript typecheck</td><td class="pass">Pass</td><td>No blunder-class errors at the final commit.</td></tr>
-              <tr><td>ESLint</td><td class="pass">Pass</td><td>0 errors in the touched files; the warnings there were already on master.</td></tr>
-              <tr><td>TypeScript tests (vitest)</td><td class="pass">Pass</td><td><span class="numeral">80 files · 989 passed</span>, full suite. The front end has not changed since that run.</td></tr>
-              <tr><td>C# tests (NUnit via agent-dotnet)</td><td class="pass">Pass</td><td><span class="numeral">3619 passed · 0 failed</span>, full suite at the final commit.</td></tr>
-              <tr><td>Merge with master</td><td class="pass">Clean</td><td>Master merged this run (one trivial conflict in <code>App.tsx</code>, both new top-level dialogs kept); the PR is mergeable.</td></tr>
-              <tr><td>Production bundle</td><td class="skip">Not run</td><td>No new packages or entry points; the changes are imports between existing modules, which the typecheck and the dev server already resolve.</td></tr>
+              <tr><td>ESLint</td><td class="pass">Pass</td><td>0 errors in the touched files.</td></tr>
+              <tr><td>TypeScript tests (vitest)</td><td class="pass">Pass</td><td><span class="numeral">81 files · 991 passed</span>, full suite at the final commit.</td></tr>
+              <tr><td>C# tests (NUnit via agent-dotnet)</td><td class="pass">Pass</td><td><span class="numeral">3643 passed · 0 failed</span>, full suite at the final commit.</td></tr>
+              <tr><td>Merge with master</td><td class="pass">Clean</td><td>Master merged this run with no conflicts; the PR is mergeable.</td></tr>
+              <tr><td>Production bundle</td><td class="skip">Not run</td><td>No new packages or entry points.</td></tr>
             </tbody>
           </table>
         </div>
@@ -119,9 +119,8 @@
       <section class="card">
         <h2>What changed this run</h2>
         <ul>
-          <li>Settings now opens from the browser on any tab. The <code>workspace/showSettingsDialog</code> endpoint is gone, and the administrator check moved into the settings request, with a small Close dialog for non-administrators.</li>
-          <li>Fixed four problems Devin found: undoing a subscription edit (both the saved code and the restart), Cancel during a save, and a stale reply after reopening.</li>
-          <li>Restored the Front &amp; Back Matter label string after master removed the one it reused, merged master, and updated the plan document.</li>
+          <li>Put the WinForms dialog, its <code>DialogBeingEdited</code> pointer and the <code>settings/*</code> endpoints back exactly as on master; the React dialog keeps its own session and a copy of the apply logic.</li>
+          <li>Merged master, refreshed the plan (§3.0, §3.2), the test ideas and this narrative.</li>
         </ul>
         <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8388/commits" target="_blank" rel="noopener">All commits</a></p>
       </section>
@@ -132,9 +131,9 @@
           <table>
             <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
             <tbody>
-              <tr><td>Local review (light sub-agent pass)</td><td class="pass">Complete</td><td>One finding: the reused page-label string had been removed from English on master. Fixed.</td></tr>
-              <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8388" target="_blank" rel="noopener">Devin</a></td><td class="pass">Complete</td><td>Four bugs and two Investigate flags this run, each fixed or answered on its own thread and resolved; its pass on the head commit found nothing new. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8388#issuecomment-5843548047" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
-              <tr><td>CI (pr-automation)</td><td class="pass">Pass</td><td>Green for the head commit; the only check this repo runs on a PR.</td></tr>
+              <tr><td>Local review (light sub-agent pass)</td><td class="pass">Complete</td><td>Clean. Confirmed the old dialog's files and endpoints match master and nothing refers to the removed shared plumbing.</td></tr>
+              <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8388" target="_blank" rel="noopener">Devin</a></td><td class="pass">Complete</td><td>Two new items at the head commit, both expected consequences of the design and answered on their threads; everything else was already resolved. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8388#issuecomment-5879821808" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+              <tr><td>CI (pr-automation)</td><td class="pass">Pass</td><td>Green for the head commit.</td></tr>
               <tr><td>CodeRabbit / Greptile</td><td>Not active</td><td>Neither is configured to review this repo.</td></tr>
             </tbody>
           </table>
@@ -144,10 +143,9 @@
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li><strong>Tried by hand in Bloom:</strong> the new dialog from the Collections and Edit tabs (including opening on a named page); a forced save failure and its retry; a Team Collection as administrator and as non-administrator; the old dialog's Cancel, OK, rename and subscription undo; and switching between the two dialogs.</li>
-          <li><strong>Not tried by hand:</strong> Esc or Cancel while a save is still in flight. The save completes too fast to catch, so that guard is covered by its unit test only.</li>
-          <li>Any save, in either dialog, rewrites a collection with an expired subscription to branding <code>Default</code>. That is how <code>CollectionSettings.Save()</code> has always worked, not something this PR changed.</li>
-          <li>The <code>Descriptor != Descriptor</code> comparison in <code>CollectionSettingsUpdater</code> is always false. It was carried over unchanged, with a comment pointing at BL-16904.</li>
+          <li><strong>Tried by hand in Bloom at the final code:</strong> the new dialog's open, page switching, OK with no changes (no restart, file unchanged), reopen and Cancel; opening from the Edit tab on a named page; saves of a plain change and of a restart change; and the old dialog's Cancel and OK, plus switching between the two dialogs.</li>
+          <li><strong>Not re-tried since the revert:</strong> Team Collection (administrator and not) and a forced save failure. Both passed by hand before it, and the revert did not touch that code.</li>
+          <li>The subscription, bookshelf and administrator editors still feed only the old dialog. That is deliberate until the first tab card embeds one (plan §3.2 step 3).</li>
         </ul>
       </section>
     </main>
@@ -160,7 +158,7 @@
       </section>
       <section class="card">
         <h2>Test ideas</h2>
-        <p>The QA notes on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16902" target="_blank" rel="noopener">BL-16902</a> were rewritten for the current branch, including the Team Collection administrator checks and the subscription undo.</p>
+        <p>The QA notes on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16902" target="_blank" rel="noopener">BL-16902</a> were rewritten for the current branch: the new dialog in full, and only a quick sanity check of the old one, which is unchanged.</p>
       </section>
     </aside>
   </div>
