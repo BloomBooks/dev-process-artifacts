@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Toolbox Cleanup 3/4 Preflight</title>
+<style>
+:root{--ground:#f6f5f1;--card:#ffffff;--line:#dcdad2;--ink:#23262b;--muted:#5f636b;--accent:#2f5d8a;--ok:#2e7a4f;--okbg:#e6f2ea;--warn:#8a5a12;--chipbg:#eef1f5;color-scheme:light}
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;padding-inline:16px;padding-block:24px 48px}
+h1,h2,h3{font-family:Georgia,"Iowan Old Style","Times New Roman",serif;font-weight:600;text-wrap:balance;margin:0}
+h1{font-size:1.6rem}h2{font-size:1.15rem;margin-bottom:10px}h3{font-size:.95rem;margin:14px 0 4px;color:var(--muted)}
+a{color:var(--accent)}a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.head{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--chipbg);font-size:.85rem;text-decoration:none;color:var(--ink);border:1px solid var(--line)}
+.chip.ok{background:var(--okbg);color:var(--ok);border-color:#bcdcc7}
+.links .chip{color:var(--accent)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;align-items:start}
+.grid>*{min-width:0;display:flex;flex-direction:column;gap:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 20px}
+.card p{margin:6px 0;max-width:68ch}.card ul{margin:6px 0;padding-left:20px}.card li{margin:3px 0}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+td,th{text-align:left;padding:7px 8px;border-top:1px solid var(--line);vertical-align:top}
+th{font-weight:600;color:var(--muted);border-top:none}
+.numeral{font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;font-size:.88rem}
+.pass{color:var(--ok);font-weight:600}.warn{color:var(--warn);font-weight:600}.na{color:var(--muted)}
+.tw{overflow-x:auto}
+.q p{font-size:.93rem}
+.opt{display:flex;gap:8px;align-items:flex-start;padding:6px 0}
+.opt input[type=radio]{margin-top:4px}
+.rec{font-size:.75rem;background:var(--okbg);color:var(--ok);padding:1px 7px;border-radius:999px;margin-left:4px}
+.foot{color:var(--muted);font-size:.85rem}
+.lac{margin-left:auto;font-size:.85rem;color:var(--muted);display:flex;gap:4px;align-items:center;white-space:nowrap}
+.other{flex:1;min-width:0;padding:4px 6px;border:1px solid var(--line);border-radius:4px;font:inherit}
+textarea{width:100%;border:1px solid var(--line);border-radius:4px;padding:6px 8px;font:inherit;font-size:.9rem}
+#payload{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;min-height:140px;margin-top:8px}
+button{background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;font:inherit;cursor:pointer}
+#status{margin-left:10px;font-size:.88rem;color:var(--muted)}#status.good{color:var(--ok)}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head><body>
+<div class="wrap">
+  <div class="head">
+    <h1>Toolbox cleanup 3/4: preflight</h1>
+    <p style="margin:0;color:var(--muted)">Preflight of the third PR in the BL-16608 toolbox split. The bots found a real bug, now fixed. Two checks could not finish on this machine, and there is one question for you.</p>
+    <div class="row">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8427" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">Draft PR</a></span><!-- pr-state:end -->
+      <span class="chip ok">Mergeable</span>
+      <span class="chip ok">Bots quiet</span>
+      <span class="chip">1 question for you</span>
+    </div>
+    <div class="row links">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8427" target="_blank" rel="noopener">PR #8427</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8427/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8427/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16608" target="_blank" rel="noopener">BL-16608</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8427" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>Every toolbox tool has been React for some time, but the Edit tab's toolbox still ran the old jQuery accordion underneath it. <code>toolbox.ts</code> built each tool's panel into a hidden copy of the toolbox, and the visible React toolbox lifted those panels back out through events, a DOM observer and a quarter-second polling loop. Keeping two copies was dead weight, and it caused real bugs: the Talking Book busy cursor was aimed at the hidden copy so it never appeared, and a mismatch in how a tool id was spelled silently disabled image-description detection.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li><strong>Deletes the legacy half</strong>: the accordion, the hidden toolbox, the lifting machinery and the accordion styling. The React toolbox builds each tool's panel directly, and each tool's panel is built once and reused.</li>
+          <li><strong>Gives tool ids one home</strong>, with the conversions to the spellings books store, so what is written into a book is unchanged. Icons, always-on status and subscription markers now come from the tools themselves, and the "More..." list is derived from them instead of kept by hand.</li>
+          <li><strong>Simplifies what a tool has to implement</strong>, and lets each tool supply its own stylesheet.</li>
+          <li><strong>Fixes along the way</strong>: the busy cursor, image-description detection, an iconless header asking for an empty image, and a Decodable Reader crash in a book that has never saved toolbox settings.</li>
+        </ul>
+        <p>Nothing here is meant to look different to a user. This is the third of four PRs; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8402" target="_blank" rel="noopener">#8402</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8403" target="_blank" rel="noopener">#8403</a> are merged, and the last one gives the toolbox's state and each tool's lifecycle to React.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tw"><table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Typecheck and lint</td><td class="pass">Pass</td></tr>
+          <tr><td>Front-end unit tests (vitest)</td><td><span class="pass">Pass</span> <span class="numeral">971 passed</span></td></tr>
+          <tr><td>C# tests</td><td><span class="pass">Pass</span> <span class="numeral">3628 passed</span></td></tr>
+          <tr><td>BloomE2E (real Bloom), 102 tests</td><td><span class="warn">Did not finish.</span> Two attempts: the first wedged when Bloom could not start within its three-minute limit, the second was stopped for low memory before any test ran. Neither says anything about the code. The machine had about 2.8&nbsp;GB free.</td></tr>
+          <tr><td>Integrated with master</td><td><span class="pass">Clean</span>: branched from the current master</td></tr>
+        </table></div>
+        <p class="foot">For context, the whole stack (this PR plus the next one) passed the full e2e suite earlier today, before the two fixes below were made: 93 passed, with nothing failing because of the branch.</p>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Split this PR out of the old combined branch, rebased it onto master and squashed it to one commit. Fixed the tool-reuse bug Devin found, and changed how one test checks a header icon after Greptile and Devin disagreed about it. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8427/commits" target="_blank" rel="noopener">commit</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tw"><table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>Clean. It checked every removed function for callers left behind anywhere in the repo, and confirmed that what gets written into a book is unchanged for all eleven tools.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8427" target="_blank" rel="noopener">Devin</a></td><td>Complete at HEAD. It found <a href="https://github.com/BloomBooks/BloomDesktop/pull/8427#discussion_r4136400837" target="_blank" rel="noopener">one severe bug</a>: unticking a tool under "More..." left it running in the background, and ticking it again started a second copy alongside it. Fixed, and Devin agrees. Its other flags were about tests and are answered on their threads.</td></tr>
+          <tr><td>Greptile</td><td>Complete. It would not say at first which rules it meant, so I asked; it named two. One is fixed (a test read an icon's computed styling instead of the value the component publishes). The other, timeouts in that same test file, is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8427#issuecomment-5852596614" target="_blank" rel="noopener">left alone and explained</a>: they are inherited, master's version of the file has more of them, and those tests cannot run at all right now.</td></tr>
+          <tr><td>CI (pr-automation)</td><td class="pass">Pass</td></tr>
+        </table></div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li><strong>Not exercised by hand:</strong> this PR shortens the list of folders Bloom's server searches for a file by bare name, dropping the folders of Motion, Music, Sign Language, Image Description and Canvas. The reasoning checks out and no test failed, but a stylesheet that failed to load would show as an ugly panel and no test we have would catch it. I meant to open those five tools in a running Bloom and could not, for the memory reason above. Worth a look when you open the branch.</li>
+          <li><strong>Earlier test-ideas comment:</strong> the card's original test-ideas comment is under your account, so the Bot cannot edit it. I posted a refreshed one below it that says it supersedes; you may want to delete the old one.</li>
+          <li>The e2e tests that pin this toolbox behavior are currently skipped on master, because of a page-loading race that <a href="https://github.com/BloomBooks/BloomDesktop/pull/8409" target="_blank" rel="noopener">#8409</a> fixes. They are worth turning back on once that lands.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card q">
+        <h2>The e2e suite did not finish</h2>
+        <p>BloomE2E drives a real Bloom, and both attempts died for want of memory on this machine rather than for anything in the code: one Bloom could not start inside its three-minute limit, and the retry was stopped before it ran a single test. Free memory was about 2.8&nbsp;GB. Everything else passes, and the whole stack passed this suite earlier today, before the tool-reuse fix. So the suite has never run against the code as it now stands.</p>
+        <label class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked data-instruction="In C:\dev\BloomDesktop.worktrees\BL-16608 on branch BL-16608-toolbox-2-legacy (PR #8427), re-run the full BloomE2E suite once the machine has memory free, and report the result; do not promote the PR."><span>Re-run the e2e suite when the machine has memory free <span class="rec">Recommended</span> <span class="foot">(about 15 minutes, nothing else running)</span>. Recommended because the fix that changed how tool panels are reused is exactly the kind of thing this suite exercises, and it has not been run against it.</span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1b" data-q="q1" data-instruction="Treat PR #8427 as sufficiently tested without a completed BloomE2E run, on the strength of the unit and C# suites and the earlier full e2e run of the whole stack. Do not re-run the e2e suite."><span>Good enough without it <span class="foot">(rests on the earlier run, which predates the tool-reuse fix)</span></span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1c" data-q="q1" data-instruction="Leave as is — take no action on: the unfinished BloomE2E run for PR #8427."><span>Leave as is</span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1d" data-q="q1" data-instruction="Other"><span>Other:</span><input type="text" class="other" id="q1other" data-q="q1-other" aria-label="Other"></label>
+        <textarea id="q1notes" data-q="q1-notes" rows="2" placeholder="Notes" aria-label="Notes"></textarea>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p class="foot">Copies your choice as text you can paste into any Claude session.</p>
+        <div><button type="button" id="copy">Copy answers</button><span id="status"></span></div>
+        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function build(){
+    var lines=["Decisions from a decider form (preflight of BloomBooks/BloomDesktop PR #8427, branch BL-16608-toolbox-2-legacy), 2026-09-29.","Full report: "+"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16608-toolbox-2-legacy.html",""];
+    lines.push("The e2e suite did not finish:");
+    var sel=document.querySelector('input[name=q1]:checked');
+    if(sel){
+      if(sel.id==="q1d"){lines.push("Other: "+document.getElementById("q1other").value.trim());}
+      else lines.push(sel.getAttribute("data-instruction"));
+    }
+    var n=document.getElementById("q1notes").value.trim();
+    if(n) lines.push("Notes: "+n);
+    return lines.join("\n");
+  }
+  var out=document.getElementById("payload"),st=document.getElementById("status");
+  function refresh(){out.value=build();}
+  document.addEventListener("input",refresh);document.addEventListener("change",refresh);refresh();
+  document.getElementById("copy").addEventListener("click",async function(){
+    st.className="";st.textContent="";
+    try{
+      refresh();out.focus();out.select();
+      try{await navigator.clipboard.writeText(out.value);st.className="good";st.textContent="Copied ✓";return;}catch(e){}
+      var ok=false;try{ok=document.execCommand("copy");}catch(e){}
+      if(ok){st.className="good";st.textContent="Copied ✓";}
+      else st.textContent="Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }catch(e){st.textContent="Couldn't copy automatically. Select the text below and copy it.";}
+  });
+})();
+</script>
+</body></html>
