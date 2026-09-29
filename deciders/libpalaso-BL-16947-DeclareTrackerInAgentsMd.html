@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight · libpalaso #1551</title>
+<style>
+/* Layout: two columns (report left, decisions right), collapsing to one column under 900px. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --line: #ddd8cc;
+  --ink: #23262b;
+  --muted: #5f6570;
+  --accent: #2f5d8a;
+  --accent-soft: #e8eef5;
+  --pass: #2e7d4f;
+  --pass-soft: #e6f2ea;
+  --warn: #9a6a12;
+  --warn-soft: #f7efdc;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding-block: 28px 48px; padding-inline: 20px; }
+a { color: var(--accent); }
+a:focus-visible, input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.75rem; line-height: 1.2; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1.02rem; line-height: 1.35; }
+code, .numeral { font-family: var(--mono); font-size: 0.88em; }
+.numeral { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+header p { margin: 0; color: var(--muted); }
+.links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; }
+.card p { margin: 0 0 8px; }
+.card p:last-child { margin-bottom: 0; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: 8px 8px 8px 0; border-top: 1px solid var(--line); }
+th { font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border-top: none; padding-top: 0; }
+td:first-child { width: 30%; font-weight: 600; }
+.pill { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; padding: 1px 8px; border-radius: 999px; margin-right: 6px; white-space: nowrap; }
+.pass { background: var(--pass-soft); color: var(--pass); }
+.warn { background: var(--warn-soft); color: var(--warn); }
+.na { background: var(--accent-soft); color: var(--accent); }
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.decision { display: flex; flex-direction: column; gap: 10px; }
+.decision .src { font-size: 0.85rem; color: var(--muted); }
+fieldset { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.opt { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; }
+.opt:has(input[type=radio]:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt input[type=radio] { margin-top: 4px; flex: none; }
+.opt .body { flex: 1; min-width: 0; }
+.opt .foot { display: block; font-size: 0.83rem; color: var(--muted); }
+.tag { font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-left: 4px; }
+.opt .lc { flex: none; font-size: 0.83rem; color: var(--muted); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.opt input[type=text] { width: 100%; margin-top: 4px; font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+textarea { width: 100%; font: 0.9rem/1.45 var(--sans); padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+label.notes { font-size: 0.83rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+button { font: 600 0.95rem var(--sans); background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 9px 16px; cursor: pointer; align-self: flex-start; }
+#payload { font-family: var(--mono); font-size: 0.82rem; min-height: 180px; background: #fbfaf7; }
+#copied { color: var(--pass); font-weight: 600; margin-left: 10px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } td:first-child { width: 38%; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight · libpalaso #1551</h1>
+  <p>Declare the issue tracker(s) in AGENTS.md (BL-16947). Branch <code>BL-16947-DeclareTrackerInAgentsMd</code>, HEAD <a href="https://github.com/sillsdev/libpalaso/commit/8d0b56b0d72c5f5493b2396f120a4e90b497ce5e" target="_blank" rel="noopener"><code>8d0b56b0</code></a>. The PR is a draft. Run finished 2026-09-29.</p>
+  <div class="links">
+    <a href="https://github.com/sillsdev/libpalaso/pull/1551" target="_blank" rel="noopener">PR #1551</a>
+    <a href="https://github.com/sillsdev/libpalaso/pull/1551/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/sillsdev/libpalaso/pull/1551/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16947" target="_blank" rel="noopener">BL-16947</a>
+    <a href="https://devinreview.com/sillsdev/libpalaso/pull/1551" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gates</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Gate</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>C# build</td><td><span class="pill na">not run locally</span>The diff only touches <code>AGENTS.md</code> and adds <code>CLAUDE.md</code>, and no project builds or reads either. CI built all four frameworks anyway and they pass.</td></tr>
+        <tr><td>Lint / typecheck</td><td><span class="pill na">N/A</span>There's no code in the diff.</td></tr>
+        <tr><td>C# tests (local)</td><td><span class="pill na">not run</span>No C# changed, and no test reads these Markdown files.</td></tr>
+        <tr><td>CI tests (GitHub)</td><td><span class="pill pass">pass</span>Palaso Tests and all four framework builds pass on <code>8d0b56b0</code>.</td></tr>
+        <tr><td>TypeScript / JS tests</td><td><span class="pill na">N/A</span>This repo has none.</td></tr>
+        <tr><td>Merge with master</td><td><span class="pill pass">clean</span>The branch was already up to date with <code>origin/master</code>. The PR is mergeable.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What's in it</h2>
+    <ul class="plain">
+      <li><a href="https://github.com/sillsdev/libpalaso/commit/8d0b56b0d72c5f5493b2396f120a4e90b497ce5e" target="_blank" rel="noopener"><code>8d0b56b0</code></a> adds an "Issue Tracker" section to <a href="https://github.com/sillsdev/libpalaso/blob/8d0b56b0d72c5f5493b2396f120a4e90b497ce5e/AGENTS.md#L48" target="_blank" rel="noopener"><code>AGENTS.md</code></a>. BL- branches go to Bloom's YouTrack through the <code>youtrack-api</code> skill; any other prefix has no tracker. The commit also adds a one-line <code>CLAUDE.md</code> that imports <code>AGENTS.md</code>. It was split out of #1550 at your request. This run made no new commits.</li>
+      <li>Posted to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16947" target="_blank" rel="noopener">BL-16947</a>: the #1551 link, and a short section in the card's existing test-ideas comment saying there's nothing to test. The #1550 test plan in that comment was left as it was.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review (light, done inline)</td><td><span class="pill pass">clean</span>The diff is eight lines of Markdown, so I read it directly instead of dispatching a sub-agent. The section numbering continues from the existing §1–3. Under AGENTS.md's own rules, a docs-only change needs no CHANGELOG entry and no <code>+semver</code> tag.</td></tr>
+        <tr><td><a href="https://devinreview.com/sillsdev/libpalaso/pull/1551" target="_blank" rel="noopener">Devin</a></td><td><span class="pill pass">complete</span>Finished on <code>8d0b56b0</code> with <span class="numeral">0 bugs · 0 flags</span>. <a href="https://github.com/sillsdev/libpalaso/pull/1551#issuecomment-5900156567" target="_blank" rel="noopener">Consultation logged</a>. The repo's own "Devin Review" check says "trial expired"; that's a separate app.</td></tr>
+        <tr><td>Other review bots</td><td><span class="pill na">none</span>No comment-posting review bot is set up on this repo.</td></tr>
+        <tr><td>CI</td><td><span class="pill pass">complete</span>All checks pass, including CodeQL.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+</div>
+
+<div class="col">
+
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None. Every reviewer came back clean, and there are no human comments on the PR.</p>
+  </section>
+
+  <section class="card">
+    <h2>What's next</h2>
+    <p>The PR stays a draft. After your own look, run <code>pr-ready-for-human</code> on #1551 to hand it to a colleague. It doesn't depend on #1550 and can be merged before or after it. Once it merges, preflight in libpalaso will read the tracker from here and stop asking.</p>
+  </section>
+
+</div>
+</div>
+</div>
+</body>
+</html>
