@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight · libpalaso #1550</title>
+<style>
+/* Layout: two columns (report left, decisions right), collapsing to one column under 900px. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --line: #ddd8cc;
+  --ink: #23262b;
+  --muted: #5f6570;
+  --accent: #2f5d8a;
+  --accent-soft: #e8eef5;
+  --pass: #2e7d4f;
+  --pass-soft: #e6f2ea;
+  --warn: #9a6a12;
+  --warn-soft: #f7efdc;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, serif;
+  --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding-block: 28px 48px; padding-inline: 20px; }
+a { color: var(--accent); }
+a:focus-visible, input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.75rem; line-height: 1.2; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1.02rem; line-height: 1.35; }
+code, .numeral { font-family: var(--mono); font-size: 0.88em; }
+.numeral { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-direction: column; gap: 6px; }
+header p { margin: 0; color: var(--muted); }
+.links { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; }
+.card p { margin: 0 0 8px; }
+.card p:last-child { margin-bottom: 0; }
+.tbl { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; vertical-align: top; padding: 8px 8px 8px 0; border-top: 1px solid var(--line); }
+th { font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border-top: none; padding-top: 0; }
+td:first-child { width: 30%; font-weight: 600; }
+.pill { display: inline-block; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.03em; padding: 1px 8px; border-radius: 999px; margin-right: 6px; white-space: nowrap; }
+.pass { background: var(--pass-soft); color: var(--pass); }
+.warn { background: var(--warn-soft); color: var(--warn); }
+.na { background: var(--accent-soft); color: var(--accent); }
+ul.plain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.decision { display: flex; flex-direction: column; gap: 10px; }
+.decision .src { font-size: 0.85rem; color: var(--muted); }
+fieldset { border: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.opt { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; }
+.opt:has(input[type=radio]:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt input[type=radio] { margin-top: 4px; flex: none; }
+.opt .body { flex: 1; min-width: 0; }
+.opt .foot { display: block; font-size: 0.83rem; color: var(--muted); }
+.tag { font-size: 0.72rem; font-weight: 700; color: var(--accent); letter-spacing: 0.04em; text-transform: uppercase; margin-left: 4px; }
+.opt .lc { flex: none; font-size: 0.83rem; color: var(--muted); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.opt input[type=text] { width: 100%; margin-top: 4px; font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+textarea { width: 100%; font: 0.9rem/1.45 var(--sans); padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+label.notes { font-size: 0.83rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+button { font: 600 0.95rem var(--sans); background: var(--accent); color: #fff; border: none; border-radius: 5px; padding: 9px 16px; cursor: pointer; align-self: flex-start; }
+#payload { font-family: var(--mono); font-size: 0.82rem; min-height: 180px; background: #fbfaf7; }
+#copied { color: var(--pass); font-weight: 600; margin-left: 10px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } td:first-child { width: 38%; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight · libpalaso #1550</h1>
+  <p>Make every C# string search culture-independent; enforce with CA1310 (BL-16947). Branch <code>BL-16947-CultureIndependentStringSearchLibPalaso</code>, HEAD <a href="https://github.com/sillsdev/libpalaso/commit/c37c67720ca81909c6c15c84aea1407a134b5fae" target="_blank" rel="noopener"><code>c37c6772</code></a>. The PR is a draft. Run finished 2026-09-29.</p>
+  <div class="links">
+    <a href="https://github.com/sillsdev/libpalaso/pull/1550" target="_blank" rel="noopener">PR #1550</a>
+    <a href="https://github.com/sillsdev/libpalaso/pull/1550/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/sillsdev/libpalaso/pull/1550/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16947" target="_blank" rel="noopener">BL-16947</a>
+    <a href="https://devinreview.com/sillsdev/libpalaso/pull/1550" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>Quality gates</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Gate</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>C# build (all targets)</td><td><span class="pill pass">pass</span>The full solution builds for net462, net48, netstandard2.0, net8.0 and net8.0-windows with CA1310 as an error and no errors.</td></tr>
+        <tr><td>Lint (.NET analyzers)</td><td><span class="pill pass">pass</span>These run inside the build. No CA1310 hits remain. Turning the analyzers on for the older targets adds a handful of CA2200/CA2022 warnings that the net8 builds already reported.</td></tr>
+        <tr><td>Typecheck</td><td><span class="pill na">N/A</span>C# is type-checked by the build above. There is no separate step.</td></tr>
+        <tr><td>C# tests, net8.0 / net8.0-windows</td><td><span class="pill pass">pass</span>Every test assembly passes, with <span class="numeral">0 failed</span>. SIL.Media.Tests was not run locally because it needs audio hardware; CI ran it.</td></tr>
+        <tr><td>C# tests, net48</td><td><span class="pill warn">pre-existing</span>Every test assembly except SIL.Media.Tests ran. Only four <code>GetLocalizedLanguageName_Valid_…</code> cases in SIL.WritingSystems.Tests fail, and they fail the same way on a clean master build on this machine (ICU language names aren't available there). When many net48 assemblies share one test host, the host also hangs while unloading after the tests finish. The same assemblies run on their own exit cleanly.</td></tr>
+        <tr><td>CI tests (GitHub)</td><td><span class="pill pass">pass</span><span class="numeral">5169 tests · 0 failed</span> across all four framework jobs.</td></tr>
+        <tr><td>TypeScript / JS tests</td><td><span class="pill na">N/A</span>This repo has none.</td></tr>
+        <tr><td>Merge with master</td><td><span class="pill pass">clean</span>The branch was already up to date with <code>origin/master</code>. The PR is mergeable.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed</h2>
+    <ul class="plain">
+      <li><a href="https://github.com/sillsdev/libpalaso/commit/c37c67720ca81909c6c15c84aea1407a134b5fae" target="_blank" rel="noopener"><code>c37c6772</code></a> The main change.
+        <ul class="plain">
+          <li>CA1310 is an error in <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/.editorconfig#L22" target="_blank" rel="noopener"><code>.editorconfig</code></a>.</li>
+          <li>The .NET analyzers now run for every target framework (<a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/Directory.Build.props#L16" target="_blank" rel="noopener"><code>Directory.Build.props</code></a>).</li>
+          <li>About 165 string searches and comparisons in 80 files now state a <code>StringComparison</code>. That includes four uses that CA1310 cannot see, where the method is passed as a delegate, which the local review found.</li>
+          <li>Two CHANGELOG entries were added.</li>
+        </ul></li>
+      <li><a href="https://github.com/sillsdev/libpalaso/commit/1d9051575d81334d2e7ad0c15ce257426f5d643e" target="_blank" rel="noopener"><code>1d905157</code></a> Records in <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/AGENTS.md#L48" target="_blank" rel="noopener"><code>AGENTS.md</code></a> which issue tracker goes with which branch prefix, and adds a <code>CLAUDE.md</code> that imports it. Preflight asked for this at the start of the run.</li>
+      <li>Posted to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16947" target="_blank" rel="noopener">BL-16947</a>: the PR link and the QA test ideas. The test ideas say to test in the first Bloom build that picks up this libpalaso, with Windows' regional format set to Thai.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Reviewers</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review (light sub-agent pass)</td><td><span class="pill pass">clean</span>It found no problems in the diff. It did point out that CA1310 can't see a search method passed as a delegate (<code>Any(file.EndsWith)</code>). A sweep found four such uses, and all four are fixed.</td></tr>
+        <tr><td>Adversarial review (requested by tombogle)</td><td><span class="pill pass">complete</span>It checked all 165 changed sites for a place where culture-sensitive matching was meant and found none that breaks. Two low-risk sites that touch natural-language text are decision 3 below. <a href="https://github.com/sillsdev/libpalaso/pull/1550#issuecomment-5896851309" target="_blank" rel="noopener">Reply posted</a> to <a href="https://github.com/sillsdev/libpalaso/pull/1550#issuecomment-5896669300" target="_blank" rel="noopener">tombogle's comment</a>.</td></tr>
+        <tr><td><a href="https://devinreview.com/sillsdev/libpalaso/pull/1550" target="_blank" rel="noopener">Devin</a></td><td><span class="pill pass">complete</span>Finished in about 4 minutes for <code>c37c6772</code>: <span class="numeral">0 bugs · 0 flags · 0 informational</span>. <a href="https://github.com/sillsdev/libpalaso/pull/1550#issuecomment-5896705952" target="_blank" rel="noopener">Consultation logged</a>. The repo's own "Devin Review" check says "trial expired". That check comes from a separate Devin app and does not affect this review.</td></tr>
+        <tr><td>Other review bots</td><td><span class="pill na">none</span>No comment-posting review bot (Greptile, CodeRabbit, …) is set up on this repo.</td></tr>
+        <tr><td>CI</td><td><span class="pill pass">complete</span>All checks pass: the four framework builds, Palaso Tests, and CodeQL, whose C# analysis took 13m12s.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Session notes</h2>
+    <ul class="plain">
+      <li>The commit messages carry no <code>+semver</code> tag. No API changed, so this is a patch release. The one behavior change is the sort order in decision 2.</li>
+      <li>There's no private board skill on this machine, so no board moves were made.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="col" id="decisions">
+
+  <section class="card decision" data-item="1. BloomDesktop workaround from BL-16945">
+    <h3>1. Remove Bloom's Thai workaround (BL-16945)</h3>
+    <p class="src">Source: <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16947" target="_blank" rel="noopener">BL-16947 description</a>, "Note that BL-16945 added a workaround for at least a subset of these in BloomDesktop in Version6.4. We should clean that up as part of this."</p>
+    <p>BL-16945 added code to BloomDesktop 6.4 that works around libpalaso's culture-sensitive searches going wrong under Thai. Once Bloom uses a libpalaso release with this PR, that workaround is dead weight. This PR can't remove it, because the workaround lives in BloomDesktop. The removal also has to wait until libpalaso is released and Bloom's package reference is bumped. The card also says it isn't yet decided whether this goes into 6.5.</p>
+    <fieldset data-q="1. BloomDesktop workaround from BL-16945">
+      <legend>Remove Bloom's Thai workaround</legend>
+      <label class="opt"><input type="radio" name="q1" value="Remove it in BloomDesktop as part of BL-16934 once the libpalaso bump lands" checked><span class="body">Remove it in BloomDesktop as part of BL-16934, once Bloom picks up this libpalaso <span class="tag">recommended</span><span class="foot">(small, BloomDesktop only, after the package bump.) Recommended because BL-16934 is already the Bloom side of this change and has to bump libpalaso anyway.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="File a separate BloomDesktop card for removing the workaround"><span class="body">File a separate BloomDesktop card for removing it<span class="foot">(no code now, just a card.)</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Leave as is"><span class="body">Leave as is</span><span class="lc"><input type="checkbox" data-q="1. BloomDesktop workaround from BL-16945" data-lc="1"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q1" value="Other"><span class="body">Other:<input type="text" data-q="1. BloomDesktop workaround from BL-16945" data-other="1" aria-label="Other answer for item 1"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="1. BloomDesktop workaround from BL-16945" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="2. Sort order now InvariantCulture">
+    <h3>2. A few internal sorts now use the invariant culture</h3>
+    <p class="src">Source: preflight, a change to public behavior. Sites: <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.Core/Text/LanguageForm.cs#L109" target="_blank" rel="noopener">LanguageForm.cs:109</a>, <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.Lift/Options/OptionRef.cs#L166" target="_blank" rel="noopener">OptionRef.cs:166</a>, <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.Core/Data/RecordToken.cs#L166" target="_blank" rel="noopener">RecordToken.cs:166</a>, <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.WritingSystems/LdmlNodeComparer.cs#L257" target="_blank" rel="noopener">LdmlNodeComparer.cs:257</a>, and the LDML V0 migration code.</p>
+    <p>Some public comparison methods used to sort in the computer's current language. They order the forms inside a multi-language field, option keys, query field names, and the elements of writing-system (LDML) files. They now always sort by the invariant culture, which orders text the way English does. None of these orders is shown to users as a sorted list. Users running Windows in English see no change. A user whose language sorts differently (Danish treats "aa" as å; Hungarian and Czech have letter pairs) could see a one-time reordering of forms or LDML elements in files written afterwards. After that, the order is the same whoever saves the file. Leaving it as is is recommended: it's the only option that is both independent of each user's culture and unchanged for English users. Ordinal would reorder by case for everyone and break tests that expect -1/0/1. CurrentCulture would bring back the per-user variation this card is removing.</p>
+    <fieldset data-q="2. Sort order now InvariantCulture">
+      <legend>Sort order</legend>
+      <label class="opt"><input type="radio" name="q2" value="Change these sorts to StringComparison.CurrentCulture (old behavior, made explicit)"><span class="body">Change them to CurrentCulture, which is the old behavior made explicit<span class="foot">(about 8 lines, low risk; brings back the per-user ordering.)</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Change these sorts to StringComparison.Ordinal"><span class="body">Change them to Ordinal<span class="foot">(about 8 lines, plus updating tests that expect -1/0/1; reorders by case for every user.)</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Leave as is" checked><span class="body">Leave as is <span class="tag">recommended</span></span><span class="lc"><input type="checkbox" data-q="2. Sort order now InvariantCulture" data-lc="1"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q2" value="Other"><span class="body">Other:<input type="text" data-q="2. Sort order now InvariantCulture" data-other="1" aria-label="Other answer for item 2"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="2. Sort order now InvariantCulture" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="3. Two natural-language sites now Ordinal">
+    <h3>3. Two searches over natural-language text are now character by character</h3>
+    <p class="src">Source: the adversarial review requested in <a href="https://github.com/sillsdev/libpalaso/pull/1550#issuecomment-5896669300" target="_blank" rel="noopener">tombogle's comment</a>. Sites: <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.Windows.Forms.Scripture/ScrPassageDropDown.cs#L428" target="_blank" rel="noopener">ScrPassageDropDown.cs:428</a> and <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/SIL.DictionaryServices/Lift/LexEntryFromLiftBuilder.cs#L420" target="_blank" rel="noopener">LexEntryFromLiftBuilder.cs:420</a>.</p>
+    <p>Of the 165 changed searches, only these two look at text people read. The first is type-ahead in the Scripture book drop-down: pressing a letter jumps to the next book whose name starts with it. The only difference is a book name that begins with an invisible mark, such as a left-to-right mark, which used to match and now doesn't. The second is a fallback when importing a LIFT dictionary file that maps a bare semantic-domain number such as "4.2.7" to the full domain name. Numbers match exactly as before. Only a full domain name saved in a different Unicode normalization form would no longer be recognized, and the exact-match lookup that runs first never handled that either. Leaving both as is is recommended because the risk is small, and character-by-character matching is more predictable. The old culture-sensitive way also couldn't match an accented name typed in decomposed form, which it now can.</p>
+    <fieldset data-q="3. Two natural-language sites now Ordinal">
+      <legend>Natural-language sites</legend>
+      <label class="opt"><input type="radio" name="q3" value="Switch both sites to StringComparison.CurrentCulture"><span class="body">Switch both to an explicit CurrentCulture comparison<span class="foot">(2 lines, low risk; still satisfies CA1310.)</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Leave as is" checked><span class="body">Leave as is <span class="tag">recommended</span></span><span class="lc"><input type="checkbox" data-q="3. Two natural-language sites now Ordinal" data-lc="1"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q3" value="Other"><span class="body">Other:<input type="text" data-q="3. Two natural-language sites now Ordinal" data-other="1" aria-label="Other answer for item 3"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="3. Two natural-language sites now Ordinal" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="4. Tracker declaration in this PR">
+    <h3>4. The AGENTS.md tracker note rides along in this PR</h3>
+    <p class="src">Source: preflight. Commit <a href="https://github.com/sillsdev/libpalaso/commit/1d9051575d81334d2e7ad0c15ce257426f5d643e" target="_blank" rel="noopener"><code>1d905157</code></a>, <a href="https://github.com/sillsdev/libpalaso/blob/c37c67720ca81909c6c15c84aea1407a134b5fae/AGENTS.md#L48" target="_blank" rel="noopener">AGENTS.md:48</a>.</p>
+    <p>At the start of this run you chose "per-prefix trackers": BL- branches go to Bloom's YouTrack, and other prefixes have no tracker. That choice is written into libpalaso's shared <code>AGENTS.md</code>, and a new <code>CLAUDE.md</code> imports it. libpalaso is shared with FieldWorks and other teams, and this has nothing to do with CA1310, so its reviewers may prefer to see it separately.</p>
+    <fieldset data-q="4. Tracker declaration in this PR">
+      <legend>Tracker declaration</legend>
+      <label class="opt"><input type="radio" name="q4" value="Move the AGENTS.md/CLAUDE.md commit to its own PR" checked><span class="body">Move that commit to its own small PR <span class="tag">recommended</span><span class="foot">(no code; drop the commit here and open a one-commit PR.) Recommended because this PR stays about CA1310, and other teams get to review the shared-instructions change on its own.</span></span></label>
+      <label class="opt"><input type="radio" name="q4" value="Drop the tracker declaration entirely"><span class="body">Drop it entirely<span class="foot">(no code; preflight will ask again on the next libpalaso run.)</span></span></label>
+      <label class="opt"><input type="radio" name="q4" value="Leave as is"><span class="body">Leave as is</span><span class="lc"><input type="checkbox" data-q="4. Tracker declaration in this PR" data-lc="1"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q4" value="Other"><span class="body">Other:<input type="text" data-q="4. Tracker declaration in this PR" data-other="1" aria-label="Other answer for item 4"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="4. Tracker declaration in this PR" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="FYI. Pre-existing net48 test problems">
+    <h3>FYI: net48 test problems that exist on master too</h3>
+    <p class="src">Source: the local full test run.</p>
+    <p>On this computer, four <code>GetLocalizedLanguageName_Valid_GetsNameInTargetLanguageOrNativeAsFallback</code> cases fail under net48. They expect a language name in another language (for example "espagnol") but get the native name ("Español"), because ICU's language names aren't available when these tests run here. A clean build of master fails the same way, and CI passes them. Separately, when many net48 test assemblies run in one <code>dotnet test</code> command, the test host hangs while unloading after every test has passed. Neither is caused by this PR. Leaving both is recommended because CI is unaffected.</p>
+    <fieldset data-q="FYI. Pre-existing net48 test problems">
+      <legend>Pre-existing test problems</legend>
+      <label class="opt"><input type="radio" name="q5" value="File a card to investigate the local-only net48 failures"><span class="body">File a card to investigate them<span class="foot">(no code now, just a card.)</span></span></label>
+      <label class="opt"><input type="radio" name="q5" value="Leave as is" checked><span class="body">Leave as is <span class="tag">recommended</span></span><span class="lc"><input type="checkbox" data-q="FYI. Pre-existing net48 test problems" data-lc="1"> Leave comment</span></label>
+      <label class="opt"><input type="radio" name="q5" value="Other"><span class="body">Other:<input type="text" data-q="FYI. Pre-existing net48 test problems" data-other="1" aria-label="Other answer for the FYI"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="FYI. Pre-existing net48 test problems" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card decision" data-item="Next step">
+    <h3>Next step</h3>
+    <fieldset data-q="Next step">
+      <legend>Next step</legend>
+      <label class="opt"><input type="radio" name="q6" value="Implement the choices above, then re-run preflight" checked><span class="body">Implement the choices above, then re-run preflight <span class="tag">recommended</span><span class="foot">(depends on the choices; with the recommended ones, only the AGENTS.md commit moves.)</span></span></label>
+      <label class="opt"><input type="radio" name="q6" value="Discuss first"><span class="body">Discuss first<span class="foot">(no code until we've talked it through.)</span></span></label>
+      <label class="opt"><input type="radio" name="q6" value="Other"><span class="body">Other:<input type="text" data-q="Next step" data-other="1" aria-label="Other answer for next step"></span></label>
+    </fieldset>
+    <label class="notes">Notes<textarea rows="2" data-q="Next step" data-notes="1"></textarea></label>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the Claude session.</p>
+    <p><button type="button" id="copy">Copy answers</button><span id="copied" hidden>Copied</span></p>
+    <textarea id="payload" readonly rows="12" aria-label="Answers to paste back"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var header = 'Preflight decisions for sillsdev/libpalaso PR #1550 (BL-16947) at c37c6772\nReport: https://bloombooks.github.io/dev-process-artifacts/deciders/libpalaso-BL-16947-CultureIndependentStringSearchLibPalaso.html\n';
+  function build() {
+    var out = [header];
+    document.querySelectorAll('#decisions fieldset[data-q]').forEach(function (fs) {
+      var q = fs.getAttribute('data-q');
+      var card = fs.closest('.decision');
+      var picked = fs.querySelector('input[type=radio]:checked');
+      var lines = ['', q];
+      if (picked) {
+        var v = picked.value;
+        if (v === 'Other') {
+          var o = fs.querySelector('input[data-other]');
+          v = 'Other: ' + ((o && o.value.trim()) || '(no text)');
+        }
+        lines.push('  Choice: ' + v);
+      }
+      var lc = fs.querySelector('input[data-lc]');
+      if (lc && lc.checked) lines.push('  Leave comment');
+      var notes = card.querySelector('textarea[data-notes]');
+      if (notes && notes.value.trim()) lines.push('  Notes: ' + notes.value.trim().replace(/\n/g, '\n    '));
+      out.push(lines.join('\n'));
+    });
+    document.getElementById('payload').value = out.join('\n');
+  }
+  document.getElementById('decisions').addEventListener('input', build);
+  document.getElementById('decisions').addEventListener('change', build);
+  build();
+  document.getElementById('copy').addEventListener('click', function () {
+    build();
+    var ta = document.getElementById('payload');
+    var done = function () { var c = document.getElementById('copied'); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
+    var fallback = function () { ta.focus(); ta.select(); try { document.execCommand('copy'); done(); } catch (e) {} };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
