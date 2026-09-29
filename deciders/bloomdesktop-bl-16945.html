@@ -75,11 +75,11 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 
 <header class="card">
   <h1>BL-16945 preflight: Thai regional format breaks language names</h1>
-  <p class="summary">Preflight on branch <code>BL-16945</code> against <code>Version6.4</code>. The fix is in, the saved-name repair is in, the gates are green, and there is one question about a machine-wide git setting.</p>
+  <p class="summary">Preflight on branch <code>BL-16945</code> against <code>Version6.4</code>. Second run: the branch is squashed, Version6.4 is merged in, the tests no longer depend on test order, and the gates are green. One question remains, about a point Devin and Greptile both raised.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable, up to date with Version6.4</span>
-    <span class="chip good">Devin and Greptile findings fixed</span>
+    <span class="chip good">Devin and Greptile complete on HEAD</span>
     <span class="chip warn">1 question waiting on you</span>
   </div>
   <div class="chips links">
@@ -102,10 +102,10 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
   <p>libpalaso's <code>IetfLanguageTag.GetGeneralCode</code> finds the end of the language subtag with a culture-sensitive <code>IndexOf("-")</code>. Under th-TH on .NET 8, that ignores the hyphen and returns 0, even for tags like <code>fr</code> that have no hyphen. The general code comes out empty, <code>CultureInfo.GetCultureInfo("")</code> returns the invariant culture, and its name gets cached. Every libpalaso language-name lookup that Bloom uses goes through it. It's the same class of bug as BL-16932, but in libpalaso, which upstream still has.</p>
   <h3>What the PR does</h3>
   <ul>
-    <li>New <a href="https://github.com/BloomBooks/BloomDesktop/blob/71836c3c33682022700640eee9919e951ea5f733/src/BloomExe/ToPalaso/IetfLanguageTagExtra.cs#L64" target="_blank" rel="noopener"><code>ToPalaso/IetfLanguageTagExtra</code></a> runs those libpalaso lookups with an invariant <code>CurrentCulture</code>. <code>CurrentUICulture</code> is left alone, so names are still localized as before.</li>
+    <li>New <a href="https://github.com/BloomBooks/BloomDesktop/blob/ac9420cc0bd8d54351189f8490711c23643753d9/src/BloomExe/ToPalaso/IetfLanguageTagExtra.cs#L64" target="_blank" rel="noopener"><code>ToPalaso/IetfLanguageTagExtra</code></a> runs those libpalaso lookups with an invariant <code>CurrentCulture</code>. <code>CurrentUICulture</code> is left alone, so names are still localized as before.</li>
     <li>Every Bloom call site uses it: the UI language menu, collection and writing-system names, the license message, the book language descriptors, and the generated-translation <code>lang</code>.</li>
-    <li>When a collection loads, a <a href="https://github.com/BloomBooks/BloomDesktop/blob/71836c3c33682022700640eee9919e951ea5f733/src/BloomExe/Collection/WritingSystem.cs#L293" target="_blank" rel="noopener">saved name that is exactly the invariant culture's</a> is looked up again. That repairs collections created under a Thai format before this fix, and custom names are unaffected.</li>
-    <li>th-TH unit tests for each of these, all confirmed to fail without the fix. libpalaso itself is left for later, as you asked.</li>
+    <li>When a collection loads, a <a href="https://github.com/BloomBooks/BloomDesktop/blob/ac9420cc0bd8d54351189f8490711c23643753d9/src/BloomExe/Collection/WritingSystem.cs#L293" target="_blank" rel="noopener">saved name that is exactly the invariant culture's</a> is looked up again. That repairs collections created under a Thai format before this fix, and custom names are unaffected.</li>
+    <li>th-TH unit tests for each of these, all confirmed to fail without the fix. They clear libpalaso's name caches first, so they don't depend on which tests ran before them. libpalaso itself is left for later, as you asked.</li>
   </ul>
   <p>The real Bloom, run under th-TH through a startup hook (no system settings changed), with the menu opened over CDP:</p>
   <div class="shots">
@@ -119,26 +119,27 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
   <div class="tablewrap"><table>
     <tr><th>Check</th><th>Result</th></tr>
     <tr><td>C# build</td><td><span class="ok">Pass</span></td></tr>
-    <tr><td>C# tests, full suite at HEAD <code>71836c3</code></td><td><span class="ok">Pass</span> <span class="numeral">2923 passed · 13 skipped · 1 failed</span>. The failure is the opt-in Reading App Builder real-build test, which fails on this machine for environmental reasons and doesn't touch this diff.</td></tr>
+    <tr><td>C# tests, full suite on the merged tree at HEAD <code>ac9420c</code></td><td><span class="ok">Pass</span> <span class="numeral">2928 passed · 13 skipped · 1 failed</span>. The failure is the opt-in Reading App Builder real-build test, which fails on this machine for environmental reasons and doesn't touch this diff.</td></tr>
+    <tr><td>Thai tests with the fix disabled</td><td><span class="ok">All 5 fail</span>, as they should</td></tr>
     <tr><td>TypeScript typecheck, lint, vitest</td><td>Not run: there's no TS/JS in the diff, and nothing the front end reads changed.</td></tr>
-    <tr><td>Pre-commit hook</td><td><span class="ok">Ran</span> on every commit (prettier, C# checks, csharpier), through the <code>.githooks</code> dispatcher. See the question on the right.</td></tr>
-    <tr><td>Base integration</td><td><span class="ok">Up to date</span> with <code>origin/Version6.4</code>; GitHub reports it clean and mergeable.</td></tr>
+    <tr><td>Pre-commit hook</td><td><span class="ok">Ran over every file in the PR</span> (husky 4 through the <code>.githooks</code> dispatcher), with no override now that the shared config is fixed.</td></tr>
+    <tr><td>Base integration</td><td><span class="ok">Merged</span> the latest <code>origin/Version6.4</code>, including the BL-16926 Thai image-metadata fix, with no conflicts. GitHub reports it clean and mergeable.</td></tr>
     <tr><td>Real Bloom under th-TH</td><td><span class="ok">Proven</span>: before and after screenshots above.</td></tr>
   </table></div>
 </section>
 
 <section class="card">
   <h2>What changed this run</h2>
-  <p>Moved the branch onto <code>Version6.4</code>, then wrote the fix and tests. Added the saved-name repair after Devin and Greptile both found that collections created under Thai keep the bad name, then tightened it to an exact match after Devin's next round. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426/commits" target="_blank" rel="noopener">four commits</a>.</p>
+  <p>The four commits are squashed into one, and the husky hook ran over every file. The Thai tests now clear libpalaso's name caches and cover a language named from its tag. Version6.4 is merged in. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426/commits" target="_blank" rel="noopener">commits</a>.</p>
 </section>
 
 <section class="card">
   <h2>Reviewer outcomes</h2>
   <div class="tablewrap"><table>
     <tr><th>Reviewer</th><th>Outcome</th></tr>
-    <tr><td>Local review (light sub-agent pass)</td><td>Complete. Clean, with no correctness findings. Its one environmental note, a test that assumed an English UI, was fixed in <code>ac5366d</code>.</td></tr>
-    <tr><td>Devin</td><td>Complete on HEAD. Across three rounds it raised two bugs, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426#discussion_r4135816927" target="_blank" rel="noopener">saved names stay wrong</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426#discussion_r4135949267" target="_blank" rel="noopener">custom names would be lost</a>. Both are fixed; the threads are answered and resolved. Nothing new on HEAD.</td></tr>
-    <tr><td>Greptile</td><td>Complete on the first commit. Its one finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426#discussion_r4135679796" target="_blank" rel="noopener">saved names stay wrong</a> (the same as Devin's), is fixed and resolved. It has not reviewed the current code: it didn't re-run on the last two pushes.</td></tr>
+    <tr><td>Local review (adversarial Fable 5.1 sub-agent, plus an inline pass over the new test commit)</td><td>Complete. No blocker. It checked the 6.4 libpalaso and L10NSharp binaries for unwrapped callers, and compared names with and without the wrapper across 55 tags, 26 regional formats and 3 UI languages, with no differences. Its test-order finding is fixed. Two of its notes are now in the test ideas.</td></tr>
+    <tr><td>Devin</td><td>Complete on HEAD. Its two earlier bugs stay fixed. On HEAD it raised one more: an exact <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426#discussion_r4136628351" target="_blank" rel="noopener">"Invariant Language (Invariant Country)" saved as custom gets replaced</a>. I replied with why the repair ignores that flag and resolved it; it's also the question on the right.</td></tr>
+    <tr><td>Greptile</td><td>Complete on HEAD. It raised <a href="https://github.com/BloomBooks/BloomDesktop/pull/8426#discussion_r4136558892" target="_blank" rel="noopener">the same point as Devin</a>, answered and resolved the same way. Its summary still says the PR should not merge until that's changed.</td></tr>
     <tr><td>CI</td><td>Complete. <code>pr-automation</code> passed. It's the only check that 6.4 reports on the PR.</td></tr>
   </table></div>
 </section>
@@ -147,7 +148,6 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
   <h2>Worth knowing</h2>
   <ul>
     <li>Master and 6.5 use libpalaso versions that still have the bug, so this workaround carries forward on the normal merges. It can come out once libpalaso's <code>GetGeneralCode</code> uses an ordinal search.</li>
-    <li>In the real-Bloom run under th-TH, a dev build crashed at startup on a <code>Debug.Fail</code> in <code>BookThumbNailer</code> after TagLib failed to read a thumbnail's metadata. That's BL-16926's bug, not this one; a release build logs it and carries on.</li>
   </ul>
 </section>
 
@@ -156,18 +156,20 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 <aside>
 
 <section class="card">
-  <h2>Git hooks are off for every worktree</h2>
-  <p>The shared repo config at <code>C:\dev\BloomDesktop\.git\config</code> sets <code>core.hooksPath</code> twice: first to <code>.githooks</code> (the branch-aware pre-commit dispatcher), then to <code>nul</code>. Git uses the last value, so no pre-commit hook runs in any BloomDesktop worktree on this machine. Prettier, csharpier and the C# robustness checks are silently skipped on every commit. I didn't touch the setting. For this PR's commits I passed <code>-c core.hooksPath=.githooks</code>, so the hook did run. I don't know who added <code>nul</code> or why.</p>
+  <h2>Should the name repair respect a custom-name flag?</h2>
+  <p>When a collection loads, a language saved with the name "Invariant Language (Invariant Country)" is renamed from its language tag, for example to "English". Devin and Greptile both flag, as serious, that this also happens when the name is marked as custom. A user who deliberately chose that name would lose it.</p>
+  <p>I recommend leaving it. Nobody names a language that on purpose: it is .NET's name for its culture-neutral placeholder, and it only got into collection files through this bug. The custom-flagged copies are also the bug's doing. Under the old build, opening the language chooser under a Thai format offered that bad name as the default, and saving stored it flagged as custom. Respecting the flag would leave exactly those collections unrepaired. Names that merely resemble it, like "Invariant Language Lab", are already kept.</p>
   <fieldset>
-    <label class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked
-      data-instruction="In the shared BloomDesktop clone config (C:\dev\BloomDesktop\.git\config), remove only the trailing core.hooksPath=nul entry (git config --unset core.hooksPath '^nul$'), leaving core.hooksPath=.githooks, then confirm with git config --get-all core.hooksPath that only .githooks remains.">
-      <span class="row"><span>Remove the <code>nul</code> entry so <code>.githooks</code> takes effect again <span class="rec">Recommended</span>, because hooks that silently don't run are how unformatted code and unchecked C# reach PRs <span class="fn">(one git config command, no code change, low risk; other sessions' commits start running the hook)</span></span></span></label>
-    <label class="opt"><input type="radio" name="q1" id="q1b" data-q="q1"
-      data-instruction="Leave as is — take no action on: the shared BloomDesktop git config ends with core.hooksPath=nul, which disables pre-commit hooks in every worktree.">
-      <span class="row"><span>Leave as is</span></span></label>
+    <label class="opt"><input type="radio" name="q1" id="q1a" data-q="q1"
+      data-instruction="In BloomDesktop (branch BL-16945, PR #8426), change WritingSystem.ReadFromXmlInternal (src/BloomExe/Collection/WritingSystem.cs) so the repair of a saved Invariant Language (Invariant Country) name only runs when that language's saved IsCustomName is false, add a test that a custom-flagged copy is kept, and re-run preflight.">
+      <span class="row"><span>Repair only names not marked custom, as the bots ask <span class="fn">(about 5 lines plus a test, low risk; collections where the old chooser saved the bad name as custom stay broken until the user renames the language)</span></span></span></label>
+    <label class="opt"><input type="radio" name="q1" id="q1b" data-q="q1" checked
+      data-instruction="Leave as is — take no action on: the saved-name repair in WritingSystem.ReadFromXmlInternal replaces an exact Invariant Language (Invariant Country) name even when it is flagged as custom (Devin and Greptile flagged it; both threads are answered and resolved).">
+      <span class="row"><span>Leave as is <span class="rec">Recommended</span></span><span class="leavecomment"><input type="checkbox" id="q1comment" data-q="q1-comment"
+        data-instruction="Also add a code comment at the repair in WritingSystem.ReadFromXmlInternal (src/BloomExe/Collection/WritingSystem.cs) saying that it deliberately ignores IsCustomName, because the old build could save the bad name flagged as custom."><label for="q1comment">Leave comment</label></span></span></label>
     <label class="opt"><input type="radio" name="q1" id="q1c" data-q="q1" data-other="q1other"
       data-instruction="Other">
-      <span class="row"><span>Other:</span><input type="text" class="other" id="q1other" data-q="q1-other" aria-label="Other answer for the git hooks question"></span></label>
+      <span class="row"><span>Other:</span><input type="text" class="other" id="q1other" data-q="q1-other" aria-label="Other answer for the custom-name question"></span></label>
     <label for="q1notes" class="fn">Notes</label>
     <textarea id="q1notes" data-q="q1-notes"></textarea>
   </fieldset>
@@ -175,14 +177,14 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 
 <section class="card">
   <h2>Next step for this PR</h2>
-  <p>The PR is a draft with everything green. Your own review comes next, then <code>pr-ready-for-human</code>, which squashes the commits and moves the card.</p>
+  <p>The PR is a draft with everything green. Your own review comes next, then <code>pr-ready-for-human</code>, which marks the PR ready for review and moves the card.</p>
   <fieldset>
     <label class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" checked
       data-instruction="For BloomDesktop PR #8426 (branch BL-16945, base Version6.4): the developer will review the PR themselves; take no further action until they ask for pr-ready-for-human.">
       <span class="row"><span>I'll review it myself first <span class="rec">Recommended</span>, the normal order before promotion <span class="fn">(no work now)</span></span></span></label>
     <label class="opt"><input type="radio" name="q2" id="q2b" data-q="q2"
-      data-instruction="For BloomDesktop PR #8426 (branch BL-16945, base Version6.4): run the pr-ready-for-human skill now to squash, mark the PR ready for review, and move BL-16945 to Ready For Code Review.">
-      <span class="row"><span>Run <code>pr-ready-for-human</code> now <span class="fn">(squash plus promotion, about 5 minutes)</span></span></span></label>
+      data-instruction="For BloomDesktop PR #8426 (branch BL-16945, base Version6.4): run the pr-ready-for-human skill now to mark the PR ready for review, and move BL-16945 to Ready For Code Review.">
+      <span class="row"><span>Run <code>pr-ready-for-human</code> now <span class="fn">(promotion only, the branch is already squashed; a few minutes)</span></span></span></label>
     <label class="opt"><input type="radio" name="q2" id="q2c" data-q="q2"
       data-instruction="Leave as is — take no action on: BloomDesktop PR #8426 (BL-16945) is a green draft awaiting the developer's own review.">
       <span class="row"><span>Leave as is</span></span></label>
@@ -209,7 +211,7 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 <script>
 const REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16945.html";
 const QUESTIONS = [
-  { q: "q1", title: "Git hooks are off for every BloomDesktop worktree (core.hooksPath=nul in the shared config)" },
+  { q: "q1", title: "Should the saved-name repair respect a custom-name flag? (WritingSystem.ReadFromXmlInternal, BL-16945)" },
   { q: "q2", title: "Next step for BloomDesktop PR #8426 (BL-16945)" },
 ];
 
@@ -232,6 +234,8 @@ function buildPayload() {
         lines.push("  " + chosen.dataset.instruction);
       }
     }
+    const comment = document.querySelector('[data-q="' + item.q + '-comment"]');
+    if (comment && comment.checked) lines.push("  " + comment.dataset.instruction);
     const notes = document.querySelector('[data-q="' + item.q + '-notes"]').value.trim();
     if (notes) lines.push("  Notes: " + notes);
     lines.push("");
