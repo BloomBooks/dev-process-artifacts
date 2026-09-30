@@ -80,12 +80,12 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 <div class="wrap">
 <header>
   <h1>Cloud Team Collections backend preflight: bloom-core-supabase PR #13</h1>
-  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>d5c8689</code>. Gates green, every reviewer finished, nothing waiting on you.</p>
+  <p class="summary">Preflight run on branch <code>BL-16531-tc-backend</code> (base <code>develop</code>), ending at <code>879bcc5</code>. The server now implements the new data model (CONTRACTS v2.0); gates green, every reviewer finished. Two questions for you, one of them just a heads-up.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots answered</span>
-    <span class="chip good">No decisions waiting</span>
+    <span class="chip warn">2 questions for you</span>
   </div>
   <nav class="links">
     <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">PR #13</a>
@@ -93,7 +93,8 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">Commits</a>
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16531" target="_blank" rel="noopener">BL-16531</a>
     <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">Devin review</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/blob/BL-16673-share-dialog/Design/CloudTeamCollections.md" target="_blank" rel="noopener">Design doc</a>
+    <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/879bcc56627caad268b93ff389a473c6b51ce37f/team-collections/docs/DESIGN.md" target="_blank" rel="noopener">Design doc</a>
+    <a href="https://app.notion.com/p/3ea20c4397cb81d2935adefb1ca293ef" target="_blank" rel="noopener">Design (Notion)</a>
   </nav>
 </header>
 
@@ -102,31 +103,18 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
   <section class="card lead">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend (database schema, edge functions, local dev stack) sitting in the Bloom Editor repo by mistake. The backend belongs here, so it can be reviewed, merged and deployed separately from the Bloom client. The client side, including the new Share dialog (BloomDesktop #8394), is written against it. Reviewing the port also turned up real security and concurrency problems in the carried-over backend.</p>
+    <p>Cloud Team Collections (BL-16531) was built in BloomDesktop PR #8052, with its Supabase backend (database schema, edge functions, local dev stack) sitting in the Bloom Editor repo by mistake. The backend belongs here, so it can be reviewed, merged and deployed separately from the Bloom client. Reviewing the port turned up security and concurrency problems. A design review then reworked the data model so that changing your email loses nothing, and so that book names and retried check-ins can't cause conflicts.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><strong>Port:</strong> the <code>tc</code> schema as declarative files plus its generated migration, the seven edge functions (check-in, download, stale-upload sweep) with Deno tests, and the local dev stack and ops scripts under <code>team-collections/</code>.</li>
-      <li><strong>Security:</strong> the "finish" functions can be called only by the edge functions, after they have identified the caller from their own token. A checkout belongs to one copy of the book, identified by a GUID the client makes and saves before asking. The server stores only its hash, and check-in, unlock, delete and takeover all need the GUID.</li>
-      <li><strong>Concurrency and data safety:</strong>
-        <ul>
-          <li>Check-in finish rechecks the lock and base version.</li>
-          <li>Row locks follow one consistent order, including the expiry reaper and delete/unlock/force-unlock.</li>
-          <li>Event ids now commit in order per collection, so polling never skips a change.</li>
-          <li>The sweep waits a 48-hour grace period.</li>
-          <li>Paths are normalized and validated up front.</li>
-        </ul>
-      </li>
-      <li><strong>Last seen:</strong> each member's <code>last_seen_at</code> is updated when they open or poll the collection, at most every 10 minutes.</li>
-      <li><strong>Starting a cloud collection</strong> (BL-16676):
-        <ul>
-          <li>An "initial upload in progress" flag hides a collection from the joinable list until the admin clears it.</li>
-          <li>While the flag is set, <code>legacy:&lt;old email&gt;</code> placeholder locks let old-system checkouts carry over; their owners take them over later with the GUID.</li>
-          <li>A service-role support function and script delete a failed migration.</li>
-        </ul>
-      </li>
-      <li><strong>CI:</strong> a <code>db-tests</code> job runs the pgTAP suite on every PR.</li>
+      <li><strong>Port:</strong> the <code>tc</code> schema as declarative files plus its generated migration, the seven edge functions, the local dev stack and support scripts under <code>team-collections/</code>, and a CI job running the database tests on every PR.</li>
+      <li><strong>People:</strong> a <code>core.users</code> row per person with an id of Bloom's own; the sign-in token is looked up in it, and every lock holder, member and history author points at it. Rows are made only when needed, the name comes from Bloom's Registration dialog at each sign-in, and a support script moves a person to a new login.</li>
+      <li><strong>Books</strong> are named by instance id everywhere. Their name is for display only and needn't be unique, and their version is a number per book.</li>
+      <li><strong>Check-in:</strong> a start resumes an earlier attempt only if it is identical, and otherwise replaces it, so a finish only ever commits what its own start proposed. Finish rechecks the lock, the checkout GUID and the base version. Only the edge functions can commit uploaded files. The stale-upload sweep repairs S3 after failed check-ins and then forgets the attempts it has cleaned up.</li>
+      <li><strong>Checkouts</strong> belong to one copy of a book: the client makes a GUID, and the server stores only its hash.</li>
+      <li><strong>Starting a cloud collection</strong> (BL-16676): the collection stays hidden until the upload is done. Checkouts from the old folder Team Collection are locked to that person's email, and the lock becomes theirs at their first sign-in. A support script deletes a failed migration.</li>
+      <li><strong>Collection files</strong> are one set per collection, sent only by admins. <strong>Last seen</strong> times feed the Share dialog.</li>
     </ul>
-    <p>The contract the Bloom client follows is <code>team-collections/docs/CONTRACTS.md</code> v1.12. Nothing is live until someone applies the migration and sets the secrets on a hosted project.</p>
+    <p>The desktop client (#8052) still speaks the earlier v1.12 contract and needs the work in <code>DESIGN.md</code> §9 before the two can work together. Nothing is live until someone applies the migration on a hosted project.</p>
   </section>
 
   <section class="card">
@@ -135,11 +123,13 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
     <table>
       <thead><tr><th>Check</th><th>Result</th><th>Where</th></tr></thead>
       <tbody>
-        <tr><td>Database tests (pgTAP, full)</td><td class="pass">pass</td><td><span class="numeral">7 files · 375 tests</span>, locally and in CI's <code>db-tests</code> at <code>d5c8689</code></td></tr>
-        <tr><td>Edge-function tests (Deno, full)</td><td class="pass">pass</td><td><span class="numeral">153 passed · 9 ignored</span>, locally and in CI's <code>test</code>. No edge function changed this run.</td></tr>
-        <tr><td>Migration matches schema</td><td class="pass">pass</td><td>regenerated after each schema change; the diff matched the schema edits</td></tr>
-        <tr><td>Support delete script</td><td>not run</td><td>no AWS CLI on this machine and the test stack is database-only; parse-checked, and its argument handling verified in PowerShell 5.1</td></tr>
+        <tr><td>Database tests (pgTAP, full)</td><td class="pass">pass</td><td><span class="numeral">7 files · 414 tests</span>, locally and in CI's <code>db-tests</code> at <code>879bcc5</code></td></tr>
+        <tr><td>Edge-function tests (Deno, full)</td><td class="pass">pass</td><td><span class="numeral">70 TC tests</span> locally; CI's <code>test</code> (the whole Deno suite) passes at <code>879bcc5</code></td></tr>
+        <tr><td>Type check (<code>deno check</code>)</td><td class="pass">pass</td><td>every changed edge-function file</td></tr>
+        <tr><td>Lint (<code>deno lint</code>)</td><td>1 warning, existing</td><td>an unused ignore in <code>tc-s3-test.ts</code>, already on <code>develop</code>'s version of the file; not touched</td></tr>
+        <tr><td>Local end-to-end run</td><td class="pass">pass</td><td>PostgREST, the served edge functions and MinIO: two users, check-in and checkout, identical resume, a superseded attempt, four simultaneous starts, an uppercase id, admin-only collection files, history names, the sweep, and the move-user support script</td></tr>
         <tr><td>Merge with develop</td><td class="pass">clean</td><td>already up to date</td></tr>
+        <tr><td>C#, TypeScript front-end</td><td>N/A</td><td>none in this repo</td></tr>
       </tbody>
     </table>
     </div>
@@ -147,34 +137,109 @@ button.copy { font: inherit; font-weight: 600; background: var(--accent); color:
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Added per-collection "last seen" and the server side of starting a cloud collection, and fixed the three concurrency bugs Devin then found. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">4d1eb61 … d5c8689</a>.</p>
+    <p>This run implemented the v2.0 data model across the schema, edge functions, tests and docs (the first two commits). It then fixed a race between re-sent starts, S3 keys built from uppercase ids, and sweep keys that were forgotten too early (the third commit). The Notion copy of the design and the test-ideas note on the card are updated. <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13/commits" target="_blank" rel="noopener">721a235 · 9da9a2c · 879bcc5</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>Clean on the two feature commits; it checked permissions, the placeholder guard, delete ordering and the S3 prefix.</div>
-    <div class="reviewer"><strong>Devin: complete (last run at <code>d5c8689</code>)</strong>It found 3 real bugs, all fixed, which Devin confirmed resolved. Its 3 later bugs can't occur, and its other points need no change. Each is answered in its own <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13" target="_blank" rel="noopener">resolved thread</a>.</div>
+    <div class="reviewer"><strong>Local review: light sub-agent pass</strong>It found 2 real problems, both fixed in <code>879bcc5</code>: two simultaneous identical starts collided instead of resuming, and an uppercase id stranded uploads.</div>
+    <div class="reviewer" id="devin-row"><strong>Devin: complete (at <code>879bcc5</code>)</strong>At <code>9da9a2c</code> it raised 3 bugs: <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4146450433" target="_blank" rel="noopener">parallel starts</a>, <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4146451410" target="_blank" rel="noopener">sweep keys forgotten</a> and <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/13#discussion_r4146452190" target="_blank" rel="noopener">uppercase ids</a>. All three are fixed, and each has its own resolved thread. Its review of <code>879bcc5</code> found nothing new.</div>
     <div class="reviewer"><strong>Greptile</strong>It posted on the first commit only; all of its threads are resolved.</div>
-    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> and <code>db-tests</code> pass.</div>
+    <div class="reviewer"><strong>CI</strong>Complete: <code>test</code> and <code>db-tests</code> pass at <code>879bcc5</code>.</div>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The support delete script has never actually deleted anything. Try it against a MinIO or sandbox bucket before relying on it.</li>
-      <li>Polls and writes in the same collection now briefly wait for each other (the event-order fix). That is cheap at Bloom's scale, but worth knowing if many members poll one collection.</li>
-      <li>A future realtime client shouldn't advance its cursor from realtime event ids, which can arrive out of order. Only polling is safe for the cursor.</li>
+      <li>No Bloom build can use this server yet. The client is still on the old contract, so everything here is tested only by the automated suites and the local end-to-end script.</li>
+      <li>Creating a collection now needs a verified email, since it creates the person's user row.</li>
+      <li>A sweep key whose committed file version is missing from S3 now stays on the worklist, and is logged, on every run until someone looks at it.</li>
     </ul>
   </section>
 </main>
 
 <aside>
+  <section class="card decision" data-item="1">
+    <h2>What next: the client?</h2>
+    <p>The server now speaks CONTRACTS v2.0. BloomDesktop #8052, the Cloud Team Collections client, still speaks v1.12, so the two can't be used together, and nothing can be tried in Bloom until the client catches up. <code>DESIGN.md</code> §9 lists that work:</p>
+    <ul>
+      <li>identify people by user id;</li>
+      <li>name books by instance id;</li>
+      <li>choose folder names locally, and map <code>index.htm</code>;</li>
+      <li>treat <code>transaction_aborted</code> as "superseded";</li>
+      <li>use one set of collection files.</li>
+    </ul>
+    <p>The design questions still open for JohnH (palettes, whether the server keeps a book name, reviving a tombstoned book) barely touch it.</p>
+    <label class="option"><input type="radio" name="q1" data-q="1. Next step" value="Start bringing the #8052 client to v2.0 now" checked> <span>Start bringing the #8052 client to v2.0 now, on its own branch <span class="tag">recommended</span><br><span class="foot">Large: many C# files in the cloud client plus its tests and the E2E harness. Recommended because it is the only way to try any of this in Bloom, and the open design questions don't block it.</span></span></label>
+    <label class="option"><input type="radio" name="q1" data-q="1. Next step" value="Wait for JohnH's review of the design first"> <span>Wait for JohnH's review of the design first<br><span class="foot">No code now. Avoids redoing client work if the review changes the model.</span></span></label>
+    <div class="option leave"><label style="display:flex;gap:8px"><input type="radio" name="q1" data-q="1. Next step" value="Leave as is"> <span>Leave as is</span></label><label class="lc"><input type="checkbox" data-q="1. Next step" data-kind="comment"> Leave comment</label></div>
+    <div class="option"><input type="radio" name="q1" data-q="1. Next step" value="Other"> <span>Other:</span> <input type="text" class="other-text" data-q="1. Next step" data-kind="other" aria-label="Other answer for question 1"></div>
+    <textarea rows="2" data-q="1. Next step" data-kind="notes" placeholder="Notes (optional)"></textarea>
+  </section>
+
+  <section class="card decision" data-item="2">
+    <h2>Heads-up: an email another login already has</h2>
+    <p>A person's user row keeps the email of the login that owns it. If someone signs in with a new BloomLibrary account whose email is the same as an existing row's, the server refuses to create or claim their row, answering <code>email_in_use</code>. The existing row belongs to another login, typically the person's own old account.</p>
+    <p>Bloom would then say nothing can be joined until the Bloom team runs the new move-user script (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/879bcc56627caad268b93ff389a473c6b51ce37f/supabase/schemas/tc/02_functions.sql#L148" target="_blank" rel="noopener">02_functions.sql:148</a>). Taking the address over automatically would let whoever holds an email take someone else's collections, which is why the server refuses. This fits your "email changes stay a database-admin task" decision, so the recommendation is to leave it and have the client show a clear message.</p>
+    <label class="option"><input type="radio" name="q2" data-q="2. email_in_use" value="Move the row automatically when the old login's email has changed in Firebase"> <span>Move the row automatically when the server can prove the old login no longer has that email<br><span class="foot">Moderate, and risky: it needs a way to ask Firebase about another account, which the server doesn't have.</span></span></label>
+    <div class="option leave"><label style="display:flex;gap:8px"><input type="radio" name="q2" data-q="2. email_in_use" value="Leave as is" checked> <span>Leave as is <span class="tag">recommended</span></span></label><label class="lc"><input type="checkbox" data-q="2. email_in_use" data-kind="comment"> Leave comment</label></div>
+    <div class="option"><input type="radio" name="q2" data-q="2. email_in_use" value="Other"> <span>Other:</span> <input type="text" class="other-text" data-q="2. email_in_use" data-kind="other" aria-label="Other answer for question 2"></div>
+    <textarea rows="2" data-q="2. email_in_use" data-kind="notes" placeholder="Notes (optional)"></textarea>
+  </section>
+
   <section class="card">
-    <h2>Nothing waiting on you</h2>
-    <p>The PR is still a draft. When you're happy with it, <code>pr-ready-for-human</code> promotes it to review.</p>
+    <h2>Send your answers back</h2>
+    <p class="src">Copies your choices as text to paste into the session.</p>
+    <p><button class="copy" type="button" id="copy">Copy answers</button><span class="copied" id="copied" hidden>Copied</span></p>
+    <textarea id="payload" rows="8" readonly aria-label="Answers to paste back"></textarea>
   </section>
 </aside>
 </div>
 </div>
+<script>
+(function () {
+  var items = document.querySelectorAll('.decision');
+  function build() {
+    var out = ['Preflight answers: bloom-core-supabase PR #13 (BL-16531) at 879bcc5', ''];
+    items.forEach(function (card) {
+      var q = card.querySelector('[data-q]').getAttribute('data-q');
+      var chosen = card.querySelector('input[type=radio]:checked');
+      var ans = chosen ? chosen.value : '(none)';
+      if (ans === 'Other') {
+        var ot = card.querySelector('[data-kind=other]');
+        ans = 'Other: ' + (ot && ot.value.trim() ? ot.value.trim() : '(blank)');
+      }
+      out.push(q + ': ' + ans);
+      var lc = card.querySelector('[data-kind=comment]');
+      if (lc && lc.checked) out.push('  Leave comment');
+      var notes = card.querySelector('[data-kind=notes]');
+      if (notes && notes.value.trim()) out.push('  Notes: ' + notes.value.trim());
+    });
+    return out.join('\n');
+  }
+  var payload = document.getElementById('payload');
+  function refresh() { payload.value = build(); }
+  document.querySelectorAll('input, textarea').forEach(function (el) {
+    if (el.id === 'payload') return;
+    el.addEventListener('input', refresh);
+    el.addEventListener('change', refresh);
+  });
+  document.querySelectorAll('.other-text').forEach(function (el) {
+    el.addEventListener('focus', function () {
+      var r = el.parentElement.querySelector('input[type=radio]');
+      if (r) { r.checked = true; refresh(); }
+    });
+  });
+  refresh();
+  document.getElementById('copy').addEventListener('click', function () {
+    refresh();
+    var done = function () { var c = document.getElementById('copied'); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
+    var fallback = function () { payload.focus(); payload.select(); try { document.execCommand('copy'); } catch (e) {} done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload.value).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
 </body>
 </html>
