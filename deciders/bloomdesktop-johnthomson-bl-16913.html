@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-16913</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#faf8f4;--card:#fff;--line:#e4dfd6;--ink:#2b2824;--muted:#6d665c;--accent:#9c4a2f;--ok:#2f7a4a;--warn:#a86a12}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600}
+h1{font-size:1.6rem;margin-bottom:6px}h2{font-size:1.15rem;margin-bottom:10px}h3{font-size:1rem;margin:12px 0 4px}
+a{color:var(--accent)}
+.wrap{max-width:1300px;margin:0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;font-size:.85rem}
+.chip.ok{border-color:#b9d8c3;color:var(--ok)}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;margin-top:14px}
+.grid>div{min-width:0}
+@media (max-width:760px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:16px}
+ul{padding-left:20px}li{margin:3px 0}
+table{border-collapse:collapse;width:100%}td,th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{font-weight:600}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+p+p{margin-top:8px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.9em}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body><div class="wrap">
+<h1>Preflight: sign every exe and dll in the installer</h1>
+<p class="muted">BloomBooks/BloomDesktop · branch JohnThomson/BL-16913 → Version6.4 · HEAD <span class="numeral">f94bcfe</span></p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip ok">0 items waiting on you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8433" target="_blank" rel="noopener">PR #8433</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8433/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8433/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16913" target="_blank" rel="noopener">BL-16913</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8433" target="_blank" rel="noopener">Devin review</a>
+</div>
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>On new Windows 11 machines, where Smart App Control is on by default, installing Bloom can end with "the application install hook failed", and Bloom may not start. Smart App Control refused to load unsigned DLLs such as <code>L10NSharp.dll</code> and <code>DesktopAnalytics.dll</code>, so Bloom crashed during the install hook.</p>
+<h3>Cause</h3>
+<p>Smart App Control allows a file only if it is signed by a trusted certificate or Microsoft considers it reputable, and reputation can't be relied on even for long-established files. The build signed only Bloom.exe, BloomPdfMaker.exe and the installer; 102 of 138 installed exes and dlls were unsigned, including Bloom.dll, the third-party tools and Velopack's Update.exe.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><strong>Velopack now does the signing</strong> during <code>vpk pack</code>. It signs every exe and dll that isn't already validly signed, plus the Update.exe, launcher and Setup.exe it adds. Vendor signatures (Microsoft, .NET and others) are kept. <code>connections.dll</code>, a text file of keys, is excluded.</li>
+<li><strong>The build first checks whether this machine can sign</strong>, by signing a throwaway file. The existing rule still applies: a failure is fatal on TeamCity unless <code>OkIfSigningFails=true</code>.</li>
+<li><strong>The build verifies the result.</strong> A new script fails the build if any exe or dll in the installed package, or the installer itself, lacks a valid signature.</li>
+<li><strong>The old per-exe signing calls are gone.</strong> Upload builds refuse to continue if signing didn't happen.</li>
+</ul>
+</div>
+<div class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Local packing test (pinned vpk, self-signed certificate, installed 6.4 files)</td><td>Pass: <span class="numeral">95 + 1</span> signed, all <span class="numeral">34</span> vendor signatures unchanged, check script passed</td></tr>
+<tr><td>Failure paths (no signer locally / on TeamCity / with OkIfSigningFails)</td><td>Pass: warning / error / warning, as intended</td></tr>
+<tr><td>Pre-commit hooks</td><td>Pass</td></tr>
+<tr><td>TypeScript typecheck, lint and tests</td><td>Not run: no front-end code in the diff</td></tr>
+<tr><td>C# tests (<code>dotnet test</code>)</td><td>Not run: the diff changes only the installer build script, which the C# suite neither builds nor reads</td></tr>
+<tr><td>Merge with Version6.4</td><td>Up to date, mergeable</td></tr>
+</table>
+</div>
+<div class="card">
+<h2>What changed this run</h2>
+<p>This is the first run. It committed the change, opened draft <a href="https://github.com/BloomBooks/BloomDesktop/pull/8433" target="_blank" rel="noopener">PR #8433</a>, linked it on the card, and posted test ideas there.</p>
+</div>
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+<tr><td>Devin</td><td>Complete. No bugs. One Investigate flag: batched signing on the agent is untested. That is an accepted risk; replied and resolved.</td></tr>
+<tr><td>Greptile</td><td id="greptile">Complete. No inline findings. Its summary repeated the batched-signing point and noted that the check skips non-program files, which is intentional; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8433#issuecomment-5917248779" target="_blank" rel="noopener">reply</a>.</td></tr>
+<tr><td>CI (pr-automation)</td><td>Pass. The real installer build is on TeamCity and is not a PR check.</td></tr>
+</table>
+</div>
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>No trusted certificate was used locally, so real signing is untested until TeamCity builds this. If the agent's <code>sign</code> accepts only one file per call, the build fails with "Signing command failed". The fix is <code>--signParallel 1</code>.</li>
+<li>Signing about 96 files instead of 4 may noticeably lengthen the installer build.</li>
+</ul>
+</div>
+</div>
+<div>
+<div class="card">
+<h2>Decisions</h2>
+<p>Nothing is waiting on you. The PR is ready for your own final review.</p>
+</div>
+</div>
+</div>
+</div></body></html>
