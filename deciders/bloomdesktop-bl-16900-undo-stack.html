@@ -68,7 +68,7 @@
 <div class="wrap">
 <header>
   <h1>Preflight report — Retire CKEditor, stage 1 (BL-16900)</h1>
-  <p class="lede">Run of 2026-10-01 on branch <code>BL-16900-undo-stack</code>, PR #8387 into <code>master</code>, HEAD <span class="numeral">0c27183121</span>. Second preflight of this PR, after rebasing it onto current master.</p>
+  <p class="lede">Run of 2026-10-01 on branch <code>BL-16900-undo-stack</code>, PR #8387 into <code>master</code>, HEAD <span class="numeral">d8b47ee933</span>. After rebasing onto current master, the hand-run live checks were replaced by an e2e spec.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable, up to date with master</span>
@@ -97,7 +97,8 @@
       <li>Wraps the four existing mechanisms as legacy providers, consulted in exactly the order the old if-chain used, including the BL-16558 markup update after the reader-tools and CKEditor undos. <code>handleUndo()</code> and <code>canUndo()</code> become one-line delegations.</li>
       <li>Tells the stack about page-frame navigation from the one place C# navigates it, using the <code>.bloom-page</code> element's id as page identity, so a previous page's entries are never undone onto the current one. The stack also counts page-frame generations, so an asynchronous gesture that straddles a reload of the same page, or a <code>clear</code>, cannot record stale state when it finishes.</li>
       <li>Binds Ctrl+Y in the page frame as a last resort: it acts only when nothing earlier claimed the keystroke and the stack has something to redo, so origami's and the reader tools' own Ctrl+Y and CKEditor's redo keep winning until they are converted. No Redo button, no C# involvement.</li>
-      <li>Adds live-check harnesses that attribute each undo gesture to the mechanism that ran, the paste/drop baseline they captured, and the project's progress log; the plan's §5 is rewritten for the topology now in force (short stage branches straight off master).</li>
+      <li>Pins the "nothing changed" claim with an e2e spec, <code>src/BloomE2E/tests/undo-routing.spec.ts</code>: the real Undo button (which gets a test id), Ctrl+Z and Ctrl+Y each reach the mechanism that owns the change and only that one, counted by a new <code>helpers/undo.ts</code>. It corrects the e2e helpers' claim that Ctrl+Z never reaches the page, and adds an opt-in spec for a person pressing the real keys.</li>
+      <li>Updates the plan, the progress log and the paste/drop baseline. The earlier hand-run scripts, including the repros of five pre-existing bugs, are kept on branch <a href="https://github.com/BloomBooks/BloomDesktop/tree/BL-6681-bug-repros/docs/retire-ckeditor/liveChecks" target="_blank" rel="noopener">BL-6681-bug-repros</a>, not in this PR.</li>
     </ul>
     <p>Verified in a running Bloom on 2026-09-07: the Undo button reaches the reader-tools undo, CKEditor's undo, origami's undo and the image undo exactly once each, and Ctrl+Y never double-fires. Tracked by card BL-16900, a subtask of BL-6681. Supersedes PR #8317.</p>
   </section>
@@ -113,6 +114,7 @@
         <tr><td>Rebase onto <code>master</code></td><td class="status pass">Clean</td><td>Rebased onto master <span class="numeral">893f1d6d0e</span>, which was 165 commits ahead. No conflicts; the branch is 0 behind.</td></tr>
         <tr><td>TypeScript tests (vitest), fast subset</td><td class="status pass">Pass</td><td><span class="numeral">66 passed</span> across the five undo specs.</td></tr>
         <tr><td>TypeScript tests (vitest), full suite</td><td class="status pass">Pass</td><td><span class="numeral">1037 passed</span> in 84 files, run on the rebased code.</td></tr>
+        <tr><td>E2E tests (Playwright, real Bloom.exe)</td><td class="status pass">Pass</td><td>The new undo spec, <span class="numeral">4 tests</span>, passed three times in a row at the final commit. The two specs that use the changed image helpers passed, <span class="numeral">13 tests</span>. No Bloom was left running.</td></tr>
         <tr><td>C# tests (dotnet test)</td><td class="status skip">Not run</td><td>No C# in the diff: TypeScript, docs and hand-run harness scripts only, none of which the C# build or tests read.</td></tr>
       </tbody>
     </table>
@@ -121,7 +123,7 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>No code changes. The four commits were rebased onto current master and force-pushed, and one commit records the rebase in the project's progress log (<a href="https://github.com/BloomBooks/BloomDesktop/commit/0c2718312133133baaf5317fe1b25db3d50055e1" target="_blank" rel="noopener">0c27183</a>). Master's toolbox refactor moved the toolbox code the legacy undo providers call, but every function they use survives with the same behaviour. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    <p>Rebased onto current master with no conflicts (<a href="https://github.com/BloomBooks/BloomDesktop/commit/0c2718312133133baaf5317fe1b25db3d50055e1" target="_blank" rel="noopener">0c27183</a> logs it). Then the hand-run live checks became the e2e spec and moved off the PR (<a href="https://github.com/BloomBooks/BloomDesktop/commit/5201f90e5a9cb2c882ef619143403eebb3c6f49d" target="_blank" rel="noopener">5201f90</a>), and a Devin point about the Change Layout test was fixed (<a href="https://github.com/BloomBooks/BloomDesktop/commit/d8b47ee933f918e9ec7fe45c05db59d4ba912e1e" target="_blank" rel="noopener">d8b47ee</a>). See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/commits" target="_blank" rel="noopener">commit list</a>.</p>
   </section>
 
   <section class="card">
@@ -131,7 +133,7 @@
       <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
       <tbody>
         <tr><td>Local review (light sub-agent pass)</td><td class="status pass">Complete</td><td>Clean, no findings. This run it checked the branch against master's newer code: every toolbox and page-frame function the providers call still exists with the same behaviour, master added no new undo path or caller, and the page-navigation hooks fit master's current page-switching code.</td></tr>
-        <tr><td>Devin</td><td class="status pass">Complete</td><td>Re-reviewed the rebase incrementally and judged its earlier review still applies; nothing new. Across the PR it raised three bugs in the new stack, all fixed with tests and marked fixed by Devin, and three investigate flags closed as design choices or not this PR's change. All <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/files" target="_blank" rel="noopener">threads</a> are resolved.</td></tr>
+        <tr><td>Devin</td><td class="status pass">Complete</td><td>Complete at the final commit, nothing new. On the e2e conversion it raised three investigate flags: one fixed (the Change Layout test now makes two splits), one deliberate (the reader redo is a known bug), one already fixed (the PR description). Its three earlier bugs in the stack stay marked fixed. All <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/files" target="_blank" rel="noopener">threads</a> are resolved.</td></tr>
         <tr><td>CI (<code>pr-automation</code>)</td><td class="status pass">Pass</td><td>The <code>pr-automation</code> check passed for the final commit; it is the only check configured for PRs.</td></tr>
         <tr><td>Other review bots</td><td class="status skip">None active</td><td>No Greptile or CodeRabbit activity on this PR.</td></tr>
       </tbody>
@@ -142,7 +144,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The live verification in a running Bloom dates from 2026-09-07 on the previous branch. It has not been re-run since the rebase, which put this code on top of master's toolbox refactor.</li>
+      <li>Real key presses were tried once by sending Windows key events to an e2e Bloom. Ctrl+Z reached CKEditor every time; Ctrl+Y redid three times out of five, with the misses unexplained. The opt-in <code>undo-physical-keys.spec.ts</code>, run by a person at the keyboard, would settle it.</li>
       <li>The rebase was John's call and departs from the plan's merge-only rule (§5.3). No human had reviewed the PR, so the force-push discarded nothing a reviewer had seen.</li>
       <li>Two open Stage 0 verification items (the async markup path G2, and a real-clipboard confirmation of the paste-filter bypass) and five pre-existing bugs the harnesses found are listed in PROGRESS.md's next actions; none is changed here and none blocks this PR.</li>
     </ul>
@@ -155,7 +157,7 @@
     <p>Nothing needs a decision. Every finding from the reviewers was either fixed with a test or closed as a documented design choice; the records are on the PR threads.</p>
     <div class="q" data-q="3. Next step">
       <h3>3. Next step for this PR</h3>
-      <p>Everything is green and the PR is a draft awaiting your own review. It is now rebased onto current master with every check green. The live verification in a running Bloom predates the rebase; re-running the live checks in <code>docs/retire-ckeditor/liveChecks/</code> would confirm the Undo button against master's refactored toolbox.</p>
+      <p>Everything is green and the PR is a draft awaiting your own review. It is rebased onto current master with every check green, and the routing checks now run as an e2e spec against the rebased code.</p>
       <div class="opt"><input type="radio" name="q3" id="q3a" value="Proceed: the PR stays in human review as it is" data-q="3" checked><label for="q3a">Proceed as it is<span class="rec">Recommended</span></label><span></span></div>
       <div class="opt"><input type="radio" name="q3" id="q3b" value="Discuss first" data-q="3"><label for="q3b">Discuss first</label><span></span></div>
       <div class="opt"><input type="radio" name="q3" id="q3c" value="Leave as is" data-q="3"><label for="q3c">Leave as is</label><label class="leavecomment"><input type="checkbox" id="q3lc" data-q="3" data-leave-comment="1">Leave comment</label></div>
