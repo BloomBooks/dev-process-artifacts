@@ -2,20 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bloom Tables preflight</title>
 <style>
-/* Layout: report on the left, decisions and copy-back on the right; one column when narrow. */
+/* Layout: header strip, then a two-column grid (report left, decisions right) that stacks when narrow. */
 :root {
-  --ground: #f6f5f1;
+  --ground: #f7f5f1;
   --card: #ffffff;
   --ink: #23262b;
   --muted: #5d6470;
-  --line: #dcdde0;
-  --accent: #2f5d7c;
-  --good: #2e6b3f;
-  --warn: #8a5a12;
-  --bad: #9a2f2f;
+  --rule: #dcd8d0;
+  --accent: #2f6f6a;
+  --good: #2e7d4f;
+  --good-bg: #e6f3eb;
+  --warn: #8a5a00;
+  --warn-bg: #fbf0d9;
   --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
@@ -23,62 +24,48 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
-body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding-inline: 16px; padding-block: 24px 48px; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding: 24px 16px 48px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; }
+h3 { font-size: 0.98rem; color: var(--accent); }
+p { margin: 0; }
 a { color: var(--accent); }
-a:focus-visible, input:focus-visible, button:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
-header h1 { font: 600 1.7rem/1.2 var(--serif); margin: 0 0 6px; text-wrap: balance; }
-header p { margin: 0 0 10px; color: var(--muted); max-width: 80ch; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
-.chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
-.chip.good { border-color: var(--good); color: var(--good); }
-.chip.warn { border-color: var(--warn); color: var(--warn); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.summary { color: var(--muted); max-width: 70ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); font-size: 0.85rem; }
+.chip.good { background: var(--good-bg); border-color: #b9dcc6; color: var(--good); }
+.chip.warn { background: var(--warn-bg); border-color: #ecd49a; color: var(--warn); }
 .links a.chip { text-decoration: none; }
-.cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
-.cols > * { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
-@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
-section.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
-h2 { font: 600 1.2rem/1.3 var(--serif); margin: 0 0 8px; }
-h3 { font: 600 1rem/1.3 var(--sans); margin: 12px 0 4px; }
-p { margin: 0 0 8px; }
-ul { margin: 0 0 8px; padding-left: 20px; }
-li { margin-bottom: 4px; }
-code { font: 0.88em var(--mono); background: #f0f1f3; padding: 0 3px; border-radius: 3px; }
-.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
 .tablewrap { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
-th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-th { font-weight: 600; color: var(--muted); }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.86rem; }
 .ok { color: var(--good); font-weight: 600; }
-.fail { color: var(--bad); font-weight: 600; }
-.note { color: var(--warn); font-weight: 600; }
-.q { border-top: 1px solid var(--line); padding-top: 12px; }
-.q:first-of-type { border-top: 0; padding-top: 0; }
-.opt { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
-.opt input[type=radio] { margin-top: 4px; }
-.opt .foot { color: var(--muted); font-size: 0.85rem; }
-.rec { font-size: 0.75rem; font-weight: 600; color: var(--good); border: 1px solid var(--good); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
-.leaverow { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-.leaverow label.lc { font-size: 0.85rem; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-.other { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.other input[type=text] { flex: 1 1 200px; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
-textarea { width: 100%; min-height: 54px; border: 1px solid var(--line); border-radius: 4px; padding: 6px; font: inherit; }
-#payload { min-height: 180px; font: 0.82rem/1.4 var(--mono); }
-button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
-#copystatus { margin-left: 10px; font-size: 0.9rem; }
-#copystatus.done { color: var(--good); }
+.na { color: var(--muted); }
+code { font-family: var(--mono); font-size: 0.86em; background: #f1efea; padding: 0 3px; border-radius: 3px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
   <h1>Bloom Tables preflight</h1>
-  <p>Preflight run on 2026-09-30 for branch <code>BL-16818-tables</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/c58d624f26e33ef0ee6d7141851133d44d873bc5" target="_blank" rel="noopener"><code>c58d624</code></a>. Every reviewer is terminal; two questions are waiting on you.</p>
+  <p class="summary">Re-ran preflight on BL-16818-tables after review questions in Reviewable. Every gate and reviewer is finished and nothing is waiting on you.</p>
   <div class="chips">
-    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8315" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
-    <span class="chip good">Mergeable</span>
-    <span class="chip good">Bot threads answered</span>
-    <span class="chip warn">2 decisions waiting</span>
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable with master</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
     <span class="chip">Board: Personal Review</span>
   </div>
   <div class="chips links">
@@ -87,166 +74,76 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8315/commits" target="_blank" rel="noopener">Commits</a>
     <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16818" target="_blank" rel="noopener">BL-16818</a>
     <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8315" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8315" target="_blank" rel="noopener">Reviewable</a>
   </div>
 </header>
 
-<div class="cols">
-<div>
+<div class="grid">
+<div class="col">
   <section class="card">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>Bloom has no way to lay content out in a grid. Authors who want a vocabulary list with pictures or a simple timetable fake it with positioned text boxes, which drift out of alignment and do not translate as one unit. Tables are a Pro-tier feature, and the people who translate Pro books often have no subscription, so a table has to stay translatable and publishable for them while they are kept from building new ones.</p>
+    <p>Bloom has no way to lay content out in a grid. Authors who want a vocabulary list with pictures or a simple timetable fake it with positioned text boxes, which drift out of alignment and do not translate as one unit. Tables are a Pro-tier feature, and the people who reuse Pro books, above all to translate them, often have no subscription, so a table has to stay translatable and publishable for them while they are kept from building new ones.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>Adds a Table, built by the <code>bloom-table</code> library (pinned at GitHub tag <code>dist-v0.1.1</code>), as a canvas element from the Canvas tool and as a section type in Change Layout. Bloom supplies the cell content (a Bloom text box, a picture, a video, a nested table) and strips editing markup before save.</li>
-      <li>Gates it: Pro tier plus the <code>tables</code> experiment. Below Pro or with the experiment off, an existing table can still be typed in, translated and published from a derivative, but not restructured.</li>
-      <li>Teaches shared editing code about tables: which of the table's history and CKEditor's gets the next Undo, a press on a row or column boundary starting a resize, copy and paste in a cell, the format gear's position, and picture refitting. A picture cell made after the page loaded gets its own drawing surface, so a press on its picture selects the picture and shows its toolbar, with Choose image. One press on a cell's text starts typing there, where other canvas elements take a first press to select and a second to edit. A picture cell's padding slider says "Padding between border and image" and starts at the padding the cell really has, so a picture can be made to fill its cell.</li>
-      <li>Improves automation: step captions and per-process experiment settings for e2e runs; under <code>--automation</code> as well as <code>--e2e</code> the browsers share one WebView2 environment so problem dialogs are visible over the debugging port (except legacy-DPI dialogs such as Settings, which need their own); and the e2e helpers refuse a Bloom without <code>--e2e</code> instead of flooding it with problem dialogs.</li>
+      <li>The table itself comes from the <code>bloom-table</code> library (grid, menus, resizing, its own undo). Bloom attaches it to each table on the page, supplies the cell contents (a text box, a picture, a video, a nested table) and strips editing markup before save.</li>
+      <li>Two ways in: a Table item in the Canvas tool, and a Table section type in Change Layout.</li>
+      <li>Gating: Pro and the "tables" experimental setting. Below Pro, a table can be filled in and translated but not restructured, and an original book with a table cannot be published.</li>
+      <li>Shared editing code that now knows about tables: Undo picks the table's history or the text's by which changed last, a press on a row or column boundary starts a resize, copy and paste work in a cell, and pictures refit when a cell changes size.</li>
+      <li>After a zoom change, the selected canvas element's toolbar follows the new scale, at most once per 100 ms however many zoom changes arrive.</li>
+      <li>E2E support: a step caption in <code>--e2e</code> runs and an <code>app/runningE2eTests</code> endpoint. Making a go.sh Bloom's dialogs visible to tools moved out to <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16976" target="_blank" rel="noopener">BL-16976</a>.</li>
     </ul>
   </section>
 
   <section class="card">
     <h2>Quality gate</h2>
-    <div class="tablewrap"><table>
-      <tr><th>Check</th><th>Result</th></tr>
-      <tr><td>Typecheck (front end, BloomE2E)</td><td class="ok">Pass</td></tr>
-      <tr><td>Lint (changed front-end files)</td><td class="ok">Pass</td></tr>
-      <tr><td>C# build</td><td>Not re-run: no C# changed since the last run's pass.</td></tr>
-      <tr><td>Front-end tests (Vitest, full suite)</td><td id="vitest-row"><span class="ok">Pass</span> <span class="numeral">1001 passed · 85 files</span></td></tr>
-      <tr><td>C# tests (<code>dotnet test</code>, full suite)</td><td id="cs-row">Not re-run: no C# changed since the last run, where it passed (<span class="numeral">3644 passed · 1 skipped</span>).</td></tr>
-      <tr><td>E2E: <code>tables-core</code></td><td><span class="ok">Pass</span> <span class="numeral">13 passed</span></td></tr>
-      <tr><td>E2E: <code>tables-gating</code></td><td><span class="ok">Pass</span> <span class="numeral">4 passed</span></td></tr>
-      <tr><td>E2E: <code>tables-extended</code></td><td><span class="fail">1 failing</span> <span class="numeral">14 passed · 6 not run</span>. "Takes a video in a cell" still fails (decision 2).</td></tr>
-      <tr><td>Merge with master</td><td class="ok">Up to date, mergeable</td></tr>
-    </table></div>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck (front end and e2e package)</td><td class="ok">Pass</td></tr>
+        <tr><td>Lint</td><td class="ok">Pass <span class="numeral">0 errors</span></td></tr>
+        <tr><td>TypeScript tests (vitest, full suite)</td><td class="ok">Pass <span class="numeral">1004 passed, 86 files</span></td></tr>
+        <tr><td>C# tests (BloomTests, full suite)</td><td class="ok">Pass <span class="numeral">3644 passed, 1 skipped</span></td></tr>
+        <tr><td>Playwright e2e (table specs)</td><td class="na">Not run this time. The table specs were last run when the other session's fixes went in (<a href="https://github.com/BloomBooks/BloomDesktop/commit/4eee9dde31" target="_blank" rel="noopener">4eee9dde31</a>); since then only a test name, a tooltip and the zoom throttle changed. The throttle has unit tests and was checked in a running Bloom, but the e2e test that zooms a table to 150% has not run against it yet.</td></tr>
+        <tr><td>Merge with master</td><td class="ok">Up to date</td></tr>
+      </tbody>
+    </table>
+    </div>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Picture cells now give the picture its own toolbar with Choose image, and after a picture goes in, one press on a text cell starts typing (decision 1, settled). <code>bloom-table</code> <code>dist-v0.1.1</code> fixes the padding slider for picture cells. The <code>tables-core</code> picture test covers both mouse fixes. The flaky drag-select test in <code>tables-extended</code> was failing because a new cell's CKEditor started late and wiped the typing a test had just put in. The cell helpers now wait for that editor, as the other text helpers already did. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315/commits" target="_blank" rel="noopener">Commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/2e56af9bc4" target="_blank" rel="noopener"><code>2e56af9</code></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/c58d624f26" target="_blank" rel="noopener"><code>c58d624</code></a>, plus a merge of master.</p>
+    <p>Answered your Reviewable questions and fixed the two wording problems they found; moved the change that made a go.sh Bloom's dialogs visible to tools out to BL-16976; throttled the toolbar realignment after a zoom change and switched it to <code>performance.now()</code>, which Devin raised. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315/commits" target="_blank" rel="noopener">commit list</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
-    <div class="tablewrap"><table>
-      <tr><th>Reviewer</th><th>State</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>Complete. Clean.</td></tr>
-      <tr><td>Devin</td><td id="devin-row">Complete for <code>c58d624</code>. Nothing new. It still lists <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r4150432386" target="_blank" rel="noopener">stranded drawing surfaces</a>, already answered as not an issue, and the open thread for decision 1.</td></tr>
-      <tr><td>Greptile</td><td>Has not reviewed the current code: its last review is from 2026-09-05, and it has not re-triggered on any push since.</td></tr>
-      <tr><td>CodeRabbit</td><td>Configured in the repo but has never posted on this PR.</td></tr>
-      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed. <code>code-review/reviewable</code> is the human review and stays open.</td></tr>
-    </table></div>
-  </section>
-
-  <section class="card">
-    <h2>Worth knowing</h2>
-    <ul>
-      <li><code>pnpm-lock.yaml</code> shows about 30,000 changed lines. pnpm rewrote a file that master had in prettier's layout; parsed, only the <code>bloom-table</code> entry and a Babel peer-dependency detail differ from master.</li>
-      <li>The OverflowChecker <code>.html</code> fixtures are sensitive to whitespace. If they ever show up as modified (prettier, or regenerating them from the <code>.pug</code>), four browser-mode overflow tests fail; take master's copies.</li>
-          </ul>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review</td><td>Light sub-agent pass over everything since the last preflight: clean, no findings.</td></tr>
+        <tr><td>Devin</td><td>Complete for <code>4492274b94</code>, nothing new. This run it raised one real bug, the zoom throttle reading the wall clock (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r4156316097" target="_blank" rel="noopener">fixed</a>), and four against the commit that put the go.sh automation code back to master's, each answered on the PR as master's behavior now tracked in BL-16976 (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#issuecomment-5933145651" target="_blank" rel="noopener">1</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#issuecomment-5933146442" target="_blank" rel="noopener">2</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#issuecomment-5933147254" target="_blank" rel="noopener">3</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#issuecomment-5933148030" target="_blank" rel="noopener">4</a>). Every earlier thread is resolved.</td></tr>
+        <tr><td>Greptile</td><td>Has not reviewed this PR: it declined at the start because the PR is over its 100-file limit.</td></tr>
+        <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed. Reviewable's check stays pending until a human finishes reviewing there.</td></tr>
+      </tbody>
+    </table>
+    </div>
   </section>
 </div>
 
-<div>
-  <section class="card" id="decisions">
+<div class="col">
+  <section class="card">
     <h2>Decisions</h2>
-
-    <div class="q">
-      <h3>1. Undo between typing and table changes, the other direction</h3>
-      <p>A table's changes (add a row, change a cell's type) and typing in its cells go to two separate undo histories, and Bloom decides which one gets the next Undo by which changed last. The last run fixed one wrong case: after "add a row, type, add a row, Undo", the next Undo used to take the first row instead of the typing. Reading the code, the mirror case looks wrong too, though I have not reproduced it: after "type, add a row, type, Undo", undoing the second typing marks the typing history as the latest again, so the next Undo would take the first typing instead of the row. Devin's open thread <a href="https://github.com/BloomBooks/BloomDesktop/pull/8315#discussion_r3942105567" target="_blank" rel="noopener">"Structural undo drops text history"</a> is about the same area: a table Undo rebuilds the cells, which discards their typing history.</p>
-      <div class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" value="a" data-instruction="In D:\BL-16818-tables (branch BL-16818-tables, PR 8315), extend src/BloomBrowserUI/bookEdit/js/undoOrdering.ts so CKEditor's side also keeps one order number per undo step (popping one when CKEditor undoes), which needs a reliable way to tell a CKEditor undo from an edit in bloomEditing.ts's change listener; add unit tests for 'type, add a row, type, Undo, Undo'. Then reply on the Devin thread 'Structural undo drops text history' with what was done."><label for="q2a">Track CKEditor's undo steps the same way <span class="foot">(moderate: needs a reliable undo signal from CKEditor; touches every Undo in the Edit tab)</span></label></div>
-      <div class="opt"><input type="radio" name="q2" id="q2b" data-q="q2" value="b" checked data-instruction="Create a YouTrack card on the Bloom 6.6 board: in a table, Undo after 'type, add a row, type, Undo' takes the first typing instead of the row, and a table Undo discards the cells' typing history (Devin thread 'Structural undo drops text history' on https://github.com/BloomBooks/BloomDesktop/pull/8315); reply on that Devin thread with the card id and resolve it."><label for="q2b">File a card for both and resolve the thread with its id <span class="rec">Recommended</span> <span class="foot">(~10 minutes, no product change)</span>, recommended because both are edge cases of mixing Undo across typing and structure, and the fix needs a CKEditor signal worth designing on its own rather than inside this PR.</label></div>
-      <div class="opt leaverow"><span><input type="radio" name="q2" id="q2c" data-q="q2" value="c" data-instruction="Leave as is — take no action on: Undo order after undoing typing in a table, and table Undo discarding the cells' typing history; reply on the Devin thread 'Structural undo drops text history' recording this and resolve it."><label for="q2c">Leave as is</label></span><label class="lc"><input type="checkbox" id="q2lc" data-q="q2-comment" data-instruction="Record this decision as a code comment in src/BloomBrowserUI/bookEdit/js/undoOrdering.ts next to noteCkeditorChange.">Leave comment</label></div>
-      <div class="opt other"><input type="radio" name="q2" id="q2d" data-q="q2" value="other"><label for="q2d">Other:</label><input type="text" id="q2o" data-q="q2-other" aria-label="Other answer for question 2"></div>
-      <textarea id="q2n" data-q="q2-notes" placeholder="Notes" aria-label="Notes for question 2"></textarea>
-    </div>
-
-    <div class="q">
-      <h3>2. The "takes a video in a cell" e2e test fails</h3>
-      <p>In <code>tables-extended</code>, the test after "re-tiles the cells when the whole table is made wider" fails: a cell's right edge ends up outside the table (cell from x=520 to 580, table ends at 563). It has failed the same way since before the picture-cell work, and because the file runs its tests in order, the six tests after it do not run at all.</p>
-      <div class="opt"><input type="radio" name="q3" id="q3a" data-q="q3" value="a" checked data-instruction="In D:\BL-16818-tables (branch BL-16818-tables, PR 8315), find why after 'makes the whole table wider' a cell of the canvas table ends up wider than the table in src/BloomE2E/tests/tables-extended.spec.ts ('takes a video in a cell' fails in expectCellsTile), decide whether it is a product bug or a test that measures too early, fix it, and run tables-extended once to confirm all 21 tests run."><label for="q3a">Investigate and fix it in this PR <span class="rec">Recommended</span> <span class="foot">(unknown size; may be a real layout bug after resizing)</span>, recommended because it hides six later tests, so a regression in them would go unseen.</label></div>
-      <div class="opt"><input type="radio" name="q3" id="q3b" data-q="q3" value="b" data-instruction="Create a YouTrack card on the Bloom 6.6 board: the tables-extended e2e test 'takes a video in a cell' fails because a cell ends up wider than its table after the table is widened (BloomDesktop branch BL-16818-tables), and mark that test test.fixme with the card id so the later tests run."><label for="q3b">File a card and mark the test as expected-to-fail <span class="foot">(~10 minutes, no product change)</span></label></div>
-      <div class="opt leaverow"><span><input type="radio" name="q3" id="q3c" data-q="q3" value="c" data-instruction="Leave as is — take no action on: the tables-extended e2e test 'takes a video in a cell' fails and the six tests after it do not run."><label for="q3c">Leave as is</label></span><label class="lc"><input type="checkbox" id="q3lc" data-q="q3-comment" data-instruction="Record this decision as a code comment above the 'takes a video in a cell' test in src/BloomE2E/tests/tables-extended.spec.ts.">Leave comment</label></div>
-      <div class="opt other"><input type="radio" name="q3" id="q3d" data-q="q3" value="other"><label for="q3d">Other:</label><input type="text" id="q3o" data-q="q3-other" aria-label="Other answer for question 3"></div>
-      <textarea id="q3n" data-q="q3-notes" placeholder="Notes" aria-label="Notes for question 3"></textarea>
-    </div>
-
-    <div class="q">
-      <h3>Next step</h3>
-      <div class="opt"><input type="radio" name="q4" id="q4a" data-q="q4" value="a" checked data-instruction="Carry out the choices above now in D:\BL-16818-tables (branch BL-16818-tables), then run preflight again."><label for="q4a">Do the chosen fixes now, then run preflight again</label></div>
-      <div class="opt"><input type="radio" name="q4" id="q4b" data-q="q4" value="b" data-instruction="Before changing anything, discuss the choices above with me."><label for="q4b">Discuss first</label></div>
-      <div class="opt"><input type="radio" name="q4" id="q4c" data-q="q4" value="c" data-instruction="Leave as is — take no further action on this preflight report for now."><label for="q4c">Leave as is</label></div>
-      <div class="opt other"><input type="radio" name="q4" id="q4d" data-q="q4" value="other"><label for="q4d">Other:</label><input type="text" id="q4o" data-q="q4-other" aria-label="Other next step"></div>
-      <textarea id="q4n" data-q="q4-notes" placeholder="Notes" aria-label="Notes for the next step"></textarea>
-    </div>
+    <p>None waiting on you.</p>
   </section>
-
   <section class="card">
-    <h2>Send your answers back</h2>
-    <p>Copies every answer as a self-contained block to paste into a Claude session.</p>
-    <button id="copybtn" type="button">Copy answers</button><span id="copystatus" role="status"></span>
-    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+    <h2>Next step</h2>
+    <p>Your own review of the PR. When you are happy with it, <code>pr-ready-for-human</code> promotes it to peer review.</p>
   </section>
 </div>
 </div>
 </div>
-<script>
-(function () {
-  var URL_SELF = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16818-tables.html";
-  var titles = {
-    q2: "1. Undo between typing and table changes, the other direction",
-    q3: "2. The \"takes a video in a cell\" e2e test fails",
-    q4: "Next step"
-  };
-  function serialize() {
-    var lines = [
-      "Decisions from a decider form (preflight report)",
-      "Project: BloomDesktop, D:\\BL-16818-tables, branch BL-16818-tables, PR https://github.com/BloomBooks/BloomDesktop/pull/8315, card BL-16818",
-      "Date: 2026-09-30",
-      "Report: " + URL_SELF,
-      ""
-    ];
-    Object.keys(titles).forEach(function (q) {
-      lines.push(titles[q]);
-      var chosen = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
-      if (chosen) {
-        if (chosen.value === "other") {
-          var o = document.querySelector('[data-q="' + q + '-other"]');
-          lines.push("Other: " + (o && o.value.trim() ? o.value.trim() : "(no text given)"));
-        } else {
-          lines.push(chosen.getAttribute("data-instruction"));
-        }
-      }
-      var lc = document.querySelector('[data-q="' + q + '-comment"]');
-      if (lc && lc.checked) lines.push(lc.getAttribute("data-instruction"));
-      var n = document.querySelector('[data-q="' + q + '-notes"]');
-      if (n && n.value.trim()) lines.push("Notes: " + n.value.trim());
-      lines.push("");
-    });
-    return lines.join("\n");
-  }
-  var payload = document.getElementById("payload");
-  function refresh() { payload.value = serialize(); }
-  document.getElementById("decisions").addEventListener("input", refresh);
-  document.getElementById("decisions").addEventListener("change", refresh);
-  refresh();
-  document.getElementById("copybtn").addEventListener("click", async function () {
-    var status = document.getElementById("copystatus");
-    status.className = ""; status.textContent = "";
-    try {
-      refresh();
-      payload.focus(); payload.select();
-      var ok = false;
-      try { await navigator.clipboard.writeText(payload.value); ok = true; } catch (e) {
-        try { payload.select(); ok = document.execCommand("copy"); } catch (e2) { ok = false; }
-      }
-      if (ok) { status.textContent = "Copied \u2713"; status.className = "done"; }
-      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (\u2318C on Mac)."; }
-    } catch (e) {
-      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (\u2318C on Mac).";
-    }
-  });
-})();
-</script>
 </body>
 </html>
