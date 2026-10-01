@@ -68,7 +68,7 @@
 <div class="wrap">
 <header>
   <h1>Preflight report — Retire CKEditor, stage 1 (BL-16900)</h1>
-  <p class="lede">Run of 2026-09-21 on branch <code>BL-16900-undo-stack</code>, PR #8387 into <code>master</code>, HEAD <span class="numeral">1e96416f22</span>. First preflight of this PR: the Stage 1 work carried onto a fresh branch off master after Stage 0 merged.</p>
+  <p class="lede">Run of 2026-10-01 on branch <code>BL-16900-undo-stack</code>, PR #8387 into <code>master</code>, HEAD <span class="numeral">0c27183121</span>. Second preflight of this PR, after rebasing it onto current master.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip accent" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable, up to date with master</span>
@@ -93,9 +93,9 @@
     <p>Bloom has five separate undo mechanisms — Change Layout mode's stack, the reader tools' per-box text undo, the picture-operation undo, CKEditor's per-box undo manager, and the browser's own — with no shared record of what happened in which order. The Undo button arbitrated between four of them with a hand-written chain of checks that also had to remember the BL-16558 rule (repaint the reader highlights after any undo that rewrites a text box), and there was no way to add a new kind of undoable operation (deleting a page, deleting a canvas element) without growing that chain. This is Stage 1 of retiring CKEditor and unifying Undo; its whole point is to change <strong>no</strong> user-visible behaviour.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>Adds the one undo stack (<a href="https://github.com/BloomBooks/BloomDesktop/tree/1e96416f2262ed07c4356a0124aac97e824658c0/src/BloomBrowserUI/bookEdit/undo" target="_blank" rel="noopener">bookEdit/undo/</a>): index-based with truncate-on-push, O(1) <code>canUndo</code>/<code>canRedo</code> (C# polls <code>canUndo</code> on a timer), page scoping, lazy redo capture, and <code>runUndoable</code> for one-gesture-one-entry nesting. Entries are data, not page-frame closures, because the page iframe dies on every navigation.</li>
+      <li>Adds the one undo stack (<a href="https://github.com/BloomBooks/BloomDesktop/tree/0c2718312133133baaf5317fe1b25db3d50055e1/src/BloomBrowserUI/bookEdit/undo" target="_blank" rel="noopener">bookEdit/undo/</a>): index-based with truncate-on-push, O(1) <code>canUndo</code>/<code>canRedo</code> (C# polls <code>canUndo</code> on a timer), page scoping, lazy redo capture, and <code>runUndoable</code> for one-gesture-one-entry nesting. Entries are data, not page-frame closures, because the page iframe dies on every navigation.</li>
       <li>Wraps the four existing mechanisms as legacy providers, consulted in exactly the order the old if-chain used, including the BL-16558 markup update after the reader-tools and CKEditor undos. <code>handleUndo()</code> and <code>canUndo()</code> become one-line delegations.</li>
-      <li>Tells the stack about page-frame navigation from the one place C# navigates it, using the <code>.bloom-page</code> element's id as page identity, so a previous page's entries are never undone onto the current one.</li>
+      <li>Tells the stack about page-frame navigation from the one place C# navigates it, using the <code>.bloom-page</code> element's id as page identity, so a previous page's entries are never undone onto the current one. The stack also counts page-frame generations, so an asynchronous gesture that straddles a reload of the same page, or a <code>clear</code>, cannot record stale state when it finishes.</li>
       <li>Binds Ctrl+Y in the page frame as a last resort: it acts only when nothing earlier claimed the keystroke and the stack has something to redo, so origami's and the reader tools' own Ctrl+Y and CKEditor's redo keep winning until they are converted. No Redo button, no C# involvement.</li>
       <li>Adds live-check harnesses that attribute each undo gesture to the mechanism that ran, the paste/drop baseline they captured, and the project's progress log; the plan's §5 is rewritten for the topology now in force (short stage branches straight off master).</li>
     </ul>
@@ -110,9 +110,9 @@
       <tbody>
         <tr><td>Typecheck</td><td class="status pass">Pass</td><td>Front-end type check clean.</td></tr>
         <tr><td>Lint (changed files)</td><td class="status pass">Pass</td><td>0 errors; the 11 warnings are pre-existing <code>any</code> uses in <code>editablePage.ts</code> and <code>bloomEditing.ts</code>, none in the new code.</td></tr>
-        <tr><td>Merge with <code>master</code></td><td class="status pass">Clean</td><td>Branch cut from master today; one later master commit (a launcher-script tweak) merged without conflict.</td></tr>
-        <tr><td>TypeScript tests (vitest), fast subset</td><td class="status pass">Pass</td><td><span class="numeral">73 passed</span> across the six undo specs and the selection spec.</td></tr>
-        <tr><td>TypeScript tests (vitest), full suite</td><td class="status pass">Pass</td><td><span class="numeral">941 passed &middot; 5 skipped</span> in 79 files (one file skipped), run at the final commit.</td></tr>
+        <tr><td>Rebase onto <code>master</code></td><td class="status pass">Clean</td><td>Rebased onto master <span class="numeral">893f1d6d0e</span>, which was 165 commits ahead. No conflicts; the branch is 0 behind.</td></tr>
+        <tr><td>TypeScript tests (vitest), fast subset</td><td class="status pass">Pass</td><td><span class="numeral">66 passed</span> across the five undo specs.</td></tr>
+        <tr><td>TypeScript tests (vitest), full suite</td><td class="status pass">Pass</td><td><span class="numeral">1037 passed</span> in 84 files, run on the rebased code.</td></tr>
         <tr><td>C# tests (dotnet test)</td><td class="status skip">Not run</td><td>No C# in the diff: TypeScript, docs and hand-run harness scripts only, none of which the C# build or tests read.</td></tr>
       </tbody>
     </table>
@@ -121,7 +121,7 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Three small fixes to the new undo stack from the reviewers, each with a test (<a href="https://github.com/BloomBooks/BloomDesktop/commit/ecd1cdd8b3" target="_blank" rel="noopener">ecd1cdd</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/ee77d36a82" target="_blank" rel="noopener">ee77d36</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/1e96416f22" target="_blank" rel="noopener">1e96416</a>), and one master merge. The PR description's narrative was refreshed to match. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    <p>No code changes. The four commits were rebased onto current master and force-pushed, and one commit records the rebase in the project's progress log (<a href="https://github.com/BloomBooks/BloomDesktop/commit/0c2718312133133baaf5317fe1b25db3d50055e1" target="_blank" rel="noopener">0c27183</a>). Master's toolbox refactor moved the toolbox code the legacy undo providers call, but every function they use survives with the same behaviour. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/commits" target="_blank" rel="noopener">commit list</a>.</p>
   </section>
 
   <section class="card">
@@ -130,8 +130,8 @@
     <table>
       <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
       <tbody>
-        <tr><td>Local review (light sub-agent pass)</td><td class="status pass">Complete</td><td>Clean on the diff as reviewed: it confirmed the provider order and the "yes"/"fail" contract against master, that Ctrl+Y cannot double-fire with origami's or the reader tools' handlers, and that no page-frame closure survives navigation. It raised one latent gap outside Stage 1's reach (a page change could leave a hole in the redo branch), fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/ee77d36a82" target="_blank" rel="noopener">ee77d36</a> with a test.</td></tr>
-        <tr><td>Devin</td><td class="status pass">Complete</td><td>Three rounds. Two bugs in the new stack (a late push surviving a same-page reload; a clear leaving a still-open scope's pushes behind) and one refinement of the second, all real edge cases in code nothing reaches yet, all fixed with tests and their <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/files" target="_blank" rel="noopener">threads</a> resolved. Three investigate flags closed as documented design choices or not this PR's change. Nothing new at the final commit.</td></tr>
+        <tr><td>Local review (light sub-agent pass)</td><td class="status pass">Complete</td><td>Clean, no findings. This run it checked the branch against master's newer code: every toolbox and page-frame function the providers call still exists with the same behaviour, master added no new undo path or caller, and the page-navigation hooks fit master's current page-switching code.</td></tr>
+        <tr><td>Devin</td><td class="status pass">Complete</td><td>Re-reviewed the rebase incrementally and judged its earlier review still applies; nothing new. Across the PR it raised three bugs in the new stack, all fixed with tests and marked fixed by Devin, and three investigate flags closed as design choices or not this PR's change. All <a href="https://github.com/BloomBooks/BloomDesktop/pull/8387/files" target="_blank" rel="noopener">threads</a> are resolved.</td></tr>
         <tr><td>CI (<code>pr-automation</code>)</td><td class="status pass">Pass</td><td>The <code>pr-automation</code> check passed for the final commit; it is the only check configured for PRs.</td></tr>
         <tr><td>Other review bots</td><td class="status skip">None active</td><td>No Greptile or CodeRabbit activity on this PR.</td></tr>
       </tbody>
@@ -142,7 +142,8 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The live verification in a running Bloom dates from 2026-09-07 on the previous branch; the code has not changed since, but it has not been re-run on this branch.</li>
+      <li>The live verification in a running Bloom dates from 2026-09-07 on the previous branch. It has not been re-run since the rebase, which put this code on top of master's toolbox refactor.</li>
+      <li>The rebase was John's call and departs from the plan's merge-only rule (§5.3). No human had reviewed the PR, so the force-push discarded nothing a reviewer had seen.</li>
       <li>Two open Stage 0 verification items (the async markup path G2, and a real-clipboard confirmation of the paste-filter bypass) and five pre-existing bugs the harnesses found are listed in PROGRESS.md's next actions; none is changed here and none blocks this PR.</li>
     </ul>
   </section>
@@ -154,7 +155,7 @@
     <p>Nothing needs a decision. Every finding from the reviewers was either fixed with a test or closed as a documented design choice; the records are on the PR threads.</p>
     <div class="q" data-q="3. Next step">
       <h3>3. Next step for this PR</h3>
-      <p>Everything is green and the PR is a draft awaiting your own review. Devin and the local review changed the stack in three small ways (see the commits); the live verification in a running Bloom predates them but the changed paths are not reachable until Stage 2 pushes entries.</p>
+      <p>Everything is green and the PR is a draft awaiting your own review. It is now rebased onto current master with every check green. The live verification in a running Bloom predates the rebase; re-running the live checks in <code>docs/retire-ckeditor/liveChecks/</code> would confirm the Undo button against master's refactored toolbox.</p>
       <div class="opt"><input type="radio" name="q3" id="q3a" value="Proceed: the PR stays in human review as it is" data-q="3" checked><label for="q3a">Proceed as it is<span class="rec">Recommended</span></label><span></span></div>
       <div class="opt"><input type="radio" name="q3" id="q3b" value="Discuss first" data-q="3"><label for="q3b">Discuss first</label><span></span></div>
       <div class="opt"><input type="radio" name="q3" id="q3c" value="Leave as is" data-q="3"><label for="q3c">Leave as is</label><label class="leavecomment"><input type="checkbox" id="q3lc" data-q="3" data-leave-comment="1">Leave comment</label></div>
