@@ -14,6 +14,7 @@ a{color:#1f5f8b}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
 .chip{display:inline-block;border:1px solid #d9d4ca;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem}
 .chip.ok{border-color:#9cc5a1;background:#f1f8f2}
+.chip.warn{border-color:#e0c27a;background:#fdf7e8}
 .grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px;margin-top:16px}
 .grid>*{min-width:0}
 @media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
@@ -22,8 +23,9 @@ table{border-collapse:collapse;width:100%}
 td,th{border-top:1px solid #eee8de;padding:6px 8px;text-align:left;vertical-align:top}
 th{font-weight:600;width:28%}
 .numeral{font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;font-size:.9em}
-code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:#f4f1ea;padding:0 3px;border-radius:3px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:#f4f1ea;padding:0 3px;border-radius:3px;overflow-wrap:anywhere}
 .q label{display:block;margin:4px 0}
+.q p.note{font-size:.9rem;color:#5a5650}
 textarea,input[type=text]{width:100%;font:inherit;border:1px solid #d9d4ca;border-radius:6px;padding:6px}
 button{font:inherit;background:#1f5f8b;color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
 pre#payload{white-space:pre-wrap;background:#f4f1ea;padding:10px;border-radius:6px;font-size:.85rem}
@@ -31,13 +33,13 @@ pre#payload{white-space:pre-wrap;background:#f4f1ea;padding:10px;border-radius:6
 </head>
 <body>
 <div class="wrap">
-<h1>Preflight: embedded fonts now reach Reading App Builder (BL-16959)</h1>
-<p>Draft PR is clean: gate green, Devin and Greptile done, their three findings answered as not issues, nothing waiting on you but your own review.</p>
+<h1>Preflight: embedded fonts reach the app, and RAB failures are reported (BL-16959)</h1>
+<p>Retargeted to Version6.4 and re-run. Gate and full suite green, Devin's new finding answered; three small housekeeping questions for you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
-<span class="chip ok">Mergeable into Version6.5</span>
-<span class="chip ok">Bots quiet</span>
-<span class="chip">0 decisions waiting</span>
+<span class="chip ok">Mergeable into Version6.4</span>
+<span class="chip warn">Greptile not re-reviewed</span>
+<span class="chip">3 decisions waiting</span>
 </div>
 <div class="chips">
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8435" target="_blank" rel="noopener">PR #8435</a>
@@ -52,40 +54,45 @@ pre#payload{white-space:pre-wrap;background:#f4f1ea;padding:10px;border-radius:6
 <section class="card">
 <h2>What this PR is about</h2>
 <h3>Problem</h3>
-<p>In Publish &gt; Apps, <b>Build</b> fails inside Reading App Builder with <code>A required file for this app is missing: CharisSIL-Regular.ttf</code> whenever a book embeds a font other than Andika (e.g. English in Charis SIL). The font is installed and Bloom embeds it in the BloomPUB.</p>
+<p>When a book in Publish &gt; Apps embeds a font other than Andika (e.g. English in Charis SIL), the font never reaches Reading App Builder's font folder. With the Reading App Builder for Bloom 14.0 that Bloom installs, the build succeeds but the font is silently left out of the app's font set. With RAB 14.5+ the build fails with <code>A required file for this app is missing: CharisSIL-Regular.ttf</code>, and Bloom then says <b>"Build complete."</b> and offers the previous build's APK, so "Try on phone" would install a stale app.</p>
 <h3>Cause</h3>
-<p>On every Prepare/Build, Bloom adds each font embedded in the BloomPUBs to the RAB <code>.appDef</code>, by bare file name. RAB looks for those files only in <code>&lt;project&gt;_data\fonts</code>, and it copies font files there only when it creates a project. Nothing put Bloom's embedded fonts there, so any embedded font added after the project existed broke the build.</p>
+<ul>
+<li>Bloom adds each embedded font to the RAB <code>.appDef</code> by bare file name, but never puts the file in <code>&lt;project&gt;_data\fonts</code>, the only place RAB looks at build time. RAB copies fonts there only when it creates a project. RAB 14.0–14.4 skips a font whose file is missing; since 14.5 (app-builders commit cbb19ce73) that stops the build.</li>
+<li>RAB's failures never reached Bloom. <code>rab.bat</code> runs Java and then ends with <code>GOTO :EOF</code>; a batch file that ends that way under <code>cmd /c</code> makes <code>cmd.exe</code> exit 0 even when Java exited 1. Bloom then took whatever APK was in the folder as the result.</li>
+</ul>
 <h3>What the PR does</h3>
 <ul>
-<li>After updating the <code>.appDef</code> fonts, Bloom extracts each embedded font file (every face — Regular, Bold, Italic… — has its own file) from the BloomPUB into <code>&lt;project&gt;_data\fonts</code>, replacing an older copy (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f7ccc450adaa8dce541668c924aeb03e2a085f91/src/BloomExe/Publish/Rab/RabProjectService.cs#L1624" target="_blank" rel="noopener">CopyEmbeddedFontFiles</a>).</li>
-<li>If a BloomPUB's <code>fonts.css</code> names a file the BloomPUB doesn't contain, Build stops with a message naming it, instead of a Java stack trace from RAB.</li>
-<li>Files of fonts no longer used are left in place: RAB packages only the fonts the <code>.appDef</code> lists, and RAB itself may have put files in that folder.</li>
-<li>Unit tests cover the copy (multiple books, Bold face, overwrite, missing file) and the Build path end to end with the fake RAB.</li>
+<li>On every Prepare and Build, Bloom extracts each embedded font file (each face has its own file) from the BloomPUB into <code>&lt;project&gt;_data\fonts</code>, replacing an older copy. A BloomPUB that names a font file it doesn't contain stops Build with a message naming it. Files of fonts no longer used are left alone.</li>
+<li>Bloom runs RAB as <code>cmd /d /c ""rab.bat" -i &lt;args&gt; &amp; exit /b"</code>, so RAB's exit code comes through for every RAB command (<code>call</code> would also work, but it doubles any <code>^</code> in a path). A failed build now shows RAB's output followed by "Build failed: cmd.exe exited with code 1."</li>
+<li>Build accepts only an APK written after its build command started (with a 2-second margin for file-time precision).</li>
+<li>The opt-in real RAB build test now checks that each font the <code>.appDef</code> lists is in the fonts folder and among the APK's app fonts, so it catches the silent 14.0 case too.</li>
 </ul>
 </section>
 
 <section class="card">
 <h2>Quality gate</h2>
 <table>
-<tr><th>C# build</th><td>Pass (csharpier-formatted by the pre-commit hook)</td></tr>
-<tr><th>C# tests (full suite)</th><td>Pass — <span class="numeral">3532 passed · 12 skipped · 0 failed</span>, including the opt-in real Reading App Builder build</td></tr>
+<tr><th>C# build + format</th><td>Pass (csharpier via the husky pre-commit hook on 6.4)</td></tr>
+<tr><th>C# tests (full suite, Version6.4)</th><td>Pass — <span class="numeral">2936 passed · 13 skipped · 0 failed</span> at <code>b9e7842fb9</code></td></tr>
+<tr><th>Rab unit tests</th><td>Pass, <span class="numeral">117</span>, three runs in a row; the new failure tests fail against the old code</td></tr>
+<tr><th>Real RAB build test (RAB 14.6)</th><td>Pass with the fix; fails without the font copy (<code>A required file … ABeeZee-Regular.woff2</code>), now reported as a failure</td></tr>
 <tr><th>TypeScript typecheck / lint / vitest</th><td>Not run — no front-end files in the diff</td></tr>
-<tr><th>Merge with Version6.5</th><td>Up to date; GitHub reports mergeable</td></tr>
+<tr><th>Merge with Version6.4</th><td>Up to date (0 behind); GitHub reports mergeable</td></tr>
 <tr><th>CI</th><td>pr-automation passed; TeamCity does not report on this PR</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>First run: committed the fix and tests as <a href="https://github.com/BloomBooks/BloomDesktop/commit/f7ccc450adaa8dce541668c924aeb03e2a085f91" target="_blank" rel="noopener">f7ccc45</a>, opened the draft PR against Version6.5, linked it and posted test ideas on the card.</p>
+<p>Added the RAB exit-code and stale-APK fix, then retargeted the PR from Version6.5 to Version6.4: ported both commits in a new 6.4 worktree (switching the launch from <code>call</code> to <code>&amp; exit /b</code>, and the APK check to a start-time comparison), strengthened the real RAB test, and fixed a timestamp-precision flake the review found. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435/commits" target="_blank" rel="noopener">four commits</a>. Card summary, description and test ideas rewritten to lead with the silent 14.0 problem.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <table>
-<tr><th>Local review</th><td>Light sub-agent pass: clean, no findings.</td></tr>
-<tr><th>Devin</th><td>Complete (about 2 min). One bug, a font file name shared by two books: judged not an issue, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435#discussion_r4149486635" target="_blank" rel="noopener">replied and resolved</a>. No flags.</td></tr>
-<tr><th>Greptile</th><td>Complete. The same shared-name point and a cancellation point, both not issues: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435#discussion_r4149500458" target="_blank" rel="noopener">shared name</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435#discussion_r4149500463" target="_blank" rel="noopener">cancellation</a>, both resolved.</td></tr>
+<tr><th>Local review</th><td>Light sub-agent passes on both the 6.5 and 6.4 versions. Found that <code>call</code> doubles <code>^</code> (fixed by switching to <code>&amp; exit /b</code>) and a timestamp-precision flake in the APK check (fixed with a 2-second margin and a realistic test).</td></tr>
+<tr><th>Devin</th><td>Complete on <code>b9e7842fb9</code> (about 2 min, incremental). One new bug, an APK written within 2 s of the build, judged not an issue: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435#discussion_r4159317229" target="_blank" rel="noopener">replied and resolved</a>. It repeated the shared font-name finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8435#discussion_r4149486635" target="_blank" rel="noopener">already answered</a>.</td></tr>
+<tr><th>Greptile</th><td>Has not reviewed the current code: its last review was the original 6.5 commit, and it does not re-trigger on later pushes. Its two earlier findings are answered and resolved.</td></tr>
 <tr><th>CI</th><td>Complete — pr-automation passed.</td></tr>
 </table>
 </section>
@@ -93,19 +100,49 @@ pre#payload{white-space:pre-wrap;background:#f4f1ea;padding:10px;border-radius:6
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Not reproduced by hand in Bloom. The real Reading App Builder test passed, but its sample book uses no embedded font, so it shows nothing broke rather than proving the fix. The first two test ideas on the card cover the real case.</li>
+<li>Exit codes now come through for <em>every</em> RAB command, so a RAB step that used to fail silently would now stop Prepare or Build. The real RAB test (full setup and build) exits 0 at every step on 14.6.</li>
+<li>On 6.4 the real RAB test fails under agent tooling with "'buildapp.bat' is not recognized", because the Claude Code CLI sets <code>NoDefaultCurrentDirectoryInExePath</code>. 6.5's test clears it (commit 0a0b30bbd1), but 6.4's doesn't. Run it with that variable removed. Before this PR the same failure was hidden by the lost exit code.</li>
+<li>The live checks in a running Bloom were done on the 6.5 version of the fix; the 6.4 version was verified through the tests above.</li>
 </ul>
 </section>
 </div>
 
 <div>
+<section class="card q" data-q="Kanban board">
+<h2>Card's board</h2>
+<p>BL-16959 is now fixed on Version6.4, but the card is still on the <b>Bloom 6.5</b> Kanban board. Move it?</p>
+<label><input type="radio" name="board" value="Move it to the 6.4 board" data-instruction="Set BL-16959's Kanban Board to the 6.4 board." checked> Move it to the 6.4 board (recommended)</label>
+<label><input type="radio" name="board" value="Leave as is" data-instruction="Leave BL-16959 on the Bloom 6.5 board."> Leave as is</label>
+<label><input type="radio" name="board" value="Other"> Other: <input type="text" data-other></label>
+<p><textarea rows="2" placeholder="Notes" data-notes></textarea></p>
+</section>
+
+<section class="card q" data-q="Old 6.5 worktree">
+<h2>The old 6.5 worktree</h2>
+<p>The first, 6.5-based version of this work is still in <code>C:\dev\_worktrees\BloomDesktop\BL-16959-RabEmbeddedFontFiles</code>, on a local branch whose commits are no longer on the PR (the remote branch now holds the 6.4 commits). It's no longer needed: 6.5 gets the fix when Version6.4 is merged forward.</p>
+<label><input type="radio" name="wt" value="Remove it" data-instruction="Remove the BL-16959-RabEmbeddedFontFiles worktree through Orca, after confirming nothing in it is uncommitted except src/content/package.json line endings." checked> Remove it through Orca (recommended)</label>
+<label><input type="radio" name="wt" value="Leave as is" data-instruction="Keep the 6.5 worktree."> Leave as is</label>
+<label><input type="radio" name="wt" value="Other"> Other: <input type="text" data-other></label>
+<p><textarea rows="2" placeholder="Notes" data-notes></textarea></p>
+</section>
+
+<section class="card q" data-q="Tell the RAB team">
+<h2>RAB's lost exit code</h2>
+<p><code>rab.bat</code> ends with <code>GOTO :EOF</code>, which hides RAB's exit code from any caller that uses <code>cmd /c</code>. It should end with <code>exit /b %ERRORLEVEL%</code>. This PR doesn't depend on that, but other callers would benefit.</p>
+<label><input type="radio" name="rab" value="You tell them" data-instruction="No action; Andrew will raise it with the RAB team." checked> I'll raise it with the RAB team myself (recommended)</label>
+<label><input type="radio" name="rab" value="Draft a note" data-instruction="Draft a short note for the RAB team (freshdesk) describing the rab.bat exit-code problem and the one-line fix."> Draft a note for me to send</label>
+<label><input type="radio" name="rab" value="Leave as is" data-instruction="Don't raise it."> Leave as is</label>
+<label><input type="radio" name="rab" value="Other"> Other: <input type="text" data-other></label>
+<p><textarea rows="2" placeholder="Notes" data-notes></textarea></p>
+</section>
+
 <section class="card q" data-q="Next step">
 <h2>Next step</h2>
-<p>The PR is a clean draft. What should happen next?</p>
-<label><input type="radio" name="next" value="I'll review it myself, then run pr-ready-for-human" data-instruction="No action now; I will review and promote it myself." checked> I'll review it myself, then run pr-ready-for-human (recommended)</label>
-<label><input type="radio" name="next" value="Reproduce it in Bloom first" data-instruction="Reproduce the Charis SIL build failure in a running Bloom with and without the fix before I review."> Reproduce it in Bloom first, with a collection using Charis SIL</label>
+<p>Apart from these, the PR is a clean draft.</p>
+<label><input type="radio" name="next" value="I'll review it, then run pr-ready-for-human" data-instruction="No action on the PR now." checked> I'll review it myself, then run pr-ready-for-human (recommended)</label>
+<label><input type="radio" name="next" value="Retrigger Greptile first" data-instruction="Retrigger Greptile on the current HEAD and fold in its findings."> Retrigger Greptile on the 6.4 code first</label>
 <label><input type="radio" name="next" value="Other"> Other: <input type="text" data-other></label>
-<p><textarea rows="3" placeholder="Notes" data-notes></textarea></p>
+<p><textarea rows="2" placeholder="Notes" data-notes></textarea></p>
 </section>
 
 <section class="card">
