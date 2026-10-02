@@ -70,13 +70,13 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 <div class="wrap">
 <header>
   <h1>BL-16943 preflight: Bloom uses only its own Reading App Builder, requires 14.0.1, and says plainly when setting it up fails</h1>
-  <p class="summary">This run made Reading App Builder 14.0.1 required for everyone, with a notice in the Prepare step, and fixed the one gap the local review found. All gates are green, every reviewer is in a final state, and nothing is waiting on a decision. The 14.0.1 installer must be on S3 before this ships.</p>
+  <p class="summary">This run squashed the branch, rebased it onto Version6.4 (which now includes #8435), and fixed two small issues the local review found in the new installer check. The real-Bloom test pass against the uploaded 14.0.1 installer, including the reporter's exact setup, passed. All gates are green, every reviewer is in a final state, and nothing is waiting on a decision.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable with Version6.4</span>
     <span class="chip good">All review threads resolved</span>
     <span class="chip good">No decisions waiting</span>
-    <span class="chip warn">Needs the 14.0.1 installer on S3 before release</span>
+    <span class="chip good">14.0.1 installer on S3 and tested</span>
   </div>
   <div class="chips links">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8436" target="_blank" rel="noopener">PR #8436</a>
@@ -94,12 +94,12 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
     <h3>Problem</h3>
     <p>In Publish &gt; Apps, <b>Prepare</b> can report "Prepare complete." while the "Install build tools" step stays unchecked. <b>Choose Books</b>, <b>Build</b> and the later steps then stay disabled, and nothing tells the user why. A forum user hit this on 6.4.1, and Colin hit it earlier (BL-16491).</p>
     <h3>Cause</h3>
-    <p>Bloom runs <code>rab.bat -install-sdks-if-needed</code> and names its own JDK and Android SDK folders. Reading App Builder (RAB) 14.0 looks for an existing Android SDK in <code>C:\sdk</code>, <code>C:\sdk2</code>, and so on. If it finds one, it prints <code>Android SDK is already installed at: C:\sdk</code>, installs nothing in Bloom's folder, and exits 0. RAB treats the JDK the same way. The forum user's Bloom also wasn't using its own RAB: it fell back to their standalone RAB 14.6. Separately, Bloom never sees RAB's exit code; PR #8435 fixes that.</p>
+    <p>Bloom runs <code>rab.bat -install-sdks-if-needed</code> and names its own JDK and Android SDK folders. Reading App Builder (RAB) 14.0 looks for an existing Android SDK in <code>C:\sdk</code>, <code>C:\sdk2</code>, and so on. If it finds one, it prints <code>Android SDK is already installed at: C:\sdk</code>, installs nothing in Bloom's folder, and exits 0. RAB treats the JDK the same way. The forum user's Bloom also wasn't using its own RAB: it fell back to their standalone RAB 14.6. Separately, Bloom never saw RAB's exit codes; PR #8435 (now in Version6.4) and 14.0.1's own <code>rab.bat</code> fix that.</p>
     <h3>What the PR does</h3>
     <ul>
       <li><b>Bloom uses only Reading App Builder for Bloom</b>, with its own JDK and Android SDK, as BL-16148 intended. It never falls back to a standalone RAB. <b>Open in RAB</b> brings forward only a window of that edition.</li>
       <li><b>Prepare and Build check the build tools themselves.</b> If Bloom's JDK or SDK isn't there after <code>-install-sdks-if-needed</code>, they stop with a plain error ("Bloom could not set up the tools it needs to build Android apps. Please use Help &gt; Report a Problem…"). Details for support follow: which tool is missing, which folder RAB used instead, and RAB's own error.</li>
-      <li><b>Bloom requires Reading App Builder for Bloom 14.0.1</b> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/1e5deb1c14c75813f55b954213e820f5d5cae8e5/src/BloomExe/Publish/Rab/RabProjectService.cs#L63" target="_blank" rel="noopener">kRabInstallerVersion</a>), which fixes the <code>C:\sdk</code> bug (<a href="https://github.com/sillsdev/app-builders/issues/2494" target="_blank" rel="noopener">app-builders #2494</a>) and some Bloom Player bugs. With an older RAB installed, the Prepare step says so (<a href="https://github.com/BloomBooks/BloomDesktop/blob/1e5deb1c14c75813f55b954213e820f5d5cae8e5/src/BloomBrowserUI/publish/Apps/AppPublisherScreen.tsx#L381" target="_blank" rel="noopener">the notice</a>), and Choose Books, Customize and Build stay disabled until Prepare installs 14.0.1. New installs get 14.0.1. A failed download or install stops Prepare with a plain message, and so does an install after which RAB still reports the old version. Interrupted downloads leave nothing behind.</li>
+      <li><b>Bloom requires Reading App Builder for Bloom 14.0.1</b> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b60d819ab16675350220d61aa344c2e268ac663a/src/BloomExe/Publish/Rab/RabProjectService.cs#L63" target="_blank" rel="noopener">kRabInstallerVersion</a>), which fixes the <code>C:\sdk</code> bug (<a href="https://github.com/sillsdev/app-builders/issues/2494" target="_blank" rel="noopener">app-builders #2494</a>) and some Bloom Player bugs. With an older RAB installed, the Prepare step says so (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b60d819ab16675350220d61aa344c2e268ac663a/src/BloomBrowserUI/publish/Apps/AppPublisherScreen.tsx#L381" target="_blank" rel="noopener">the notice</a>), and Choose Books, Customize and Build stay disabled until Prepare installs 14.0.1. New installs get 14.0.1. A failed download or install stops Prepare with a plain message, and so does an install after which RAB still reports the old version. Bloom only accepts an installer that really is a Windows program: for a missing file, bloomlibrary.org returns its web page with a success status, which Bloom used to save, try to run, and keep reusing. Interrupted downloads leave nothing behind.</li>
       <li><b>Errors reach the user as Bloom wrote them.</b> <code>ReportFailure</code> no longer digs down to the innermost error, so the plain messages (and Build's existing RAB diagnostics, BL-16467) are what the user sees.</li>
     </ul>
   </section>
@@ -111,25 +111,25 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
       <tr><td>TypeScript typecheck (<code>tsc --noEmit</code>)</td><td class="ok">No errors in the changed files. Errors elsewhere are in files this PR doesn't touch.</td></tr>
       <tr><td>Lint (<code>yarn lint</code>)</td><td class="ok">Pass: <span class="numeral">0 errors</span></td></tr>
       <tr><td>TypeScript tests: full vitest suite</td><td class="ok">Pass: <span class="numeral">541 passed · 5 skipped</span></td></tr>
-      <tr><td>C# tests: RAB unit tests</td><td class="ok">Pass: <span class="numeral">149/149</span></td></tr>
-      <tr><td>C# tests: full BloomTests suite</td><td class="ok">Pass: <span class="numeral">2967 passed · 13 skipped</span>. The opt-in real-build test was excluded; it fails on plain Version6.4 too (BL-16959's missing font).</td></tr>
+      <tr><td>C# tests: RAB unit tests</td><td class="ok">Pass: <span class="numeral">158/158</span></td></tr>
+      <tr><td>C# tests: full BloomTests suite</td><td class="ok">Pass: <span class="numeral">2976 passed · 13 skipped</span>. The opt-in real-build test was not run.</td></tr>
       <tr><td>C# formatting and pre-commit hook</td><td class="ok">Pass</td></tr>
-      <tr><td>Merge with origin/Version6.4</td><td class="ok">Already up to date; GitHub reports it mergeable</td></tr>
+      <tr><td>Merge with origin/Version6.4</td><td class="ok">Rebased onto the latest Version6.4 (no conflicts); GitHub reports it mergeable</td></tr>
     </table></div>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Bloom now requires Reading App Builder 14.0.1: users with an older one see a notice under Prepare, and Build stays disabled until Prepare installs it. A failed update stops Prepare instead of carrying on with the old version. After the local review, Prepare also checks the installed version after installing. The branch is still one commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/1e5deb1c14c75813f55b954213e820f5d5cae8e5" target="_blank" rel="noopener">1e5deb1</a>).</p>
+    <p>A real-Bloom test pass found that Bloom saved bloomlibrary.org's "not found" web page as the installer; Bloom now accepts only a real Windows program. The branch is squashed to one commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/b60d819ab16675350220d61aa344c2e268ac663a" target="_blank" rel="noopener">b60d819</a>) and rebased onto Version6.4, which now includes #8435.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <div class="tablewrap"><table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>One finding, fixed: if RAB still reported the old version after a successful install, Prepare said "complete" while Build stayed disabled, and every Prepare reinstalled. Prepare now stops with a plain message instead. A test now checks the status after an update.</td></tr>
-      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8436" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>1e5deb1</code>. One new flag, an out-of-date PR description, fixed and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8436#discussion_r4169066224" target="_blank" rel="noopener">resolved</a>. Its other findings repeat earlier ones whose threads are resolved and still hold.</td></tr>
-      <tr><td>Greptile</td><td>Re-triggered, because the code had changed substantially since it last looked; complete on <code>1e5deb1</code> with no new findings. Summary: "safe to merge once the required 14.0.1 installer is published".</td></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Two findings, both fixed: an unreadable installer-named file could have broken the Apps screen's status, and one new test depended on what is in the machine's temp folder.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8436" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>b60d819</code>; nothing new. Its findings repeat earlier ones whose threads are resolved; one (which window Open in RAB brings forward) got a note that today's live test confirmed it.</td></tr>
+      <tr><td>Greptile</td><td>Complete on <code>1e5deb1</code> with no findings ("safe to merge once the required 14.0.1 installer is published"). Not re-triggered for the installer check, a small change the local review covered.</td></tr>
       <tr><td>CI (pr-automation)</td><td class="ok">Pass</td></tr>
     </table></div>
   </section>
@@ -137,8 +137,8 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li><b>Release prerequisite:</b> <code>RAB/installers/Reading-App-Builder-For-Bloom-14-0-1-Setup.exe</code> must be in the <code>bloomlibrary.org</code> S3 bucket before this ships. Until then, Prepare fails for anyone who needs to install or update Reading App Builder.</li>
-      <li>A real update from 14.0 to 14.0.1 hasn't been tried, because the installer doesn't exist yet. The notice was shown live by temporarily raising the required version, and the update path was exercised live earlier with a local installer.</li>
+      <li>The installer now on S3 is what every 14.0 user gets when this ships. It is the build tested here (352,741,160 bytes); replace it before release if a different 14.0.1 build is chosen.</li>
+      <li>Tested by hand against that installer: the reporter's setup (standalone RAB 14.6 with its own <code>C:\sdk</code>), the <code>C:\sdk</code> bug itself under 14.0, the update from 14.0 and a restart afterwards, 14.0.1 missing from the server, and a newer RAB already installed. All passed.</li>
       <li>Every 14.0 user downloads about 340 MB and sees an admin prompt the next time they use Publish &gt; Apps.</li>
     </ul>
   </section>
