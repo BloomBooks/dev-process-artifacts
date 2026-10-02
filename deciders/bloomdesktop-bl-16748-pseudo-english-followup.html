@@ -138,12 +138,13 @@
 <header>
   <h1>Problem Toast Buttons</h1>
   <p class="runline">Preflight on <code>BL-16748-pseudo-english-followup</code>, a follow-up to the Pseudo-English
-    UI language. Every gate is green and every reviewer is terminal. Devin found one real bug, now fixed. Nothing is
-    waiting on you but the next step.</p>
+    UI language. Squashed to one commit after the problem dialog was changed to translate its own Report button. Every gate
+    is green and every reviewer is terminal. Nothing is waiting on you but the next step.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip good">Mergeable &middot; 0 behind master</span>
     <span class="chip good">Devin complete</span>
+    <span class="chip good">Greptile complete</span>
     <span class="chip note">0 decisions for you</span>
   </div>
   <div class="links">
@@ -171,17 +172,18 @@
       <h3>Cause</h3>
       <p>The notification buttons were hard-coded English labels. The dialog's Report button did ask for a
         translation, but under the id <code>ErrorReportDialog.Report</code>, which exists in no XLF file, so there was
-        never anything to find.</p>
+        never anything to find. It was also looked up once in C# and kept, which is why it needed a special call once
+        localization was ready (BL-13245) and would have kept the old language after a UI language change.</p>
 
       <h3>What the PR does</h3>
       <ul class="bul">
         <li>The notification's Report button and the dialog's Report button both use the existing
           <code>ErrorReport.Report</code> string, already translated in many languages (Spanish "Reportar", French
-          "Signaler").</li>
+          "Signaler"). C# sends only the English label and the id, and the front end translates it as it is shown.</li>
         <li>The Details button gets a new <code>ErrorReport.Details</code> string in
           <code>BloomLowPriority.xlf</code>.</li>
-        <li>The dialogs' Report label is looked up again whenever the UI language changes, so it follows the switch
-          instead of keeping the language Bloom started in.</li>
+        <li>The dialog's Report button now translates itself the way its Close button always has, so it follows a UI
+          language change, and the startup call is gone. A label a caller supplies still arrives already translated.</li>
         <li><code>DistFiles/localization/README.md</code> gets one list of what stays English under Pseudo-English and
           why (whole-file localizations, the language chooser, developer-only messages), and notes that a new book's
           folder takes the localized word for "Book".</li>
@@ -197,14 +199,17 @@
           <tr><td class="what">C# build</td><td><span class="tag pass">pass</span></td><td>At HEAD.</td></tr>
           <tr><td class="what">C# tests (dotnet test)</td><td><span class="tag pass">pass</span></td>
               <td><span class="numeral">3641 passed &middot; 0 failed &middot; 1 skipped</span> at HEAD. The skip is the opt-in Reading App Builder test (see Worth knowing).</td></tr>
-          <tr><td class="what">Typecheck, lint, front-end tests</td><td>not run</td>
-              <td>No TypeScript in the diff. The front end reads the new string id only at run time, through the server.</td></tr>
+          <tr><td class="what">Typecheck, lint, prettier</td><td><span class="tag pass">pass</span></td>
+              <td>On <code>NotifyDialog.tsx</code>, the one TypeScript file changed.</td></tr>
+          <tr><td class="what">Front-end tests (vitest)</td><td><span class="tag pass">pass</span></td>
+              <td><span class="numeral">977 passed &middot; 79 files</span></td></tr>
           <tr><td class="what">e2e (BloomE2E)</td><td>not run</td>
               <td>No end-to-end test raises a problem notification. Checked by hand in a live Bloom instead.</td></tr>
           <tr><td class="what">Live Bloom (Pseudo-English)</td><td><span class="tag pass">pass</span></td>
-              <td>Report showed <span class="pseudo">[R&Eacute;EP&Ouml;ORT]</span>, Details
-                <span class="pseudo">[D&Eacute;ET&Aring;A&Icirc;ILS]</span>; the Details dialog's title and Close button
-                were transformed.</td></tr>
+              <td>Notification: <span class="pseudo">[R&Eacute;EP&Ouml;ORT]</span> and
+                <span class="pseudo">[D&Eacute;ET&Aring;A&Icirc;ILS]</span>. Problem dialog:
+                <span class="pseudo">[R&Eacute;EP&Ouml;ORT]</span> beside <span class="pseudo">[CL&Ouml;OS&Eacute;E]</span>; then,
+                switched to Spanish without restarting, "Reportar" and "Cerrar".</td></tr>
           <tr><td class="what">Integrate master</td><td><span class="tag pass">clean</span></td>
               <td>Already up to date.</td></tr>
         </tbody>
@@ -214,7 +219,9 @@
 
     <section class="card">
       <h2>What changed this run</h2>
-      <p>Opened the PR, and fixed Devin's finding that the dialogs' Report label kept the language Bloom started in.</p>
+      <p>Opened the PR, then replaced the stored, looked-up-once Report label with one the dialog translates itself,
+        which is what Devin's stale-label finding pointed at. Added a developer scenario that opens that dialog, and
+        squashed to one commit.</p>
       <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8439/commits" target="_blank" rel="noopener">Commits</a></p>
     </section>
 
@@ -222,17 +229,17 @@
       <h2>Reviewer outcomes</h2>
       <ul class="rev">
         <li><span class="who">Local review</span><span class="st">clean</span>
-          <p>Light read-only pass: no findings. It traced the label from the server to the toast and confirmed the
-            front end finds strings in <code>BloomLowPriority.xlf</code>.</p></li>
+          <p>Two light read-only passes, one per change: no findings. The second checked every path that used the old
+            stored label, and that the button can't come up empty if the lookup fails.</p></li>
         <li><span class="who">Devin</span><span class="st">complete</span>
-          <p>One bug, fixed and marked resolved by Devin
+          <p>Reviewed the squashed commit: nothing new. Its one bug is resolved by Devin
             (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8439#discussion_r4169024004" target="_blank" rel="noopener">thread</a>);
             one flag about <code>translate="no"</code>, answered with your decision
             (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8439#discussion_r4169024422" target="_blank" rel="noopener">thread</a>).</p></li>
         <li><span class="who">Greptile</span><span class="st">complete</span>
-          <p>Reviewed the first commit: low risk, and the same <code>translate="no"</code> point,
-            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8439#issuecomment-5959726873" target="_blank" rel="noopener">answered</a>.
-            Not re-triggered for the three-line follow-up fix.</p></li>
+          <p>Re-reviewed the squashed commit after the dialog rework: "the localization behavior appears sound", no
+            inline comments. Its one point is the same <code>translate="no"</code> one,
+            <a href="https://github.com/BloomBooks/BloomDesktop/pull/8439#issuecomment-5959726873" target="_blank" rel="noopener">answered</a>.</p></li>
         <li><span class="who">CI</span><span class="st">complete</span>
           <p><code>pr-automation</code> pass.</p></li>
       </ul>
@@ -244,8 +251,8 @@
         <li>The opt-in Reading App Builder real-build test fails on this machine (<code>BLOOM_RUN_RAB_MANUAL_TESTS=1</code>
           is set): RAB reports <code>ABeeZee-Regular.woff2</code> missing. Nothing in this PR reaches publishing or fonts,
           so it's left out of the gate above, but it is worth a look on its own.</li>
-        <li>The refreshed dialog Report label was not exercised by hand: no developer scenario raises a dialog with a
-          Report button.</li>
+        <li>If Bloom's server isn't running yet, problems go to the WinForms fallback dialog, which shows English
+          "Report". That was effectively true before too.</li>
       </ul>
     </section>
 
@@ -260,7 +267,7 @@
         <label class="opt">
           <input type="radio" name="q1" value="Nothing more - I will review it myself next" checked>
           <span class="lab"><b>Nothing more &mdash; I'll review it myself next</b><span class="rec">recommended</span>
-            <span class="cost">Then <code>pr-ready-for-human</code>, which also squashes the two commits.</span></span>
+            <span class="cost">Then <code>pr-ready-for-human</code>; the branch is already one commit.</span></span>
         </label>
         <label class="opt">
           <input type="radio" name="q1" value="File a card for the RAB real-build failure">
