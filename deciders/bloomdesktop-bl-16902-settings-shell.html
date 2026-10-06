@@ -20,7 +20,7 @@
   .chip { display:inline-block; padding:3px 10px; border-radius:999px; font-size:0.85rem; border:1px solid var(--rule); background:var(--card); color:var(--ink); text-decoration:none; }
   .chip.good { background:var(--good-soft); border-color:#bcdcc6; color:var(--good); } .chip.warn { background:var(--warn-soft); border-color:#e6d1a6; color:var(--warn); }
   .chip.state { background:var(--accent-soft); border-color:#b9d8e0; color:var(--accent); } a.chip:hover { border-color:var(--accent); }
-  .cols { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:20px; align-items:start; }
+  .cols { display:grid; grid-template-columns:minmax(0,1fr); max-width:900px; gap:20px; align-items:start; }
   .cols > * { min-width:0; display:grid; gap:20px; }
   .card { background:var(--card); border:1px solid var(--rule); border-radius:8px; padding:18px 20px; }
   .card ul { margin:4px 0 0; padding-left:20px; display:grid; gap:6px; } .card ul + p { margin-top:12px; }
@@ -44,13 +44,13 @@
 <div class="wrap">
   <header>
     <h1>Collection Settings in React: dialog shell and save pipeline</h1>
-    <p class="summary">Preflight on <code>BL-16902-settings-shell</code> against <code>master</code>, at <a href="https://github.com/BloomBooks/BloomDesktop/commit/c1cbe936ce" target="_blank" rel="noopener"><span class="numeral">c1cbe936ce</span></a> (the last commit only adds a code comment, so the reviews and suites on <span class="numeral">b70df5cac9</span> stand). Gates green, every reviewer finished; one question about a rare failed save is waiting on you.</p>
+    <p class="summary">Preflight on <code>BL-16902-settings-shell</code> against <code>master</code>, at <a href="https://github.com/BloomBooks/BloomDesktop/commit/c1cbe936ce" target="_blank" rel="noopener"><span class="numeral">c1cbe936ce</span></a> (the last commit only adds a code comment, so the reviews and suites on <span class="numeral">b70df5cac9</span> stand). Gates green, every reviewer finished; nothing waiting on you.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
       <span class="chip good">CI green</span>
       <span class="chip good">All review threads resolved</span>
-      <span class="chip warn">1 item waiting on you</span>
+      <span class="chip good">Nothing waiting on you</span>
     </div>
     <div class="chips">
       <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8388" target="_blank" rel="noopener">PR #8388</a>
@@ -124,73 +124,8 @@
         </ul>
       </section>
     </main>
-    <aside>
-      <section class="card q" data-qid="q1">
-        <h3>Should a rename wait until the save succeeds?</h3>
-        <p>When the user presses OK, the new dialog writes each value straight into the open collection, then saves the file. If that save fails (a local file write, so very rare), the error is reported and OK stays enabled. Bloom then keeps using the new values in memory until it restarts and reads the file again; pressing OK again saves them. That matches how the WinForms dialog has always behaved, and a code comment now says so.</p>
-        <p>The one visible oddity is a rename. A changed collection name is queued as soon as it is read, before the save. If the save then fails, the folder is still renamed the next time the collection closes and reopens. Leaving it is my recommendation: it needs a failed save and a changed name together, and the WinForms dialog has the same order.</p>
-        <div class="opt"><input type="radio" name="q1" id="q1a" value="defer" data-q="q1" data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16902-react-collection-settings (branch BL-16902-settings-shell, PR #8388), make the collection rename wait for a successful save: AdvancedValues.CollectionName records the requested name instead of queuing it, and CollectionSettingsUpdater.Apply queues it after settings.Save() succeeds. Add a test that a failed save queues no rename, then rerun preflight."><label for="q1a">Queue the rename only after a successful save<br><span class="fn">(about 10 lines in <code>AdvancedValues</code> and <code>Apply</code>, plus a test; low risk)</span></label></div>
-        <div class="opt"><input type="radio" name="q1" id="q1b" value="reload" data-q="q1" data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16902-react-collection-settings (branch BL-16902-settings-shell, PR #8388), on a failed save in CollectionSettingsUpdater.Apply, reload the collection settings from disk (settings.Load()) and the user settings (Settings.Default.Reload()) before rethrowing, and queue the rename only after a successful save. Add tests, then rerun preflight."><label for="q1b">Also reload the settings from disk when a save fails<br><span class="fn">(about 15 lines; reloads a live <code>CollectionSettings</code> in a way Bloom never does elsewhere, and <code>Load()</code> also runs migrations, so a new, rarely run path)</span></label></div>
-        <div class="leaverow opt rec"><input type="radio" name="q1" id="q1c" value="leave" data-q="q1" checked data-instruction="Leave as is — take no action on: a failed save in the React Collection Settings dialog leaving the new values in memory and a queued rename, which matches the WinForms dialog."><label for="q1c">Leave as is <span class="tag">Recommended</span></label><span class="lc"><input type="checkbox" id="q1lc" data-q="q1-comment" data-instruction="Add to the existing comment at the top of CollectionSettingsUpdater.Apply in src/BloomExe/Collection/CollectionSettingsUpdater.cs that a rename queued before a failed save still happens at the next reopen, and that this was decided."><label for="q1lc">Leave comment</label></span></div>
-        <div class="opt"><input type="radio" name="q1" id="q1d" value="other" data-q="q1"><label for="q1d">Other: <input type="text" id="q1o" data-q="q1-other" aria-label="Other answer for the rename question"></label></div>
-        <textarea class="notes" id="q1n" data-q="q1-notes" placeholder="Notes" aria-label="Notes on the rename question"></textarea>
-      </section>
-
-      <section class="card q" data-qid="q2">
-        <h3>Next step</h3>
-        <div class="opt rec"><input type="radio" name="q2" id="q2a" value="go" data-q="q2" checked data-instruction="Apply the chosen answer above on branch BL-16902-settings-shell (PR #8388); if it changes code, rerun preflight; then stop for Andrew's own review."><label for="q2a">Apply my answer, rerun preflight if code changed, then stop for my review <span class="tag">Recommended</span></label></div>
-        <div class="leaverow opt"><input type="radio" name="q2" id="q2b" value="leave" data-q="q2" data-instruction="Leave as is — take no further action on PR #8388 (BL-16902) until Andrew says so."><label for="q2b">Leave as is</label></div>
-        <div class="opt"><input type="radio" name="q2" id="q2c" value="other" data-q="q2"><label for="q2c">Other: <input type="text" id="q2o" data-q="q2-other" aria-label="Other next step"></label></div>
-        <textarea class="notes" id="q2n" data-q="q2-notes" placeholder="Notes" aria-label="Notes on the next step"></textarea>
-      </section>
-
-      <section class="card">
-        <h2>Send your answers back</h2>
-        <p>Copies every answer as self-contained instructions to paste into a session.</p>
-        <p><button id="copy" type="button">Copy answers</button> <span id="status"></span></p>
-        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
-      </section>
-    </aside>
 
   </div>
 </div>
-<script>
-(function () {
-  var URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16902-settings-shell.html";
-  var items = [
-    { id: "q1", title: "Should a rename wait until the save succeeds?" },
-    { id: "q2", title: "Next step" }
-  ];
-  function build() {
-    var lines = ["Decisions from a decider form (preflight report)", "Project: BloomBooks/BloomDesktop, branch BL-16902-settings-shell, PR #8388, card BL-16902", "Date: " + new Date().toISOString().slice(0, 10), "Report: " + URL_, ""];
-    items.forEach(function (it, i) {
-      lines.push((i + 1) + ". " + it.title);
-      var r = document.querySelector('input[name="' + it.id + '"]:checked');
-      if (r) {
-        if (r.value === "other") { var o = document.getElementById(it.id + "o").value.trim(); lines.push("   Other: " + (o || "(no text)")); }
-        else lines.push("   " + r.getAttribute("data-instruction"));
-      }
-      var lc = document.getElementById(it.id + "lc");
-      if (lc && lc.checked) lines.push("   " + lc.getAttribute("data-instruction"));
-      var n = document.getElementById(it.id + "n").value.trim();
-      if (n) lines.push("   Notes: " + n);
-      lines.push("");
-    });
-    return lines.join("\n");
-  }
-  var payload = document.getElementById("payload");
-  function refresh() { payload.value = build(); }
-  document.addEventListener("input", refresh); document.addEventListener("change", refresh); refresh();
-  document.getElementById("copy").addEventListener("click", async function () {
-    var status = document.getElementById("status");
-    try {
-      refresh(); payload.focus(); payload.select();
-      try { await navigator.clipboard.writeText(payload.value); status.textContent = "Copied ✓"; return; } catch (e) {}
-      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
-      status.textContent = ok ? "Copied ✓" : "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
-    } catch (e) { status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac)."; }
-  });
-})();
-</script>
 </body>
 </html>
