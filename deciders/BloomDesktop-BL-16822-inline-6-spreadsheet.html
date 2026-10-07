@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: PR 8323</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2724; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1, h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; color: #1f1c19; }
+  h1 { font-size: 1.5rem; margin: 0 0 .4rem; }
+  h2 { font-size: 1.15rem; margin: 0 0 .6rem; }
+  h3 { font-size: .95rem; margin: .9rem 0 .3rem; }
+  a { color: #7a4a8c; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 18px; }
+  .chips, .links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { display: inline-block; padding: 2px 10px; border: 1px solid #ddd5ca; border-radius: 999px; background: #fff; font-size: .85rem; }
+  .chip.ok { border-color: #9cc5a1; background: #f1f8f2; }
+  .links a { text-decoration: none; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e4ddd2; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  ul { margin: .3rem 0; padding-left: 1.2rem; }
+  li { margin: .2rem 0; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee7dd; vertical-align: top; }
+  th { font-weight: 600; color: #5b544c; }
+  .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; font-size: .88rem; }
+  .pass { color: #2e7d3a; font-weight: 600; }
+  .na { color: #7c746b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: inline images survive a spreadsheet round trip</h1>
+  <div>Branch <code>BL-16822-inline-6-spreadsheet</code>. Everything is green and nothing needs a decision.</div>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 items waiting on you</span>
+  </div>
+  <div class="links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8323" target="_blank" rel="noopener">PR #8323</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8323/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8323/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8323" target="_blank" rel="noopener">Reviewable</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16822" target="_blank" rel="noopener">BL-16822</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8323" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>A spreadsheet has one row per text block and one cell per language, and a cell holds only text with bold, italic and underline. So exporting a book whose text blocks hold pictures, and importing it back, lost the pictures.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><strong>Export</strong> writes an <code>[inline image]</code> row for each picture after its block's row. The file goes in the usual image column. Position, width, offset (with the block size it was measured in) and transparency go as JSON in a new hidden <code>[details]</code> column.</li>
+      <li><strong>Import</strong> from a sheet with that column treats the rows as the truth. It rebuilds the pictures in every box of the block, including languages the sheet lacks and the hidden <code>lang="z"</code> copy. It fills in the image's copyright and license. Deleting a row deletes the picture, and an unusable hand-edited value gets a warning naming its row.</li>
+      <li><strong>A sheet without the column</strong> (from an older Bloom, or a block that is an image description) keeps the pictures the book already has.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="pass">Passed <span class="numeral">3771 tests</span>, 435 of them spreadsheet tests</td></tr>
+      <tr><td>Typecheck, lint, TypeScript tests</td><td class="na">Not run: the diff has no front-end code.</td></tr>
+      <tr><td>E2E specs at the nightly window size (repo check)</td><td class="na">Did not apply: this PR adds or changes no spec. Its round-trip spec is in the e2e PR, which ran it at that size.</td></tr>
+      <tr><td>Base merged</td><td class="pass">Up to date with <code>BL-16822-inline-5-neighbours</code></td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>The local review found two problems, both fixed with tests that fail without the fix. A block's boxes in languages the sheet had no column for kept their old pictures. Warnings about a picture's row gave the number of the text row before it. An <code>offsetBasedOn</code> Bloom can't read is now dropped with a warning. Comments now describe the code rather than its history, a misplaced doc comment is back on its method, and two stray byte-order marks are gone. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8323/commits" target="_blank" rel="noopener">Commits</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="table-wrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Two findings, both fixed: stale pictures in languages the sheet lacks, and warnings naming the wrong row.</td></tr>
+      <tr><td>Devin</td><td>Complete on <code>6a6dfae67b</code>; nothing new. Two earlier items had no thread and now have one: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8323#discussion_r4211259912" target="_blank" rel="noopener">an unreadable offsetBasedOn</a> (fixed) and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8323#discussion_r4211259291" target="_blank" rel="noopener">a missing language's box</a> (not an issue). Every Devin thread on the PR is answered and resolved.</td></tr>
+      <tr><td>Other review bots</td><td>None active on this PR.</td></tr>
+      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed. Reviewable's status is the human review itself.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>An older Bloom importing a new spreadsheet treats each <code>[inline image]</code> row as a front-matter field and writes an unused <code>inlineImage</code> field into the book's data.</li>
+      <li>Reviewable lists the Devin threads as open discussions until you mark them; they are resolved on GitHub.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing needs your decision.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
