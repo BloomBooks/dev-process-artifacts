@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17003</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+:root{--ground:#faf8f4;--card:#fff;--line:#e4dfd6;--ink:#2a2723;--muted:#6b655c;--accent:#2f6f8f;--ok:#2e7d4f;--warn:#a5671a}
+body{background:var(--ground);color:var(--ink);font:15px/1.55 -apple-system,"Segoe UI",system-ui,sans-serif;padding:24px 16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25}
+h1{font-size:1.5rem;margin:0 0 6px}
+h2{font-size:1.15rem;margin:0 0 10px}
+h3{font-size:1rem;margin:14px 0 4px}
+a{color:var(--accent)}
+.wrap{max-width:1360px;margin:0 auto}
+.summary{color:var(--muted);margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 11px;font-size:.85rem}
+.chip.ok{border-color:#b9dcc7;color:var(--ok)}
+.chip.warn{border-color:#ead2ae;color:var(--warn)}
+.links a.chip{text-decoration:none}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;margin-top:18px}
+.grid>div{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card p{margin:6px 0}
+ul{margin:6px 0;padding-left:20px}
+li{margin:3px 0}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+th{font-weight:600;color:var(--muted);font-size:.85rem}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.9em}
+.pass{color:var(--ok);font-weight:600}
+.q p{margin:6px 0}
+.opt{display:flex;align-items:flex-start;gap:8px;margin:7px 0}
+.opt input[type=radio]{margin-top:4px}
+.opt .fn{color:var(--muted);font-size:.88rem}
+.tag{background:#e6f0f5;color:var(--accent);border-radius:4px;padding:0 6px;font-size:.78rem;margin-left:4px}
+.leave{justify-content:space-between}
+.leave label.lc{font-size:.85rem;color:var(--muted);white-space:nowrap}
+input[type=text],textarea{font:inherit;width:100%;border:1px solid var(--line);border-radius:6px;padding:6px 8px;background:#fff}
+.notes{margin-top:8px}
+button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+#payload{margin-top:10px;min-height:150px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem}
+#copied{color:var(--ok);margin-left:8px;visibility:hidden}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Preflight: undo deleting a canvas element (BL-17003)</h1>
+<p class="summary">Branch <code>BL-17003-undo-delete-canvas-element</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/2be2b67a62580c9ffb400138970ceff6d24d9d3d" target="_blank" rel="noopener">2be2b67a62</a>, stacked on #8387. Everything is green; two questions remain for you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable into BL-16900-undo-stack</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip warn">2 items for you</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8451" target="_blank" rel="noopener">PR #8451</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8451/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8451/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17003" target="_blank" rel="noopener">BL-17003</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8451" target="_blank" rel="noopener">Devin review</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8387" target="_blank" rel="noopener">Base: PR #8387</a>
+</div>
+
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>On a Canvas page, deleting an item (text box, speech bubble, picture or video overlay, game item) could not be undone. Stage 1 of retiring CKEditor (#8387) put one undo stack behind the Undo button, but nothing recorded onto it yet.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><strong>Delete is undoable.</strong> Undo puts back the <em>same</em> element, so its text and its text editor survive. Ctrl+Y or Ctrl+Shift+Z deletes it again. Ctrl+Shift+Z is now a Redo key alongside Ctrl+Y.</li>
+<li><strong>Stacking order:</strong> the element goes just below the one that was above it, else just above the one that was below it, else on top. Its level comes from where it lands, so a chain of undos, or an element added in between, works out. No other element's data is saved or restored.</li>
+<li><strong>Comic bubble chains</strong> are rejoined by reversing what the delete did, applied to the chain as it is now. Later edits to the chain's style or tail are kept.</li>
+<li><strong>Ordering rules</strong> (rectangles low, draggables last) are left to the existing tidy-up code. A game item's target comes back with it. The undo refuses only if the canvas itself is gone.</li>
+<li><strong>The reader tools' and CKEditor's undo</strong> no longer claim the Undo button for a text box that is no longer on the page. Before this, typing in a box and then deleting it made the delete impossible to undo.</li>
+<li><strong>comicaljs 0.4.2</strong> (the stale bubble observer fix). The lockfile change is the five comicaljs lines only.</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck</td><td><span class="pass">pass</span> (pre-commit, at HEAD)</td></tr>
+<tr><td>Lint and formatting</td><td><span class="pass">pass</span> (lint-staged and prettier, at HEAD)</td></tr>
+<tr><td>TypeScript unit tests (vitest)</td><td><span class="pass">pass</span>: <span class="numeral">89 files · 1183 tests</span></td></tr>
+<tr><td>E2E (Playwright in Bloom)</td><td><span class="pass">pass</span>: <span class="numeral">undo-delete-canvas-element 5/5</span> at HEAD. Earlier in the run, on the same code apart from the Devin fixes: <span class="numeral">undo-routing + rotate-and-flip 21/21</span></td></tr>
+<tr><td>C# tests</td><td>Not run: no C# in the diff</td></tr>
+<tr><td>Merge into base</td><td><span class="pass">clean</span>. Base is <code>BL-16900-undo-stack</code>; master deliberately not merged (until #8387 merges)</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>What changed this run</h2>
+<p>Fixed the two bugs Devin raised: a chain's tail edit was lost when undoing the deletion of its first bubble, and source bubbles were set up twice on undo. The level and family code now also skips elements that have no bubble data instead of failing. <a href="https://github.com/BloomBooks/BloomDesktop/commit/2be2b67a62580c9ffb400138970ceff6d24d9d3d" target="_blank" rel="noopener">2be2b67a62</a></p>
+</div>
+
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean: no bugs. One question, about elements with no bubble data, led to a small fix in 2be2b67a62.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8451" target="_blank" rel="noopener">Devin</a></td><td>Complete for 2be2b67a62. Two bugs, both fixed, and their threads are resolved (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8451#discussion_r4212845460" target="_blank" rel="noopener">tail edits</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8451#discussion_r4212845662" target="_blank" rel="noopener">source bubbles</a>). The re-review marks the second resolved and repeats the first, which describes the old code; the reply on its thread explains why.</td></tr>
+<tr><td>Other bots</td><td>None posted on this PR.</td></tr>
+<tr><td>CI</td><td><code>pr-automation</code> <span class="pass">pass</span>. No other checks run on PRs.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Not yet watched by hand in Bloom: a text box with source bubbles (multilingual collection) and a real drag-activity game. Both are covered by unit tests and the test ideas on the card.</li>
+<li>This PR has not been tested against current master, which is 20 commits ahead of the base. That happens when #8387 merges and this PR is retargeted.</li>
+</ul>
+</div>
+</div>
+
+<div>
+<div class="card q" data-item="1">
+<h2>1. File a card for the reader tools claiming Undo?</h2>
+<p>A problem that predates this PR, found by its e2e test. In a fresh collection the reader tools behave as though a reader tool is active even when none is open: their saved settings switch on text highlighting (<a href="https://github.com/BloomBooks/BloomDesktop/blob/2be2b67a62580c9ffb400138970ceff6d24d9d3d/src/BloomBrowserUI/bookEdit/toolbox/readers/readerToolsModel.ts#L1603" target="_blank" rel="noopener">restoreState</a>). So when you click Undo after typing, the reader tools' own simple text undo answers, not CKEditor's. That may restore text a little differently from what CKEditor would.</p>
+<p>This PR makes it harmless for deletes; it no longer blocks undoing one. It is still wrong for typing, and it will matter more in Stage 3.</p>
+<div class="opt"><input type="radio" name="q1" id="q1a" value="File a card on the 6.6 board (Ready for Work, unassigned), with how to reproduce it" data-q="1" checked><label for="q1a">File a card on the 6.6 board (Ready for Work, unassigned), with how to reproduce it <span class="tag">recommended</span><br><span class="fn">(No code now; the fix is probably small and local. Recommended because it is a real routing bug, and keeping it separate keeps this PR's scope clean.)</span></label></div>
+<div class="opt"><input type="radio" name="q1" id="q1b" value="Fix it in this PR" data-q="1"><label for="q1b">Fix it in this PR<br><span class="fn">(Small but uncertain: the right rule for when the reader tools count as active needs a look at the reader tools themselves; it widens this PR's scope.)</span></label></div>
+<div class="opt leave"><span><input type="radio" name="q1" id="q1c" value="Leave as is" data-q="1"> <label for="q1c">Leave as is</label></span><label class="lc"><input type="checkbox" data-q="1" data-kind="leave-comment"> Leave comment</label></div>
+<div class="opt"><input type="radio" name="q1" id="q1d" value="Other" data-q="1"><label for="q1d">Other:</label><input type="text" data-q="1" data-kind="other"></div>
+<div class="notes"><textarea rows="2" placeholder="Notes" data-q="1" data-kind="notes"></textarea></div>
+</div>
+
+<div class="card q" data-item="2">
+<h2>2. Next step</h2>
+<p>The PR is a draft, stacked on #8387. It is green and every reviewer has finished.</p>
+<div class="opt"><input type="radio" name="q2" id="q2a" value="I'll review it myself; keep it a draft until #8387 merges, then retarget to master, merge master in, and re-run preflight" data-q="2" checked><label for="q2a">I'll review it myself; keep it a draft until #8387 merges, then retarget to master, merge master in, and re-run preflight <span class="tag">recommended</span><br><span class="fn">(No code. Recommended because human review of this PR only makes sense once its base has settled.)</span></label></div>
+<div class="opt"><input type="radio" name="q2" id="q2b" value="Run pr-ready-for-human now, as a stacked PR" data-q="2"><label for="q2b">Run pr-ready-for-human now, as a stacked PR<br><span class="fn">(No code. Reviewers would see a PR whose base can still change under them.)</span></label></div>
+<div class="opt leave"><span><input type="radio" name="q2" id="q2c" value="Leave as is" data-q="2"> <label for="q2c">Leave as is</label></span><label class="lc"><input type="checkbox" data-q="2" data-kind="leave-comment"> Leave comment</label></div>
+<div class="opt"><input type="radio" name="q2" id="q2d" value="Other" data-q="2"><label for="q2d">Other:</label><input type="text" data-q="2" data-kind="other"></div>
+<div class="notes"><textarea rows="2" placeholder="Notes" data-q="2" data-kind="notes"></textarea></div>
+</div>
+
+<div class="card">
+<h2>Send your answers back</h2>
+<p>Copies your choices as text to paste into the session.</p>
+<button id="copy">Copy answers</button><span id="copied">Copied</span>
+<textarea id="payload" readonly></textarea>
+</div>
+</div>
+</div>
+</div>
+<script>
+(function(){
+  var titles={"1":"File a card for the reader tools claiming Undo?","2":"Next step"};
+  function build(){
+    var out=["Preflight answers: PR #8451 (BL-17003) at 2be2b67a62",""];
+    ["1","2"].forEach(function(q){
+      out.push(q+". "+titles[q]);
+      var sel=document.querySelector('input[type=radio][data-q="'+q+'"]:checked');
+      var v=sel?sel.value:"(none)";
+      if(v==="Other"){var o=document.querySelector('input[data-q="'+q+'"][data-kind=other]').value.trim();v="Other: "+(o||"(blank)");}
+      out.push("   Choice: "+v);
+      var lc=document.querySelector('input[data-q="'+q+'"][data-kind=leave-comment]');
+      if(lc&&lc.checked)out.push("   Leave comment");
+      var n=document.querySelector('textarea[data-q="'+q+'"][data-kind=notes]').value.trim();
+      if(n)out.push("   Notes: "+n);
+      out.push("");
+    });
+    document.getElementById("payload").value=out.join("\n");
+  }
+  document.addEventListener("input",build);document.addEventListener("change",build);build();
+  document.getElementById("copy").addEventListener("click",function(){
+    build();var t=document.getElementById("payload");
+    function done(){var c=document.getElementById("copied");c.style.visibility="visible";setTimeout(function(){c.style.visibility="hidden";},1500);}
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t.value).then(done,function(){t.select();document.execCommand("copy");done();});}
+    else{t.select();document.execCommand("copy");done();}
+  });
+})();
+</script>
+</body>
+</html>
