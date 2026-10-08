@@ -1,9 +1,7 @@
 <!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
+<html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight — BL-16608 toolbox 4/4</title>
+<title>Preflight &mdash; BL-16608 toolbox 4/4</title>
 <style>
 :root {
     --ground: #f7f6f3;
@@ -108,134 +106,202 @@ textarea { resize: vertical; min-height: 44px; }
 a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-</head>
-<body>
-<div class="wrap">
 
-<h1>Preflight — toolbox cleanup 4/4</h1>
-<p class="sub">Branch <code>BL-16608-toolbox-3-react</code> · head <code>3ab88e6f62</code> · 2026-10-07</p>
-
+</head><body><div class="wrap">
+<h1>Preflight report &mdash; toolbox cleanup 4/4</h1>
+<p class="sub">BloomDesktop &middot; <code>BL-16608-toolbox-3-react</code> &middot; head <span class="numeral">b09b15fb55</span> &middot; 2026-10-08</p>
 <div class="chips">
-    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
-    <span class="chip good">Mergeable</span>
-    <span class="chip good">All gates green</span>
-    <span class="chip good">Decisions answered &mdash; nothing waiting</span>
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip good">Mergeable</span>
+<span class="chip good">All reviewers complete</span>
+<span class="chip warn">3 items waiting on you</span>
 </div>
-
 <div class="links">
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447">PR #8447</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/files">Files changed</a>
-    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/commits">Commits</a>
-    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16608">BL-16608</a>
-    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8447">Devin review</a>
+<a href="https://github.com/BloomBooks/BloomDesktop/pull/8447" target="_blank" rel="noopener">PR #8447</a>
+<a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/files" target="_blank" rel="noopener">Files changed</a>
+<a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/commits" target="_blank" rel="noopener">Commits</a>
+<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16608" target="_blank" rel="noopener">BL-16608</a>
+<a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8447" target="_blank" rel="noopener">Devin review</a>
 </div>
-
-<div class="cols">
-
-<div class="stack">
-
+<div class="cols"><div class="stack">
 <div class="card">
-    <h2>What this PR is about</h2>
-    <h3>Problem</h3>
-    <p>Every tool in the Edit tab's toolbox is a React component, but the toolbox around them was not. <code>toolbox.ts</code> kept which tools were offered, which was open and which was running in its own module variables, and called each tool's lifecycle methods by hand, while React rendered the tool list from a separate copy of the same facts. Keeping two copies in step by hand is what failed in BL-16602: leaving a game page withdrew the Game tool but left the toolbox believing it was still current, so the tool that replaced it was never shown and Talking Book lost its highlighting and audio.</p>
-    <p>Separately, the toolbox has to wait for the page (CKEditor) before restoring the book's saved settings, but it applied settings read <em>before</em> that wait. Anything the user did meanwhile was undone: a toolbox just opened was shut again, a tool just opened closed back to the saved one. People click again and move on; seven e2e tests could not, and were skipped.</p>
-    <h3>What the PR does</h3>
-    <ul>
-        <li><strong>One React root.</strong> Each tool is an ordinary child rendered through <code>ITool.renderPanel()</code>, so React context reaches tools normally and the per-tool <code>ThemeProvider</code>s go.</li>
-        <li><strong><code>toolboxState.ts</code> is the single source of truth</strong> for which tools are offered, which is open, which the book has enabled, whether the toolbox shows, and which page it is on.</li>
-        <li><strong>Which tool is <em>running</em> is derived, not stored</strong> — the open tool, unless the toolbox has stopped offering it. The two can no longer disagree, making the BL-16602 class of bug unrepresentable rather than fixed.</li>
-        <li><strong><code>useToolLifecycle.ts</code> runs each tool's lifecycle from a React effect</strong>, so a tool runs because it <em>is</em> the current tool of a showing toolbox.</li>
-        <li><strong>Neither late restore overwrites a decision made after its settings were read.</strong> Each snapshots the toolbox before its settings request goes out; <code>readerToolsModel.restoreState()</code> seeds defaults only into a model nothing has told yet.</li>
-        <li><strong>The seven skipped e2e tests are back on</strong> (Test Case IDs 830, 441, 442, 460).</li>
-    </ul>
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Every tool in the Edit tab&rsquo;s toolbox is a React component, but the toolbox around them was not.
+<code>toolbox.ts</code> kept which tools were offered, which was open and which was running in its own
+module variables and called each tool&rsquo;s lifecycle methods by hand, while React rendered the tool list
+from a separate copy of the same facts. Keeping two copies in step by hand is what failed in BL-16602:
+leaving a game page withdrew the Game tool but left the toolbox believing it was still current, so the
+tool that replaced it was never shown and Talking Book lost its highlighting and audio.</p>
+<p>Separately, the toolbox has to wait for the page before restoring the book&rsquo;s saved settings, but it
+applied settings read <em>before</em> that wait, so anything the user did meanwhile was undone &mdash; a
+toolbox just opened was shut again. People click again and move on; seven e2e tests could not, and were
+skipped.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><strong>One React root.</strong> Each tool is an ordinary child rendered through
+<code>ITool.renderPanel()</code>, so React context reaches tools normally and the per-tool
+<code>ThemeProvider</code>s go.</li>
+<li><strong><code>toolboxState.ts</code> is the single source of truth</strong> for what is offered, open,
+enabled and shown. React subscribes with <code>useSyncExternalStore</code>; <code>toolbox.ts</code> reads
+and writes it.</li>
+<li><strong>Which tool is <em>running</em> is derived, not stored.</strong> The two copies can no longer
+disagree, which makes the BL-16602 class of bug unrepresentable rather than fixed.</li>
+<li><strong>Each tool&rsquo;s lifecycle runs from a React effect</strong>, so a tool runs because it
+<em>is</em> the current tool of a showing toolbox, not because something remembered to activate it.</li>
+<li><strong>Neither late restore overwrites a decision made after its settings were read</strong>, and
+<strong>a reader stage or level the book had saved is no longer silently discarded</strong> when those
+settings are slow or fail to load (<a href="https://github.com/BloomBooks/BloomDesktop/blob/b09b15fb55fa66979b17c8db3b2d07341b03670f/src/BloomBrowserUI/bookEdit/toolbox/readers/readerToolsModel.ts#L216" target="_blank" rel="noopener">the hold</a>,
+<a href="https://github.com/BloomBooks/BloomDesktop/blob/b09b15fb55fa66979b17c8db3b2d07341b03670f/src/BloomBrowserUI/bookEdit/toolbox/readers/readerToolsModel.ts#L1353" target="_blank" rel="noopener">the replay</a>) &mdash; a long-standing bug, fixed here because
+it is what made the re-enabled reader tests flaky.</li>
+<li><strong>The seven skipped e2e tests are back on</strong> (Test Case IDs 830, 441, 442, 460).</li>
+</ul>
 </div>
-
 <div class="card">
-    <h2>Quality gate</h2>
-    <div class="tablewrap">
-    <table>
-        <tr><th>Check</th><th>Result</th></tr>
-        <tr><td>Typecheck (TypeScript)</td><td class="ok">pass</td></tr>
-        <tr><td>Lint (eslint)</td><td class="ok">pass — <span class="numeral">0 errors</span>, 774 pre-existing warnings</td></tr>
-        <tr><td>Prettier</td><td class="ok">pass — all changed files</td></tr>
-        <tr><td>Tests — TypeScript (vitest)</td><td class="ok">pass — <span class="numeral">1147 tests, 87 files</span></td></tr>
-        <tr><td>Tests — BloomE2E typecheck</td><td class="ok">pass</td></tr>
-        <tr><td>Tests — C# (dotnet test)</td><td class="na">not run — the only C# change is a <code>///</code> comment in <code>ToolboxView.cs</code>; verified mechanically that no non-comment C# line differs from master</td></tr>
-        <tr><td>Repo check — e2e specs at the nightly window size</td><td class="ok">pass — <span class="numeral">8/8</span>, headless, on settled code</td></tr>
-        <tr><td>Merge-cleanliness</td><td class="ok">mergeable; master merged in during this run</td></tr>
-    </table>
-    </div>
+<h2>Quality gate</h2>
+<div class="tablewrap"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (tsc)</td><td><span class="ok">No new errors.</span>
+<span class="numeral">81</span> exist at HEAD and all pre-date this branch; the
+<span class="numeral">3</span> added by the base merge are in master&rsquo;s own files
+(<code>bloomEditing.ts</code>, <code>CanvasElementKeyboardProvider.test.ts</code>), not in anything this
+branch touches.</td></tr>
+<tr><td>Lint (eslint)</td><td><span class="ok">0 errors</span> across the 34 changed files
+(<span class="numeral">142</span> warnings, all long-standing style warnings in files this PR did not
+introduce).</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td><span class="ok"><span class="numeral">1213</span> passed</span>
+in <span class="numeral">98</span> files &mdash; the full suite, on the merged result.</td></tr>
+<tr><td>C# tests (dotnet)</td><td><span class="na">Not run &mdash; the only C# in the diff is a comment in
+<code>ToolboxView.cs</code>, confirmed by diffing out comment lines. Nothing in the diff can reach the C#
+suite.</span></td></tr>
+<tr><td>End-to-end (Playwright)</td><td><span class="ok"><span class="numeral">8</span> passed</span>
+across both changed specs, headless at the nightly CI window size. See the first decision about an earlier
+contended run.</td></tr>
+<tr><td>Merge with master</td><td><span class="ok">Merged.</span> One conflict, in
+<code>CanvasToolControls.tsx</code>, where master&rsquo;s Bloom Tables work and this branch&rsquo;s removal
+of the per-tool <code>ThemeProvider</code> touched the same JSX. Resolved by taking master&rsquo;s file and
+re-applying only the wrapper removal, then diffing against master to confirm nothing from Tables was
+lost.</td></tr>
+</table></div>
 </div>
-
 <div class="card">
-    <h2>What changed this run</h2>
-    <p>Merged master (which brought the new nightly-window e2e repo check, now satisfied), then fixed three review findings: a dropped BL-14434 guard, the settings snapshot being taken inside the GET callback rather than before the request, and Motion's image observer not being disconnected when an inactive tool is withdrawn and re-offered. Eight commits; see the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/commits">commit list</a>.</p>
+<h2>What changed this run</h2>
+<ul>
+<li>Fixed a long-standing silent drop of a book&rsquo;s saved reader stage or level, and the cross-book leak
+that holding the value introduced &mdash; raised by the local review and, independently, by Devin.</li>
+<li>Hardened the panel-clipping e2e check so it can no longer pass without examining anything.</li>
+<li>Merged master (Bloom Tables), resolving one toolbox conflict.</li>
+</ul>
+<p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/commits" target="_blank" rel="noopener">All commits</a> &middot;
+<a href="https://github.com/BloomBooks/BloomDesktop/commit/3640c1d043" target="_blank" rel="noopener">3640c1d0 cross-book guard</a> &middot;
+<a href="https://github.com/BloomBooks/BloomDesktop/commit/b09b15fb55" target="_blank" rel="noopener">b09b15fb clipping check</a></p>
 </div>
-
 <div class="card">
-    <h2>Reviewer outcomes</h2>
-    <div class="tablewrap">
-    <table>
-        <tr><th>Reviewer</th><th>State</th></tr>
-        <tr>
-            <td>Local review</td>
-            <td><strong>complete</strong> — light sub-agent pass. One finding, fixed: removing <code>newToolId</code> had silently dropped the BL-14434 guard that stops Talking Book laying its highlight over a page arriving for another tool. Also caught a prettier failure that would have tripped CI. Confirmed the derivation's "offered implies registered" premise and the <code>hasBeenGivenAPhase</code> guard.</td>
-        </tr>
-        <tr>
-            <td>Devin</td>
-            <td><strong>complete</strong> — 3 Bugs, 1 Investigate, 0 Informational across the branch. Two were correct and are fixed; two describe pre-existing behavior master shares. All four are <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/files">mirrored as resolved threads</a> carrying their outcomes. Re-review of the final head returned no findings for that commit.</td>
-        </tr>
-        <tr>
-            <td>Greptile</td>
-            <td><strong>has not reviewed this PR</strong> — no comment and no check context since the PR opened ~5 h ago. Re-triggered by mention; still silent after that. Not pending, absent.</td>
-        </tr>
-        <tr>
-            <td>CodeRabbit</td>
-            <td><strong>has not reviewed this PR</strong> — <code>.coderabbit.yml</code> is present, but it posted nothing and registered no check.</td>
-        </tr>
-        <tr><td>CI</td><td class="ok"><strong>complete</strong> — <code>pr-automation</code> pass; it is the only check this repo runs on a PR.</td></tr>
-    </table>
-    </div>
+<h2>Reviewer outcomes</h2>
+<div class="tablewrap"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review<br><span class="na">light sub-agent pass</span></td>
+<td><strong>Complete.</strong> One finding fixed: <code>clearForTest()</code> did not reset the flag that
+gates <code>restoreState()</code>, which could have let a later test pass for the wrong reason. One open
+question it could not settle &mdash; whether a held stage or level could cross into the next book &mdash;
+which I confirmed is reachable and fixed with a
+<a href="https://github.com/BloomBooks/BloomDesktop/blob/b09b15fb55fa66979b17c8db3b2d07341b03670f/src/BloomBrowserUI/bookEdit/toolbox/readers/readerToolsModel.ts#L1343" target="_blank" rel="noopener">guard</a> plus a regression test that fails without it.</td></tr>
+<tr><td>Devin</td><td><strong>Complete</strong> on this HEAD (4 min). Four bugs: three it marks resolved,
+one assessed and resolved on its thread in an earlier run. Five investigate flags: one fixed this run, one
+assessed as already covered by a sibling spec, two raised as decisions here, one handled previously. Devin
+independently found the cross-book leak and marks it resolved at this HEAD.
+<a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/files" target="_blank" rel="noopener">Threads</a></td></tr>
+<tr><td>Greptile</td><td><strong>Has not reviewed this PR</strong> &mdash; it has never posted here,
+including after an explicit <code>@greptile-apps review</code> bypass on 2026-10-07. Recorded as absent
+rather than waited out.</td></tr>
+<tr><td>CodeRabbit</td><td><strong>Has not reviewed this PR.</strong> The repo carries a
+<code>.coderabbit.yml</code>, but it has posted nothing here.</td></tr>
+<tr><td>CI</td><td><strong>Complete.</strong> <code>pr-automation</code> passed.
+<code>code-review/reviewable</code> reads pending because it tracks open review discussions &mdash; the two
+left open are the decisions opposite &mdash; not because a build is running.</td></tr>
+<tr><td>Repo check<br><span class="na">e2e at nightly window size</span></td>
+<td><strong>Passed</strong> on the final code &mdash; all 8 tests in the two changed specs. An earlier run of
+the same check failed two of them; that is the first decision.</td></tr>
+</table></div>
 </div>
-
 <div class="card">
-    <h2>Worth knowing</h2>
-    <ul>
-        <li><strong>The game-page path has no end-to-end or by-hand confirmation.</strong> Visiting a game page and leaving it is the original BL-16602 scenario; it has unit coverage in <code>useToolLifecycleSpec</code> and <code>toolboxState.spec</code>, but the manual pass did not reach it and no e2e test covers it.</li>
-        <li><strong>The 0-of-40 e2e figure is dev-server evidence, not proof.</strong> The card itself notes these specs fail more often against the local dev server than in CI. They also pass at the nightly window size here, but the first nightlies after merge are the real confirmation.</li>
-        <li><strong>A tool's panel now mounts whenever the tool is <em>offered</em>, not only while it runs.</strong> Anything a tool starts from its panel's mount must clean up on unmount, because <code>detachFromPage()</code> only runs for the running tool. Motion needed exactly this; other tools are worth a glance for the same pattern.</li>
-    </ul>
+<h2>Worth knowing</h2>
+<ul>
+<li><strong>The game-page path still has not been confirmed by hand</strong> and has no e2e test &mdash;
+visiting a game page offers the Game tool and leaving withdraws it, the original BL-16602 scenario. It has
+unit coverage only.</li>
+<li><strong>Typecheck is not clean on master either.</strong> Running <code>tsc</code> on this branch shows
+81 errors and none of them are this branch&rsquo;s &mdash; worth knowing before chasing one.</li>
+<li><strong>Running e2e locally needs <code>pnpm --dir src/content run build:pageSizes</code> first</strong>
+after taking current master, or every test fails with &ldquo;The Edit tab never showed a page&rdquo;. The file
+it generates is git-ignored and read by C#, so neither a dev server nor <code>dotnet build</code> supplies
+it.</li>
+</ul>
 </div>
-
 </div>
-
-<div class="stack">
-
+<div class="stack"><div class="card">
+<h2>1. Two e2e tests failed in one run and passed in the next</h2>
+<p>The repo check runs the branch&rsquo;s changed e2e specs headless at the nightly window size. The
+first time I ran it, two tests in <code>toolbox-tools.spec.ts</code> failed: one because Bloom never
+launched inside 180 seconds, the other on a real assertion &mdash; a fresh book opened with the Leveled
+Reader already current. Run again on a quiet machine, all four tests in that file passed in 30 seconds
+against the same code.</p>
+<p>The launch timeout and an <code>EPERM</code> deleting a temp folder in the same run both point at machine
+contention rather than the branch. But <code>AGENTS.md</code> is explicit that a test which fails without a
+code change to explain it is flaky from its first failure, and that waiting to see whether it fails again is
+accepting it. I have not proved the assertion failure was contention; I have only shown it does not
+reproduce when the machine is quiet.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q1" value="dig" data-instruction="Investigate the toolbox-tools failure now: run the spec repeatedly, including under deliberate load, and find the cause before this PR goes further."><span class="body"><span class="lab">Chase it now, before this PR goes further</span> <span class="tag">Recommended</span><p>Run <code>toolbox-tools.spec.ts</code> repeatedly, including under deliberate load, to either reproduce the assertion failure or establish that it only appears under contention. Honours the repo rule; costs maybe twenty minutes of machine time.</p></span><span></span></label><label class="opt"><input type="radio" name="q1" value="record" data-instruction="Record the toolbox-tools failure in docs/nightly-failures/README.md and carry on; let a nightly recurrence decide whether it is real."><span class="body"><span class="lab">Record it and let the nightly decide</span><p>Add it to <code>docs/nightly-failures/README.md</code> so a recurrence on CI is recognised immediately, and carry on. Cheaper, but it is the &lsquo;wait and see&rsquo; the rule warns against.</p></span><span></span></label><label class="opt"><input type="radio" name="q1" value="leave" data-instruction="Leave as is: treat the toolbox-tools failure as machine contention and record nothing."><span class="body"><span class="lab">Leave as is</span><p>Treat it as machine contention, note nothing, and move on.</p></span><span></span></label><label class="opt"><input type="radio" name="q1" value="other" data-other="q1_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q1_other" placeholder="your own instruction"></span><span></span></label></div>
+<label class="lc"><input type="checkbox" data-q="q1_comment"> Leave comment &mdash; record this decision as a code comment</label>
+<div class="notes"><label>Notes</label><textarea data-q="q1_notes" placeholder="anything else"></textarea></div>
+</div>
 <div class="card">
-    <h2>1. Notion "Skipped" status &mdash; answered: leave as is</h2>
-    <p><strong>Decided: no change.</strong> Cases 441, 442 and 460 are on the <strong>6.5</strong> test suite run; only 830 is on 6.6. A 6.5 card's status does not matter now, because the next thing that happens to these is being cloned into the 6.6 run as "Not started" &mdash; which is already what 830, the one 6.6 card here, says. Editing the 6.5 cards would achieve nothing.</p>
-    <p class="sub" style="font-size:13.5px">The original question treated all four cards as equivalent; it had not checked the suite run, which is what made this look like a decision.</p>
-
+<h2>2. The clipping check can run before the statistics are real</h2>
+<p>Devin points out that the new &ldquo;nothing is cut off the panel&rsquo;s edge&rdquo; assertion
+waits for the reader level to appear but not for the book statistics. The bug it exists to catch &mdash; the
+Leveled Reader&rsquo;s &ldquo;Actual&rdquo; column clipped, fixed in #8452 &mdash; shows up in that
+statistics table, and a table still showing <code>0</code> is narrower than one showing real counts. So the
+check could run early and miss exactly the regression it is for.</p>
+<p>I narrowed the window this run: the check now requires the panel to have rendered some text, so it cannot
+pass against an empty panel. I did not add a wait for real statistics, because these books are made from a
+template and may legitimately have zero words &mdash; waiting for a non-zero count risks a hang or a flaky
+test, which would be worse than the gap.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q2" value="leave" data-instruction="Leave the clipping check as is: the text-present guard is enough, and waiting for real statistics is not worth the flake risk."><span class="body"><span class="lab">Leave as is</span> <span class="tag">Recommended</span><p>Keep the text-present guard and accept that the check is best-effort about timing. The clipping bug it guards against is already fixed and covered by the merged #8452.</p></span><span></span></label><label class="opt"><input type="radio" name="q2" value="wait" data-instruction="Make the clipping check wait for non-zero book statistics before asserting, using a book known to have words."><span class="body"><span class="lab">Wait for real statistics anyway</span><p>Give the check a book known to have words and wait for a non-zero count before asserting. Makes the check meaningful at the cost of a wait that could hang if the assumption is ever wrong.</p></span><span></span></label><label class="opt"><input type="radio" name="q2" value="drop" data-instruction="Drop the clipping assertion from the reader-tool spec."><span class="body"><span class="lab">Drop the clipping assertion</span><p>If it cannot reliably catch the regression it was written for, it is a test that mostly costs time.</p></span><span></span></label><label class="opt"><input type="radio" name="q2" value="other" data-other="q2_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q2_other" placeholder="your own instruction"></span><span></span></label></div>
+<label class="lc"><input type="checkbox" data-q="q2_comment"> Leave comment &mdash; record this decision as a code comment</label>
+<div class="notes"><label>Notes</label><textarea data-q="q2_notes" placeholder="anything else"></textarea></div>
 </div>
-
 <div class="card">
-    <h2>2. Pre-existing findings &mdash; answered: no card</h2>
-    <p><strong>Decided: no card; the PR threads are the record.</strong> Both findings only arise on <strong>game pages</strong> &mdash; Games is the only tool with <code>requiresToolId()</code>, so <code>data-tool-id</code> is what triggers them &mdash; and only while the toolbox is still initializing. The visible symptom is Talking Book briefly highlighting or playing on a game page as it arrives: transient, pre-existing, and unreported against the current code.</p>
-    <p>The decision and its reasoning are recorded on both <a href="https://github.com/BloomBooks/BloomDesktop/pull/8447/files">resolved review threads</a>, and the test-ideas comment on the card now warns testers not to file the flicker as a new bug.</p>
-
+<h2>3. An unexplained nightly failure is noted but not investigated</h2>
+<p><code>docs/nightly-failures/README.md</code> records that
+<code>decodable-reader-cancel.spec.ts</code> failed a nightly with the whole toolbox shut, says the cause was
+never confirmed, and defers re-checking until it recurs. Devin flags this against the same
+<code>AGENTS.md</code> rule as the first item: investigate a test&rsquo;s first unexplained failure rather
+than waiting for a second.</p>
+<p>Two things make it a judgment call rather than a clear fix. The spec is not one this PR touches, and it
+has since passed (2026-10-07). I have left the doc as it stands rather than change a record of what was
+decided earlier.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q3" value="card" data-instruction="File a YouTrack card for the unexplained decodable-reader-cancel nightly failure, and leave this PR's scope unchanged."><span class="body"><span class="lab">File a card for it</span> <span class="tag">Recommended</span><p>Track the unexplained failure as its own ticket so it is not lost, and leave this PR out of it. Keeps the rule honoured without widening this branch.</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="investigate" data-instruction="Investigate the decodable-reader-cancel nightly failure now, as part of this work."><span class="body"><span class="lab">Investigate it now</span><p>Dig into the decodable-reader-cancel failure as part of this work.</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="leave" data-instruction="Leave as is: keep the deferral in docs/nightly-failures/README.md as written."><span class="body"><span class="lab">Leave as is</span><p>Keep the deferral as written; the test has passed since and this PR does not touch it.</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="other" data-other="q3_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q3_other" placeholder="your own instruction"></span><span></span></label></div>
+<label class="lc"><input type="checkbox" data-q="q3_comment"> Leave comment &mdash; record this decision as a code comment</label>
+<div class="notes"><label>Notes</label><textarea data-q="q3_notes" placeholder="anything else"></textarea></div>
 </div>
-
-
-
+<div class="card">
+<h2>Next step</h2>
+<p>Nothing else is waiting. The PR is a draft with every reviewer complete and every suite green; the card
+carries refreshed test notes. After you have reviewed it yourself, <code>/pr-ready-for-human</code> squashes
+and hands it to a colleague.</p>
 </div>
+<div class="card">
+<h2>Send your answers back</h2>
+<p>Pick an option on each item above, then copy and paste this into the chat.</p>
+<button id="copyBtn" type="button">Copy answers</button><span id="copyStatus"></span>
+<textarea id="payload" readonly></textarea>
 </div>
-</div>
-
-<script>
+</div></div></div><script>
 (function () {
     var Q = [
-        ["q1", "1. Clear the Notion \u201cSkipped\u201d status on three test cases"],
-        ["q2", "2. File a card for the two pre-existing findings?"]
+        ["q1", "1. Two e2e tests failed in one run and passed in the next"],
+        ["q2", "2. The clipping check can run before the statistics are real"],
+        ["q3", "3. An unexplained nightly failure is noted but not investigated"]
     ];
     function val(sel) { var e = document.querySelector(sel); return e ? e.value.trim() : ""; }
     function build() {
@@ -243,9 +309,8 @@ a { color: var(--accent); }
         L.push("Decisions from a preflight report");
         L.push("Project: BloomDesktop \u2014 BL-16608, toolbox cleanup 4/4");
         L.push("PR: https://github.com/BloomBooks/BloomDesktop/pull/8447");
-        L.push("Branch: BL-16608-toolbox-3-react (head 3ab88e6f62)");
-        L.push("Worktree: C:\\dev\\BloomDesktop.worktrees\\BL-16608");
-        L.push("Date: 2026-10-07");
+        L.push("Branch: BL-16608-toolbox-3-react (head b09b15fb55)");
+        L.push("Date: 2026-10-08");
         L.push("Report: " + location.href);
         L.push("");
         Q.forEach(function (q) {
@@ -282,16 +347,16 @@ a { color: var(--accent); }
             var done = function () { st.className = "ok"; st.textContent = "Copied \u2713"; };
             var manual = function () {
                 st.className = "";
-                st.textContent = "Couldn't copy automatically \u2014 the text is selected below; press Ctrl+C (\u2318C on Mac).";
+                st.textContent = "Couldn't copy automatically \u2014 the text is selected below; press Ctrl+C.";
             };
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(t).then(done, function () {
-                    var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-                    ok ? done() : manual();
+                    var ok2 = false; try { ok2 = document.execCommand("copy"); } catch (e) { ok2 = false; }
+                    ok2 ? done() : manual();
                 });
             } else {
-                var ok = false; try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-                ok ? done() : manual();
+                var ok2 = false; try { ok2 = document.execCommand("copy"); } catch (e) { ok2 = false; }
+                ok2 ? done() : manual();
             }
         } catch (e) {
             st.className = ""; st.textContent = "Couldn't build the answers \u2014 please copy your selections manually.";
@@ -300,5 +365,4 @@ a { color: var(--accent); }
     refresh();
 })();
 </script>
-</body>
-</html>
+</body></html>
