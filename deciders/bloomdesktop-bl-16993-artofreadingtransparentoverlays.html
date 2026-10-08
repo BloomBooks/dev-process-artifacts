@@ -69,13 +69,13 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
 <body>
 <div class="wrap">
 <header>
-    <h1>BL-16993: Art of Reading overlays default to transparent</h1>
-    <p class="summary">Preflight run on <code>BL-16993-ArtOfReadingTransparentOverlays</code> (base <code>Version6.5</code>) at <a href="https://github.com/BloomBooks/BloomDesktop/commit/19798e8955fabe9d1a631a95e71f2121cf31e4da" target="_blank" rel="noopener"><span class="numeral">19798e8955</span></a>. Every gate is green and every reviewer has finished or timed out. Nothing is waiting on you.</p>
+    <h1>BL-16993: Art of Reading overlays on background pictures default to transparent</h1>
+    <p class="summary">Second preflight run on <code>BL-16993-ArtOfReadingTransparentOverlays</code> (base <code>Version6.5</code>) at <a href="https://github.com/BloomBooks/BloomDesktop/commit/544d1b8f6a834980e27d0348c8d2ac43f796e770" target="_blank" rel="noopener"><span class="numeral">544d1b8f6a</span></a>. Every gate is green and every reviewer has finished or been recorded as absent. Nothing is waiting on you.</p>
     <div class="chips">
         <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8450" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
         <span class="chip good">Mergeable (clean)</span>
         <span class="chip good">Devin: no findings</span>
-        <span class="chip warn">Greptile: did not review</span>
+        <span class="chip warn">Greptile: has not reviewed</span>
         <span class="chip good"><span class="numeral">0</span> items waiting on you</span>
     </div>
     <div class="chips links">
@@ -92,15 +92,15 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
     <section class="card lead">
         <h2>What this PR is about</h2>
         <h3>Problem</h3>
-        <p>An Art of Reading picture (or any black-and-white line art) placed as an image overlay on a canvas is not made transparent when the page is white. Its white rectangle covers the background picture beneath it. The same image in an ordinary picture box on a coloured page is transparent, so the "Auto" transparency setting looks broken for overlays.</p>
+        <p>An Art of Reading picture (or any black-and-white line art) placed as an image overlay on top of a canvas's background picture is not made transparent when the page is white. Its white rectangle covers the picture beneath it. The same image in an ordinary picture box on a coloured page is transparent, so the "Auto" transparency setting looks broken for overlays.</p>
         <h3>Cause</h3>
-        <p>Since 6.5 (BL-16336), "Auto" transparency is requested only when the page has a non-white background colour. Nothing treats an image layered over other canvas content as needing transparency, so on a white page an overlay is served as the original opaque file. The image itself is fine: Art of Reading files pass the line-art detection.</p>
+        <p>Since 6.5 (BL-16336), "Auto" transparency is requested only when the page has a non-white background colour. Nothing treats an image layered over a background picture as needing transparency, so on a white page an overlay is served as the original opaque file. The image itself is fine: Art of Reading files pass the line-art detection.</p>
         <h3>What the PR does</h3>
         <ul>
-            <li><strong>Overlays get Auto transparency on any page.</strong> Under Auto, an image in a canvas overlay (any canvas element other than the background image) is now treated as needing transparency. This applies in the edit view, thumbnails, PDF, BloomPUB and ePUB. The line-art check still decides, so photos stay opaque, and the explicit Opaque / Transparent choices still win. See <a href="https://github.com/BloomBooks/BloomDesktop/blob/19798e8955fabe9d1a631a95e71f2121cf31e4da/src/BloomBrowserUI/bookEdit/js/bloomImages.ts#L528" target="_blank" rel="noopener">bloomImages.ts:528</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/19798e8955fabe9d1a631a95e71f2121cf31e4da/src/BloomExe/Book/HtmlDom.cs#L2085" target="_blank" rel="noopener">HtmlDom.cs:2085</a>.</li>
-            <li><strong>Role changes keep it right.</strong> "Become Background" and duplicating the background image both recompute each image's transparency for its new role (<a href="https://github.com/BloomBooks/BloomDesktop/blob/19798e8955fabe9d1a631a95e71f2121cf31e4da/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlRegistry.ts#L778" target="_blank" rel="noopener">canvasControlRegistry.ts:778</a>).</li>
-            <li><strong>PDF without background colours.</strong> These PDFs now honour overlay transparency too. That setting already removes page-colour transparency earlier in the pipeline, so the server's extra check only blocked overlays (<a href="https://github.com/BloomBooks/BloomDesktop/blob/19798e8955fabe9d1a631a95e71f2121cf31e4da/src/BloomExe/web/BloomServer.cs#L1023" target="_blank" rel="noopener">BloomServer.cs:1023</a>).</li>
-            <li><strong>Analytics.</strong> The "Image Transparency Set" event records whether the image is an overlay.</li>
+            <li><strong>Overlays on a background picture get Auto transparency on white pages.</strong> Under Auto, an image in a canvas overlay is treated as needing transparency when its canvas has a real background picture. With only the placeholder, or no background, the overlay stays opaque as before. Older canvases that hold the background picture directly count too; the cover's branding logo and QR code do not. This applies in the edit view, thumbnails, PDF, BloomPUB and ePUB. The line-art check still decides, the Opaque / Transparent choices still win, and coloured pages are unchanged. See <a href="https://github.com/BloomBooks/BloomDesktop/blob/544d1b8f6a834980e27d0348c8d2ac43f796e770/src/BloomBrowserUI/bookEdit/js/bloomImages.ts#L547" target="_blank" rel="noopener">bloomImages.ts:547</a> and <a href="https://github.com/BloomBooks/BloomDesktop/blob/544d1b8f6a834980e27d0348c8d2ac43f796e770/src/BloomExe/Book/HtmlDom.cs#L2086" target="_blank" rel="noopener">HtmlDom.cs:2086</a>.</li>
+            <li><strong>Changes to the background keep it right.</strong> Choosing, pasting, undoing or deleting the background picture recomputes every overlay on that canvas straight away (<a href="https://github.com/BloomBooks/BloomDesktop/blob/544d1b8f6a834980e27d0348c8d2ac43f796e770/src/BloomBrowserUI/bookEdit/js/bloomImages.ts#L674" target="_blank" rel="noopener">bloomImages.ts:674</a>), as do "Become Background" (<a href="https://github.com/BloomBooks/BloomDesktop/blob/544d1b8f6a834980e27d0348c8d2ac43f796e770/src/BloomBrowserUI/bookEdit/toolbox/canvas/canvasControlRegistry.ts#L780" target="_blank" rel="noopener">canvasControlRegistry.ts:780</a>) and Duplicate.</li>
+            <li><strong>PDF without background colours.</strong> These PDFs now honour overlay transparency too. That setting already removes page-colour transparency earlier in the pipeline, so the server's extra check only blocked overlays (<a href="https://github.com/BloomBooks/BloomDesktop/blob/544d1b8f6a834980e27d0348c8d2ac43f796e770/src/BloomExe/web/BloomServer.cs#L1024" target="_blank" rel="noopener">BloomServer.cs:1024</a>).</li>
+            <li><strong>Analytics.</strong> The "Image Transparency Set" event records whether the image is an overlay on a background picture.</li>
         </ul>
     </section>
 
@@ -112,12 +112,12 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
             <tbody>
                 <tr><td>TypeScript typecheck</td><td class="ok">Pass</td><td><code>pnpm typecheck</code></td></tr>
                 <tr><td>Lint (eslint) and Prettier</td><td class="ok">Pass</td><td><span class="numeral">0</span> errors. The warnings are in older code, not lines this PR changed.</td></tr>
-                <tr><td>TypeScript tests (Vitest)</td><td class="ok">Pass</td><td><span class="numeral">865 passed · 5 skipped</span></td></tr>
-                <tr><td>C# tests (dotnet test)</td><td class="ok">Pass</td><td><span class="numeral">3594 passed · 13 skipped · 0 failed</span></td></tr>
+                <tr><td>TypeScript tests (Vitest)</td><td class="ok">Pass</td><td><span class="numeral">875 passed · 5 skipped</span></td></tr>
+                <tr><td>C# tests (dotnet test)</td><td class="ok">Pass</td><td><span class="numeral">3607 passed · 13 skipped · 0 failed</span></td></tr>
                 <tr><td>Repo checks</td><td class="empty">None declared</td><td>The root <code>AGENTS.md</code> has no Preflight checks section.</td></tr>
                 <tr><td>Merge with <code>Version6.5</code></td><td class="ok">Clean</td><td>Already up to date; GitHub reports mergeable.</td></tr>
                 <tr><td>CI (<code>pr-automation</code>)</td><td class="ok">Pass</td><td></td></tr>
-                <tr><td>Manual check</td><td class="ok">Pass</td><td>Done by the developer with the card's sample book before this run.</td></tr>
+                <tr><td>Manual check</td><td class="to">Partly</td><td>The developer checked the earlier “any overlay” version with the card's sample book. The narrower rule in this run has not been checked by hand yet.</td></tr>
             </tbody>
         </table>
         </div>
@@ -125,7 +125,7 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
 
     <section class="card">
         <h2>What changed this run</h2>
-        <p>First run. Committed the fix and its tests as <a href="https://github.com/BloomBooks/BloomDesktop/commit/19798e8955fabe9d1a631a95e71f2121cf31e4da" target="_blank" rel="noopener"><span class="numeral">19798e8955</span></a>, with one small addition from the local review: branding and QR-code images are skipped when transparency is recomputed. Then opened the draft PR, linked it on the card, and posted the QA test ideas.</p>
+        <p>Narrowed the rule at the developer's request: overlays get Auto on white pages only when their canvas has a real background picture, recomputed whenever that picture changes. That was folded into the existing commit (<a href="https://github.com/BloomBooks/BloomDesktop/commit/49d755d836" target="_blank" rel="noopener"><span class="numeral">49d755d836</span></a>, force-pushed). The local review then led to <a href="https://github.com/BloomBooks/BloomDesktop/commit/544d1b8f6a834980e27d0348c8d2ac43f796e770" target="_blank" rel="noopener"><span class="numeral">544d1b8f6a</span></a>, which keeps the cover's branding logo and QR code out of the rule. Refreshed the PR description, title and the card's test ideas. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8450/commits" target="_blank" rel="noopener">Commits</a>.</p>
     </section>
 
     <section class="card">
@@ -134,9 +134,9 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
         <table>
             <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
             <tbody>
-                <tr><td>Local review (light sub-agent pass)</td><td class="ok">Complete</td><td>Clean: no correctness problems. It noted one minor inconsistency (branding and QR images weren't skipped when transparency is recomputed), which was fixed.</td></tr>
-                <tr><td>Devin</td><td class="ok">Complete</td><td>No bugs, investigate flags or informational items at <span class="numeral">19798e8955</span>. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8450#issuecomment-6046850384" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
-                <tr><td>Greptile</td><td class="to">Timed out after <span class="numeral">50</span> min</td><td>It posted nothing in the 30 minutes after the push, or in the 20 minutes after an explicit <code>@greptile-apps review</code> request (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8450#issuecomment-6047308268" target="_blank" rel="noopener">comment</a>). It may be skipping draft PRs. Re-running preflight will pick up a late review.</td></tr>
+                <tr><td>Local review (light sub-agent pass)</td><td class="ok">Complete</td><td>No correctness bugs. It raised one edge case: on a custom cover with a real picture, ePUB export would have made the branding logo and QR code transparent. That was fixed in <span class="numeral">544d1b8f6a</span>.</td></tr>
+                <tr><td>Devin</td><td class="ok">Complete</td><td>No bugs, investigate flags or informational items at <span class="numeral">544d1b8f6a</span>. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8450#issuecomment-6065252431" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+                <tr><td>Greptile</td><td class="to">Has not reviewed</td><td>It has never reviewed this PR. On the previous run it ignored both the push and an explicit <a href="https://github.com/BloomBooks/BloomDesktop/pull/8450#issuecomment-6047308268" target="_blank" rel="noopener"><code>@greptile-apps review</code> request</a> for 50 min. It may be skipping draft PRs, so it was not asked again.</td></tr>
                 <tr><td>CodeRabbit</td><td class="empty">Not active</td><td>Auto-review is turned off in <code>.coderabbit.yml</code>.</td></tr>
                 <tr><td>CI</td><td class="ok">Complete</td><td><code>pr-automation</code> passed.</td></tr>
             </tbody>
@@ -147,8 +147,8 @@ th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: 
     <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-            <li>Existing books with line-art overlays on white pages will now show them as transparent. That's the requested fix, but it is a visible change for existing books.</li>
-            <li>No end-to-end test checks image transparency. The new behaviour is covered by unit tests and by the developer's manual check.</li>
+            <li>Existing books with line-art overlays on top of background pictures on white pages will now show them as transparent. That's the requested fix, but it is a visible change for existing books.</li>
+            <li>No end-to-end test checks image transparency. The narrower rule, and recomputing overlays when the background picture is deleted, replaced or undone, are covered by unit tests only; they have not yet been tried by hand.</li>
         </ul>
     </section>
 </div>
