@@ -74,12 +74,13 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 <div class="wrap">
   <header class="card">
     <h1>BL-17000: login fails with “Oops, something went wrong…”</h1>
-    <p class="summary">Preflight of the minimal login fix: two changes in <code>connectParseServer</code>, both covered by new unit tests. Three questions are left for you: the new-account <code>username</code> (all three reviewers flagged it), a per-login copy of the headers (Devin), and a tracker declaration for this repo. Nothing is pushed beyond the draft PR.</p>
+    <p class="summary">Second preflight run. Your three answers are in: the username fallback and a per-login copy of the headers are now in PR #625, and the tracker declaration is in its own draft PR #626. Devin’s re-review marks both of its bugs resolved, and no decisions are waiting on you.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip warn" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable, master merged in</span>
-      <span class="chip warn">Devin: 2 bugs, threads open</span>
-      <span class="chip warn">3 decisions waiting</span>
+      <span class="chip good">Devin: re-review clean</span>
+      <span class="chip good">Greptile: re-review clean</span>
+      <span class="chip good">0 decisions waiting</span>
     </div>
     <div class="chips">
       <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/625" target="_blank" rel="noopener">PR #625</a>
@@ -88,6 +89,7 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
       <a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17000" target="_blank" rel="noopener">BL-17000</a>
       <a class="chip link" href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/625" target="_blank" rel="noopener">Devin review</a>
       <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/625#issuecomment-6069252679" target="_blank" rel="noopener">Greptile summary</a>
+      <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/626" target="_blank" rel="noopener">AGENTS.md PR #626</a>
     </div>
   </header>
 
@@ -103,14 +105,14 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
         </ul>
         <h3>Cause</h3>
         <ul>
-          <li><b>New accounts:</b> when the login request creates the user, parse-server’s reply contains only the id, creation time and session token. It leaves out the email we sent, and our check requires both a session token and an email.</li>
+          <li><b>New accounts:</b> when the login request creates the user, parse-server’s reply contains only the id, creation time and session token. It leaves out the email and username we sent, and our check requires an email.</li>
           <li><b>Second login:</b> after the first login, the session token stays in the shared request headers. The second login sends it, so parse-server treats the request as the current user re-linking their login and issues no new session token.</li>
         </ul>
         <h3>What the PR does</h3>
         <ul>
-          <li>Clears any old session token before the two login requests, so every login gets a fresh session (<a href="https://github.com/BloomBooks/BloomLibrary2/blob/1deefd6e529b53a1906103e16dd391997b96d73f/src/connection/ParseServerConnection.ts#L93" target="_blank" rel="noopener">ParseServerConnection.ts:93</a>).</li>
-          <li>When the reply has no email, uses the verified Firebase email, which is also the account’s username. That email goes into the check, the logged-in user, and the login message to Bloom, which fails without one (BL-14503) (<a href="https://github.com/BloomBooks/BloomLibrary2/blob/1deefd6e529b53a1906103e16dd391997b96d73f/src/connection/ParseServerConnection.ts#L137" target="_blank" rel="noopener">:137</a>).</li>
-          <li>Adds unit tests for both cases against a fake parse-server. Both fail on master.</li>
+          <li>Each login sends its own copy of the headers without any old session token, so every login gets a fresh session. Because the copy is per login, two logins that overlap can’t pick up each other’s new token. The shared token is still set only when a login succeeds (<a href="https://github.com/BloomBooks/BloomLibrary2/blob/53a3f279d0ad91b9125772682a5a89ddadc4ffdb/src/connection/ParseServerConnection.ts#L95-L96" target="_blank" rel="noopener">ParseServerConnection.ts:95</a>).</li>
+          <li>When the reply has no email or username, uses the verified Firebase email, which is what we sent for both. It goes into the check, the logged-in user, and the login message to Bloom, which fails without an email (BL-14503). With the username in place, a new user is recognised as the uploader of their own books without reloading (<a href="https://github.com/BloomBooks/BloomLibrary2/blob/53a3f279d0ad91b9125772682a5a89ddadc4ffdb/src/connection/ParseServerConnection.ts#L138-L142" target="_blank" rel="noopener">:138</a>).</li>
+          <li>Adds unit tests against a fake parse-server for a second login, a new account, and two overlapping logins. Each fails on the code before its fix.</li>
         </ul>
       </section>
 
@@ -118,27 +120,27 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
         <h2>Quality gate</h2>
         <div class="tablewrap"><table>
           <tr><th>Check</th><th>Result</th></tr>
-          <tr><td>Lint (eslint, whole <code>src</code>)</td><td><span class="ok">Pass</span></td></tr>
-          <tr><td>Typecheck (<code>tsc --noEmit</code>)</td><td><span class="note">22 errors, all pre-existing</span>, in files this PR does not touch (Routes, Contentful, charts…); none in the changed files. The repo has no typecheck script and the Vite build doesn’t typecheck.</td></tr>
-          <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="numeral">177 passed · 9 failed</span>. All 9 failures are in <code>LibraryQueryHooks.test.ts</code>, which queries the live unittest parse server (its full-text search returns <span class="numeral">47</span> books where the test expects <span class="numeral">2</span>). This PR doesn’t touch that code. The new tests: <span class="numeral">2 passed</span>, and both fail on master.</td></tr>
+          <tr><td>Lint (eslint)</td><td><span class="ok">Pass</span>, including the pre-commit hook’s <code>--max-warnings 0</code></td></tr>
+          <tr><td>Typecheck (<code>tsc --noEmit</code>)</td><td><span class="note">22 errors, all pre-existing</span>, in files this PR does not touch; none in the changed files. The repo has no typecheck script and the Vite build doesn’t typecheck.</td></tr>
+          <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="numeral">178 passed · 9 failed</span>. All 9 failures are in <code>LibraryQueryHooks.test.ts</code>, which queries the live unittest parse server (full-text search returns <span class="numeral">47</span> books where the test expects <span class="numeral">2</span>). This PR doesn’t touch that code. The PR’s own tests: <span class="numeral">3 passed</span>.</td></tr>
           <tr><td>C# tests</td><td>N/A — none in this repo</td></tr>
           <tr><td>Merge with master</td><td><span class="ok">Clean</span> (already up to date)</td></tr>
-          <tr><td>Real login in a browser</td><td><span class="note">Not done</span>; it needs real credentials and a new account</td></tr>
+          <tr><td>Real login in a browser</td><td><span class="note">Not done</span>; it needs real credentials and a new account. The test ideas on the card cover it.</td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>First run: committed the two-part fix and its tests in one commit, opened draft <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625" target="_blank" rel="noopener">PR #625</a>, linked it on the card and posted test ideas there. (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/1deefd6e529b53a1906103e16dd391997b96d73f" target="_blank" rel="noopener">1deefd6e</a>)</p>
+        <p>Carried out your three answers. One commit (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/53a3f279d0ad91b9125772682a5a89ddadc4ffdb" target="_blank" rel="noopener">53a3f279</a>) adds the username fallback and the per-login headers copy with their tests, and all four review threads got replies and were resolved. The <code>AGENTS.md</code> tracker declaration went into its own <a href="https://github.com/BloomBooks/BloomLibrary2/pull/626" target="_blank" rel="noopener">draft PR #626</a>. The test ideas on the card now include a new user’s owner controls.</p>
       </section>
 
       <section class="card">
         <h2>Reviewer outcomes</h2>
         <div class="tablewrap"><table>
           <tr><th>Reviewer</th><th>Outcome</th></tr>
-          <tr><td>Local review (light sub-agent pass)</td><td>One finding: a new account’s logged-in user has no <code>username</code>. Escalated as decision 1.</td></tr>
-          <tr><td>Greptile</td><td>Complete. Two findings: <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224240878" target="_blank" rel="noopener">P1 missing username</a> (thread left open, decision 1), and <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224240899" target="_blank" rel="noopener">P2 shared headers</a> (replied and resolved; Devin then found a stronger reason for the same change, see decision 2).</td></tr>
-          <tr><td>Devin</td><td>Complete for <span class="numeral">1deefd6e</span>. Two bugs, no flags, both left open for you: <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224270802" target="_blank" rel="noopener">overlapping logins can sign users out</a> (decision 2) and <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224271082" target="_blank" rel="noopener">new users lose uploader controls</a> (decision 1). <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#issuecomment-6069309767" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>Clean on this run’s changes. It confirmed the overlap test really fails on the old code.</td></tr>
+          <tr><td>Devin</td><td>Complete for <span class="numeral">53a3f279</span>. It marks both of its earlier bugs (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224270802" target="_blank" rel="noopener">overlapping logins</a>, <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224271082" target="_blank" rel="noopener">new users’ username</a>) as resolved and raised nothing new. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#issuecomment-6069525429" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+          <tr><td>Greptile</td><td>Complete for <span class="numeral">53a3f279</span> after a re-trigger: no new findings, and it says both of its earlier points (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224240878" target="_blank" rel="noopener">username</a>, <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#discussion_r4224240899" target="_blank" rel="noopener">shared headers</a>) are addressed. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/625#issuecomment-6069252679" target="_blank" rel="noopener">Summary</a>.</td></tr>
           <tr><td>CI</td><td>No CI runs on PRs in this repo (build-and-deploy runs only on pushes to master/release/embed).</td></tr>
         </table></div>
       </section>
@@ -146,133 +148,20 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>Neither fix has been tried against a real parse-server login. The <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17000" target="_blank" rel="noopener">test ideas on the card</a> cover both cases on the dev site.</li>
-          <li>Follow-up, deliberately left out of this PR: <code>UserMenuCodeSplit.tsx</code> calls <code>React.lazy</code> inside the component, so the header’s user menu remounts on every navigation and briefly shows a logged-in user the logged-out icon. That is probably how users get prompted to log in a second time. Moving it to module scope fixed it in a test (4 mounts became 1). Every other <code>*CodeSplit</code> component has the same pattern.</li>
+          <li>None of the fixes has been tried against a real parse-server login. The <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17000" target="_blank" rel="noopener">test ideas on the card</a> cover a new account, a second login, and a new user’s owner controls on the dev site.</li>
+          <li>Follow-up, deliberately left out of this PR: <code>UserMenuCodeSplit.tsx</code> calls <code>React.lazy</code> inside the component, so the header’s user menu remounts on every navigation and briefly shows a logged-in user the logged-out icon. That is probably how users get prompted to log in a second time. Every other <code>*CodeSplit</code> component has the same pattern.</li>
         </ul>
       </section>
     </main>
 
     <aside>
-      <section class="card q">
-        <h2>1. Also fill in the username for brand-new accounts?</h2>
-        <p>The same reply that leaves out the email also leaves out the <code>username</code>. So after a brand-new account’s first login, the logged-in user’s username is empty until the page is reloaded. The site uses the username to recognise a book’s uploader. A new user who uploads a book from Bloom and then opens it on the site in the same tab won’t see their owner controls (e.g. the draft setting). Also, on a book with no uploader recorded, the new user would be treated as the uploader in the extra panels. Greptile, Devin and the local review all flagged this. It is outside the “only these two things” scope you set, so it is not in the PR.</p>
-        <div class="opts">
-          <label class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked data-instruction="In C:\dev\_worktrees\BloomLibrary2\BL-17000-relogin (branch BL-17000-relogin, PR BloomBooks/BloomLibrary2#625), in connectParseServer in src/connection/ParseServerConnection.ts, add `username: usersResult.data.username || emailAddress` to the userData object next to the email fallback, assert LoggedInUser.current?.username in the new-account test in ParseServerConnection.test.ts, reply on Greptile's P1 thread (discussion_r4224240878) and Devin's thread (discussion_r4224271082) that it is fixed and resolve both, then re-run /preflight."><span>Add the username fallback, one line next to the email one, plus a test assertion. <span class="rec">Recommended</span> It is the same reply and the same mechanism as the email fix, so it belongs with it. <span class="fn">(~2 lines, localized, low risk)</span></span></label>
-          <label class="opt"><input type="radio" name="q1" id="q1b" data-q="q1" data-instruction="Create a separate YouTrack follow-up card for: after a brand-new Bloom Library account's first login, LoggedInUser.current.username is undefined because parse-server's 201 reply omits it (fix: fall back to emailAddress in connectParseServer). Reply on Greptile's P1 thread on BloomBooks/BloomLibrary2#625 (discussion_r4224240878) linking that card, and resolve it."><span>Ship PR #625 as is and make a separate card for the username. <span class="fn">(no code now; one more small PR later)</span></span></label>
-          <div class="leaverow">
-            <label class="opt"><input type="radio" name="q1" id="q1c" data-q="q1" data-instruction="Leave as is — take no action on: a brand-new account's first login leaves the logged-in user's username empty until reload (Greptile P1 on BloomBooks/BloomLibrary2#625). Reply on that thread recording the decision and resolve it."><span>Leave as is</span></label>
-            <label class="lc"><input type="checkbox" id="q1lc" data-q="q1-comment" data-instruction="Record this decision as a code comment next to the userData fallback in connectParseServer in src/connection/ParseServerConnection.ts."> Leave comment</label>
-          </div>
-          <div class="other"><label class="opt"><input type="radio" name="q1" id="q1o" data-q="q1" data-other="q1-other-text"><span>Other:</span></label><input type="text" id="q1-other-text" data-q="q1-other-text" aria-label="Other answer for question 1"></div>
-        </div>
-        <label class="notes">Notes<textarea id="q1-notes" data-q="q1-notes"></textarea></label>
-      </section>
-
-      <section class="card q">
-        <h2>2. Give each login its own copy of the headers?</h2>
-        <p>The PR clears the old session token from the <b>shared</b> request headers when a login starts. If two logins ever run at once, the first one to finish puts its new token back into those shared headers. The second one then sends that token and gets no session, so the user is signed out. That already happens on master, and this PR neither causes nor fixes it. Devin rates it severe. It is unclear whether two logins really overlap in practice, but a comment in <code>editor.ts</code> says duplicate login notifications to Bloom have been seen. The fix Devin and Greptile both suggest: make a token-free copy of the headers for the two login requests, and leave the shared headers alone until the login succeeds. It is about the same size as the current fix, but differs from the “clear it from <code>connection.headers</code>” approach your brief specified.</p>
-        <div class="opts">
-          <label class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" checked data-instruction="In C:\dev\_worktrees\BloomLibrary2\BL-17000-relogin (branch BL-17000-relogin, PR BloomBooks/BloomLibrary2#625), in connectParseServer in src/connection/ParseServerConnection.ts, replace the delete of X-Parse-Session-Token from connection.headers with a per-call token-free copy (loginHeaders = a copy of connection.headers without X-Parse-Session-Token) used for both the bloomLink and users POSTs; keep setting the shared X-Parse-Session-Token only on success. Add a test that interleaves two connectParseServer calls at the bloomLink/users boundary. Reply on Devin's thread (discussion_r4224270802) and on Greptile's resolved P2 thread (discussion_r4224240899) that it is fixed, resolve them, then re-run /preflight."><span>Switch to a per-login copy of the headers and add an overlap test. <span class="rec">Recommended</span> Same size and risk as now, and it also covers overlapping logins, which the current change does not. <span class="fn">(~4 lines plus a test, localized, low risk)</span></span></label>
-          <label class="opt"><input type="radio" name="q2" id="q2b" data-q="q2" data-instruction="Create a separate YouTrack follow-up card: overlapping connectParseServer calls in BloomLibrary2 share connection.headers, so one login's new session token can be sent by another and make it fail (fix: per-call token-free headers copy). Reply on Devin's thread on BloomBooks/BloomLibrary2#625 (discussion_r4224270802) linking that card, and resolve it."><span>Ship as is and make a separate card for the overlap case. <span class="fn">(no code now)</span></span></label>
-          <div class="leaverow">
-            <label class="opt"><input type="radio" name="q2" id="q2c" data-q="q2" data-instruction="Leave as is — take no action on: overlapping connectParseServer calls can make one of them fail because they share connection.headers (Devin bug on BloomBooks/BloomLibrary2#625, discussion_r4224270802). Reply on that thread recording the decision and resolve it."><span>Leave as is</span></label>
-            <label class="lc"><input type="checkbox" id="q2lc" data-q="q2-comment" data-instruction="Record this decision as a code comment next to the X-Parse-Session-Token delete at the start of connectParseServer in src/connection/ParseServerConnection.ts."> Leave comment</label>
-          </div>
-          <div class="other"><label class="opt"><input type="radio" name="q2" id="q2o" data-q="q2" data-other="q2-other-text"><span>Other:</span></label><input type="text" id="q2-other-text" data-q="q2-other-text" aria-label="Other answer for question 2"></div>
-        </div>
-        <label class="notes">Notes<textarea id="q2-notes" data-q="q2-notes"></textarea></label>
-      </section>
-
-      <section class="card q">
-        <h2>3. Declare the tracker in this repo?</h2>
-        <p>BloomLibrary2 has no <code>AGENTS.md</code> or <code>CLAUDE.md</code> at its root, so nothing tells agents that its tickets are YouTrack <code>BL-#####</code> ids handled by the <code>youtrack-api</code> skill. This run used the card named in your brief. Without a declaration, the next preflight in this repo will stop and ask.</p>
-        <div class="opts">
-          <label class="opt"><input type="radio" name="q3" id="q3a" data-q="q3" checked data-instruction="In the BloomLibrary2 repo, on its own small branch off master (not in PR #625), add a root AGENTS.md whose tracker declaration says: tickets live in the Bloom YouTrack (https://issues.bloomlibrary.org/youtrack), ids look like BL-12345 and prefix branch names, and the youtrack-api skill talks to it. Open a draft PR for it."><span>Add a short root <code>AGENTS.md</code> with the declaration, as its own small PR. <span class="rec">Recommended</span> It keeps PR #625 minimal and makes future preflights in this repo hands-off. <span class="fn">(new 5-line doc, no code)</span></span></label>
-          <div class="leaverow">
-            <label class="opt"><input type="radio" name="q3" id="q3c" data-q="q3" data-instruction="Leave as is — take no action on: BloomLibrary2 has no root AGENTS.md/CLAUDE.md declaring its YouTrack tracker."><span>Leave as is</span></label>
-          </div>
-          <div class="other"><label class="opt"><input type="radio" name="q3" id="q3o" data-q="q3" data-other="q3-other-text"><span>Other:</span></label><input type="text" id="q3-other-text" data-q="q3-other-text" aria-label="Other answer for question 3"></div>
-        </div>
-        <label class="notes">Notes<textarea id="q3-notes" data-q="q3-notes"></textarea></label>
-      </section>
-
-      <section class="card q">
-        <h2>Next step</h2>
-        <div class="opts">
-          <label class="opt"><input type="radio" name="q4" id="q4a" data-q="q4" checked data-instruction="Implement the chosen options above now on branch BL-17000-relogin (BloomBooks/BloomLibrary2#625), then re-run /preflight. Do not run pr-ready-for-human, mark the PR ready, or change the BL-17000 card's state."><span>Do the chosen options now, then re-run preflight. <span class="rec">Recommended</span></span></label>
-          <label class="opt"><input type="radio" name="q4" id="q4b" data-q="q4" data-instruction="Discuss the answers above with me before changing anything on BloomBooks/BloomLibrary2#625."><span>Discuss first.</span></label>
-          <label class="opt"><input type="radio" name="q4" id="q4c" data-q="q4" data-instruction="Leave as is — take no further action on BloomBooks/BloomLibrary2#625 for now."><span>Leave as is</span></label>
-          <div class="other"><label class="opt"><input type="radio" name="q4" id="q4o" data-q="q4" data-other="q4-other-text"><span>Other:</span></label><input type="text" id="q4-other-text" data-q="q4-other-text" aria-label="Other answer for next step"></div>
-        </div>
-        <label class="notes">Notes<textarea id="q4-notes" data-q="q4-notes"></textarea></label>
-      </section>
-
       <section class="card">
-        <h2>Send your answers back</h2>
-        <p>Copy this and paste it into a Claude session.</p>
-        <button type="button" id="copybtn">Copy answers</button>
-        <span id="copystatus" role="status"></span>
-        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+        <h2>Nothing waiting on you</h2>
+        <p>All three decisions from the first run are done, and every review thread on #625 has a reply and is resolved. The PR stays a draft until you’ve looked it over yourself; promoting it is <code>pr-ready-for-human</code>’s job.</p>
+        <p><a href="https://github.com/BloomBooks/BloomLibrary2/pull/626" target="_blank" rel="noopener">PR #626</a> (the <code>AGENTS.md</code> tracker declaration) is a separate draft, and a five-line doc.</p>
       </section>
     </aside>
   </div>
 </div>
-<script>
-(function () {
-  var URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomlibrary2-bl-17000-relogin.html";
-  var questions = [
-    { id: "q1", title: "1. Also fill in the username for brand-new accounts?" },
-    { id: "q2", title: "2. Give each login its own copy of the headers?" },
-    { id: "q3", title: "3. Declare the tracker in this repo?" },
-    { id: "q4", title: "Next step" }
-  ];
-  function build() {
-    var out = [
-      "Decisions from a decider form (preflight report)",
-      "Project: BloomBooks/BloomLibrary2, branch BL-17000-relogin, PR https://github.com/BloomBooks/BloomLibrary2/pull/625, card BL-17000",
-      "Date: 2026-10-08",
-      "Full report: " + URL_,
-      ""
-    ];
-    questions.forEach(function (q) {
-      out.push(q.title);
-      var sel = document.querySelector('input[name="' + q.id + '"]:checked');
-      if (sel) {
-        if (sel.dataset.other) {
-          var t = document.getElementById(sel.dataset.other).value.trim();
-          out.push("Other: " + (t || "(no text given)"));
-        } else {
-          out.push(sel.dataset.instruction);
-        }
-      }
-      var lc = document.querySelector('[data-q="' + q.id + '-comment"]');
-      if (lc && lc.checked) out.push(lc.dataset.instruction);
-      var n = document.getElementById(q.id + "-notes").value.trim();
-      if (n) out.push("Notes: " + n);
-      out.push("");
-    });
-    document.getElementById("payload").value = out.join("\n");
-  }
-  document.addEventListener("input", build);
-  document.addEventListener("change", build);
-  build();
-  document.getElementById("copybtn").addEventListener("click", async function () {
-    var st = document.getElementById("copystatus");
-    st.className = ""; st.textContent = "";
-    try {
-      build();
-      var ta = document.getElementById("payload");
-      ta.focus(); ta.select();
-      var ok = false;
-      try { await navigator.clipboard.writeText(ta.value); ok = true; }
-      catch (e) { ta.select(); try { ok = document.execCommand("copy"); } catch (e2) { ok = false; } }
-      if (ok) { st.className = "done"; st.textContent = "Copied ✓"; }
-      else { st.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
-    } catch (e) {
-      st.textContent = "Couldn't copy automatically. Select the text below and press Ctrl+C (⌘C on Mac).";
-    }
-  });
-})();
-</script>
 </body>
 </html>
