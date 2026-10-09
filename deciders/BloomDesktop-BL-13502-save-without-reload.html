@@ -96,15 +96,15 @@ button:hover{background:var(--accent-hover)}
 <div class="wrap">
 
 <header class="masthead">
-  <div class="eyebrow">Preflight report &middot; BL-13502 &middot; thirteenth run &middot; 6&ndash;8 October 2026</div>
+  <div class="eyebrow">Preflight report &middot; BL-13502 &middot; fourteenth run &middot; 9 October 2026</div>
   <h1>Saving a page without reloading it</h1>
-  <p class="lede">This run fixed one more way an untouched page looked edited (attribute order), and added end-to-end tests for what this PR changed: typing survives every way of leaving a page, quitting included; looking at pages does not rewrite the book; Change Layout keeps both layout and typing; the saved book has no editor leftovers; and Duplicate Page Many Times works. Writing them found three real problems, all fixed: the test fixture could not quit Bloom like a person, the cover forced a full save on every visit, and leaving a page within a second could beat a timer. Two older xmatter churns remain, held in a <code>fixme</code> test. Two questions for you.</p>
+  <p class="lede">This run fixed the last two ways that merely looking at a page rewrote the book, as you chose: the outside back cover forced a full save on every visit, because the editor wrote its &ldquo;missing image&rdquo; text onto optional branding images and the data div left a stray space in a class; and those full saves kept resetting the credits page&rsquo;s ISBN box. Visiting every page of a book, front and back matter included, now writes nothing, and the test that checks it runs instead of being <code>fixme</code>. One question for you: what next.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip">Mergeable with master (22 commits behind)</span>
-    <span class="chip good">Both suites green</span>
+    <span class="chip good">Suites green apart from one known flaky test</span>
     <span class="chip good">bloom-player merged &amp; bumped</span>
-    <span class="chip warn">2 questions for you</span>
+    <span class="chip warn">1 question for you</span>
   </div>
   <div class="chips">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">PR #8209</a>
@@ -130,7 +130,7 @@ button:hover{background:var(--accent-hover)}
       <li>The browser <strong>volunteers</strong> the page rather than being asked for it: it watches the page and posts the current content to C#, which stores it under the id of that page load. A save then takes that content synchronously.</li>
       <li>With nothing to wait for, the asynchronous machinery goes: the ask-the-browser API and its browser half, two state-machine states and everything that served them, and the shutdown kludge that cancelled the user's quit and re-issued it once the save came back. Leaving the Edit tab and closing the collection are now straight-line code.</li>
       <li><strong>C# decides whether a save would change anything</strong>, comparing the page it is given, after its own processing, against the page it already has. Opening a page and touching nothing now writes nothing, and neither does leaving the Edit tab or quitting with nothing changed. A command that changes the book itself &mdash; a new layout, a copyright, a levelled-reader level &mdash; says so, so that skipping the write can never skip its change. Every save, whether it goes on to another page or stays put, makes that decision in one place and clears the same flags afterwards.</li>
-      <li>Several things that made an untouched page look edited are fixed: editor chrome (CKEditor's toolbars, qTip's bubbles and attributes, <code>bloom-ui</code> controls) is stripped in the browser, and only there, so it no longer travels in the gathered content; the SVG Comical draws no longer carries freshly generated ids; and a text-measuring scratch element can no longer be written into the book.</li>
+      <li>Several things that made an untouched page look edited are fixed, so that visiting every page of a book, front and back matter included, writes nothing: editor chrome (CKEditor's toolbars, qTip's bubbles and attributes, <code>bloom-ui</code> controls) is stripped in the browser, and only there, so it no longer travels in the gathered content; the SVG Comical draws no longer carries freshly generated ids; a text-measuring scratch element can no longer be written into the book; attributes that come back in a different order no longer count as a change; the cover&rsquo;s editing-only <code>?transparent=yes</code> image parameter no longer makes book-wide data look changed; and optional branding images that are not there no longer get the &ldquo;missing image&rdquo; text saved into book-wide data.</li>
       <li>The browser sends each page once as soon as it has loaded, because loading can itself change the page (after a page-size change, images and canvas elements are laid out afresh, and that belongs in the book), and again after every change that settles; C#&rsquo;s comparison makes an untouched page write nothing. No request carries the page: every save, including the page list&rsquo;s clicks and commands, uses the snapshot, and the few commands that restructure the page and then reload it send the snapshot at once and wait for C# to take it. When the page is mid-way through asynchronous work that belongs in it (an image being sized, a paste settling), the browser says so, and a save waits, briefly, for the snapshot of the finished page. Snapshots and busy notices go one at a time, in order; a failed post is reported to the user, and nothing is retried.</li>
       <li>Nothing the editor does for its own display changes the saved page: the Talking Book highlight, including leaving long runs of spaces unpainted, is drawn with the CSS Highlight API rather than temporary markup. And the page list's right-click commands run in the order the user made them: the two that ask a question open their dialogs in the browser, so every command can run inside its request, and a click waits its turn.</li>
       <li>A game page can be played in the editor while all this goes on. Gathering a copy of such a page used to reach into bloom-player's record of the live page &mdash; undoing the tester's drags, and saving the draggables where they had dragged them rather than where the author put them. That is fixed in bloom-player itself (<a href="https://github.com/BloomBooks/bloom-player/pull/441" target="_blank" rel="noopener">bloom-player#441</a>, in <code>2.20.3-alpha.1</code>, which this PR requires), so a save now leaves the game alone and writes the authored positions.</li>
@@ -140,15 +140,14 @@ button:hover{background:var(--accent-hover)}
 
   <section class="card">
     <h2>What this run did: your review points</h2>
-    <p style="color:var(--ink-soft)">Each came from a decision of yours; each is its own commit, with tests.</p>
+    <p style="color:var(--ink-soft)">One decision of yours, one commit (<code>4c85e76</code>), with tests.</p>
     <div class="tablewrap">
       <table>
         <thead><tr><th>You decided</th><th>What changed</th></tr></thead>
         <tbody>
-          <tr><td>Fix the attribute-order churn by making the comparison ignore attribute order.</td><td>Done (<code>a1f949d</code>): whether a page changed is now decided on its XML with every element&rsquo;s attributes sorted. The order moved on text boxes inside the page, not on the page div, so the unit test reorders one; it fails on the old code.</td></tr>
-          <tr><td>Write e2e tests for the five areas in the plan, tied to Notion cards.</td><td>Four specs (<code>3a41bd9</code>, <code>176fcb5</code>), tool markup being part of the clean-book spec: <code>typing-survives-leaving-the-page</code> (#841, and #659 for quitting), <code>saved-book-stays-clean</code> (#842, #663), <code>change-layout-keeps-typing</code> (#843), <code>duplicate-page-many-times</code> (#844). 15 tests pass, twice in a row; one is <code>fixme</code> (question below). Supporting them: a test-only hook to wait until Bloom has the typing, a fixture method that quits Bloom the way a person does, and a wait for the page to settle.</td></tr>
-          <tr><td>Fixed waits are fine for a specific, known interval.</td><td>Used once: the overflow checker adjusts each text box exactly 1000 ms after a page loads, on a timer the delay register does not track, so <code>waitForPageToSettle</code> waits that long and then until the page has nothing left to send. Everywhere else the tests wait on state.</td></tr>
-          <tr><td>Notion: mark the cards the tests cover, add new cards.</td><td>Created #841&ndash;#844 (6.6 run); #659 and #663 automated; notes on #366 (partly covered) and #810 (its Many Times step moved to #844). All six automated cards are now <code>PR Pending</code>.</td></tr>
+          <tr><td>Fix the stray class space (fix 2).</td><td><code>BookData</code> now drops empty entries when it splits a class attribute, in all three places it merges classes from the data div onto a page. An empty class attribute used to become an empty class name, so the back cover&rsquo;s branding block was saved as <code>class="bloom-force-publish "</code> and came back from the browser without the space. The new C# test fails on the old code with exactly that value.</td></tr>
+          <tr><td>Branding images are optional, so don&rsquo;t give a missing one the missing-image text.</td><td>The editor leaves a branding image&rsquo;s <code>alt</code> as the branding gave it. It recognises one the way C#&rsquo;s <code>EpubMaker.IsBranding</code> does: class <code>branding</code>, or inside a <code>data-book</code> block whose name contains &ldquo;branding&rdquo;. Unit-tested.</td></tr>
+          <tr><td>(The credits page&rsquo;s ISBN box.)</td><td>Needed nothing: it was being reset by the full saves the back cover forced, and stopped with them.</td></tr>
         </tbody>
       </table>
     </div>
@@ -162,12 +161,12 @@ button:hover{background:var(--accent-hover)}
         <tbody>
           <tr><td>Typecheck (TypeScript)</td><td class="state ok">pass</td><td>no blunder-class errors</td></tr>
           <tr><td>Lint (eslint)</td><td class="state ok">pass</td><td><span class="numeral">0</span> errors, <span class="numeral">778</span> pre-existing warnings</td></tr>
-          <tr><td>Front-end tests (vitest)</td><td class="state ok">pass</td><td><span class="numeral">1111</span> unit tests in <span class="numeral">90</span> files on the final head.</td></tr>
-          <tr><td>C# tests (dotnet)</td><td class="state ok">pass</td><td><span class="numeral">3746</span> passed, <span class="numeral">1</span> skipped, on the final head.</td></tr>
-          <tr><td>CI</td><td class="state ok">pass</td><td><code>pr-automation</code> passed on every push, including the final head, <code>176fcb5</code>.</td></tr>
+          <tr><td>Front-end tests (vitest)</td><td class="state ok">pass</td><td><span class="numeral">1162</span> unit tests in <span class="numeral">92</span> files on the final head.</td></tr>
+          <tr><td>C# tests (dotnet)</td><td class="state">1 known flake</td><td><span class="numeral">3746</span> passed, <span class="numeral">1</span> skipped, <span class="numeral">1</span> failed on the final head. The failure is <code>Xml_DoesNotProvide_ThreadSafety</code>, the known flaky master test whose fix is in your stash (see &ldquo;Worth knowing&rdquo;). The new <code>BookData</code> test passes.</td></tr>
+          <tr><td>CI</td><td class="state">not run</td><td>GitHub started no <code>pr-automation</code> run for <code>4c85e76</code>. That workflow only starts Devin, which was started by hand instead. It passed on every earlier push.</td></tr>
           <tr><td>Merged with master</td><td class="state">behind</td><td>Merged on the 6th; master has 22 commits since, and the PR still merges without conflicts. Not merged again: waiting for you.</td></tr>
           <tr><td>Tried in a running Bloom</td><td class="state ok">done</td><td>On the merged build: the page&rsquo;s messages go out strictly one at a time, the busy notice before the finished page; typing survives a click to another page and back, and reaches the book file on leaving the Edit tab; the immediate snapshot before a reload goes out before the reload request. Earlier the same day: the page list&rsquo;s dialogs, the workspace lock, Change Layout, dropped clicks and drags. The markers typed for these were removed again.</td></tr>
-          <tr><td>E2E tests</td><td class="state ok">pass</td><td>The four new specs: 15 passed, 1 <code>fixme</code>, in two consecutive runs. The seven older specs that touch this code (copying, duplicating, toolbox tools, Talking Book paste, workspace tabs, rotating pictures, page capture): 28 passed, 3 skipped (marked unfinished on master).</td></tr>
+          <tr><td>E2E tests</td><td class="state ok">pass</td><td>The four new specs: all <span class="numeral">16</span> passed, none skipped, and the clean-book spec twice more. The seven older specs that touch this code (copying, duplicating, toolbox tools, Talking Book paste, workspace tabs, rotating pictures, page capture): <span class="numeral">28</span> passed.</td></tr>
           <tr><td>bloom-player dependency</td><td class="state ok">bumped</td><td><code>2.20.3-alpha.1</code>, the first published build containing <a href="https://github.com/BloomBooks/bloom-player/pull/441" target="_blank" rel="noopener">#441</a>. The lockfile is edited in the three places that change, not regenerated &mdash; <code>pnpm update</code> reflowed it for 30,000 lines.</td></tr>
         </tbody>
       </table>
@@ -177,10 +176,9 @@ button:hover{background:var(--accent-hover)}
   <section class="card">
     <h2>What changed this run</h2>
     <ul>
-      <li><strong>Your decisions in the table above.</strong></li>
-      <li><strong>Quitting from a test could not reach Bloom.</strong> Neither <code>taskkill</code> nor .NET&rsquo;s <code>CloseMainWindow</code> reaches an automation Bloom&rsquo;s main window (in <code>--dont-disturb</code> mode it has a hidden owner), so Bloom sat idle; a stack dump showed its UI thread waiting for messages. The fixture now posts WM_CLOSE to the process&rsquo;s visible windows, and on a timeout names the windows Bloom is showing.</li>
-      <li><strong>The cover forced a full save on every visit.</strong> The decision whether book-wide data changed compared the page before the editing-only <code>?transparent=yes</code> image parameter was removed, so the cover image always looked changed. Fixed by removing it first, as the page merge already did (<code>176fcb5</code>).</li>
-      <li><strong>Two older churns on xmatter pages remain</strong>, and older than this PR, which only made them visible: the credits page&rsquo;s empty ISBN box comes back from the editor as <code>&lt;p&gt;&lt;/p&gt;</code> while the data div keeps restoring it, and the outside back cover&rsquo;s branding block is re-injected with a different class spelling and missing-image alt text. Each visit to those pages rewrites the book. Recorded in <code>AUTOMATION-DEBT.md</code>; the all-pages test is <code>fixme</code>.</li>
+      <li><strong>Your decisions in the table above.</strong> The all-pages test in <code>saved-book-stays-clean.spec.ts</code> is no longer <code>fixme</code>, and its <code>AUTOMATION-DEBT.md</code> entry is gone.</li>
+      <li><strong>The PR description is brought up to date</strong>: its e2e and Notion sections now list the four new specs and cards #841&ndash;#844, and the saved-book note no longer describes churn that is fixed.</li>
+      <li><strong>Notion #842</strong> now says the test covers every page.</li>
       <li><a href="https://github.com/BloomBooks/BloomDesktop/pull/8209/commits" target="_blank" rel="noopener">All commits</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209/files" target="_blank" rel="noopener">Files changed</a> &middot; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">The PR</a></li>
     </ul>
   </section>
@@ -194,8 +192,8 @@ button:hover{background:var(--accent-hover)}
     </div>
 
     <div class="reviewer">
-      <div class="who" id="devin-who">Devin &mdash; complete, one thread open for you</div>
-      <div class="said" id="devin-said">Its rounds on the attribute-order fix and the e2e work raised one flag: the <code>fixme</code> test, which the repository&rsquo;s rules say needs your permission. That thread is open, waiting on the first question. No bugs on the final head, <code>176fcb5</code>. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">Devin review page</a>.</div>
+      <div class="who" id="devin-who">Devin &mdash; complete</div>
+      <div class="said" id="devin-said">Its review of the final head, <code>4c85e76</code>, raised nothing new and has no unresolved bugs. Its one flag on these files is the old <code>fixme</code> flag, carried over from the earlier commit; that thread is answered and resolved, because the test now runs. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">Devin review page</a>.</div>
     </div>
 
     <div class="reviewer">
@@ -204,8 +202,8 @@ button:hover{background:var(--accent-hover)}
     </div>
 
     <div class="reviewer">
-      <div class="who">CI &mdash; pass</div>
-      <div class="said"><code>pr-automation</code> passed on the merge and on every push after it, including the final head, <code>35b2f17</code>.</div>
+      <div class="who">CI &mdash; no run for the final head</div>
+      <div class="said">GitHub started no <code>pr-automation</code> run for <code>4c85e76</code>. That workflow only starts Devin, so Devin was started by hand instead. It passed on every earlier push.</div>
     </div>
   </section>
 
@@ -218,7 +216,6 @@ button:hover{background:var(--accent-hover)}
       <li><strong>At least forty-five real defects from Devin across the whole branch</strong> &mdash; four of them this run, all in new code written the same day. Not one was caught by the test suites; the one that driving the app did catch is the leak above, which is not ours.</li>
       <li><strong>Devin's list does shift between runs, slightly.</strong> An earlier report of mine said it was identical every time; that was wrong. Across four consecutive reviews each returned much the same 22&ndash;23 bugs and 29 flags, but with about one new finding and a few re-worded titles each round &mdash; and the re-wordings are why some findings had never been mirrored: they no longer matched the titles already on the PR. Everything currently in the list has now been checked against the actual code.</li>
       <li><strong>A flaky C# test, not ours, with a fix ready.</strong> <code>Xml_DoesNotProvide_ThreadSafety</code> (master's test that a plain <code>XmlDocument</code> breaks under concurrent use) failed in two of five full runs and one of twenty on its own: its threads sleep between operations, so a collision is luck. A version whose threads run without pauses until one throws (capped at ten seconds) passed thirty runs on its own, the collision coming within 4&ndash;29 ms, and two full suites. It is saved as a git stash on John's machine, not committed: it belongs on its own card.</li>
-      <li><strong>Looking at pages still changes the book file a little</strong>, by reordering, not changing, things in xmatter and the data div: attributes on xmatter text boxes and data-div entries swap order on each visit. The old code does the same, so it is not this PR&rsquo;s, but it has no card yet. (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16811" target="_blank" rel="noopener">BL-16811</a>, the title-padding problem, is fixed and merged into this branch.)</li>
     </ul>
   </section>
 
@@ -229,25 +226,15 @@ button:hover{background:var(--accent-hover)}
   <section class="item">
     <h3>Settled by your answers</h3>
     <ul style="color:var(--ink-soft);margin-bottom:0">
+      <li><strong>The xmatter churn is fixed in this PR</strong>, not left as a <code>fixme</code> with a card.</li>
       <li><strong>The wait for in-flight page work stays as it is</strong>: a plain sleep with a two-second cap, its limit written into <code>PageSnapshot.WaitUntilIdle</code> and the design doc, and the log naming the work whenever it runs out.</li>
       <li><strong>The <code>touch-action: none</code> leak in bloom-player is left alone.</strong> It predates this PR, and the tester's notes on the card already say not to report it.</li>
     </ul>
   </section>
 
 <section class="item">
-    <h3>The xmatter churn test</h3>
-    <p class="why">Visiting the credits page or the outside back cover still rewrites the book, for reasons older than this PR (see &ldquo;What changed this run&rdquo;). The test that visits every page is <code>fixme</code>; content pages and the cover are tested and pass. The repository&rsquo;s rules say skipping a known-failing test needs your permission.</p>
-    <div class="opts">
-      <label class="opt"><input type="radio" name="q1" data-q="xmatter churn" checked><span class="body"><span class="label">Keep the fixme, file a card for the two churns <span class="tag">recommended</span></span><span class="foot">The churns are xmatter and branding behaviour outside this PR; the card&rsquo;s fix removes the fixme.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" data-q="xmatter churn"><span class="body"><span class="label">Fix both churns in this PR</span><span class="foot">Settle the ISBN box and the branding block to one form when a page is prepared for editing.</span></span></label>
-      <label class="opt"><input type="radio" name="q1" data-q="xmatter churn" data-other="1"><span class="body"><span class="label">Other:</span><input type="text" data-otherfor="xmatter churn" placeholder="your answer"></span></label>
-    </div>
-    <div class="notes"><label>Notes</label><textarea rows="2" data-q="xmatter churn" data-notes="1"></textarea></div>
-  </section>
-
-  <section class="item">
     <h3>What next?</h3>
-    <p class="why">All review threads but the one above are resolved, CI and the suites pass, and the new e2e tests pass. Master has moved on by 22 commits (no conflicts). The PR is a draft again, and promoting it is yours to call.</p>
+    <p class="why">Every review thread is resolved, the suites pass, and all the new e2e tests run and pass. Master has moved on by 22 commits (no conflicts). The PR is a draft again, and promoting it is yours to call.</p>
     <div class="opts">
       <label class="opt"><input type="radio" name="q5" data-q="Next step" checked><span class="body"><span class="label">Your own review, then hand it to a colleague <span class="tag">recommended</span></span><span class="foot">It stays a draft until you have read it; <code>pr-ready-for-human</code> squashes and promotes it when you are ready.</span></span></label>
       <label class="opt"><input type="radio" name="q5" data-q="Next step"><span class="body"><span class="label">More hand testing first</span><span class="foot">Leaving the tab and quitting after a dialog-made change, per the tester's notes; and the tools nobody has driven by hand.</span></span></label>
