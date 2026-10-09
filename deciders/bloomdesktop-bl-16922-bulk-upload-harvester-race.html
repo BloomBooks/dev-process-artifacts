@@ -77,11 +77,12 @@
 <div class="wrap">
 <header>
   <h1>Bulk-upload test: check what Bloom uploaded (#8405, BL-16922)</h1>
-  <p class="summary">Preflight: the flaky test's cause is found (a server-side harvester race, filed as BL-16921), and the fix passes repeatedly. Upload locations now come from a results file rather than the log. Nothing waiting on you.</p>
+  <p class="summary">Preflight, refreshed after the master merge and the launch-timeout changes. The flaky test's cause is a server-side harvester race (BL-16921); the test now checks what Bloom uploaded, and passes. Hatton's review comment on the launch timeouts is answered and waiting on him.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip state" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
     <span class="chip good">Mergeable</span>
     <span class="chip good">Bots quiet</span>
+    <span class="chip warn">Changes requested (Hatton)</span>
     <span class="chip good">No decisions waiting</span>
   </div>
   <div class="chips">
@@ -106,7 +107,12 @@
       <li>Bulk upload now writes <code>BloomBulkUploadResults.json</code> beside its log. It holds the tallies and, for each book, its folder, outcome (new / updated / skipped / failed) and where its files went. Each upload goes to a new folder, and the record can later point elsewhere.</li>
       <li>The test reads each book's uploaded <code>meta.json</code> (bookshelf) and HTML (front/back matter) at those locations, not from the server's records. It matches each location to its own book and requires no failures in any round.</li>
       <li>The shelf check is stricter: exactly the new shelf, since Bloom sends only the current one.</li>
-      <li>The e2e launch fixture gives each probe for the Bloom it started a 5&nbsp;s timeout. A probe that reached Bloom while its server was starting could hang until the 120&nbsp;s launch deadline, which failed two runs.</li>
+      <li>The e2e launch fixture, which stalled this same test twice, is more patient and can't hang:
+        <ul>
+          <li>each probe for the Bloom it started gets up to 30&nbsp;s (never past the launch deadline) and is then sent again, so one unanswered request can't hold up the whole wait;</li>
+          <li>the launch deadline is 5 minutes for both kinds of launch, since busy machines have taken over two minutes to start Bloom;</li>
+          <li>the fixture's own timeout covers that deadline plus connecting to Bloom and finding its page, so a launch that gives up reports what it saw instead of hitting Playwright's generic timeout.</li>
+        </ul></li>
     </ul>
   </section>
   <section class="card">
@@ -115,9 +121,10 @@
       <thead><tr><th>Check</th><th>Result</th></tr></thead>
       <tbody>
         <tr><td>Typecheck (BloomE2E)</td><td><span class="ok">Pass</span></td></tr>
-        <tr><td>C# build and upload tests</td><td><span class="ok">Pass</span> <span class="numeral">22 / 22</span></td></tr>
-        <tr><td><code>bulk-upload-quick-test.spec.ts</code></td><td><span class="ok">Pass</span>: seven runs across the fix's versions, the last two on the current code. Two runs in between failed in the launch fixture, now fixed. Before the fix: two failures in three.</td></tr>
-        <tr><td>Other e2e specs</td><td class="na">Not run: the fixture's change is a timeout on its discovery probe, which every spec already passes through</td></tr>
+        <tr><td>C# build and upload tests</td><td><span class="ok">Pass</span> <span class="numeral">22 / 22</span>, on the code merged with master</td></tr>
+        <tr><td><code>bulk-upload-quick-test.spec.ts</code></td><td><span class="ok">Pass</span>: all four upload rounds, on the code merged with master; nine passing runs across the fix's versions. Before the fix: two failures in three.</td></tr>
+        <tr><td>Launch-fixture specs (<code>user-settings-isolation</code>, <code>ui-language-chooser</code>)</td><td><span class="note">Mixed</span>: all passed on 6&nbsp;Oct; this run, <span class="numeral">3 of 4</span> passed in one go and one failed in each of two goes. Both failures came after Bloom had been found, while its window stayed blank for 90&nbsp;s. That wait isn't code this PR changes, and the machine was heavily loaded at the time (CPU about 76%). The clipboard was checked and was fine.</td></tr>
+        <tr><td>Other e2e specs</td><td class="na">Not run: they share only the launch fixture, which the specs above exercise</td></tr>
         <tr><td>Front-end, visual regression</td><td class="na">Not run: nothing in the diff reaches them</td></tr>
         <tr><td>Merge with master</td><td><span class="ok">Up to date</span></td></tr>
       </tbody>
@@ -125,17 +132,18 @@
   </section>
   <section class="card">
     <h2>What changed this run</h2>
-    <p>At your request, the upload locations now come from a machine-readable results file instead of a log line; the log line is gone. Verifying that turned up a launch-fixture hang, now fixed with a probe timeout. The PR replaces #8404, which renaming the branch closed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a></p>
+    <p>Merged master twice. Loosened the launch timeouts after Hatton's review, then fixed two gaps in them: one Devin found (the fixture's budget didn't cover connecting to Bloom) and one the local review found (a probe could run past the deadline). Refreshed the test ideas on the card, which now mention the new results file. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405/commits" target="_blank" rel="noopener">Commits</a></p>
   </section>
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <div class="table-wrap"><table>
       <thead><tr><th>Reviewer</th><th>State</th></tr></thead>
       <tbody>
-        <tr><td>Local review</td><td>Light sub-agent pass (Opus): clean.</td></tr>
-        <tr><td>Devin</td><td>Complete for <span class="numeral">a85b7dc333</span>. No bugs. It repeated its earlier <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097664839" target="_blank" rel="noopener">book identity</a> flag, which the current check already covers; answered on the thread.</td></tr>
+        <tr><td>Local review</td><td>Light sub-agent pass (Opus): one finding, fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/93b98f324e" target="_blank" rel="noopener"><span class="numeral">93b98f324e</span></a> (a launch probe could run past the deadline and beat the launch's own failure message). The results-file code checked out clean.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">93b98f324e</span>. One bug across the branch, the fixture's time budget not covering the connection to Bloom, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#issuecomment-6070493910" target="_blank" rel="noopener">fixed</a> in <span class="numeral">bdca45b07f</span>; Devin marks it resolved. Its two investigate flags are repeats that are <a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#issuecomment-6085964888" target="_blank" rel="noopener">already answered</a>.</td></tr>
+        <tr><td>Hatton (human)</td><td>Changes requested on the first version of the launch timeout: <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8405" target="_blank" rel="noopener">his Reviewable thread</a> said 5&nbsp;s might be too short and asked whether the fixture change belongs in this PR. Answered and changed (30&nbsp;s probes, 5-minute deadline); the thread is his to resolve.</td></tr>
         <tr><td>Greptile</td><td>Reviewed only the first commit. Its P1 finding (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8405#discussion_r4097630603" target="_blank" rel="noopener">stale record folder</a>) is fixed. A re-review needs someone signed in to Greptile.</td></tr>
-        <tr><td>CI</td><td><code>pr-automation</code> passed.</td></tr>
+        <tr><td>CI</td><td><code>pr-automation</code> passed on <span class="numeral">93b98f324e</span>.</td></tr>
       </tbody>
     </table></div>
   </section>
@@ -148,7 +156,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The one Bloom change is a new file, <code>BloomBulkUploadResults.json</code>, left in the collection folder after a bulk upload, next to the log that is already written there. It names the public S3 folder each book went to.</li>
+      <li>The one Bloom change is a new file, <code>BloomBulkUploadResults.json</code>, left in the collection folder after a bulk upload, next to the log that is already written there. The <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16922" target="_blank" rel="noopener">test ideas</a> on the card ask a tester to check it behaves like the log in a Team Collection; that hasn't been tried by hand.</li>
       <li>The server-side bug the old check tripped over is real, and could affect a person who re-uploads a book quickly. It is BL-16921, Ready For Work on 6.6.</li>
     </ul>
   </section>
