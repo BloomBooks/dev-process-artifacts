@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17009</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #faf8f4; color: #23211d; font: 15px/1.55 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; color: #1e1c18; }
+  h1 { font-size: 24px; margin: 0 0 6px; }
+  h2 { font-size: 18px; margin: 0 0 10px; }
+  h3 { font-size: 15px; margin: 14px 0 4px; font-family: inherit; }
+  a { color: #22577a; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 24px 16px 40px; }
+  .summary { margin: 0 0 12px; color: #4a4640; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .chip { display: inline-block; border: 1px solid #d9d3c8; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: 13px; text-decoration: none; color: #23211d; }
+  .chip.good { border-color: #9cc9a6; background: #eef7f0; }
+  .chip.link { color: #22577a; }
+  .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; margin-top: 16px; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd2; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  .card p { margin: 6px 0; }
+  .card ul { margin: 6px 0; padding-left: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid #ece7de; }
+  th { font-weight: 600; color: #4a4640; border-top: none; }
+  .numeral { font-variant-numeric: tabular-nums; }
+  .pass { color: #2b7a3d; font-weight: 600; }
+  .na { color: #6b665e; }
+  img.diagram { max-width: 100%; height: auto; border: 1px solid #e3ddd2; border-radius: 6px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Preflight: stop white lines along the edges of full-page pictures</h1>
+  <p class="summary">All gates green, both reviewers terminal and quiet at HEAD, nothing waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+    <span class="chip">Board: Personal Review</span>
+  </div>
+  <div class="chips">
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8459" target="_blank" rel="noopener">PR #8459</a>
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8459/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8459/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17009" target="_blank" rel="noopener">BL-17009</a>
+    <a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8459" target="_blank" rel="noopener">Devin review</a>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>When a picture is meant to fill its area, a thin white line often shows along one or more of its edges. It happens most after dragging the origami splitter until the picture looks like it fills its pane, and with Fit Space or Expand to Fill Space. It is most noticeable where the picture runs to the edge of the page.</p>
+        <h3>Cause</h3>
+        <p>Bloom fits a background picture inside its picture area without cropping. Origami split positions are percentages, so the area is almost never exactly the picture's shape, and a sliver of 0.02 to 0.3px is left over. Fit Space had the same problem because it sized to whole pixels. Chrome also snaps an image to whole pixels <em>before</em> applying the Edit tab's zoom, so the drawn picture can stop up to another half pixel short. Either way, the white page shows through.</p>
+        <img class="diagram" src="https://github.com/user-attachments/assets/a780aa08-15ab-470a-9ab9-7b70d156759a" alt="Magnified top edge of a picture: before, a strip of white page shows between the picture and the edge; after, the picture overhangs by 1px and is clipped.">
+        <h3>What the PR does</h3>
+        <ul>
+          <li>A background picture now overhangs each edge of its picture area that it reaches, or comes within 2px of reaching, by 1px. The area already clips it, so the overhang is never seen. This holds in both fit modes. The picture keeps its proportions, and a cropped picture keeps its crop.</li>
+          <li>Pages fitted before this change re-fit once when they are opened.</li>
+          <li>Fit Space counts as already done when the picture covers the whole area, is centred, and is enlarged no more than the overhang explains.</li>
+          <li>When the origami splitter resizes a pane, overlays on the picture keep their place. The repositioning code works out the size the picture was fitted to from its size and centred position.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Typecheck</td><td class="pass">Passed</td></tr>
+          <tr><td>Lint (eslint, changed files)</td><td class="pass">Passed</td></tr>
+          <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pass">Passed</span> <span class="numeral">1194 tests · 96 files</span></td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="na">Not run: no C# in the diff, and the C# tests neither build nor read the front-end code.</td></tr>
+          <tr><td>Merge with master</td><td class="pass">Up to date, mergeable</td></tr>
+          <tr><td>Repo check: e2e specs at the nightly's window size</td><td class="na">Did not apply: the diff adds or changes no e2e specs.</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>What changed this run</h2>
+        <p>This was the first run. It moved the branch onto master, opened the draft PR, and fixed four bugs that review found in how Fit Space and the origami resize treat the overhang. Two were found by the light review and two by Devin. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8459/commits" target="_blank" rel="noopener">commit list</a>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Reviewer outcomes</h2>
+        <table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>2 findings, both fixed. Fit Space stayed enabled after use on wide canvases, and counted a near-miss as done; its "already done" check was rewritten.</td></tr>
+          <tr><td>Devin</td><td>Complete. Round 1 raised 2 bugs, both fixed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8459#discussion_r4233848479" target="_blank" rel="noopener">overlays pinned left after an origami resize</a>, and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8459#discussion_r4233848583" target="_blank" rel="noopener">Fit Space unable to re-centre an off-centre crop</a>. The re-review at HEAD marks both resolved, with no new findings and no flags.</td></tr>
+          <tr><td>CI (pr-automation)</td><td class="pass">Passed</td></tr>
+          <tr><td>CodeRabbit</td><td class="na">Not active: the repo's config turns automatic review off.</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Not fixed, by agreement: at some zoom levels a light pixel column can still show exactly at the <em>page</em> edge where a picture runs off the page. Chrome anti-aliases the white page background and the clipped picture separately at a page edge that falls mid-pixel. The tester notes say so.</li>
+          <li>The overlay fix (origami resize) and the off-centre crop case are covered by unit tests only. Nobody has dragged the splitter in Bloom on a page with bubbles, or re-centred a crop with Fit Space. Fit Space greying out after a fit was checked in the running Bloom.</li>
+          <li>The test book's own image files also had white edge rows. Those were trimmed by hand and are not part of this PR.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Decisions</h2>
+        <p>Nothing is waiting on you. You settled the two open questions during the run: leave the page-edge line for later, and apply the overhang in every theme.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
