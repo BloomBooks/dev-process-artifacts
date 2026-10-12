@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-16741 fixes</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2b2925; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 .5em; }
+  h1 { font-size: 1.55rem; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1rem; margin-top: 1em; }
+  a { color: #7a3e9d; }
+  header, main { max-width: 1320px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 24px; padding-bottom: 8px; }
+  .summary { margin: .25em 0 .75em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .chip { display: inline-block; border: 1px solid #d9d3c7; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: .85rem; text-decoration: none; color: inherit; }
+  a.chip { color: #7a3e9d; }
+  .chip.good { border-color: #9cc3a1; background: #f1f8f1; }
+  .chip.warn { border-color: #e0c27a; background: #fdf7e7; }
+  main { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; padding-bottom: 40px; }
+  main > section { min-width: 0; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd1; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8dc; }
+  th { font-weight: 600; font-size: .9rem; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: .9em; }
+  .pass { color: #2e7d32; font-weight: 600; }
+  .fail { color: #b23c17; font-weight: 600; }
+  .na { color: #6b665c; }
+  ul { padding-left: 1.2em; margin: .4em 0; }
+  .q { margin-bottom: 4px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .foot { color: #6b665c; font-size: .85rem; }
+  .tag { font-size: .75rem; background: #efe6f5; color: #6a3489; border-radius: 4px; padding: 0 6px; margin-left: 4px; }
+  .leave-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .other input[type=text] { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid #d9d3c7; border-radius: 6px; font: inherit; }
+  textarea { width: 100%; font: inherit; border: 1px solid #d9d3c7; border-radius: 6px; padding: 6px; }
+  textarea.notes { min-height: 52px; margin-top: 6px; }
+  #payload { min-height: 180px; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; margin-top: 8px; }
+  button { font: inherit; background: #7a3e9d; color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+  #copyStatus { margin-left: 10px; font-size: .9rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Preflight: Reset Image and Change Image straighten a rotated picture box</h1>
+  <p class="summary">BloomDesktop, branch <code>BL-16741-rotate-fixes</code> into master. Every reviewer has finished and every suite run here is green. One question is left for you: the e2e repo check could not be run on this machine.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">1 item waiting on you</span>
+    <span class="chip">Board: Personal Review</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8463" target="_blank" rel="noopener">PR #8463</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8463/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8463/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16741" target="_blank" rel="noopener">BL-16741</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8463" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+<main>
+<section>
+  <div class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Testing the rotate feature from <a href="https://github.com/BloomBooks/BloomDesktop/pull/8227" target="_blank" rel="noopener">PR #8227</a>, a tester found that on a picture placed over the page (an overlay), a Rotate right survived both <b>Reset Image</b> and <b>Change Image</b>. Reset Image removed the crop and the mirror but left the picture turned, and a replacement picture arrived already turned.</p>
+    <h3>Cause</h3>
+    <p>On an overlay, Rotate right turns the whole box, not the picture inside it. Reset Image, Change Image and paste-to-replace all deliberately left the box's angle alone. An author cannot see that distinction: to them the picture is turned.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Reset Image, Change Image, and pasting a picture over an existing one now set the box back to 0 degrees, as well as clearing the picture's own rotation, mirror and crop. This holds whether Rotate right or the rotation handle turned it.</li>
+      <li>Reset Image is offered when only the box is turned.</li>
+      <li>Undo of a picture change brings the old box angle back along with the old picture.</li>
+      <li>After Reset Image, Undo no longer turns the picture back: Reset Image forgets that picture's earlier Rotate right, Flip and handle steps, and keeps an earlier picture change undoable.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck</td><td class="pass">Pass</td></tr>
+      <tr><td>Lint</td><td><span class="pass">Pass</span>: no errors. The warnings in the touched files were all there before.</td></tr>
+      <tr><td>Merge with master</td><td><span class="pass">Up to date</span>, mergeable</td></tr>
+      <tr><td>TypeScript tests (vitest, full suite at HEAD)</td><td><span class="pass">Pass</span>, <span class="numeral" id="vitestCount">1201 passed in 95 files</span></td></tr>
+      <tr><td>C# tests (dotnet test)</td><td class="na">Not run: no C# in the diff</td></tr>
+      <tr><td>Repo check: e2e specs at the nightly window size</td><td><span class="fail">Not verified.</span> <code>rotate-and-flip-images.spec.ts</code> failed twice in its setup step ("The Edit tab never showed a page") before reaching any rotate test, and the unrelated control spec <code>copy-page.spec.ts</code> also failed in the Edit tab. See the question on the right.</td></tr>
+      <tr><td>CI (pr-automation)</td><td class="pass">Pass</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <p>Wrote failing unit tests for the tester's two real bugs and fixed them, then fixed the two follow-on undo problems Devin found. Updated the e2e spec's Reset Image test to the new behavior. On the card: refreshed the test-ideas comment and replied to each of the tester's four reports. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8463/commits" target="_blank" rel="noopener">Commits</a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+      <tr><td>Devin</td><td>Complete. Two bugs found, both fixed, with replies on the resolved threads: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8463#discussion_r4249088681" target="_blank" rel="noopener">Undo re-rotates a reset picture</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8463#discussion_r4249135732" target="_blank" rel="noopener">Reset discards picture replacement undo</a>. Its pass on the final commit only repeats the second one against the older commit, and the fix for it is in HEAD.</td></tr>
+      <tr><td>CI</td><td>Complete, pass.</td></tr>
+      <tr><td>Other review bots</td><td>None active on this PR.</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The PR targets master, not Version6.5 as AGENTS.md currently suggests, because the rotate feature it fixes exists only on master.</li>
+      <li>No one has tried these changes by hand in a running Bloom. The unit tests cover each case, but no e2e run got past setup.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="card">
+    <h2>The e2e check could not run here</h2>
+    <p>This repo asks preflight to run every changed e2e spec once at the nightly CI window size. This PR changes <code>src/BloomE2E/tests/rotate-and-flip-images.spec.ts</code>: its Reset Image test now expects the box to be straightened, and the Flip test after it turns the box itself instead of relying on the state the old Reset Image left.</p>
+    <p>Bloom was freshly built in this worktree and run against a Vite dev server on port 5173. Both runs of the rotate spec stopped in the first test, while it was making a book, because the Edit tab never showed a page. A control run of <code>copy-page.spec.ts</code>, which this PR does not touch, also failed in the Edit tab. So the failure looks like this machine's setup, not this change, but that is not proven.</p>
+    <div class="q" data-q-group="e2e">
+      <label class="opt"><input type="radio" name="e2e" checked data-q="e2e" data-instruction="In D:\BL-16741-rotate-image (branch BL-16741-rotate-fixes, PR https://github.com/BloomBooks/BloomDesktop/pull/8463), do not run the e2e spec locally; after the PR merges, check that the next nightly run of src/BloomE2E/tests/rotate-and-flip-images.spec.ts passes, and fix the spec if it does not."><span>Let the nightly run the spec after merge <span class="tag">Recommended</span><br><span class="foot">No work now. Recommended because the nightly runs this exact spec at this window size on a clean machine, and the spec change is two small edits that follow the new behavior.</span></span></label>
+      <label class="opt"><input type="radio" name="e2e" data-q="e2e" data-instruction="In D:\BL-16741-rotate-image (branch BL-16741-rotate-fixes), find out why e2e specs run with BLOOM_E2E_VITE_PORT=5173 stop in the Edit tab (rotate-and-flip-images.spec.ts: 'The Edit tab never showed a page'; copy-page.spec.ts: the page thumbnail never becomes selected), fix the cause, then run src/BloomE2E/tests/rotate-and-flip-images.spec.ts once at BLOOM_E2E_VIEWPORT=nightly and report the result on PR 8463."><span>Investigate the local e2e failure, then run the spec<br><span class="foot">Unknown effort: the cause is in this machine's e2e setup, not in the PR.</span></span></label>
+      <label class="opt"><input type="radio" name="e2e" data-q="e2e" data-instruction="In D:\BL-16741-rotate-image (branch BL-16741-rotate-fixes), run src/BloomE2E/tests/rotate-and-flip-images.spec.ts once against a production build instead of the Vite dev server: build with the full front-end build (the developer has OK'd it), then run with BLOOM_E2E_VIEWPORT=nightly and BLOOM_AUTOMATION_MONITOR=headless and without BLOOM_E2E_VITE_PORT, and report the result on PR 8463."><span>Retry once against a full production build<br><span class="foot">About 10 to 15 minutes of build time. It may hit the same failure if the cause is not the dev server.</span></span></label>
+      <div class="opt leave-row"><label class="opt" style="margin:0"><input type="radio" name="e2e" data-q="e2e" data-instruction="Leave as is — take no action on: the e2e repo check for rotate-and-flip-images.spec.ts could not run on this machine."><span>Leave as is</span></label></div>
+      <div class="opt other"><input type="radio" name="e2e" data-q="e2e" data-other="e2e-other" data-instruction="Other:"><span>Other:</span><input type="text" id="e2e-other" data-q="e2e-other"></div>
+      <textarea class="notes" data-q="e2e-notes" placeholder="Notes"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Next step</h2>
+    <div class="q">
+      <label class="opt"><input type="radio" name="next" checked data-q="next" data-instruction="PR https://github.com/BloomBooks/BloomDesktop/pull/8463 stays in draft for the developer's own review; when ready, the developer runs pr-ready-for-human to promote it."><span>I'll review the PR myself, then run pr-ready-for-human <span class="tag">Recommended</span><br><span class="foot">No work for the agent now. Recommended because the PR is otherwise clean.</span></span></label>
+      <div class="opt leave-row"><label class="opt" style="margin:0"><input type="radio" name="next" data-q="next" data-instruction="Leave as is — take no action on: the next step for PR 8463."><span>Leave as is</span></label></div>
+      <div class="opt other"><input type="radio" name="next" data-q="next" data-other="next-other" data-instruction="Other:"><span>Other:</span><input type="text" id="next-other" data-q="next-other"></div>
+      <textarea class="notes" data-q="next-notes" placeholder="Notes"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Send your answers back</h2>
+    <p>Paste this into a Claude Code session.</p>
+    <button type="button" id="copyBtn">Copy answers</button><span id="copyStatus"></span>
+    <textarea id="payload" readonly></textarea>
+  </div>
+</section>
+</main>
+<script>
+(function () {
+  var URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16741-rotate-fixes.html";
+  var questions = [
+    { name: "e2e", title: "The e2e check (rotate-and-flip-images.spec.ts at the nightly window size) could not run on this machine. What should happen?" },
+    { name: "next", title: "Next step for PR 8463" }
+  ];
+  function serialize() {
+    var lines = [
+      "Decisions from a decider form (preflight report)",
+      "Repo: BloomBooks/BloomDesktop, worktree D:\\BL-16741-rotate-image, branch BL-16741-rotate-fixes, PR https://github.com/BloomBooks/BloomDesktop/pull/8463 (card BL-16741)",
+      "Date: 2026-10-12",
+      "Full report: " + URL,
+      ""
+    ];
+    questions.forEach(function (q) {
+      lines.push("Q: " + q.title);
+      var chosen = document.querySelector('input[name="' + q.name + '"]:checked');
+      if (chosen) {
+        if (chosen.dataset.other) {
+          var v = document.getElementById(chosen.dataset.other).value.trim();
+          lines.push("Other: " + (v || "(blank)"));
+        } else {
+          lines.push(chosen.dataset.instruction);
+        }
+      }
+      var notes = document.querySelector('[data-q="' + q.name + '-notes"]').value.trim();
+      if (notes) lines.push("Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyBtn").addEventListener("click", async function () {
+    var status = document.getElementById("copyStatus");
+    status.style.color = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      try {
+        await navigator.clipboard.writeText(payload.value);
+        status.textContent = "Copied ✓";
+        status.style.color = "#2e7d32";
+        return;
+      } catch (e) { /* fall through */ }
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      if (ok) { status.textContent = "Copied ✓"; status.style.color = "#2e7d32"; }
+      else { status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
