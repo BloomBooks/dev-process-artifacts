@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nested Canvas Refit Preflight</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column when narrow. */
+:root {
+  --ground: #f7f6f2;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636b;
+  --rule: #dedbd2;
+  --accent: #2f6f8f;
+  --accent-soft: #e5eff4;
+  --good: #2e7d4f;
+  --good-soft: #e3f2e8;
+  --warn: #9a6a12;
+  --warn-soft: #f8eed8;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1400px; margin: 0 auto; padding: 24px 20px 48px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; line-height: 1.25; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 0 0 10px; }
+ul { margin: 0 0 10px; padding-left: 20px; }
+li { margin-bottom: 4px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--accent-soft); padding: 0 4px; border-radius: 3px; overflow-wrap: anywhere; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.summary { color: var(--muted); max-width: 75ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-block; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); font-size: 0.85rem; text-decoration: none; color: var(--ink); }
+.chip.good { background: var(--good-soft); border-color: transparent; color: var(--good); }
+.chip.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); }
+.chip.link { color: var(--accent); }
+.label { font-size: 0.78rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > div { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.ok { color: var(--good); font-weight: 600; }
+.skip { color: var(--muted); font-weight: 600; }
+.q { display: flex; flex-direction: column; gap: 10px; }
+.q h3 { margin-top: 0; font-size: 1.05rem; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type="radio"] { margin-top: 4px; flex: none; }
+.opt .fn { color: var(--muted); font-size: 0.88rem; }
+.rec { display: inline-block; font-size: 0.75rem; background: var(--accent-soft); color: var(--accent); padding: 0 6px; border-radius: 4px; margin-left: 4px; }
+.leave-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.leave-comment { font-size: 0.88rem; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+.other-input { flex: 1; min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+.notes { min-height: 52px; }
+#payload { min-height: 160px; font-family: var(--mono); font-size: 0.82rem; }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; }
+#status { color: var(--muted); font-size: 0.9rem; margin-left: 8px; }
+#status.done { color: var(--good); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Nested canvas background refit</h1>
+  <p class="summary">Preflight on branch <code>canvas-background-refit</code>, run on 2026-10-12. This run fixed the two remaining nested-canvas bugs, merged master, and took every reviewer to a final state. Two questions remain.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable with master</span>
+    <span class="chip">Devin quiet · Greptile did not re-review</span>
+    <span class="chip warn">2 questions for you</span>
+    <span class="chip"><span class="label">Board</span> Has Comments</span>
+  </div>
+  <div class="chips">
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8312" target="_blank" rel="noopener">PR #8312</a>
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8312/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8312/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8312" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip link" href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8312" target="_blank" rel="noopener">Reviewable</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>A table dragged onto a canvas page puts one <code>bloom-canvas</code> inside another: each picture cell holds a full <code>bloom-canvas</code> of its own. The table support on master (BL-16818) refits cell pictures after the table lays itself out. But parts of the canvas code still find "the" background image of a <code>bloom-canvas</code> by taking the first one anywhere inside it, and for the outer canvas that can be a cell's picture. A resize of the outer canvas could size the cell's picture to the outer canvas. Converting an outer canvas's old-style picture could write that picture into the cell, which then shows and saves the wrong image. Separately, a hidden <code>bloom-canvas</code> with a border reports a negative size, which got past master's zero-size guard.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Every place in the canvas code that looks up a bloom-canvas's own background image now uses one function, <code>getBackgroundCanvasElement</code>: the first background image whose nearest <code>bloom-canvas</code> is the one asked about. That covers page-load setup, the resize path, the legacy-picture conversion and <code>refitBackgroundImage</code>. It still works while the Image Description tool wraps the picture.</li>
+      <li>Fitting is skipped when the canvas's width or height is zero or less.</li>
+      <li><code>refitBackgroundImage</code> returns a promise that settles once the picture is fitted.</li>
+      <li>Unit tests cover the size guard, the scoped lookup, a resize with a nested canvas, and the legacy conversion with a nested canvas first. The nested tests fail without the fix.</li>
+    </ul>
+    <p>The PR targets <code>master</code> on purpose, because the table feature it tightens is on master only.</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td><span class="ok">Passed</span></td></tr>
+        <tr><td>Lint (changed files)</td><td><span class="ok">Passed</span></td></tr>
+        <tr><td>Merge with master</td><td><span class="ok">Merged</span>. Three comment conflicts, resolved by keeping this branch's code and master's comments that name the table case.</td></tr>
+        <tr><td>Front-end tests (vitest)</td><td><span class="ok">Passed</span> <span class="numeral">1205 tests · 97 files</span></td></tr>
+        <tr><td>Production bundle (<code>build/agent-vite.sh</code>)</td><td id="vite-row"><span class="ok">Built</span></td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="skip">Not run</span>: no C# in the diff.</td></tr>
+        <tr><td>E2E (Playwright)</td><td><span class="skip">Not run</span>: see the question on the right.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Moved the resize path to the scoped lookup, as Steve and Greptile asked. Merged master, which had since landed the table feature. Fixed a new bug Devin found in the legacy-picture conversion. Rewrote the PR description, which still said the two methods had no caller. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8312/commits" target="_blank" rel="noopener">commit list</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/4b23a2a64e" target="_blank" rel="noopener"><span class="numeral">4b23a2a</span></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/872ac06565" target="_blank" rel="noopener"><span class="numeral">872ac06</span></a> (merge), <a href="https://github.com/BloomBooks/BloomDesktop/commit/54799fbc69" target="_blank" rel="noopener"><span class="numeral">54799fb</span></a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review</td><td>Light sub-agent pass, clean: no findings.</td></tr>
+        <tr><td>Steve McConnel (Reviewable)</td><td>His one open discussion, confirming Greptile's resize-path finding, is fixed and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8312#discussion_r4195685398" target="_blank" rel="noopener">answered</a>. His earlier "changes requested" stands until he re-reviews.</td></tr>
+        <tr><td>Devin</td><td>Complete for <span class="numeral">54799fb</span>. Its new bug, the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8312#discussion_r4249100973" target="_blank" rel="noopener">legacy-conversion overwrite</a>, is fixed. Its new <a href="https://github.com/BloomBooks/BloomDesktop/pull/8312#discussion_r4249118751" target="_blank" rel="noopener">flag about the stale description</a> is answered. The re-review marks all three bugs on the PR fixed.</td></tr>
+        <tr><td>Greptile</td><td id="greptile-row">Has not reviewed the current code. Its last review was of <span class="numeral">c2b0c61</span>, and its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8312#discussion_r4195685398" target="_blank" rel="noopener">one finding</a> from that is fixed and resolved. A re-review was requested at 14:17 UTC and timed out after 30 min with no response. Re-running preflight picks up a late review.</td></tr>
+        <tr><td>CI</td><td><code>pr-automation</code> passed. No other checks run on this PR.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Nobody has run this in a live Bloom. The table e2e spec that covers a picture cell on a canvas page was not run either.</li>
+      <li>The branch name has no <code>BL-</code> id, so no card got a PR link or QA test ideas.</li>
+      <li><code>src/content/package.json</code> shows as modified in the worktree (line endings only). It is not part of this PR and was not committed.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="card q" data-question="q1" data-title="Scope the remaining background-image lookups in bloomImages.ts">
+    <h3>Scope the remaining background-image lookups in bloomImages.ts?</h3>
+    <p>This PR fixed the canvas code, but <code>getBackgroundCanvasElementFromBloomCanvas</code> and <code>getBackgroundImageFromBloomCanvas</code> in <code>bloomImages.ts</code> still take the first background image anywhere inside a <code>bloom-canvas</code>. They are used for the hover buttons and the Change Image button on a picture, the picture tooltip, pasting over the picture on a standard-layout page, and the Motion tool.</p>
+    <p>For an outer canvas that has its own background element, they return the right picture, because that element comes before any table. They go wrong only when the outer canvas has no background element of its own, such as an old-style picture not yet converted: then they return a table cell's picture instead of nothing, so for example Change Image on the outer canvas would act on the cell's picture.</p>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="scope" checked
+      data-instruction="In D:\refit-a-background-image-when-its-bloom-canvas-i-3 (branch canvas-background-refit, PR https://github.com/BloomBooks/BloomDesktop/pull/8312), move the scoped rule of getBackgroundCanvasElement into getBackgroundCanvasElementFromBloomCanvas in src/BloomBrowserUI/bookEdit/js/bloomImages.ts (first .bloom-backgroundImage whose closest .bloom-canvas is the one passed in), make CanvasElementBackgroundImageManager use that one function, add a unit test with a nested canvas, then re-run preflight.">
+      <span>Make the shared helper in <code>bloomImages.ts</code> use the same scoped rule, in this PR, so there is one lookup for the whole edit view <span class="rec">Recommended</span>. Recommended because it is the same bug and the same fix, and an unnested canvas gets the same picture as before. <span class="fn">(~20 lines plus a test; touches hover, Change Image, tooltip, paste and Motion paths; low risk)</span></span></label>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="card"
+      data-instruction="Create a YouTrack card (via the youtrack-create-issue skill) describing that getBackgroundCanvasElementFromBloomCanvas and getBackgroundImageFromBloomCanvas in src/BloomBrowserUI/bookEdit/js/bloomImages.ts still take the first background image anywhere inside a bloom-canvas, so with a table on a canvas page they can return a table cell's picture for the outer canvas; leave PR https://github.com/BloomBooks/BloomDesktop/pull/8312 as it is.">
+      <span>File a card for it and keep this PR as it is. <span class="fn">(no code now)</span></span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q1" data-q="q1" value="leave"
+        data-instruction="Leave as is — take no action on: getBackgroundCanvasElementFromBloomCanvas and getBackgroundImageFromBloomCanvas in bloomImages.ts still use an any-descendant search for the background image.">
+        <span>Leave as is</span></label>
+      <label class="leave-comment"><input type="checkbox" data-q="q1-comment"
+        data-instruction="Record this decision as a code comment above getBackgroundCanvasElementFromBloomCanvas in src/BloomBrowserUI/bookEdit/js/bloomImages.ts."> Leave comment</label>
+    </div>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="other"><span>Other:</span>
+      <input type="text" class="other-input" id="q1-other" data-q="q1-other" aria-label="Other answer for question 1"></label>
+    <textarea class="notes" id="q1-notes" data-q="q1-notes" placeholder="Notes" aria-label="Notes for question 1"></textarea>
+  </section>
+
+  <section class="card q" data-question="q2" data-title="Run the table e2e spec once against this branch">
+    <h3>Run the table e2e spec once against this branch?</h3>
+    <p><code>src/BloomE2E/tests/tables-core.spec.ts</code> drags a table onto a canvas page, puts a picture in a cell and checks that it stays inside the cell. That is the nested case this PR changes, in the real Bloom. Unit tests cover the logic, but nothing has exercised it in a running Bloom yet.</p>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="run" checked
+      data-instruction="In D:\refit-a-background-image-when-its-bloom-canvas-i-3 (branch canvas-background-refit), run src/BloomE2E/tests/tables-core.spec.ts once against this worktree's Bloom, following src/BloomE2E/README.md; make one fix attempt if it fails, then report the result.">
+      <span>Run it once now <span class="rec">Recommended</span>. Recommended because this PR changes code that runs on every page load, and this spec is the only automated check of it in a real Bloom. <span class="fn">(no code; starts this worktree's Bloom for several minutes)</span></span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q2" data-q="q2" value="leave"
+        data-instruction="Leave as is — take no action on: the table e2e spec tables-core.spec.ts has not been run against branch canvas-background-refit.">
+        <span>Leave as is</span></label>
+    </div>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="other"><span>Other:</span>
+      <input type="text" class="other-input" id="q2-other" data-q="q2-other" aria-label="Other answer for question 2"></label>
+    <textarea class="notes" id="q2-notes" data-q="q2-notes" placeholder="Notes" aria-label="Notes for question 2"></textarea>
+  </section>
+
+  <section class="card q" data-question="q3" data-title="Next step">
+    <h3>Next step</h3>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="go" checked
+      data-instruction="Carry out the choices above on branch canvas-background-refit, then re-run preflight on PR https://github.com/BloomBooks/BloomDesktop/pull/8312.">
+      <span>Carry out my choices, then re-run preflight <span class="rec">Recommended</span></span></label>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="discuss"
+      data-instruction="Before changing anything, discuss the choices above with me.">
+      <span>Discuss first</span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q3" data-q="q3" value="leave"
+        data-instruction="Leave as is — take no further action on PR https://github.com/BloomBooks/BloomDesktop/pull/8312 for now.">
+        <span>Leave as is</span></label>
+    </div>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="other"><span>Other:</span>
+      <input type="text" class="other-input" id="q3-other" data-q="q3-other" aria-label="Other answer for next step"></label>
+    <textarea class="notes" id="q3-notes" data-q="q3-notes" placeholder="Notes" aria-label="Notes for next step"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copies every answer as instructions to paste into a Claude session.</p>
+    <div><button type="button" id="copy">Copy answers</button><span id="status" role="status"></span></div>
+    <p></p>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-canvas-background-refit.html";
+  function serialize() {
+    var lines = [
+      "Decisions from a decider form (preflight report)",
+      "Project: BloomBooks/BloomDesktop, branch canvas-background-refit (worktree D:\\refit-a-background-image-when-its-bloom-canvas-i-3)",
+      "PR: https://github.com/BloomBooks/BloomDesktop/pull/8312",
+      "Date: 2026-10-12",
+      "Report: " + URL,
+      ""
+    ];
+    document.querySelectorAll("section[data-question]").forEach(function (sec) {
+      var id = sec.getAttribute("data-question");
+      lines.push("## " + sec.getAttribute("data-title"));
+      var chosen = sec.querySelector('input[type="radio"][data-q="' + id + '"]:checked');
+      if (chosen) {
+        if (chosen.value === "other") {
+          var other = sec.querySelector('[data-q="' + id + '-other"]').value.trim();
+          lines.push("Other: " + (other || "(nothing typed)"));
+        } else {
+          lines.push(chosen.getAttribute("data-instruction"));
+        }
+      }
+      var comment = sec.querySelector('[data-q="' + id + '-comment"]');
+      if (comment && comment.checked) lines.push(comment.getAttribute("data-instruction"));
+      var notes = sec.querySelector('[data-q="' + id + '-notes"]').value.trim();
+      if (notes) lines.push("Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  var status = document.getElementById("status");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  document.querySelectorAll(".other-input").forEach(function (box) {
+    box.addEventListener("focus", function () {
+      var radio = box.closest(".opt").querySelector('input[type="radio"]');
+      radio.checked = true; refresh();
+    });
+  });
+  refresh();
+  document.getElementById("copy").addEventListener("click", async function () {
+    status.className = ""; status.textContent = "";
+    try {
+      refresh();
+      payload.focus(); payload.select();
+      var copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; } catch (e) {
+        payload.select();
+        try { copied = document.execCommand("copy"); } catch (e2) { copied = false; }
+      }
+      if (copied) { status.className = "done"; status.textContent = "Copied ✓"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
