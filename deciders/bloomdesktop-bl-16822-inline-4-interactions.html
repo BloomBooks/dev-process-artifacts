@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: PR 8321</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf8f4;color:#2b2a27;font:15px/1.55 -apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#2f5d8a}
+.wrap{max-width:1320px;margin:0 auto;padding:20px 16px 48px}
+header{margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d9d3c7;background:#fff;border-radius:999px;padding:2px 10px;font-size:13px}
+.chip.warn{border-color:#c98a2b;background:#fff6e8}
+.chip.ok{border-color:#7aa36b;background:#f1f8ee}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;align-items:start}
+.grid>*{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd0;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;font-size:13px;color:#5c574d}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:13px}
+.pass{color:#3d7a2d;font-weight:600}.fail{color:#a33;font-weight:600}.na{color:#7a7468}
+.item label{display:block;margin:4px 0}
+textarea,input[type=text]{width:100%;font:inherit;border:1px solid #d9d3c7;border-radius:6px;padding:6px}
+pre#payload{white-space:pre-wrap;word-break:break-word;background:#f6f3ec;border:1px solid #e3ddd0;border-radius:6px;padding:10px;font-size:13px}
+button{font:inherit;border:1px solid #2f5d8a;background:#2f5d8a;color:#fff;border-radius:6px;padding:6px 14px;cursor:pointer}
+.small{font-size:13px;color:#5c574d}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Preflight: inline images, the gestures and the toolbar (PR 8321, 4/6 in the BL-16822 stack)</h1>
+<div>Code, review threads and Devin are settled at 0ad513e709. The branch now needs a rebase onto 8320, which moved during the run.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip warn">Conflicts with its base (8320 was rebased)</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip">1 item for you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8321" target="_blank" rel="noopener">PR #8321</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8321/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8321/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16822" target="_blank" rel="noopener">BL-16822</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8321" target="_blank" rel="noopener">Devin review</a>
+<a class="chip" href="https://reviewable.io/reviews/bloombooks/bloomdesktop/8321" target="_blank" rel="noopener">Reviewable</a>
+</div>
+</header>
+
+<div class="grid">
+<main>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>The PRs below this one let a text block hold a picture that the text flows around, as in Word. On their own they give a person no way to add one, place it, size it, or work on it. This PR is everything a person does to a picture in a text block.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><b>Insert Image</b> on a text block's right-click menu puts a placeholder in every language. It is not offered in canvas text boxes or in fields Bloom stores for itself, such as the book title.</li>
+<li><b>Dragging</b> docks the picture left, right, in a middle band or at the bottom, or moves it down through the lines; <b>corner handles</b> resize it. Both work at any zoom. The other pictures stay where they were.</li>
+<li><b>The picture's menu and toolbar</b> are the canvas image menu without Rotate, Duplicate and the background-image commands. Flip and Reset Image act on the inline picture itself.</li>
+<li><b>Undo and redo:</b> every picture change is one entry on the shared undo stack, made after it has been copied to every language. Ctrl+Z goes to the stack when its next undo is a picture change, so all languages go back together. Ctrl+Y redoes. CKEditor's snapshots are kept current, so it never treats a picture change as typing.</li>
+<li><b>Ctrl+A then Delete</b> no longer removes a picture by accident, including one inserted after the page was opened; a deliberate Delete stays deleted.</li>
+<li><b>Saving</b> strips the selection class and handles, so they never reach the book.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck</td><td class="pass">passed</td></tr>
+<tr><td>Lint (eslint on the changed files)</td><td><span class="pass">passed</span>, 0 errors</td></tr>
+<tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pass">passed</span> <span class="numeral">102 files · 1410 tests</span> at 0ad513e709</td></tr>
+<tr><td>C# tests</td><td class="na">not run: no C# in the diff, and the .NET suite reads nothing it changes</td></tr>
+<tr><td>Repo check: e2e specs at the nightly window size</td><td class="na">did not apply: the diff adds or changes no <code>src/BloomE2E/tests/*.spec.ts</code></td></tr>
+<tr><td>Merge with base</td><td><span class="fail">conflicts</span>: the stack was rebased onto newer master during this run, so 8320 is now 4a0f514980. A test merge conflicts in <code>inline-images-e2e/helpers/inlineImagePage.ts</code>. The coordinating session is rebasing the stack.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Rebased onto 8320's undo-stack rework. Answered John Thomson's review: the zoom now comes from <code>EditableDivUtils.getPageScale</code>, floats are put back in one pass, and refitting offsets keeps its best result. Added Ctrl+A/Delete protection for newly inserted pictures, kept CKEditor's snapshots current so Ctrl+Y works after Ctrl+Z, and fixed a test timer that made vitest exit 1 now and then. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8321/commits" target="_blank" rel="noopener">Commits</a></p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review</td><td>Light pass, done inline (this run is itself a sub-agent and may not start another). Clean: no findings.</td></tr>
+<tr><td>Devin</td><td>Complete for 0ad513e709, after three rounds. It raised one real bug, in the new snapshot code, which is fixed (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8321#discussion_r4265489007" target="_blank" rel="noopener">thread</a>). Its other findings are answered on their threads (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8321#discussion_r4265489167" target="_blank" rel="noopener">1</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8321#discussion_r4265509321" target="_blank" rel="noopener">2</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8321#discussion_r4265460030" target="_blank" rel="noopener">3</a>). Every Devin thread is resolved.</td></tr>
+<tr><td>John Thomson (Reviewable)</td><td>All 8 threads answered and published. The fixes are in f71259b93b. On max width and the selection class, the replies give your decisions to keep them.</td></tr>
+<tr><td>Other bots</td><td>None active on this PR.</td></tr>
+<tr><td>CI</td><td>No CI checks run on this draft. The only status is Reviewable's "discussions left", which waits on JT.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>The e2e specs that cover undo have not run since undo moved onto the shared stack. The e2e PR's agent is updating and running them.</li>
+<li>Reviewable still counts the old Devin threads as unresolved, because your account's disposition on them is "discussing". On GitHub they are all resolved.</li>
+</ul>
+</section>
+</main>
+
+<aside>
+<section class="card item" data-q="jt-card-questions">
+<h2>John Thomson's questions on the card</h2>
+<p>John Thomson left six comments on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16822" target="_blank" rel="noopener">BL-16822</a> itself, not on any PR, so no review thread tracks them:</p>
+<ul class="small">
+<li>Image description and its recording.</li>
+<li>Overlays and auto-sizing; custom cover titles, where data-book carries every language.</li>
+<li>Long text blocks across pages vs "position is geometry, not a place in the text".</li>
+<li>Non-WYSIWYG ePUB.</li>
+<li>Why the center and bottom docks, when origami can already lay those out.</li>
+<li>Whether the picture could belong to the translation group instead of every editable.</li>
+</ul>
+<p class="small">They are design questions, some about the whole approach, so they need your answer rather than an agent's.</p>
+<label><input type="radio" name="jt-card-questions" data-instruction="John will answer John Thomson's card comments himself.">I'll answer them myself</label>
+<label><input type="radio" name="jt-card-questions" data-instruction="Draft answers to John Thomson's six card comments on BL-16822 for John to review before anything is posted.">Draft answers for me to review first</label>
+<label><input type="radio" name="jt-card-questions" data-instruction="Leave John Thomson's card comments as they are.">Leave as is</label>
+<label><input type="radio" name="jt-card-questions" data-other="1">Other: <input type="text" class="other"></label>
+<label><input type="checkbox" class="leave-comment"> Leave comment</label>
+<textarea rows="2" placeholder="Notes"></textarea>
+</section>
+
+<section class="card">
+<h2>Copy back</h2>
+<pre id="payload"></pre>
+<button id="copy" type="button">Copy</button> <span id="copied" class="small"></span>
+</section>
+</aside>
+</div>
+</div>
+<script>
+function serialize(){
+  var out=["Preflight decisions for PR 8321 (https://github.com/BloomBooks/BloomDesktop/pull/8321)",""];
+  document.querySelectorAll(".item").forEach(function(item){
+    var q=item.getAttribute("data-q"), line=q+": (no answer)";
+    var r=item.querySelector("input[type=radio]:checked");
+    if(r){ line = r.hasAttribute("data-other") ? q+": Other: "+(item.querySelector("input.other").value||"") : q+": "+r.getAttribute("data-instruction"); }
+    out.push(line);
+    if(item.querySelector(".leave-comment").checked) out.push("  Leave comment: yes");
+    var n=item.querySelector("textarea").value.trim(); if(n) out.push("  Notes: "+n);
+  });
+  document.getElementById("payload").textContent=out.join("\n");
+}
+document.addEventListener("input",serialize);document.addEventListener("change",serialize);serialize();
+document.getElementById("copy").addEventListener("click",function(){
+  var t=document.getElementById("payload").textContent, s=document.getElementById("copied");
+  function done(){s.textContent="Copied";}
+  function fallback(){var ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+    try{if(document.execCommand("copy")){done();}else{throw 0;}}catch(e){s.textContent="Select the text above and copy it";}document.body.removeChild(ta);}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,fallback);}else{fallback();}
+});
+</script>
+</body>
+</html>
