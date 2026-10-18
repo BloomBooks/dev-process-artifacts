@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17020 undo</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2723; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; margin: 0 0 .5em; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1rem; margin-top: 1em; }
+  a { color: #7a3e9d; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .summary { margin: 0 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+  .chip { display: inline-block; padding: 2px 10px; border: 1px solid #d9d2c7; border-radius: 999px; background: #fff; font-size: .85rem; }
+  .chip.ok { border-color: #9cc5a1; background: #f0f8f1; }
+  .chip.warn { border-color: #e2c27a; background: #fdf7e8; }
+  .links a.chip { text-decoration: none; }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd3; border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid #eee8de; }
+  th { font-weight: 600; width: 32%; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: .88rem; }
+  .pass { color: #2f7a3a; font-weight: 600; }
+  .fail { color: #a33; font-weight: 600; }
+  ul { padding-left: 1.2em; margin: .4em 0; }
+  li { margin: .2em 0; }
+  .q { border-top: 1px solid #eee8de; padding-top: 12px; margin-top: 12px; }
+  .q:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+  .opt { display: block; margin: 6px 0; padding: 6px 8px; border: 1px solid #ece6dc; border-radius: 8px; }
+  .opt input { margin-right: 6px; }
+  .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: #efe4f6; color: #5c2d78; font-size: .75rem; font-weight: 600; }
+  .foot { color: #6b645a; font-size: .85rem; }
+  .other-text { width: 100%; margin-top: 4px; padding: 5px 7px; border: 1px solid #d9d2c7; border-radius: 6px; font: inherit; }
+  textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid #d9d2c7; border-radius: 6px; font: inherit; }
+  .notes-label { display: block; margin-top: 8px; font-size: .85rem; color: #6b645a; }
+  button { background: #7a3e9d; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font: inherit; cursor: pointer; }
+  #payload { min-height: 160px; font-family: ui-monospace, Consolas, monospace; font-size: .8rem; margin-top: 10px; }
+  #copyStatus { margin-left: 10px; font-size: .9rem; }
+  #copyStatus.ok { color: #2f7a3a; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: BL-17020 undo and redo for the whole page</h1>
+  <p class="summary">This run brought 14 commits from <code>more-undo-exploration</code> onto PR 8484's branch and fixed what the review and the e2e run found. Every in-scope suite passes. Devin declined the PR as too large.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip warn">Devin: declined (size limit)</span>
+    <span class="chip">2 decisions waiting on you</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8484" target="_blank" rel="noopener">PR #8484</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8484/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8484/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17020" target="_blank" rel="noopener">BL-17020</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8484" target="_blank" rel="noopener">Devin</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Undo in the Edit tab was split among separate histories: CKEditor's for each text box, the Undo button's own stack, the picture undo, the reader tools' undo, and the undo of several tools and dialogs. Ctrl+Z and the Undo button could do different things, many actions could not be undone at all, and undoing in one history could overwrite a later change that another had recorded.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Replaces them all with one undo and redo history for the page, built from the changes that a MutationObserver records, with each user action grouped into one step.</li>
+      <li>Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z, the Undo button and a new Redo button reach it from the page, the toolbox and the top bar. The C# Undo command is gone.</li>
+      <li>Brings typing, pictures, tables, canvas elements and their commands, dialogs and the toolbox tools onto it. Talking Book and the reader tools no longer rewrite the text boxes behind its back.</li>
+      <li>Groups typing as Chromium's own undo does (a line with its Enter, deleting after typing, caret moves, IME commits), and adds one rule of Bloom's own: a pause of a second ends a step.</li>
+      <li>Refuses an undo, rather than damaging the page, when the page changed underneath the step. It logs every step, undo, redo and clear under short names such as <code>did Move(SpeechBubble)</code>. A developer's Show Page History window shows the stack.</li>
+      <li>Tests: unit tests and a randomized test of the history engine, browser tests, undo e2e specs, and an undo round trip at the end of 16 feature specs. Also fixes a toolbox open/shut restore race and an e2e page-selection race found along the way.</li>
+    </ul>
+    <p class="foot">Design and limits: <code>docs/undo/</code> (OUTLINE, MINIMUM, OPEN-ISSUES, TYPING-STEPS).</p>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <table>
+      <tr><th>Typecheck</th><td><span class="pass">Pass</span></td></tr>
+      <tr><th>Lint</th><td><span class="pass">Pass</span>: <span class="numeral">0 errors</span>. The 58 warnings are all in older code.</td></tr>
+      <tr><th>Merge with master</th><td><span class="pass">Clean</span>: master is already in the branch; GitHub reports it mergeable.</td></tr>
+      <tr><th>TypeScript unit tests (vitest, jsdom)</th><td><span class="pass">Pass</span>: <span class="numeral">149 files · 2001 tests</span></td></tr>
+      <tr><th>TypeScript browser tests (vitest, headless Edge)</th><td><span class="pass">Pass</span>: <span class="numeral">5 files · 66 tests</span></td></tr>
+      <tr><th>C# tests (dotnet test)</th><td id="csharp-row"><span class="pass">Pass</span>: <span class="numeral">3772 passed · 1 skipped · 0 failed</span>. Run in the D:/undo worktree, whose files are identical to this branch, because the D:/stk worktree has no built front end for the tests to read.</td></tr>
+      <tr><th>Repo check: changed e2e specs at the nightly window size</th><td><span class="pass">Pass</span>. All 18 changed specs ran once: <span class="numeral">142 passed · 1 failed · 2 skipped · 2 did not run</span>. The failure was a race in the test helper <code>selectPage</code> (fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/db0d7c81d8" target="_blank" rel="noopener">db0d7c81d8</a>). After the fix, the two specs that use it passed: <code>tables-extended</code> <span class="numeral">25 passed</span>, <code>copy-page</code> <span class="numeral">1 passed</span>. One skip is <code>undo-physical-keys</code>, which needs a real keyboard. The other is the four-rotations test, which waits for PR 8469.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>The 14 commits made on <code>more-undo-exploration</code> since PR 8484 was assembled are now on its branch: the Redo button, Show Page History, step names, the engine fixes from the randomized test, browser-style typing steps with the pause rule, the step-limit and round-trip tests, and the splitter and toolbox fixes. This run then fixed the local review's toolbox finding (<a href="https://github.com/BloomBooks/BloomDesktop/commit/99a054fc74" target="_blank" rel="noopener">99a054fc74</a>) and the e2e helper race (<a href="https://github.com/BloomBooks/BloomDesktop/commit/db0d7c81d8" target="_blank" rel="noopener">db0d7c81d8</a>). The QA test ideas are posted on the card. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8484/commits" target="_blank" rel="noopener">All commits</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <table>
+      <tr><th>Local review (light sub-agent pass)</th><td>Read the 16 commits added since Devin's last round. One finding: after the first toolbox toggle, later books' saved open/shut state was never applied. Fixed.</td></tr>
+      <tr><th>Devin</th><td>Complete, but it declined both heads: <q>This pull request's diff exceeds the size limit for analysis.</q> A substitute review by a Sonnet sub-agent over the same 16 commits was clean. It also raised four notes below its confidence bar; I checked them and none needs a change.</td></tr>
+      <tr><th>Other review bots</th><td>None active: CodeRabbit's automatic review is off in <code>.coderabbit.yml</code>, and Greptile has not posted on this repo recently.</td></tr>
+      <tr><th>CI</th><td>Complete: <code>pr-automation</code> passes.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Devin has reviewed none of the 16 commits added since its last round; the decision on the right is about that.</li>
+      <li>The four-rotations test in <code>rotate-and-flip-images.spec.ts</code> is skipped until <a href="https://github.com/BloomBooks/BloomDesktop/pull/8469" target="_blank" rel="noopener">PR 8469</a> lands; unskip it then.</li>
+      <li>Why per-keystroke undo steps showed up on your machine in Edge (but not in my tests) is still unexplained. The pause rule makes Bloom's steps independent of it.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="card" id="decisions">
+    <h2>Decisions</h2>
+
+    <div class="q" data-qid="devin">
+      <h3>Devin has not reviewed the 16 newest commits</h3>
+      <p>Devin turned down PR 8484 because its whole diff (220 files, about 45,000 lines added) is over Devin's size limit. The first 13 commits were reviewed earlier as a stack of separate PRs (#8471 to #8483). The 16 commits since then (the Redo button, Show Page History, step names, engine fixes, typing steps and the pause rule, new tests, and the toolbox and splitter fixes, about 9,000 lines, mostly tests) have had only a Claude sub-agent review, which was clean.</p>
+      <label class="opt"><input type="radio" name="devin" data-q="devin" value="stack" checked data-instruction="In BloomBooks/BloomDesktop, push a branch BL-17020-undo-reviewed at commit a7e8c20ae2 (the head that Devin last reviewed), open a temporary draft PR from BL-17020-undo into it titled 'BL-17020 Devin review of the commits since a7e8c20ae2 (temporary)', run the devin-review skill on that PR and mirror its findings, fix what is right on BL-17020-undo, then close the temporary PR and delete the branch."> Open a temporary PR of just those commits for Devin<span class="tag">Recommended</span><br><span class="foot">Two git/gh commands plus a Devin wait of up to 30 minutes; no code change. Recommended because it is how the first 13 commits were reviewed, and the new typing and engine code is where a second reviewer is most useful.</span></label>
+      <label class="opt"><input type="radio" name="devin" data-q="devin" value="leave" data-instruction="Leave as is: take no action on Devin declining PR 8484 (BloomBooks/BloomDesktop) for size; the substitute sub-agent review of the commits since a7e8c20ae2 stands."> Leave as is</label>
+      <label class="opt"><input type="radio" name="devin" data-q="devin" value="other" data-instruction="Other"> Other: <input type="text" class="other-text" data-q="devin-other"></label>
+      <label class="notes-label">Notes<textarea data-q="devin-notes"></textarea></label>
+    </div>
+
+    <div class="q" data-qid="description">
+      <h3>PR 8484's description is out of date</h3>
+      <p>The description still says the PR is 13 commits and gives the test counts from before this run. It has no preflight markers, so preflight treats it as written by hand and leaves it alone. The current summary of the PR is the card at the top of this report.</p>
+      <label class="opt"><input type="radio" name="description" data-q="description" value="replace" checked data-instruction="In PR 8484 of BloomBooks/BloomDesktop, replace the description above the Reviewable block with the current preflight narrative (problem and what the PR does), the reviewer sections (Risk Evaluation, Ecosystem Impact, E2E Coverage, Notion Test Suite) and the 'Preflight report:' link, wrapped in the preflight-narrative begin/end markers, keeping the 'Reading it' list of the 13 earlier review PRs and the Reviewable and Devin links outside the markers."> Replace it with the current narrative, between preflight markers<span class="tag">Recommended</span><br><span class="foot">Description text only, no code. Recommended because a reviewer opening the PR now reads a stale account; with the markers, later preflight runs keep it current.</span></label>
+      <label class="opt"><input type="radio" name="description" data-q="description" value="leave" data-instruction="Leave as is: take no action on PR 8484's out-of-date, hand-written description."> Leave as is</label>
+      <label class="opt"><input type="radio" name="description" data-q="description" value="other" data-instruction="Other"> Other: <input type="text" class="other-text" data-q="description-other"></label>
+      <label class="notes-label">Notes<textarea data-q="description-notes"></textarea></label>
+    </div>
+
+    <div class="q" data-qid="next">
+      <h3>Next step</h3>
+      <label class="opt"><input type="radio" name="next" data-q="next" value="go" checked data-instruction="Carry out the recommendations chosen above for PR 8484 (BloomBooks/BloomDesktop, branch BL-17020-undo), then run preflight again."> Carry out my choices above, then run preflight again<span class="tag">Recommended</span></label>
+      <label class="opt"><input type="radio" name="next" data-q="next" value="discuss" data-instruction="Discuss these items before changing anything on PR 8484."> Discuss first</label>
+      <label class="opt"><input type="radio" name="next" data-q="next" value="leave" data-instruction="Leave as is: take no further action on PR 8484 for now."> Leave as is</label>
+      <label class="opt"><input type="radio" name="next" data-q="next" value="other" data-instruction="Other"> Other: <input type="text" class="other-text" data-q="next-other"></label>
+      <label class="notes-label">Notes<textarea data-q="next-notes"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p class="foot">Copies a plain-text block to paste into a Claude session.</p>
+    <button type="button" id="copyBtn">Copy answers</button><span id="copyStatus"></span>
+    <textarea id="payload" readonly></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17020-undo.html";
+  function serialize() {
+    var lines = [
+      "Decisions from a decider form (preflight report)",
+      "Project: BloomBooks/BloomDesktop, PR 8484 (branch BL-17020-undo), card BL-17020",
+      "Date: 2026-10-17",
+      "Report: " + REPORT_URL,
+      ""
+    ];
+    document.querySelectorAll(".q").forEach(function (q) {
+      var id = q.getAttribute("data-qid");
+      lines.push("## " + q.querySelector("h3").textContent);
+      var chosen = q.querySelector('input[type=radio][data-q="' + id + '"]:checked');
+      if (chosen) {
+        if (chosen.value === "other") {
+          lines.push("Other: " + (q.querySelector('[data-q="' + id + '-other"]').value || "(no text)"));
+        } else {
+          lines.push(chosen.getAttribute("data-instruction"));
+        }
+      }
+      var notes = q.querySelector('[data-q="' + id + '-notes"]').value.trim();
+      if (notes) lines.push("Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.querySelectorAll("input, textarea").forEach(function (el) {
+    if (el !== payload) { el.addEventListener("input", refresh); el.addEventListener("change", refresh); }
+  });
+  refresh();
+  var status = document.getElementById("copyStatus");
+  document.getElementById("copyBtn").addEventListener("click", async function () {
+    status.className = ""; status.textContent = "";
+    try {
+      refresh();
+      payload.focus(); payload.select();
+      try {
+        await navigator.clipboard.writeText(payload.value);
+        status.className = "ok"; status.textContent = "Copied ✓"; return;
+      } catch (e) { /* fall through to execCommand */ }
+      payload.select();
+      if (document.execCommand && document.execCommand("copy")) {
+        status.className = "ok"; status.textContent = "Copied ✓"; return;
+      }
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    } catch (e) {
+      payload.select();
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
