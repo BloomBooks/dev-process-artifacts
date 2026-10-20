@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-16981 Preflight</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column under 900px. Light only, per the preflight report spec. */
+:root {
+  --ground: #f7f6f2;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636c;
+  --rule: #dcdad3;
+  --accent: #1f5f8b;
+  --accent-soft: #e6eef5;
+  --good: #2c6e3f;
+  --good-soft: #e5f1e8;
+  --na: #6b6f76;
+  --na-soft: #eeede9;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: -apple-system, "Segoe UI", system-ui, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+h1 { font: 600 1.6rem/1.25 var(--serif); margin: 0; text-wrap: balance; }
+h2 { font: 600 1.15rem/1.3 var(--serif); margin: 0 0 10px; text-wrap: balance; }
+h3 { font: 600 0.82rem/1.3 var(--sans); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 14px 0 4px; }
+h3:first-of-type { margin-top: 0; }
+p { margin: 0 0 8px; }
+.summary { color: var(--muted); margin: 0; max-width: 75ch; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--rule); background: var(--card); white-space: nowrap; }
+.chip.ok { background: var(--good-soft); border-color: #bcd9c3; color: var(--good); }
+.chip.info { background: var(--accent-soft); border-color: #c3d6e6; color: var(--accent); }
+.links a.chip { text-decoration: none; }
+.links a.chip:hover { border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; min-width: 0; }
+.card ul { margin: 0 0 6px; padding-left: 20px; }
+.card li { margin-bottom: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+.st { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+.st.pass { background: var(--good-soft); color: var(--good); }
+.st.na { background: var(--na-soft); color: var(--na); }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--na-soft); padding: 0 4px; border-radius: 3px; }
+.q { display: flex; flex-direction: column; gap: 10px; }
+.q + .q { border-top: 1px solid var(--rule); padding-top: 16px; margin-top: 6px; }
+.opt { display: flex; gap: 10px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .fn { color: var(--muted); font-size: 0.86rem; }
+.rec { font-size: 0.75rem; font-weight: 700; color: var(--good); background: var(--good-soft); border-radius: 3px; padding: 0 6px; margin-left: 4px; }
+.other { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.other input[type=text] { flex: 1; min-width: 0; }
+input[type=text], textarea { font: inherit; border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; background: #fff; color: var(--ink); width: 100%; }
+textarea { resize: vertical; }
+label.notes { display: flex; flex-direction: column; gap: 4px; font-size: 0.86rem; color: var(--muted); }
+button { font: 600 0.95rem var(--sans); background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 8px 16px; cursor: pointer; }
+#copystatus { font-size: 0.88rem; color: var(--muted); }
+#copystatus.ok { color: var(--good); }
+#payload { font-family: var(--mono); font-size: 0.82rem; height: 220px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Run Bloom in the invariant culture</h1>
+  <p class="summary">Preflight for BL-16981 is done: the branch is pushed, master is merged in, every reviewer has finished, and the C# suite passes at the final commit. One follow-up question remains.</p>
+  <div class="row">
+    <!-- pr-state:begin --><span class="chip info" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8488" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip">1 question for you</span>
+  </div>
+  <div class="row links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8488" target="_blank" rel="noopener">PR #8488</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8488/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8488/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16981" target="_blank" rel="noopener">BL-16981</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8488" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom kept shipping bugs that appear only when Windows uses another regional format. Comma decimals left pictures uncropped in French (BL-15064), Turkish casing broke file names (BL-16754), and Thai collation broke language names, picture credits and URL handling (BL-16932, BL-16806, BL-16945, BL-16926). Each fix covered one call site, and some of the bugs were inside libpalaso and TagLib#, where Bloom can't fix the call.</p>
+    <h3>Cause</h3>
+    <p>.NET formats, parses and compares text using the process's culture, which by default is the user's regional format. Every call that doesn't name a culture, in Bloom or in a library running in Bloom's process, silently uses it for machine data too: CSS sizes, version numbers, file names, tool arguments.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><strong>Bloom runs in the invariant culture.</strong> <a href="https://github.com/BloomBooks/BloomDesktop/blob/fedc8e5f2ba39e4a4d860d6c271c535b44c5df76/src/BloomExe/Program.cs#L163" target="_blank" rel="noopener">The first thing Main does</a> is save the user's regional format in <a href="https://github.com/BloomBooks/BloomDesktop/blob/fedc8e5f2ba39e4a4d860d6c271c535b44c5df76/src/BloomExe/UserCulture.cs#L33" target="_blank" rel="noopener"><code>UserCulture.Current</code></a> and switch to invariant. BloomPdfMaker and BloomFreezeDoctor do the same. Bloom's display language is untouched.</li>
+      <li><strong>What the user sees still uses their format:</strong> Bloom Library and Team Collection dates, the About dialog's build date, file sizes and the Sign Language tool's video statistics, the language list separator, and the order of book titles and fonts.</li>
+      <li><strong>Guard rails.</strong> A banned-API analyzer makes it a build error in BloomExe to read or set the process culture, or to use culture-sensitive comparisons or the short-date helpers. <a href="https://github.com/BloomBooks/BloomDesktop/blob/fedc8e5f2ba39e4a4d860d6c271c535b44c5df76/src/BloomExe/UserCulture.cs#L62" target="_blank" rel="noopener">A check on every API request</a> reports it if a library ever changes the culture.</li>
+      <li><strong>Workarounds removed:</strong> <code>IetfLanguageTagExtra</code> (libpalaso fixed this in BL-16947), <code>CommandLineRunnerExtra</code>, <code>TagLibCultureFix</code>, and the culture switching around starting ffmpeg. That switching never reached the child process: a test confirmed child processes always get the machine's culture.</li>
+      <li><strong>Tests run as Bloom does.</strong> <code>BLOOM_TEST_CULTURE</code> now sets the user's culture, so the weekly culture sweep tests what users actually run.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+      <tbody>
+        <tr><td>C# build, with the banned-API analyzer</td><td><span class="st pass">Pass</span></td><td>BloomExe, BloomTests, BloomPdfMaker, BloomFreezeDoctor</td></tr>
+        <tr><td>C# tests (NUnit) at the final commit</td><td><span class="st pass">Pass</span></td><td><span class="numeral">3830 passed · 1 skipped</span> (the opt-in Reading App Builder build)</td></tr>
+        <tr><td>C# culture sweep: fr-FR, th-TH, tr-TR, ar-SA</td><td><span class="st pass">Pass</span></td><td><span class="numeral">3766 passed · 1 skipped</span> in each, before master was merged in and before the Sign Language fix</td></tr>
+        <tr><td>TypeScript typecheck, lint, tests</td><td><span class="st na">Not run</span></td><td>No TypeScript in the diff</td></tr>
+        <tr><td>Merge with master</td><td><span class="st pass">Clean</span></td><td>Merged at <a href="https://github.com/BloomBooks/BloomDesktop/commit/92e4314b28d8594b6c6484a346b7572c95e39f0e" target="_blank" rel="noopener"><span class="numeral">92e4314</span></a> with no conflicts; GitHub reports mergeable</td></tr>
+        <tr><td>Repo check: e2e specs at the nightly window size</td><td><span class="st na">Did not apply</span></td><td>No <code>src/BloomE2E/tests</code> specs changed</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the branch's work as <a href="https://github.com/BloomBooks/BloomDesktop/commit/860d1eedd" target="_blank" rel="noopener"><span class="numeral">860d1ee</span></a>, merged master, opened the draft PR, and fixed the two display values the reviews found: the About dialog's build date (local review) and the Sign Language tool's video statistics (<a href="https://github.com/BloomBooks/BloomDesktop/commit/fedc8e5f2ba39e4a4d860d6c271c535b44c5df76" target="_blank" rel="noopener"><span class="numeral">fedc8e5</span></a>, Devin). The test ideas, the PR link and a note on what Bloom Harvester needs are on the card. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8488/commits" target="_blank" rel="noopener">All commits</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+      <tbody>
+        <tr><td>Local review (light sub-agent pass)</td><td>Complete. One finding, fixed: the About dialog's "Built on" date would always have used English month names.</td></tr>
+        <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8488" target="_blank" rel="noopener">Devin</a></td><td>Complete at <span class="numeral">fedc8e5</span>. One bug on the first review (the Sign Language bitrate lost the user's number format), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8488#discussion_r4329821654" target="_blank" rel="noopener">fixed and resolved</a>. The re-review confirms the fix and found nothing new.</td></tr>
+        <tr><td>CodeRabbit</td><td>Not a reviewer here: auto-review is turned off in <code>.coderabbit.yml</code>.</td></tr>
+        <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed at <span class="numeral">fedc8e5</span>.</td></tr>
+        <tr><td>Repo check: e2e at nightly size</td><td>Did not apply: no e2e specs changed.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Nobody has yet run this build by hand with Windows set to a French, Thai or Turkish format. The unit tests cover the code paths, but the <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16981" target="_blank" rel="noopener">test ideas on the card</a> are the first real check of what a user sees.</li>
+      <li>Numbers and dates that nobody moved to <code>UserCulture.Current</code> now show English-style. The one known case is line spacing in the New Collection wizard and the older font-settings dialog (<code>1.5</code> rather than <code>1,5</code>). It still saves correctly, and the plan accepted it.</li>
+    </ul>
+  </section>
+
+</div>
+
+<div class="col">
+
+  <section class="card">
+    <h2>Decisions</h2>
+
+    <div class="q" data-qtitle="A card for the Bloom Harvester follow-up">
+      <h3>A card for the Bloom Harvester follow-up</h3>
+      <p>Bloom Harvester (BloomBooks/bloom-harvester) runs some Bloom code inside its own process: book analysis, font checks and book download. Until its <code>Main</code> calls <code>Bloom.UserCulture.UseInvariantCulture()</code> first, that code keeps using the server's culture. Its main harvesting work runs <code>Bloom.exe</code> as a separate program, which already runs invariant. Nothing breaks without the change, and the details are in a comment on BL-16981. The risk is that the note gets lost once BL-16981 closes.</p>
+      <label class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked
+        data-instruction="Create a YouTrack card (Bloom 6.6 board) for BloomBooks/bloom-harvester: when Harvester next takes a Bloom.dll that includes BL-16981, add Bloom.UserCulture.UseInvariantCulture(); as the first line of Main in src/Harvester/Program.cs (and optionally in a HarvesterTests [SetUpFixture]). Link it to BL-16981 and copy in the explanation from the Harvester comment on BL-16981.">
+        <span>Create a YouTrack card for the Harvester change, linked to BL-16981<span class="rec">Recommended</span>, so the one-line change has its own place to be tracked once BL-16981 closes. <span class="fn">(a few minutes, no code)</span></span></label>
+      <label class="opt"><input type="radio" name="q1" id="q1b" data-q="q1"
+        data-instruction="Leave as is — take no action on: the Bloom Harvester follow-up (calling Bloom.UserCulture.UseInvariantCulture() in Harvester's Main) stays recorded only as a comment on BL-16981.">
+        <span>Leave as is</span></label>
+      <div class="opt other"><input type="radio" name="q1" id="q1c" data-q="q1" data-instruction="Other:"><label for="q1c">Other:</label><input type="text" id="q1other" data-q="q1-other" aria-label="Other answer for the Harvester card"></div>
+      <label class="notes" for="q1notes">Notes<textarea id="q1notes" data-q="q1-notes" rows="2"></textarea></label>
+    </div>
+
+    <div class="q" data-qtitle="Next step">
+      <h3>Next step</h3>
+      <p>The PR is a draft with every reviewer finished and nothing left open.</p>
+      <label class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" checked
+        data-instruction="No more agent work on PR #8488 (BloomBooks/BloomDesktop, branch BL-16981-MakeBloomCultureSafe) for now: the developer will review it themselves and then run pr-ready-for-human.">
+        <span>I'll review the PR myself, then run pr-ready-for-human<span class="rec">Recommended</span>, because the automated checks are done and only your own review is left. <span class="fn">(no agent work)</span></span></label>
+      <label class="opt"><input type="radio" name="q2" id="q2b" data-q="q2"
+        data-instruction="In C:\work\BL-16981 (branch BL-16981-MakeBloomCultureSafe, PR #8488), start Bloom with the run-bloom skill and spot-check the user-facing parts of BL-16981 under a French regional format: Team Collection status dates, the About dialog's build date, the Sign Language tool's video statistics and trim times, and a BloomPUB of a book with cropped pictures. Report what each shows.">
+        <span>First spot-check the user-facing parts in a running Bloom under a French format <span class="fn">(about 30 minutes; needs the Windows regional format changed for the session)</span></span></label>
+      <label class="opt"><input type="radio" name="q2" id="q2c" data-q="q2"
+        data-instruction="Leave as is — take no action on: the next step for PR #8488 (BL-16981).">
+        <span>Leave as is</span></label>
+      <div class="opt other"><input type="radio" name="q2" id="q2d" data-q="q2" data-instruction="Other:"><label for="q2d">Other:</label><input type="text" id="q2other" data-q="q2-other" aria-label="Other answer for the next step"></div>
+      <label class="notes" for="q2notes">Notes<textarea id="q2notes" data-q="q2-notes" rows="2"></textarea></label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Paste this into a Claude Code session in the BL-16981 worktree.</p>
+    <div class="row"><button type="button" id="copy">Copy answers</button><span id="copystatus" role="status"></span></div>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+
+<script>
+(function () {
+  var URL_SELF = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16981-makebloomculturesafe.html";
+  function serialize() {
+    var lines = [
+      "Decisions from a preflight report",
+      "Repo: BloomBooks/BloomDesktop, branch BL-16981-MakeBloomCultureSafe, PR https://github.com/BloomBooks/BloomDesktop/pull/8488",
+      "Card: BL-16981 https://issues.bloomlibrary.org/youtrack/issue/BL-16981",
+      "Report: " + URL_SELF,
+      "Generated: 2026-10-20",
+      ""
+    ];
+    document.querySelectorAll(".q").forEach(function (q, i) {
+      var key = "q" + (i + 1);
+      lines.push((i + 1) + ". " + q.getAttribute("data-qtitle"));
+      var chosen = q.querySelector('input[type=radio][data-q="' + key + '"]:checked');
+      if (chosen) {
+        var instr = chosen.getAttribute("data-instruction");
+        if (instr === "Other:") {
+          var other = q.querySelector('[data-q="' + key + '-other"]').value.trim();
+          lines.push("   Other: " + (other || "(no text given)"));
+        } else {
+          lines.push("   " + instr);
+        }
+      }
+      var notes = q.querySelector('[data-q="' + key + '-notes"]').value.trim();
+      if (notes) lines.push("   Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copy").addEventListener("click", async function () {
+    var status = document.getElementById("copystatus");
+    status.className = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      var copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; } catch (e) { copied = false; }
+      if (!copied) {
+        payload.select();
+        try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+      }
+      if (copied) { status.textContent = "Copied ✓"; status.className = "ok"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
