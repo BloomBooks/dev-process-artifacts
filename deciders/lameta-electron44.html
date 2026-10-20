@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>lameta Electron 44 preflight</title>
+<style>
+  /* Layout: report on the left, decisions + copy-back on the right; one column when narrow. */
+  :root {
+    --ground: #f7f5f0;
+    --card: #ffffff;
+    --ink: #22252b;
+    --muted: #5d6470;
+    --rule: #dcd8cf;
+    --accent: #2f5f8a;
+    --pass: #2e6b3f;
+    --fail: #a2392e;
+    --warn: #8a6216;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 var(--sans);
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.7rem; }
+  h2 { font-size: 1.2rem; margin-bottom: 10px; }
+  h3 { font-size: 1rem; margin: 14px 0 4px; }
+  p { margin: 0 0 8px; }
+  ul { margin: 0 0 8px; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+  .wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 20px; }
+  header { display: grid; gap: 10px; }
+  header .summary { color: var(--muted); max-width: 75ch; }
+  .chips, .links { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { border: 1px solid var(--rule); background: var(--card); border-radius: 999px; padding: 2px 12px; font-size: 0.85rem; }
+  .chip.ok { border-color: var(--pass); color: var(--pass); }
+  .chip.wait { border-color: var(--warn); color: var(--warn); }
+  .links a { border: 1px solid var(--accent); border-radius: 999px; padding: 2px 12px; font-size: 0.85rem; text-decoration: none; background: var(--card); }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .cols > div { min-width: 0; display: grid; gap: 20px; }
+  @media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; min-width: 0; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .pass { color: var(--pass); font-weight: 600; }
+  .fail { color: var(--fail); font-weight: 600; }
+  .note { color: var(--warn); font-weight: 600; }
+  .q { display: grid; gap: 10px; }
+  .q + .q { border-top: 1px solid var(--rule); padding-top: 16px; margin-top: 6px; }
+  .opts { display: grid; gap: 6px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; }
+  .opt input[type=radio] { margin-top: 5px; }
+  .opt label { flex: 1; min-width: 0; }
+  .rec { display: inline-block; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--pass); border: 1px solid var(--pass); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+  .foot { color: var(--muted); font-size: 0.85rem; }
+  .leave-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+  .leave-row .lc { margin-left: auto; font-size: 0.85rem; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+  input[type=text], textarea { font: inherit; border: 1px solid var(--rule); border-radius: 4px; padding: 5px 8px; width: 100%; background: var(--card); color: var(--ink); }
+  textarea { min-height: 54px; resize: vertical; }
+  .other { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .other input[type=text] { flex: 1; min-width: 160px; width: auto; }
+  .other label { flex: 0 0 auto; }
+  button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 7px 16px; cursor: pointer; }
+  #payload { font-family: var(--mono); font-size: 0.82rem; min-height: 180px; margin-top: 10px; }
+  #status { font-size: 0.88rem; margin-left: 10px; }
+  #status.ok { color: var(--pass); }
+  #status.neutral { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>lameta: upgrade Electron from 37 to 44</h1>
+    <p class="summary">Preflight on branch <code>electron44</code>, 2026-10-20: every suite that this change can reach is green apart from the known Doondo test, Devin found nothing, and two questions are left for you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/onset/lameta/pull/77" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+      <span class="chip ok">Mergeable</span>
+      <span class="chip ok">Bots quiet</span>
+      <span class="chip wait">2 items waiting on you</span>
+    </div>
+    <nav class="links">
+      <a href="https://github.com/onset/lameta/pull/77" target="_blank" rel="noopener">PR #77</a>
+      <a href="https://github.com/onset/lameta/pull/77/files" target="_blank" rel="noopener">Files changed</a>
+      <a href="https://github.com/onset/lameta/pull/77/commits" target="_blank" rel="noopener">Commits</a>
+      <a href="https://devinreview.com/onset/lameta/pull/77" target="_blank" rel="noopener">Devin review</a>
+    </nav>
+  </header>
+
+  <div class="cols">
+    <div>
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>lameta runs on Electron 37, which is out of support; Electron 44 is the current stable line. Electron 44 runs Node 24 in the renderer, which removed <code>util.isNullOrUndefined</code>, and no longer gives the renderer Electron's <code>clipboard</code> module. Without changes, the file list fails to render in every folder and the export dialog's "Copy to clipboard" buttons throw.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li>Electron goes from 37.3.0 to 44.9.0 and <code>@electron/remote</code> from 2.1.2 to 2.1.3.</li>
+          <li>The <a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/src/components/FileList.tsx#L247" target="_blank" rel="noopener">file list's button check</a> uses <code>== null</code> instead of the removed Node function.</li>
+          <li>The export dialog's two "Copy to clipboard" buttons (<a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/src/components/export/ExportDialog.tsx#L587" target="_blank" rel="noopener">line 587</a>, <a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/src/components/export/ExportDialog.tsx#L812" target="_blank" rel="noopener">line 812</a>) use the browser's <code>navigator.clipboard</code>.</li>
+          <li>Since Electron 42 the binary downloads on first run rather than at install, so <a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/package.json#L35" target="_blank" rel="noopener"><code>postinstall</code></a> now runs <code>install-electron</code> and the binary arrives during <code>pnpm install</code> as before.</li>
+          <li>The hybrid export cancel test no longer leaves the export dialog open for the next test (<a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/e2e/hybridExportProgress.e2e.ts#L200" target="_blank" rel="noopener">waits for the export to start</a>, then <a href="https://github.com/onset/lameta/blob/e5b152dc0249c0934cdde748d7754c3e4644d49f/e2e/hybridExportProgress.e2e.ts#L219" target="_blank" rel="noopener">closes the dialog</a>). It already failed sometimes on Electron 37; on 44 it failed every time.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td>Type check (<code>tsc --noemit</code>)</td><td class="pass">Pass</td><td></td></tr>
+              <tr><td>Lint (<code>vp lint</code>)</td><td class="note">Fails on master's code</td><td>No errors in the files this PR changes. The <span class="numeral">557</span> errors are in files it does not touch, mostly specs that cannot find <code>test</code>/<code>expect</code> since the move to vitest 5.</td></tr>
+              <tr><td>Format (<code>vp fmt</code>)</td><td class="pass">Changed files formatted</td><td>The pre-commit hook formatted them; <span class="numeral">496</span> other files in the repo are not yet formatted.</td></tr>
+              <tr><td>Unit tests (vitest)</td><td class="pass">Pass</td><td><span class="numeral">1124 passed · 7 skipped · 1 failed</span>. The failure is the Doondo RO-Crate integration test, which reads files on the developer's machine and is a known failure on this branch.</td></tr>
+              <tr><td>End-to-end tests (Playwright)</td><td class="pass">Pass</td><td><span class="numeral">118 passed · 3 skipped</span> at HEAD. The export spec also passed <span class="numeral">24/24</span> over 8 repeats.</td></tr>
+              <tr><td>Launch test</td><td class="pass">Pass</td><td>Dev build <span class="numeral">10/10</span>; packaged Windows build <span class="numeral">10/10</span>.</td></tr>
+              <tr><td>Windows package (electron-builder 25.1.8)</td><td class="pass">Pass</td><td>Unpacked build; ffprobe lands in <code>app.asar.unpacked</code> and runs.</td></tr>
+              <tr><td>macOS package</td><td class="note">Not run</td><td>Needs a Mac; see the decision on the right.</td></tr>
+              <tr><td>C# and other stacks</td><td>N/A</td><td>None in this repo.</td></tr>
+              <tr><td>Merge with master</td><td class="pass">Clean</td><td>Up to date with <code>origin/master</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Rebased onto master (now pnpm and Vite+), redid the dependency bumps with pnpm, fixed the one finding from the local review, and opened the draft PR with a single commit, <a href="https://github.com/onset/lameta/pull/77/commits/e5b152dc0249c0934cdde748d7754c3e4644d49f" target="_blank" rel="noopener">e5b152d</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+            <tbody>
+              <tr><td>Local review (light sub-agent pass)</td><td>One finding, fixed before the commit: the cancel test could click the dialog's own Cancel button before the export started.</td></tr>
+              <tr><td><a href="https://devinreview.com/onset/lameta/pull/77" target="_blank" rel="noopener">Devin</a></td><td>Complete for e5b152d after about a minute: no bugs, no flags. <a href="https://github.com/onset/lameta/pull/77#issuecomment-6303346675" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+              <tr><td>CI</td><td>No checks run on pull requests; <code>main.yml</code> runs only on pushes to V2, beta, release and V3.</td></tr>
+              <tr><td>Other review bots</td><td>None active on this repo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>The PR pins Electron 44.9.0. Versions 44.9.1 and 44.9.2 came out on 2026-10-20, and pnpm's one-day minimum release age refuses them until tomorrow.</li>
+          <li><code>@electron/remote</code> is tested upstream only up to Electron 43. On 44 it ran through the whole e2e suite and both launch tests.</li>
+          <li>No e2e test clicks the export dialog's "Copy to clipboard" buttons. The browser clipboard call was checked by hand in an Electron 44 window, and the text reached the Windows clipboard.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2>Decisions</h2>
+
+        <div class="q" data-title="Electron 44 drops macOS 12: new lameta builds will need macOS 13 (Ventura) or later.">
+          <h3>Electron 44 needs macOS 13 or later</h3>
+          <p>Electron 37 runs on macOS 12 (Monterey); Electron 44 does not. Once this merges, people on macOS 12 can no longer install or run new lameta builds; the versions they already have keep working. Apple stopped security updates for macOS 12 in 2024. Electron 43 still supports macOS 12, but it reaches end of support in early 2027, so staying on it only delays the same cut.</p>
+          <div class="opts">
+            <div class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked data-instruction="In the lameta repo (branch electron44, PR https://github.com/onset/lameta/pull/77), keep Electron 44 and add a line to the release notes for the next release saying that lameta now requires macOS 13 (Ventura) or later."><label for="q1a">Keep Electron 44 and say in the release notes that lameta now needs macOS 13 or later <span class="rec">Recommended</span>. This tells macOS 12 users why the update will not run before they find out the hard way. <span class="foot">(No code; one release-note line.)</span></label></div>
+            <div class="opt"><input type="radio" name="q1" id="q1b" data-q="q1" data-instruction="In the lameta repo (branch electron44, PR https://github.com/onset/lameta/pull/77), change the upgrade target from Electron 44 to the newest Electron 43 release pnpm allows, keeping the FileList, ExportDialog and postinstall changes, and re-run the full e2e suite."><label for="q1b">Target Electron 43 instead, to keep macOS 12 for a few more months. <span class="foot">(Small: version change and a full test re-run; the code fixes still apply, since 43 also runs Node 24 but still has renderer clipboard.)</span></label></div>
+            <div class="leave-row opt"><input type="radio" name="q1" id="q1c" data-q="q1" data-instruction="Leave as is — take no action on: Electron 44 drops macOS 12, so new lameta builds need macOS 13 or later."><label for="q1c">Leave as is</label></div>
+            <div class="other opt"><input type="radio" name="q1" id="q1d" data-q="q1" data-other="q1-other"><label for="q1d">Other:</label><input type="text" id="q1-other" data-q="q1-other" aria-label="Other answer for the macOS question"></div>
+          </div>
+          <textarea id="q1-notes" data-q="q1-notes" placeholder="Notes" aria-label="Notes on the macOS question"></textarea>
+        </div>
+
+        <div class="q" data-title="The macOS build of the Electron 44 upgrade has not been packaged, notarized or launched.">
+          <h3>The macOS build has not been tried</h3>
+          <p>Everything was tested on Windows. lameta's macOS release is a universal build that electron-builder 25.1.8 signs and notarizes, and that path only runs on a Mac or in the GitHub Actions workflow, which builds on pushes to V2, beta, release and V3, not on pull requests. A failure there would show up only when a release is cut.</p>
+          <div class="opts">
+            <div class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" checked data-instruction="Before merging PR https://github.com/onset/lameta/pull/77 (lameta, branch electron44), build the macOS universal package on a Mac with electron-builder, including signing and notarization, then launch it and open a project with media files to confirm that ffprobe and the file list work."><label for="q2a">Build, notarize and launch the macOS package on a Mac before merging <span class="rec">Recommended</span>, because signing and notarization are the parts of a release most likely to break with a new Electron. <span class="foot">(No code; about 30 minutes on a Mac.)</span></label></div>
+            <div class="leave-row opt"><input type="radio" name="q2" id="q2b" data-q="q2" data-instruction="Leave as is — take no action on: the macOS build of the Electron 44 upgrade (PR https://github.com/onset/lameta/pull/77) has not been packaged, notarized or launched."><label for="q2b">Leave as is</label></div>
+            <div class="other opt"><input type="radio" name="q2" id="q2c" data-q="q2" data-other="q2-other"><label for="q2c">Other:</label><input type="text" id="q2-other" data-q="q2-other" aria-label="Other answer for the macOS build question"></div>
+          </div>
+          <textarea id="q2-notes" data-q="q2-notes" placeholder="Notes" aria-label="Notes on the macOS build question"></textarea>
+        </div>
+
+        <div class="q" data-title="Next step for PR https://github.com/onset/lameta/pull/77 (lameta Electron 44 upgrade).">
+          <h3>Next step</h3>
+          <div class="opts">
+            <div class="opt"><input type="radio" name="q3" id="q3a" data-q="q3" checked data-instruction="Carry out the decisions above for PR https://github.com/onset/lameta/pull/77 (lameta, branch electron44), then re-run preflight on that branch."><label for="q3a">Carry out the choices above, then re-run preflight <span class="rec">Recommended</span>. <span class="foot">(Depends on the choices; the release-note option needs no code.)</span></label></div>
+            <div class="opt"><input type="radio" name="q3" id="q3b" data-q="q3" data-instruction="Before changing anything on PR https://github.com/onset/lameta/pull/77 (lameta, branch electron44), discuss the open decisions with me."><label for="q3b">Discuss first. <span class="foot">(No code.)</span></label></div>
+            <div class="leave-row opt"><input type="radio" name="q3" id="q3c" data-q="q3" data-instruction="Leave as is — take no action on: PR https://github.com/onset/lameta/pull/77 stays a draft with the open decisions unanswered."><label for="q3c">Leave as is</label></div>
+            <div class="other opt"><input type="radio" name="q3" id="q3d" data-q="q3" data-other="q3-other"><label for="q3d">Other:</label><input type="text" id="q3-other" data-q="q3-other" aria-label="Other next step"></div>
+          </div>
+          <textarea id="q3-notes" data-q="q3-notes" placeholder="Notes" aria-label="Notes on the next step"></textarea>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Send your answers back</h2>
+        <p>Copy this and paste it into a Claude Code session in the lameta repo.</p>
+        <button type="button" id="copy">Copy answers</button><span id="status" role="status"></span>
+        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+  const REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/lameta-electron44.html";
+  function build() {
+    const lines = [
+      "Decisions from a decider form (preflight report)",
+      "Repo: lameta (https://github.com/onset/lameta), branch electron44, PR https://github.com/onset/lameta/pull/77",
+      "Date: 2026-10-20",
+      "Full report: " + REPORT_URL,
+      ""
+    ];
+    document.querySelectorAll(".q").forEach((q, i) => {
+      lines.push((i + 1) + ". " + q.dataset.title);
+      const chosen = q.querySelector("input[type=radio]:checked");
+      if (chosen) {
+        if (chosen.dataset.other) {
+          const t = document.getElementById(chosen.dataset.other).value.trim();
+          lines.push("   Other: " + (t || "(no text entered)"));
+        } else {
+          lines.push("   " + chosen.dataset.instruction);
+        }
+      }
+      const notes = q.querySelector("textarea");
+      if (notes && notes.value.trim()) lines.push("   Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n").trim() + "\n";
+  }
+  const payload = document.getElementById("payload");
+  const status = document.getElementById("status");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  document.querySelectorAll(".other input[type=text]").forEach((box) => {
+    box.addEventListener("focus", () => { box.closest(".other").querySelector("input[type=radio]").checked = true; refresh(); });
+  });
+  refresh();
+  document.getElementById("copy").addEventListener("click", async () => {
+    status.textContent = ""; status.className = "";
+    try {
+      refresh();
+      payload.focus(); payload.select();
+      let copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; }
+      catch (e) {
+        payload.focus(); payload.select();
+        try { copied = document.execCommand("copy"); } catch (e2) { copied = false; }
+      }
+      if (copied) { status.textContent = "Copied ✓"; status.className = "ok"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; status.className = "neutral"; }
+    } catch (e) {
+      payload.select();
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; status.className = "neutral";
+    }
+  });
+</script>
+</body>
+</html>
