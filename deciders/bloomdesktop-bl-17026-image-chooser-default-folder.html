@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #f7f4ee; color: #2a2723; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 8px; }
+  h1 { font-size: 24px; } h2 { font-size: 19px; } h3 { font-size: 15px; margin-top: 14px; }
+  p { margin: 0 0 10px; } ul { margin: 0 0 10px; padding-left: 20px; }
+  a { color: #8a3b12; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .chip { display: inline-block; border: 1px solid #d9d2c5; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+  .chip.good { border-color: #9cc3a3; background: #eef7ef; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; margin-top: 16px; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e2dbcf; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee7da; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .ok { color: #2f6b3a; font-weight: 600; }
+  textarea { width: 100%; min-height: 110px; font: 13px ui-monospace, Consolas, monospace; }
+  button { font: inherit; padding: 6px 14px; border: 1px solid #8a3b12; background: #8a3b12; color: #fff; border-radius: 6px; cursor: pointer; }
+  #status { margin-left: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Preflight: image chooser "Open file" folder (BL-17026)</h1>
+  <p>Gauntlet complete on <span class="numeral">c12c7d6</span>; nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable into Version6.5</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8486" target="_blank" rel="noopener">PR #8486</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8486/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8486/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17026" target="_blank" rel="noopener">BL-17026</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8486" target="_blank" rel="noopener">Devin review</a>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>In the new image chooser, "Open file" always opens the Pictures folder, so every image costs extra navigation. The old image toolbox opened the folder the user last picked from. A forum user reported it (<a href="https://community.software.sil.org/t/beta-image-search-update-broken-functionality/11615" target="_blank" rel="noopener">thread</a>).</p>
+        <h3>Cause</h3>
+        <p>The dialog's starting folder was hard-coded to Pictures. That overrides both Bloom's memory and Windows' own memory of the last folder used.</p>
+        <h3>What the PR does</h3>
+        <p>The image picker now uses <code>FilePathMemory</code>, the same way the music and generic file choosers do:</p>
+        <ul>
+          <li>After a pick, it remembers the chosen file's folder under its own tag (<code>ChooseImage</code>), and the next "Open file" in the same Bloom session starts there. The GIF-only picker uses the same code.</li>
+          <li>With nothing remembered (the first pick after starting Bloom), the starting folder is left unset, so Windows opens the last folder Bloom's file dialogs used.</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Quality gate</h2>
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>C# build (BloomExe)</td><td class="ok">passed</td></tr>
+          <tr><td>C# tests (dotnet test, full BloomTests)</td><td><span class="ok">passed</span> <span class="numeral">3632 passed · 0 failed · 12 skipped</span></td></tr>
+          <tr><td>TypeScript typecheck / lint / vitest</td><td>not run: no front-end files in the diff</td></tr>
+          <tr><td>E2E specs at nightly size (repo check)</td><td>did not apply: no <code>src/BloomE2E/tests/*.spec.ts</code> in the diff</td></tr>
+          <tr><td>Merge with origin/Version6.5</td><td class="ok">up to date, no conflicts</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>What changed this run</h2>
+        <p>This run created the branch from Version6.5 and opened the draft PR. At your request it replaced the first approach (a saved user setting) with <code>FilePathMemory</code> and renamed the tag to <code>ChooseImage</code>. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8486/commits" target="_blank" rel="noopener">3 commits</a>.</p>
+      </div>
+
+      <div class="card">
+        <h2>Reviewer outcomes</h2>
+        <table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr><td>Local review</td><td>Light sub-agent pass on the first version: clean, no findings. The later changes are small and follow the existing <code>MusicApi</code> pattern.</td></tr>
+          <tr><td>Devin</td><td>Complete on <span class="numeral">c12c7d6</span>: no open bugs, no flags. Its one bug, a settings save failing for emoji folder names, was about the earlier saved-setting version, and Devin marks it resolved. <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8486" target="_blank" rel="noopener">Review</a></td></tr>
+          <tr><td>CI (pr-automation)</td><td>Complete: passed.</td></tr>
+          <tr><td>Other bots</td><td>None active on this repo (no Greptile or CodeRabbit activity on recent PRs).</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Checked live in Bloom on <span class="numeral">c12c7d6</span>, driving the native dialog through UI Automation: the first open went to Downloads (Windows' choice). After choosing from folder A it reopened in A; after B, in B; a Cancel kept B.</li>
+          <li>After a restart Bloom doesn't remember the image folder itself; Windows picks where the first "Open file" opens. This is deliberate, to match the other file choosers.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Next step</h2>
+        <p>What should happen with this PR?</p>
+        <label><input type="radio" name="next" data-q="next" checked data-instruction="In BloomDesktop (branch BL-17026-image-chooser-default-folder, PR #8486 against Version6.5), no further changes: I will do my own review and then run pr-ready-for-human."> I'll review it myself, then promote it (Recommended)</label><br>
+        <label><input type="radio" name="next" data-q="next" data-instruction="Leave as is: take no action on PR #8486 (BL-17026 image chooser folder) for now."> Leave as is</label><br>
+        <label><input type="radio" name="next" data-q="next" data-instruction="OTHER"> Other: <input type="text" data-q="next-other"></label>
+        <p style="margin-top:8px"><textarea data-q="next-notes" placeholder="Notes" style="min-height:60px"></textarea></p>
+      </div>
+      <div class="card">
+        <h2>Send your answers back</h2>
+        <p>Copies your answer as text you can paste into a session.</p>
+        <button id="copy">Copy answers</button><span id="status"></span>
+        <p style="margin-top:8px"><textarea id="payload" readonly></textarea></p>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17026-image-chooser-default-folder.html";
+  function build() {
+    const lines = ["Decisions from a decider form (preflight report)", "Repo: BloomBooks/BloomDesktop, branch BL-17026-image-chooser-default-folder, PR #8486 (base Version6.5)", "Date: 2026-10-20", "Report: " + URL_, "", "Q: What should happen with this PR?"];
+    const r = document.querySelector('input[name="next"]:checked');
+    if (r && r.dataset.instruction === "OTHER") lines.push("Other: " + document.querySelector('[data-q="next-other"]').value);
+    else if (r) lines.push(r.dataset.instruction);
+    const n = document.querySelector('[data-q="next-notes"]').value.trim();
+    if (n) lines.push("Notes: " + n);
+    return lines.join("\n");
+  }
+  const ta = document.getElementById("payload");
+  function refresh() { ta.value = build(); }
+  document.querySelectorAll("[data-q]").forEach(e => e.addEventListener("input", refresh));
+  document.querySelectorAll("input[type=radio]").forEach(e => e.addEventListener("change", refresh));
+  refresh();
+  document.getElementById("copy").addEventListener("click", async () => {
+    const st = document.getElementById("status");
+    try {
+      refresh(); ta.select();
+      try { await navigator.clipboard.writeText(ta.value); st.textContent = "Copied ✓"; return; } catch (e) {}
+      if (document.execCommand("copy")) { st.textContent = "Copied ✓"; return; }
+      st.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C.";
+    } catch (e) { st.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C."; }
+  });
+</script>
+</body>
+</html>
