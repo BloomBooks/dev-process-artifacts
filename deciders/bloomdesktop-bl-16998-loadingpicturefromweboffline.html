@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-16998 Offline Picture Message</title>
+<style>
+  /* Layout: report on the left, decisions on the right; one column when narrow. */
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --ink: #22262b;
+    --muted: #5d636b;
+    --line: #dcdad3;
+    --accent: #1d6f86;
+    --good: #2f7a3d;
+    --good-bg: #e7f2e8;
+    --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+    --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.55 var(--sans);
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .page { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.2rem; }
+  h3 { font-size: 1rem; font-family: var(--sans); font-weight: 600; color: var(--muted); }
+  p { margin: 0; max-width: 68ch; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .chip {
+    display: inline-block; padding: 3px 10px; border: 1px solid var(--line);
+    border-radius: 999px; background: var(--card); font-size: 0.85rem;
+  }
+  .chip.good { background: var(--good-bg); border-color: #bcd9c0; color: var(--good); }
+  .links a.chip { text-decoration: none; }
+  .links a.chip:hover { border-color: var(--accent); }
+  .grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+  ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88em; }
+  .pass { color: var(--good); font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.88em; }
+  figure { margin: 0; }
+  figure img { max-width: 100%; border: 1px solid var(--line); border-radius: 4px; }
+  figcaption { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>BL-16998: tell the user when an online picture can't be downloaded</h1>
+    <p>Preflight run on <span class="numeral">2026-10-21</span>. All gates are green, every reviewer is quiet, and nothing is waiting on you.</p>
+    <div class="row">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable (clean)</span>
+      <span class="chip good">Bots quiet</span>
+      <span class="chip good">0 decisions waiting</span>
+    </div>
+    <div class="row links">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8492" target="_blank" rel="noopener">PR #8492</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8492/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8492/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16998" target="_blank" rel="noopener">BL-16998</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17037" target="_blank" rel="noopener">BL-17037 (follow-up)</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8492" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>In the Image Chooser, a user who searches Openverse or Pixabay, loses their internet connection, and then clicks <b>Use this image</b> got only "Sorry, there was a problem adding the image." Nothing told them that the real trouble was being offline. Bloom also treated the failed download as a bug in itself and reported it as a problem (a toast, or a dialog on alpha builds).</p>
+        <h3>Cause</h3>
+        <p>Bloom downloads the chosen picture in C#. When the download couldn't connect, the exception escaped the request handler and reached Bloom's catch-all for API errors. That catch-all reports any exception as a problem and sends back a generic error, which the dialog shows as the generic message.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li>Bloom now decides whether a download failed because no connection could be made, it timed out, or the connection dropped partway (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f379bec61a25f80f35424fae2e1eb0da3a8307/src/BloomExe/web/controllers/ImageGalleryApi.cs#L363" target="_blank" rel="noopener">IsConnectionFailure</a>). A server that answered with an error status, such as a 404, doesn't count.</li>
+          <li>For a connection failure, Bloom logs it and replies "502 Bad Gateway" instead of reporting a Bloom problem (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f379bec61a25f80f35424fae2e1eb0da3a8307/src/BloomExe/web/controllers/ImageGalleryApi.cs#L208" target="_blank" rel="noopener">ImageGalleryApi.cs:208</a>). Every other failure takes the same path as before.</li>
+          <li>The chooser turns a 502 into a new localizable message that asks the user to check their internet connection, and it stays open so they can try again (<a href="https://github.com/BloomBooks/BloomDesktop/blob/e5f379bec61a25f80f35424fae2e1eb0da3a8307/src/BloomBrowserUI/react_components/image-gallery/ImageGalleryDialog.tsx#L169" target="_blank" rel="noopener">ImageGalleryDialog.tsx:169</a>).</li>
+        </ul>
+        <figure>
+          <img width="620" alt="The Image Chooser with a message box: Bloom could not download this picture. Check that this computer is connected to the internet, then try again." src="https://github.com/user-attachments/assets/f4c05109-54c7-4d0b-a87e-225d1320d7a3">
+          <figcaption>What the user now sees, from a running Bloom with a faked Openverse result whose picture couldn't be reached.</figcaption>
+        </figure>
+        <p>Searching while offline still shows nothing, because that happens inside the <code>bloom-image-gallery</code> package. It's filed separately as <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17037" target="_blank" rel="noopener">BL-17037</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Check</th><th>Result</th></tr></thead>
+            <tbody>
+              <tr><td>Typecheck</td><td><span class="pass">Pass</span></td></tr>
+              <tr><td>Lint (eslint, prettier, CSharpier)</td><td><span class="pass">Pass</span></td></tr>
+              <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pass">Pass</span> <span class="numeral">873 passed · 5 skipped</span></td></tr>
+              <tr><td>C# tests (BloomTests, full suite)</td><td><span class="pass">Pass</span> <span class="numeral">3636 passed · 13 skipped</span>, including <span class="numeral">5</span> new tests</td></tr>
+              <tr><td>Merge with Version6.5</td><td><span class="pass">Up to date</span>, no conflicts</td></tr>
+              <tr><td>Repo check: e2e specs at nightly window size</td><td>Did not apply: the diff changes no e2e specs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>This was the first run. It pushed the branch, now based on Version6.5 like <a href="https://github.com/BloomBooks/BloomDesktop/pull/8455" target="_blank" rel="noopener">#8455</a>, and opened the draft PR with its single <a href="https://github.com/BloomBooks/BloomDesktop/commit/e5f379bec61a25f80f35424fae2e1eb0da3a8307" target="_blank" rel="noopener">commit e5f379b</a>. No reviewer asked for any change.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+            <tbody>
+              <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+              <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8492" target="_blank" rel="noopener">Devin</a></td><td>Complete for e5f379b after <span class="numeral">2</span> min: no bugs and no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8492#issuecomment-6326451628" target="_blank" rel="noopener">Consultation logged</a>.</td></tr>
+              <tr><td>Other review bots</td><td>None posted on this PR.</td></tr>
+              <tr><td>CI</td><td><span class="pass">Pass</span>: <code>pr-automation</code> is the only check on this branch.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>The "Use this image" case was checked in a running Bloom with a faked unreachable picture. Turning Wi-Fi off for real hasn't been tried yet; that is the first item in the card's <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16998" target="_blank" rel="noopener">round-2 test ideas</a>.</li>
+          <li>On a network that is connected but slow, Bloom's download can wait up to its <span class="numeral">100</span>-second timeout before the message appears.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card">
+        <h2>Decisions</h2>
+        <p>Nothing is waiting on you. The PR stays a draft until you have done your own review. Then <code>pr-ready-for-human</code> hands it to a colleague.</p>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>
