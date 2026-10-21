@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lameta OneDrive preflight</title>
+<style>
+/* Layout: two columns, the report on the left and the decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d6470;
+  --rule: #dcdad3;
+  --accent: #1f5f8b;
+  --accent-soft: #e6eff6;
+  --good: #2f6b3a;
+  --good-soft: #e5f1e7;
+  --warn: #8a5a00;
+  --warn-soft: #fbf0d9;
+  --bad: #9b2c2c;
+  --bad-soft: #f8e4e4;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.wrap { max-width: 1400px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header h1 { font: 600 1.7rem/1.2 var(--serif); margin: 0 0 6px; text-wrap: balance; }
+header p.sum { margin: 0 0 12px; color: var(--muted); max-width: 70ch; }
+.chips, .links { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.chip { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; border: 1px solid var(--rule); background: var(--card); }
+.chip.good { background: var(--good-soft); border-color: #bcd9c1; color: var(--good); }
+.chip.warn { background: var(--warn-soft); border-color: #ead39f; color: var(--warn); }
+.chip.info { background: var(--accent-soft); border-color: #c3d7e7; color: var(--accent); }
+.links a { display: inline-block; padding: 3px 10px; border-radius: 6px; border: 1px solid #c3d7e7; background: var(--accent-soft); text-decoration: none; font-size: 0.85rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 18px; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 18px; }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+.card h2 { font: 600 1.2rem/1.3 var(--serif); margin: 0 0 10px; text-wrap: balance; }
+.card h3 { font: 600 0.95rem/1.3 var(--sans); margin: 14px 0 4px; }
+.card h3:first-of-type { margin-top: 0; }
+.card p { margin: 0 0 8px; }
+.card ul { margin: 4px 0 0; padding-left: 20px; }
+.card li { margin: 0 0 5px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-top: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); border-top: none; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+.state { display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+.state.pass { background: var(--good-soft); color: var(--good); }
+.state.fail { background: var(--bad-soft); color: var(--bad); }
+.state.note { background: var(--warn-soft); color: var(--warn); }
+.state.na { background: var(--ground); color: var(--muted); }
+code { font-family: var(--mono); font-size: 0.85em; background: var(--ground); padding: 1px 4px; border-radius: 3px; }
+.q { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+.q h2 { font: 600 1.1rem/1.3 var(--serif); margin: 0 0 8px; text-wrap: balance; }
+.q p { margin: 0 0 8px; }
+.opts { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 10px; }
+.opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; }
+.opt input[type=radio] { margin-top: 4px; flex: none; }
+.opt .txt { flex: 1; min-width: 0; }
+.opt .fx { display: block; color: var(--muted); font-size: 0.85rem; }
+.rec { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; font-weight: 600; }
+.lc { margin-left: auto; display: flex; gap: 4px; align-items: center; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+.other input[type=text] { width: 100%; margin-top: 4px; padding: 5px 7px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; }
+textarea.notes { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; resize: vertical; }
+label.nl { display: block; font-size: 0.82rem; color: var(--muted); margin-bottom: 3px; }
+#copyback textarea { width: 100%; min-height: 160px; font: 0.8rem/1.4 var(--mono); padding: 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--ground); }
+button.copy { font: 600 0.95rem var(--sans); padding: 8px 16px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+#copystatus { margin-left: 10px; font-size: 0.88rem; color: var(--muted); }
+#copystatus.ok { color: var(--good); }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>lameta OneDrive preflight</h1>
+  <p class="sum">Preflight of the cloud-sync branch after rebasing it onto master's pnpm and vite-plus tooling. The code is integrated, typechecks, and passes its unit and end-to-end tests. The review findings in this PR's own code are fixed; two small decisions about the repo are waiting.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip info" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable with master</span>
+    <span class="chip info">Devin: reviewed to 8f270705</span>
+    <span class="chip warn">2 decisions waiting on you</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/onset/lameta/pull/67" target="_blank" rel="noopener">PR #67</a>
+    <a href="https://github.com/onset/lameta/pull/67/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/onset/lameta/pull/67/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://devinreview.com/onset/lameta/pull/67" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>When a lameta project lives in a OneDrive, Dropbox, iCloud or similar synced folder that keeps files online until needed, many of the project's files are cloud-only placeholders. lameta treated them as local files. Opening a project downloaded or waited on every file, a provider that was down produced an error for every file, showing media details forced a download of the whole recording, and the file list never said what was actually on this computer.</p>
+    <p>Projects shared between people through a sync service had a second set of problems. A rename could leave a folder half-renamed while the sync engine held a file open, a folder deleted on another computer produced an error on every save, and saving could silently overwrite a colleague's edit that had just synced down.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Detects each file's cloud state (Windows file attributes; macOS file providers and iCloud) and shows it in the file list, with a panel to download a file or show it in its folder, and a setting that fetches selected files automatically.</li>
+      <li>Never probes or waits on a cloud-only file. Media details are kept in the file's <code>.meta</code> sidecar, previews wait until the file is downloaded, and project load requests its metadata files in parallel with a progress display.</li>
+      <li>When the provider cannot deliver during load, lameta stops asking after the first failure, shows one banner with a Retry button, and refuses to save over a file whose real metadata it never read. On macOS at most four downloads wait at once, and a metadata file that iCloud evicted is downloaded rather than replaced with an empty one.</li>
+      <li>Renames retry while another process holds a file, undo the per-file renames if the folder rename fails, and the repair of a misnamed metadata file now works.</li>
+      <li>A folder that vanished from disk warns once instead of on every save. A metadata file that changed on disk since lameta read it is moved aside before lameta writes its own version, under a name ending in <code>.txt</code> (<code>ETR009.session (changed on another computer 2026-07-12).txt</code>) so lameta never mistakes the copy for metadata.</li>
+      <li>The branch now builds with master's pnpm and vite-plus tooling.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th><th>Detail</th></tr>
+      <tr><td>Typecheck (<code>tsc --noemit</code>)</td><td><span class="state pass">pass</span></td><td>On the merged HEAD.</td></tr>
+      <tr><td>Lint (<code>vp lint</code>)</td><td><span class="state note">fails on master too</span></td><td>The repo-wide run reports <span class="numeral">409</span> type-aware errors, all in code that master has as well. CI does not run it. The pre-commit hook's check passed on every file this run committed.</td></tr>
+      <tr><td>Merge with master</td><td><span class="state pass">clean</span></td><td>Rebased onto master, then merged master twice. The second merge, of #80 "Move off @electron/remote" (<span class="numeral">bbe12986</span>), conflicted in six files; after formatting both sides the same way, only <code>src/index.tsx</code> needed a manual choice (master's startup without <code>PatientFS.init()</code>). A separate review of the six files found nothing missing from either side.</td></tr>
+      <tr><td>TypeScript unit tests (vitest)</td><td><span class="state note">1 failure, also on master</span></td><td><span class="numeral">1280 passed · 1 failed · 8 skipped</span>. The failure is <code>RoCrateExporter.doondo-integration.spec.ts</code> ("consistently URI-encoded @id values"), which fails the same way on master.</td></tr>
+      <tr><td>End-to-end tests (Playwright)</td><td><span class="state pass">pass</span></td><td>At <span class="numeral">cb99034d</span> with the default 4 workers: <span class="numeral">143 passed · 2 failed · 7 skipped</span>. The 2 (a click timeout and a crashed worker) pass when rerun on one worker. Before the port fix in cb99034d, two <code>mainProcessIntegration</code>/<code>documentAccess</code> tests failed on every run, and 40 tests failed with 4 workers.</td></tr>
+      <tr><td>C# / other stacks</td><td><span class="state na">N/A</span></td><td>None in this repo.</td></tr>
+      <tr><td>Repo preflight checks</td><td><span class="state na">N/A</span></td><td>AGENTS.md declares none.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <ul>
+      <li>Rebased onto master's pnpm and vite-plus tooling, merged master's two newer commits, and force-pushed to <code>OneDrive</code>. <a href="https://github.com/onset/lameta/commit/0932b8bd" target="_blank" rel="noopener">0932b8bd</a> adapts the branch to the tooling.</li>
+      <li><a href="https://github.com/onset/lameta/commit/8f270705" target="_blank" rel="noopener">8f270705</a>: the fake cloud provider was never active in a vite-plus build, so the cloud e2e test failed.</li>
+      <li>Fixed the three findings in this PR's own code: the moved-aside copy's name (<a href="https://github.com/onset/lameta/commit/ed462841" target="_blank" rel="noopener">ed462841</a>), evicted iCloud metadata (<a href="https://github.com/onset/lameta/commit/ed29e019" target="_blank" rel="noopener">ed29e019</a>), and macOS download limits (<a href="https://github.com/onset/lameta/commit/ec75519e" target="_blank" rel="noopener">ec75519e</a>).</li>
+      <li><a href="https://github.com/onset/lameta/commit/fecddbaf" target="_blank" rel="noopener">fecddbaf</a>: the substitute review's finding about the misnamed-metadata repair.</li>
+      <li>Merged master's #80 (<a href="https://github.com/onset/lameta/commit/c47db0f1" target="_blank" rel="noopener">c47db0f1</a>). <a href="https://github.com/onset/lameta/commit/cb99034d" target="_blank" rel="noopener">cb99034d</a>: the branch's dev-only DevTools port 9222 was also opened in e2e runs, which blocked any app launch while another instance held the port.</li>
+    </ul>
+    <p><a href="https://github.com/onset/lameta/pull/67/commits" target="_blank" rel="noopener">Commit list</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>1 finding: the copy of a metadata file that another computer changed kept its metadata extension, which set off the "multiple project files" error. Fixed in ed462841. It checked every spot where the rebase merged this branch with master's changes and found them correct.</td></tr>
+      <tr><td><a href="https://devinreview.com/onset/lameta/pull/67" target="_blank" rel="noopener">Devin</a></td><td>Complete for <span class="numeral">8f270705</span>, with 3 bugs. The <a href="https://github.com/onset/lameta/pull/67#discussion_r4332077118" target="_blank" rel="noopener">iCloud metadata</a> and <a href="https://github.com/onset/lameta/pull/67#discussion_r4332077240" target="_blank" rel="noopener">macOS download</a> bugs are fixed and their threads resolved. The <a href="https://github.com/onset/lameta/pull/67#issuecomment-6305669909" target="_blank" rel="noopener">renderer path shim</a> bug does not reproduce in a built app. Its 2 Investigate flags repeat earlier, resolved findings. For <span class="numeral">ec75519e</span> Devin was unavailable: twice its findings pass never finished (<a href="https://github.com/onset/lameta/pull/67#issuecomment-6306313410" target="_blank" rel="noopener">log</a>).</td></tr>
+      <tr><td>Substitute review (Claude Sonnet sub-agent)</td><td>Reviewed the three fix commits Devin could not. No clear bugs. One edge case: the misnamed-metadata repair could rename a stray file over an evicted iCloud file. Fixed in <a href="https://github.com/onset/lameta/commit/fecddbaf" target="_blank" rel="noopener">fecddbaf</a> with a test.</td></tr>
+      <tr><td>Other review bots</td><td>None post on this repo.</td></tr>
+      <tr><td>CI</td><td>No checks run on pull requests; <code>main.yml</code> runs only on pushes to master, beta and release.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The macOS code has never run on a Mac, and that includes this run's two macOS fixes (evicted iCloud metadata and the four-download limit). They are covered only by unit tests that use the macOS test hooks.</li>
+      <li>Devin's report that master's renderer <code>path</code> shim breaks dropping files does not reproduce in a built app: the build binds Node's real <code>path</code>, and the drop and import e2e tests pass. The dev server was not checked. <a href="https://github.com/onset/lameta/pull/67#issuecomment-6305669909" target="_blank" rel="noopener">Comment</a>.</li>
+      <li>The branch history was rewritten. Anyone with a local checkout of <code>OneDrive</code> needs to reset it to <code>origin/OneDrive</code> before pulling.</li>
+      <li>The PR description predates this run and has no preflight markers, so preflight left it alone; the second decision asks whether to replace it.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col" id="decisions">
+
+
+
+
+
+  <section class="q" data-item="Q5" data-title="lameta's AGENTS.md does not say which issue tracker preflight should use">
+    <h2>No issue tracker is declared for lameta</h2>
+    <p>Preflight posts the PR link and testing ideas to the work item's card, and it learns which tracker to use from the repo's root <code>AGENTS.md</code>. lameta's says nothing about a tracker, so every preflight run here has to ask. This run skipped the card steps because you said this branch has no card.</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q5" data-q="Q5" checked data-instruction="In the lameta repo, add a short section to the root AGENTS.md stating that lameta does not use an issue tracker with preflight, so preflight skips posting PR links and test ideas to a card; commit it on its own branch off master and open a draft PR."><span class="txt">Write in <code>AGENTS.md</code> that lameta does not use a tracker with preflight<span class="rec">Recommended</span> because that matches how this branch was run, and future runs stop asking.<span class="fx">No code: a few lines of documentation.</span></span></label>
+      <label class="opt"><input type="radio" name="q5" data-q="Q5" data-instruction="In the lameta repo, add a tracker declaration to the root AGENTS.md naming the tracker lameta uses, the format of its ticket ids, and the skill that talks to it (details are in this item's notes); commit it on its own branch off master and open a draft PR."><span class="txt">Declare the tracker lameta does use (name it, its id format and its skill in the notes).<span class="fx">No code: a few lines of documentation.</span></span></label>
+      <div class="opt"><input type="radio" name="q5" id="q5-leave" data-q="Q5" data-instruction="Leave as is — take no action on: lameta's AGENTS.md does not declare an issue tracker for preflight."><label class="txt" for="q5-leave">Leave as is</label></div>
+      <div class="opt other"><input type="radio" name="q5" id="q5-other" data-q="Q5" data-other="1"><div class="txt"><label for="q5-other">Other:</label><input type="text" id="q5-other-text" data-q="Q5" data-other-text="1"></div></div>
+    </div>
+    <label class="nl" for="q5-notes">Notes</label><textarea class="notes" id="q5-notes" data-q="Q5" data-notes="1"></textarea>
+  </section>
+
+  <section class="q" data-item="Q6" data-title="PR #67's description is out of date and has no preflight markers">
+    <h2>Replace the out-of-date PR description?</h2>
+    <p>PR #67's description was written two runs ago. It describes only that run's work (handling a broken provider at load) and has no preflight markers, so preflight treats it as yours and leaves it alone. The narrative at the top of this report describes the whole PR as it stands now.</p>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q6" data-q="Q6" checked data-instruction="Replace the description of https://github.com/onset/lameta/pull/67 with the current preflight narrative (problem and what the PR does) followed by the reviewer sections, wrapped in <!-- preflight-narrative:begin --> and <!-- preflight-narrative:end --> markers and ending with the line 'Preflight report: https://bloombooks.github.io/dev-process-artifacts/deciders/lameta-onedrive.html', so later preflight runs keep it current."><span class="txt">Replace it with the current narrative inside preflight markers<span class="rec">Recommended</span> because reviewers then see what the whole PR does, and later runs keep it current.<span class="fx">No code: a PR description edit.</span></span></label>
+      <div class="opt"><input type="radio" name="q6" id="q6-leave" data-q="Q6" data-instruction="Leave as is — take no action on: PR #67's description describes only an earlier preflight run and has no preflight markers."><label class="txt" for="q6-leave">Leave as is</label></div>
+      <div class="opt other"><input type="radio" name="q6" id="q6-other" data-q="Q6" data-other="1"><div class="txt"><label for="q6-other">Other:</label><input type="text" id="q6-other-text" data-q="Q6" data-other-text="1"></div></div>
+    </div>
+    <label class="nl" for="q6-notes">Notes</label><textarea class="notes" id="q6-notes" data-q="Q6" data-notes="1"></textarea>
+  </section>
+
+  <section class="q" data-item="Q7" data-title="Next step">
+    <h2>Next step</h2>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q7" data-q="Q7" checked data-instruction="Carry out the decisions above in D:\cloud-sync-cooperate-with-file-on-demand-provide-2 (branch OneDrive-2, pushed to origin/OneDrive), then re-run preflight on PR https://github.com/onset/lameta/pull/67 (onset/lameta), without a card."><span class="txt">Carry out these decisions, then re-run preflight<span class="rec">Recommended</span></span></label>
+      <label class="opt"><input type="radio" name="q7" data-q="Q7" data-instruction="Before changing anything for PR https://github.com/onset/lameta/pull/67, discuss the decisions above with me."><span class="txt">Discuss them with me first.</span></label>
+      <div class="opt"><input type="radio" name="q7" id="q7-leave" data-q="Q7" data-instruction="Leave as is — take no further action on PR https://github.com/onset/lameta/pull/67 for now."><label class="txt" for="q7-leave">Leave as is</label></div>
+      <div class="opt other"><input type="radio" name="q7" id="q7-other" data-q="Q7" data-other="1"><div class="txt"><label for="q7-other">Other:</label><input type="text" id="q7-other-text" data-q="Q7" data-other-text="1"></div></div>
+    </div>
+    <label class="nl" for="q7-notes">Notes</label><textarea class="notes" id="q7-notes" data-q="Q7" data-notes="1"></textarea>
+  </section>
+
+  <section class="card" id="copyback">
+    <h2>Send your answers back</h2>
+    <p>Paste this into a Claude Code session.</p>
+    <p><button class="copy" id="copybtn" type="button">Copy answers</button><span id="copystatus" role="status"></span></p>
+    <textarea id="payload" readonly aria-label="Your answers"></textarea>
+  </section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/lameta-onedrive.html";
+  function build() {
+    var out = [
+      "Decisions from a preflight report (decider form)",
+      "Project: onset/lameta, PR #67 https://github.com/onset/lameta/pull/67, branch OneDrive (local OneDrive-2), worktree D:\\cloud-sync-cooperate-with-file-on-demand-provide-2",
+      "Date: 2026-10-21",
+      "Full report: " + URL_,
+      ""
+    ];
+    document.querySelectorAll("[data-item]").forEach(function (sec) {
+      var q = sec.getAttribute("data-item");
+      out.push("## " + sec.getAttribute("data-title"));
+      var chosen = sec.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      if (chosen) {
+        if (chosen.hasAttribute("data-other")) {
+          var t = sec.querySelector("[data-other-text]").value.trim();
+          out.push("Other: " + (t || "(no text given)"));
+        } else {
+          out.push(chosen.getAttribute("data-instruction"));
+        }
+      } else {
+        out.push("(no option chosen)");
+      }
+      var lc = sec.querySelector("input[type=checkbox][data-lc]");
+      if (lc && lc.checked) out.push("Leave comment: " + lc.getAttribute("data-lc"));
+      var n = sec.querySelector("[data-notes]").value.trim();
+      if (n) out.push("Notes: " + n);
+      out.push("");
+    });
+    return out.join("\n").trim() + "\n";
+  }
+  var ta = document.getElementById("payload");
+  function refresh() { ta.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async function () {
+    var st = document.getElementById("copystatus");
+    st.className = "";
+    try {
+      refresh();
+      ta.focus(); ta.select();
+      var ok = false;
+      try { await navigator.clipboard.writeText(ta.value); ok = true; } catch (e) {
+        try { ta.select(); ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+      }
+      if (ok) { st.textContent = "Copied ✓"; st.className = "ok"; }
+      else { st.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      st.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
