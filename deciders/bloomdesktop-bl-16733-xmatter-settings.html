@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16733 Preflight</title>
+<style>
+/* Layout: header band, then two columns — the report on the left, the decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636d;
+  --rule: #dcd8cf;
+  --accent: #1f6f8b;
+  --accent-soft: #e3eff3;
+  --good: #2e7d4f;
+  --warn: #9a6a00;
+  --bad: #b03a2e;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-block; padding: 3px 10px; border: 1px solid var(--rule); border-radius: 999px; background: var(--card); font-size: 0.85rem; }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.chip.bad { border-color: var(--bad); color: var(--bad); }
+.chip.good { border-color: var(--good); color: var(--good); }
+.links a.chip { text-decoration: none; }
+.links a.chip:hover { background: var(--accent-soft); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88em; }
+.ok { color: var(--good); font-weight: 600; }
+.no { color: var(--bad); font-weight: 600; }
+.caveat { color: var(--warn); font-weight: 600; }
+.muted { color: var(--muted); }
+.question { display: flex; flex-direction: column; gap: 10px; }
+.question h3 { font-size: 1.05rem; }
+.options { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .foot { color: var(--muted); font-size: 0.85rem; }
+.rec { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; font-weight: 600; }
+.leave-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.other-text { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; }
+textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+.notes { min-height: 2.6em; }
+#payload { min-height: 12em; font: 0.85rem/1.4 var(--mono); }
+button { font: inherit; padding: 7px 16px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; align-self: flex-start; }
+#copyStatus { font-size: 0.9rem; }
+#copyStatus.done { color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="card">
+  <h1>BL-16733: Front &amp; Back Matter page</h1>
+  <p>The page is built and both full suites pass, but it can't merge the moved base yet, so CI and Devin have not run. Two decisions are waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip bad">Conflicts with base</span>
+    <span class="chip warn">CI and Devin did not run</span>
+    <span class="chip">Board: needs response</span>
+    <span class="chip warn">2 decisions waiting</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8493" target="_blank" rel="noopener">PR #8493</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8493/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8493/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16733" target="_blank" rel="noopener">BL-16733</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8493" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8487" target="_blank" rel="noopener">Base: PR #8487</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+
+<section class="card">
+  <h2>What this PR is about</h2>
+  <h3>Problem</h3>
+  <p>The new (React) Collection Settings dialog shows only a placeholder on its Front &amp; Back Matter page. Choosing a front/back matter style, setting up the QR code on the "Made with Bloom" badge, and entering the place names that front matter shows can all still be done only in the old WinForms dialog.</p>
+  <h3>What the PR does</h3>
+  <ul>
+    <li><strong>Style:</strong> a list of the front/back matter packs, with the chosen pack's description beneath it. When the branding picks the pack, only that one is listed and the list is disabled. A saved pack that is no longer installed stays in the list, so just viewing the page doesn't change it.</li>
+    <li><strong>QR Codes:</strong> Show QR Codes and Caption, plus a live preview of the badge that updates as you type, with the language name in bold. A new <code>GET collection/qrCodeBadge</code> supplies the QR image, built in memory by the same code that writes it into books, along with the language name and address the badge shows.</li>
+    <li><strong>Places:</strong> Country, Province and District. Config-R ignores a group's description, so the page draws the Places heading and its explanation itself.</li>
+  </ul>
+  <p>The values were already in the save model, so the save path is unchanged. Page Numbering Style is not on this page (it isn't in the mockup).</p>
+</section>
+
+<section class="card">
+  <h2>Quality gate</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Check</th><th>Result</th></tr></thead>
+    <tbody>
+      <tr><td>Typecheck</td><td><span class="ok">Pass</span> at HEAD. Merging the current base adds one error that comes from the base itself (see the first decision).</td></tr>
+      <tr><td>Lint</td><td><span class="ok">Pass</span>, no errors (only warnings already in untouched files)</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td><span class="ok">Pass</span> <span class="numeral">96 files · 1213 tests</span></td></tr>
+      <tr><td>C# tests (dotnet test)</td><td><span class="ok">Pass</span> <span class="numeral">3767 passed · 0 failed</span></td></tr>
+      <tr><td>Repo check: e2e spec at the nightly window size</td><td><span class="caveat">Passed, then not re-run</span> <span class="numeral">2/2</span>. It passed on code that differs from HEAD only in prettier's reformatting of the spec. The re-run on HEAD needs port 5173, which another worktree's dev server (BL-16608) is using.</td></tr>
+      <tr><td>Merge with base</td><td><span class="no">Conflicts</span>. <code>CollectionSettingsDialog.test.tsx</code>: both sides added tests at the same spot (resolved locally by keeping both). The merge commit is blocked by the base's Config-R error.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>What changed this run</h2>
+  <p>Committed the page (<a href="https://github.com/BloomBooks/BloomDesktop/commit/9e85e4d710307e279d25a05cf8ec16a242eb08c1" target="_blank" rel="noopener">9e85e4d</a>), opened the draft PR on <code>BL-16734-subscription-settings</code>, linked it on the card, and posted test ideas. I tried merging the base, which has moved, and aborted when the pre-commit hook refused the merge commit.</p>
+</section>
+
+<section class="card">
+  <h2>Reviewer outcomes</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>Local review</td><td>Light sub-agent pass: clean, no findings.</td></tr>
+      <tr><td>Devin</td><td><span class="caveat">Did not review.</span> Its job finished without a findings pass; it records <code>diff_only_reason: merge_conflicts</code>, so it skips a PR that conflicts with its base. In its place a read-only Sonnet sub-agent reviewed the diff: clean. Its one note, a bitmap leak only if the QR tweak throws, is theoretical and was dismissed.</td></tr>
+      <tr><td>CodeRabbit</td><td>Not active here: <code>.coderabbit.yml</code> turns auto review off.</td></tr>
+      <tr><td>CI</td><td><span class="caveat">Did not run.</span> GitHub runs no pull-request workflows on a PR that conflicts with its base.</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Worth knowing</h2>
+  <ul>
+    <li>The badge preview uses the collection's saved languages and subscription, because the Languages page isn't built yet.</li>
+    <li>The base, #8487 with BL-17032 merged in, cannot typecheck or build until Config-R 1.0.0-alpha.30 is published (<a href="https://github.com/sillsdev/config-r/pull/29" target="_blank" rel="noopener">sillsdev/config-r#29</a>, still open).</li>
+  </ul>
+</section>
+
+</div>
+<div>
+
+<section class="card question" data-question="1">
+  <h3>How should this branch take in the moved base?</h3>
+  <p>The PR is based on <code>BL-16734-subscription-settings</code> (#8487). Since I branched, that branch merged in BL-17032 (the Help button), which needs Config-R 1.0.0-alpha.30. That version isn't published yet; it comes out when sillsdev/config-r#29 merges. Until then the base fails typecheck. Merging it here makes the pre-commit hook refuse the merge commit, and I won't bypass the hook.</p>
+  <p>Without the merge, the PR conflicts with its base in one test file, where both sides added tests at the same spot. A conflicting PR gets no CI, and Devin refuses to review it. So this PR has had only local and substitute reviews.</p>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="wait" checked
+      data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16733-xmatter-settings (branch BL-16733-xmatter-settings, PR #8493), wait until @sillsdev/config-r 1.0.0-alpha.30 is published and BL-16734-subscription-settings is updated to it, then re-run /preflight: merge origin/BL-16734-subscription-settings, resolve the CollectionSettingsDialog.test.tsx conflict by keeping both sides' additions (the base's Help tests and this branch's Front & Back Matter tests, plus the show-qr-code-with-caption mock button), and let CI and Devin review.">
+      <span>Wait for Config-R alpha.30, then re-run /preflight to merge the base. <span class="rec">Recommended</span> The merge is mechanical, and once the base typechecks, CI and Devin can review the real result. <span class="foot">(no code now; the merge is a couple of minutes once alpha.30 is out)</span></span></label>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="rebase"
+      data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16733-xmatter-settings (branch BL-16733-xmatter-settings, PR #8493), rebase this branch's one commit onto the current origin/BL-16734-subscription-settings now (keeping both sides in CollectionSettingsDialog.test.tsx), force-push, and run Devin, accepting that CI's typecheck fails on the base's missing Config-R alpha.30 just as it does on #8487.">
+      <span>Rebase onto the current base now, so Devin can review and CI runs. <span class="foot">(small; the branch then fails typecheck exactly as #8487 does until alpha.30, and a rebase skips the pre-commit check rather than passing it)</span></span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q1" data-q="q1" value="leave"
+        data-instruction="Leave as is — take no action on: PR #8493 (BL-16733) conflicts with its moved base BL-16734-subscription-settings, which waits on Config-R alpha.30.">
+        <span>Leave as is</span></label>
+    </div>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="other" data-instruction="Other">
+      <span>Other:</span> <input type="text" class="other-text" data-q="q1-other" id="q1-other" aria-label="Other answer for the base question"></label>
+  </div>
+  <textarea class="notes" data-q="q1-notes" id="q1-notes" placeholder="Notes" aria-label="Notes on the base question"></textarea>
+</section>
+
+<section class="card question" data-question="2">
+  <h3>Where should Page Numbering Style live in the new dialog?</h3>
+  <p>You chose to leave Page Numbering Style off this page because the mockup doesn't show it. That leaves it on no page of the new dialog. It is a per-collection setting (Decimal, Arabic-Indic, Devanagari, and so on), so when the old dialog is removed, nobody could change it any more. <code>docs/collection-settings-react/PLAN.md</code> now marks this question (Q5) open. The plan's mockup table also mentions putting it under each language's "More › Script", which belongs to the Languages card, BL-16739.</p>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="note" checked
+      data-instruction="Post a comment on YouTrack card BL-16739 (Collection Settings: Languages) saying that Page Numbering Style has no page in the new React Collection Settings dialog (BL-16733 left it off Front & Back Matter, and PLAN.md Q5 is open), so the Languages card should give it a home (e.g. in More › Script) or decide another page before the old dialog is removed.">
+      <span>Note it on the Languages card (BL-16739), so that card gives it a home. <span class="rec">Recommended</span> The mockup's only other placement is there, and the cutover checklist goes through every WinForms rule anyway. <span class="foot">(no code, one card comment)</span></span></label>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="add"
+      data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16733-xmatter-settings (branch BL-16733-xmatter-settings, PR #8493), add a Page Numbering Style select to the Front & Back Matter page (src/BloomBrowserUI/collection/settingsPages/FrontBackMatterPage.tsx), bound to frontBackMatter.pageNumberStyle with its choices from GET settings/numberingStyle, with a unit test, and update PLAN.md Q5 to say it lives there.">
+      <span>Put it on Front &amp; Back Matter after all, next to Style. <span class="foot">(~40 lines plus a test; the value and its list already exist)</span></span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q2" data-q="q2" value="leave"
+        data-instruction="Leave as is — take no action on: Page Numbering Style has no page in the new Collection Settings dialog; PLAN.md Q5 stays open.">
+        <span>Leave as is</span></label>
+      <label class="opt"><input type="checkbox" data-q="q2-comment" id="q2-comment"
+        data-instruction="Also record this decision as a code comment in src/BloomBrowserUI/collection/settingsPages/FrontBackMatterPage.tsx, near the page's doc comment, saying why Page Numbering Style is not on this page.">
+        <span>Leave comment</span></label>
+    </div>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="other" data-instruction="Other">
+      <span>Other:</span> <input type="text" class="other-text" data-q="q2-other" id="q2-other" aria-label="Other answer for the page numbering question"></label>
+  </div>
+  <textarea class="notes" data-q="q2-notes" id="q2-notes" placeholder="Notes" aria-label="Notes on the page numbering question"></textarea>
+</section>
+
+<section class="card question" data-question="3">
+  <h3>What next?</h3>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="go" checked
+      data-instruction="Carry out the choices above now, then report back.">
+      <span>Carry out my choices above now. <span class="rec">Recommended</span></span></label>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="discuss"
+      data-instruction="Do nothing yet; discuss the choices above with me first.">
+      <span>Discuss first.</span></label>
+    <div class="leave-row">
+      <label class="opt"><input type="radio" name="q3" data-q="q3" value="leave"
+        data-instruction="Leave as is — take no further action on BL-16733 for now.">
+        <span>Leave as is</span></label>
+    </div>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="other" data-instruction="Other">
+      <span>Other:</span> <input type="text" class="other-text" data-q="q3-other" id="q3-other" aria-label="Other answer for next step"></label>
+  </div>
+  <textarea class="notes" data-q="q3-notes" id="q3-notes" placeholder="Notes" aria-label="Notes on next step"></textarea>
+</section>
+
+<section class="card">
+  <h2>Send your answers back</h2>
+  <p>Paste this into a Claude Code session.</p>
+  <button type="button" id="copyButton">Copy answers</button>
+  <span id="copyStatus" role="status"></span>
+  <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+</section>
+
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var reportUrl = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16733-xmatter-settings.html";
+  var titles = {
+    q1: "How should this branch take in the moved base?",
+    q2: "Where should Page Numbering Style live in the new dialog?",
+    q3: "What next?"
+  };
+  function build() {
+    var lines = [
+      "Decisions from a decider form (preflight report)",
+      "Project: BloomBooks/BloomDesktop, branch BL-16733-xmatter-settings, PR https://github.com/BloomBooks/BloomDesktop/pull/8493 (card BL-16733)",
+      "Worktree: C:\\dev\\_worktrees\\BloomDesktop\\BL-16733-xmatter-settings",
+      "Date: 2026-10-21",
+      "Full report: " + reportUrl,
+      ""
+    ];
+    ["q1", "q2", "q3"].forEach(function (q, i) {
+      lines.push((i + 1) + ". " + titles[q]);
+      var chosen = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      if (chosen) {
+        if (chosen.value === "other") {
+          var other = document.querySelector('[data-q="' + q + '-other"]').value.trim();
+          lines.push("   Other: " + (other || "(nothing typed)"));
+        } else {
+          lines.push("   " + chosen.getAttribute("data-instruction"));
+        }
+      }
+      var comment = document.querySelector('[data-q="' + q + '-comment"]');
+      if (comment && comment.checked) lines.push("   " + comment.getAttribute("data-instruction"));
+      var notes = document.querySelector('[data-q="' + q + '-notes"]').value.trim();
+      if (notes) lines.push("   Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyButton").addEventListener("click", async function () {
+    var status = document.getElementById("copyStatus");
+    status.className = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      var copied = false;
+      try {
+        await navigator.clipboard.writeText(payload.value);
+        copied = true;
+      } catch (e) {
+        try { copied = document.execCommand("copy"); } catch (e2) { copied = false; }
+      }
+      if (copied) {
+        status.textContent = "Copied ✓";
+        status.className = "done";
+      } else {
+        status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+      }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
