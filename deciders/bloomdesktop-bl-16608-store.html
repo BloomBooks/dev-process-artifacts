@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Store reductions &mdash; BL-16608 toolbox 4/4</title>
+<style>
+:root {
+    --ground: #f7f6f3;
+    --card: #fff;
+    --rule: #e2dfd8;
+    --ink: #22201c;
+    --soft: #5f5a51;
+    --faint: #8b857a;
+    --accent: #1f4e6b;
+    --accent-bg: #eaf1f5;
+    --good: #1f6b3f;
+    --good-bg: #e8f3ec;
+    --warn: #8a5a1f;
+    --warn-bg: #f7efe3;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    background: var(--ground); color: var(--ink);
+    font-family: var(--sans); font-size: 15px; line-height: 1.55;
+    padding: 36px 20px 64px;
+}
+.wrap { max-width: 1320px; margin: 0 auto; }
+h1 { font-family: var(--serif); font-size: 27px; font-weight: 600; margin: 0 0 8px; }
+.sub { color: var(--soft); margin: 0 0 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.chip {
+    font-size: 12.5px; padding: 3px 10px; border-radius: 20px;
+    background: var(--accent-bg); color: var(--accent); border: 1px solid #cddfe9;
+    white-space: nowrap;
+}
+.chip.good { background: var(--good-bg); color: var(--good); border-color: #c7e2d2; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); border-color: #ecd9bb; }
+.links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+.links a {
+    font-size: 12.5px; padding: 3px 10px; border-radius: 4px; text-decoration: none;
+    background: var(--card); border: 1px solid var(--rule); color: var(--accent);
+    white-space: nowrap;
+}
+.links a:hover { border-color: var(--accent); }
+.cols { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 6fr); gap: 26px; align-items: start; }
+.cols > * { min-width: 0; }
+@media (max-width: 980px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.stack { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.card {
+    background: var(--card); border: 1px solid var(--rule); border-radius: 6px;
+    padding: 20px 22px; min-width: 0;
+}
+h2 { font-family: var(--serif); font-size: 19px; font-weight: 600; margin: 0 0 12px; }
+h3 { font-size: 14px; font-weight: 650; margin: 16px 0 6px; color: var(--soft);
+     text-transform: uppercase; letter-spacing: .05em; }
+h3:first-of-type { margin-top: 0; }
+p { margin: 0 0 10px; }
+p:last-child { margin-bottom: 0; }
+ul { margin: 0 0 10px; padding-left: 20px; }
+li { margin-bottom: 5px; }
+code { font-family: var(--mono); font-size: .875em; background: var(--accent-bg);
+       color: var(--accent); padding: 1px 4px; border-radius: 3px; word-break: break-word; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .9em; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--faint); font-weight: 650; }
+tr:last-child td { border-bottom: 0; }
+.ok { color: var(--good); font-weight: 600; }
+.na { color: var(--faint); }
+.opts { display: flex; flex-direction: column; gap: 2px; margin-top: 14px; }
+.opt { display: grid; grid-template-columns: auto minmax(0,1fr) auto; gap: 10px;
+       align-items: start; padding: 9px 11px; border: 1px solid transparent; border-radius: 5px; cursor: pointer; }
+.opt:hover { background: var(--ground); }
+.opt:has(input:checked) { background: var(--accent-bg); border-color: #cddfe9; }
+.opt input[type=radio] { margin: 3px 0 0; accent-color: var(--accent); }
+.opt .lab { font-weight: 550; }
+.opt .body { min-width: 0; }
+.opt .body p { margin: 4px 0 0; font-size: 13.5px; color: var(--soft); font-weight: 400; }
+.tag { display: inline-block; margin-left: 7px; font-size: 10.5px; letter-spacing: .07em;
+       text-transform: uppercase; font-weight: 600; color: var(--accent); background: var(--accent-bg);
+       border-radius: 3px; padding: 1px 6px; vertical-align: 1.5px; }
+.lc { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--faint);
+      white-space: nowrap; cursor: pointer; padding-top: 2px; }
+.lc input { accent-color: var(--accent); margin: 0; }
+.otherwrap { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.otherwrap .lab { white-space: nowrap; }
+input[type=text], textarea {
+    font-family: var(--sans); font-size: 13.5px; color: var(--ink); background: var(--card);
+    border: 1px solid var(--rule); border-radius: 4px; padding: 6px 8px; width: 100%; min-width: 0;
+}
+textarea { resize: vertical; min-height: 44px; }
+.notes { margin-top: 12px; }
+.notes label { display: block; font-size: 11.5px; letter-spacing: .05em; text-transform: uppercase;
+               color: var(--faint); margin-bottom: 4px; font-weight: 650; }
+#copyBtn { font-family: var(--sans); font-size: 14px; font-weight: 600; color: #fff;
+           background: var(--accent); border: 0; border-radius: 5px; padding: 10px 18px; cursor: pointer; }
+#copyBtn:hover { background: #1a4259; }
+#copyStatus { margin-left: 12px; font-size: 13px; color: var(--soft); }
+#copyStatus.ok { color: var(--good); font-weight: 600; }
+#payload { margin-top: 12px; font-family: var(--mono); font-size: 11.5px; min-height: 130px; }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head><body><div class="wrap">
+<h1>What is left on toolbox 4/4</h1>
+<p class="sub">BloomDesktop &middot; <code>BL-16608-toolbox-3-react</code> &middot; PR #8447 &middot; 21 October 2026</p>
+<div class="links">
+<a href="https://github.com/BloomBooks/BloomDesktop/pull/8447" target="_blank" rel="noopener">PR #8447</a>
+<a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8447" target="_blank" rel="noopener">Reviewable</a>
+<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16608" target="_blank" rel="noopener">BL-16608</a>
+</div>
+<div class="cols"><div class="stack">
+<div class="card">
+<h2>Where this stands</h2>
+<p>The vocabulary work is done and committed. Ten commits and a rebase are unpushed. The gate is green
+as of the last commit: <strong>1526 of 1526</strong> front-end tests across 108 files, C# building with
+no errors, typecheck at the established baseline of 81, prettier applied.</p>
+<p>What is left is a couple of small reductions to the store that I flagged but did not make, one
+question about how loud an internal error should be, and what happens next with the pull request.</p>
+</div>
+<div class="card">
+<h2>One of the four turned out not to be a question</h2>
+<p>I had listed <code>withdrawTool</code>&rsquo;s two <code>updateState</code> calls as something to
+collapse. Reading it again, they are on mutually exclusive branches with an early return between them
+&mdash; only one ever runs, and the second deliberately writes <code>offeredToolIds</code> and
+<code>openToolId</code> in a single snapshot so that no subscriber sees the moment in between. There is
+nothing to collapse, and the comment already explains why. Dropped, with no decision needed.</p>
+</div>
+<div class="card">
+<h2>Why these are worth doing now rather than later</h2>
+<p>Each is a handful of lines, and both are in files this pull request has already rewritten. Folding
+them in costs one more run of the gate. Carding them instead means a second testing pass over the same
+code later, which is the thing you said you wanted to avoid.</p>
+</div>
+</div>
+<div class="stack">
+<div class="card">
+<h2>1. <code>uiMounted</code> rides in the React snapshot, but no component reads it</h2>
+<p><code>uiMounted</code> is a field on <code>IToolboxUiState</code> &mdash; the immutable snapshot
+React subscribes to. <code>ToolboxRoot</code> sets it true as it mounts and false as it unmounts. The
+only place that reads it is <code>readerToolsModel.ts</code>, twice
+(<code>if (!isToolboxUiMounted()) return;</code>), and it reads it imperatively through the accessor,
+not from a snapshot. <strong>No component renders anything from it.</strong></p>
+<p>Because it lives in the snapshot, setting it builds a new state object and notifies every
+subscriber &mdash; so <code>ToolboxRoot</code>&rsquo;s own mount schedules a re-render of the toolbox for
+a fact nothing renders. In practice that is two extra renders in the life of the page, so the cost is
+conceptual rather than measurable: the snapshot is supposed to be what the UI is made of, and this is
+the one member that isn&rsquo;t.</p>
+<p>It would become a module-level <code>let uiMounted = false</code> beside <code>theState</code>, with
+the same two exported functions. About eight lines move; the two readers and the four call sites do not
+change at all. <code>toolboxState.spec.ts</code> has a test on the pair, which keeps working.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q1" value="move_out" data-q="q1" checked data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: move uiMounted out of IToolboxUiState in src/BloomBrowserUI/bookEdit/toolbox/toolboxState.ts and back isToolboxUiMounted()/setToolboxUiMounted() with a module-level variable instead, leaving both exported functions and all their callers unchanged."><span class="body"><span class="lab">Move it out of the snapshot</span> <span class="tag">Recommended</span><p>Keep <code>isToolboxUiMounted()</code> / <code>setToolboxUiMounted()</code> exactly as they are, but back them with a module-level variable instead of a state field, and drop <code>uiMounted</code> from <code>IToolboxUiState</code>. (No caller changes, no behaviour changes; the snapshot becomes purely what the UI is made of.)</p></span><span></span></label><label class="opt"><input type="radio" name="q1" value="leave" data-q="q1" data-instruction="Leave as is -- take no action on: uiMounted being a field on the React snapshot."><span class="body"><span class="lab">Leave as is</span></span><label class="lc"><input type="checkbox" data-q="q1_comment"> Leave comment</label></label><label class="opt"><input type="radio" name="q1" value="other" data-q="q1" data-other="q1_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q1_other" placeholder="your own instruction"></span><span></span></label></div>
+<div class="notes"><label>Notes</label><textarea data-q="q1_notes" placeholder="caveats or constraints"></textarea></div>
+</div>
+<div class="card">
+<h2>2. <code>showToolboxChanged(wasShowing)</code> is inverted at every single use</h2>
+<p>The one caller passes the negation of the checkbox:</p>
+<pre><code>showToolboxChanged(!this.checked);</code></pre>
+<p>and then every use inside the function negates it back:</p>
+<pre><code>"visibility\t" + (wasShowing ? "" : "visible")
+if (openTool &amp;&amp; wasShowing) { ...log "deactivating"... }
+setToolboxVisible(!wasShowing);</code></pre>
+<p>The parameter names the state the toolbox was in <em>before</em> the toggle, so a reader has to
+invert it in their head at each use to work out what the function does. Since
+<code>!wasShowing === this.checked</code>, passing <code>this.checked</code> as <code>nowShowing</code>
+removes every negation and the body reads forwards: log <code>"visible"</code> when it is now visible,
+log &ldquo;deactivating&rdquo; when it is not, <code>setToolboxVisible(nowShowing)</code>.</p>
+<p>It is a four-line change in one function with one caller, and the two are in the same file. The
+check that it is right is that the suite still passes and the toolbox still hides and shows &mdash; and
+toolbox showing and hiding is the one thing a tester is certain to exercise.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q2" value="flip" data-q="q2" checked data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: in src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts change showToolboxChanged's parameter from wasShowing to nowShowing, pass this.checked instead of !this.checked at the one call site, and remove the resulting negations inside the function."><span class="body"><span class="lab">Flip the parameter to <code>nowShowing</code></span> <span class="tag">Recommended</span><p>Pass <code>this.checked</code>, rename the parameter, and drop the negations. (Pure refactor, one function, one caller, same file.)</p></span><span></span></label><label class="opt"><input type="radio" name="q2" value="leave" data-q="q2" data-instruction="Leave as is -- take no action on: showToolboxChanged's inverted wasShowing parameter."><span class="body"><span class="lab">Leave as is</span></span><label class="lc"><input type="checkbox" data-q="q2_comment"> Leave comment</label></label><label class="opt"><input type="radio" name="q2" value="other" data-q="q2" data-other="q2_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q2_other" placeholder="your own instruction"></span><span></span></label></div>
+<div class="notes"><label>Notes</label><textarea data-q="q2_notes" placeholder="caveats or constraints"></textarea></div>
+</div>
+<div class="card">
+<h2>3. <code>setOpenTool</code> refuses to the console &mdash; is that loud enough?</h2>
+<p>You asked for one path to open a tool that always does the right thing, and for a bad open to
+be refused and logged rather than thrown. That is what it does now: if the tool is not on offer,
+<code>setOpenTool</code> returns without changing anything and writes a <code>console.error</code>
+naming the tool asked for, what the toolbox is actually offering, and what to do instead.</p>
+<p>You also wondered aloud about a toast in alpha. <strong>There is no browser&rarr;C# toast path in
+Bloom today</strong> &mdash; the only thing in that direction is a debug bridge &mdash; so a toast is not
+a line of code, it is a small new piece of plumbing. It would also be the first time this file needed
+anything outside itself.</p>
+<p>Worth weighing against it: the condition is a programming error, not a user situation. It can only
+happen if someone writes a new way to open a tool and forgets to offer it first &mdash; and whoever does
+that is a developer, running a dev build, with the console open. <code>AGENTS.md</code> says not to be
+defensive about internal API misuse, which points the same way.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q3" value="console_only" data-q="q3" checked data-instruction="Leave setOpenTool's refusal as a console.error only -- do not add a toast or any other user-visible surfacing, and do not open a card for it."><span class="body"><span class="lab">Leave it at the console error</span> <span class="tag">Recommended</span><p>The refusal and the explanatory message stay as they are; no toast, no card. (The only audience for this message is a developer who just wrote the mistake, and they will see it.)</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="toast_now" data-q="q3" data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: add a browser-to-C# path that can show a toast in alpha builds, and call it from setOpenTool's refusal in addition to the console.error."><span class="body"><span class="lab">Build the toast path now, in this PR</span><p>Add a browser&rarr;C# route that shows a toast, and call it from the refusal alongside the console error. (New plumbing in a PR that is otherwise finished, and it would want its own testing.)</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="card_it" data-q="q3" data-instruction="Leave setOpenTool's refusal as a console.error, and create a YouTrack card proposing a general browser-to-C# toast route for internal errors like this one in alpha builds."><span class="body"><span class="lab">Card the toast path for later</span><p>Leave the console error, and open a YouTrack card for a general browser&rarr;toast route that this and other internal-error cases could use. (Nothing changes here; the idea is written down somewhere other than this form.)</p></span><span></span></label><label class="opt"><input type="radio" name="q3" value="other" data-q="q3" data-other="q3_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q3_other" placeholder="your own instruction"></span><span></span></label></div>
+<div class="notes"><label>Notes</label><textarea data-q="q3_notes" placeholder="caveats or constraints"></textarea></div>
+</div>
+<div class="card">
+<h2>4. Next step: John&rsquo;s thirteen threads, and the push</h2>
+<p>Ten commits and a rebase onto current master are sitting unpushed; the remote is still on the
+commit John reviewed, which is why his review reads as untouched. The push will be a force-push, since
+the rebase changed the base.</p>
+<p>All thirteen of his comments have had their code changes made, but <strong>none of the threads have
+been replied to</strong> &mdash; deliberately, because a reply describing a fix is wrong until the fix is
+on the remote. His review is still CHANGES_REQUESTED and will stay that way until he looks again.</p>
+<p>Bloom testing is still on hold at your instruction, and you said this round needs no second bot
+review.</p>
+<div class="opts"><label class="opt"><input type="radio" name="q4" value="reply_push" data-q="q4" checked data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: implement whatever was chosen above, re-run the full gate, post a reply on each of JohnThomson's thirteen Reviewable threads on PR #8447 saying what changed, rebase on current master, and force-push."><span class="body"><span class="lab">Reply on all thirteen, then rebase and push</span> <span class="tag">Recommended</span><p>Re-run the gate, fold in whatever is chosen above, reply on each of John&rsquo;s threads with what changed, then force-push. (Hands the whole round back to him in one go.)</p></span><span></span></label><label class="opt"><input type="radio" name="q4" value="push_only" data-q="q4" data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: implement whatever was chosen above, re-run the gate, rebase on current master and force-push, but do not reply to any of the review threads yet."><span class="body"><span class="lab">Push now, reply later</span><p>Force-push so the remote shows the real state, and leave the thread replies for a separate pass. (He can see the code sooner; the threads stay silent a while longer.)</p></span><span></span></label><label class="opt"><input type="radio" name="q4" value="test_first" data-q="q4" data-instruction="In the BloomDesktop repo, branch BL-16608-toolbox-3-react: implement whatever was chosen above and re-run the gate, then stop -- do not push and do not reply -- until the hold on testing in Bloom is lifted."><span class="body"><span class="lab">Hold the push until it has been exercised in Bloom</span><p>Do the work above, then stop and wait for the hold on Bloom testing to lift before pushing or replying. (Nothing reaches John until the toolbox has actually been opened and closed in a real build.)</p></span><span></span></label><label class="opt"><input type="radio" name="q4" value="other" data-q="q4" data-other="q4_other"><span class="body otherwrap"><span class="lab">Other:</span><input type="text" data-q="q4_other" placeholder="your own instruction"></span><span></span></label></div>
+<div class="notes"><label>Notes</label><textarea data-q="q4_notes" placeholder="caveats or constraints"></textarea></div>
+</div>
+<div class="card">
+<h2>Send your answers back</h2>
+<p>Choose on each question, then copy this and paste it into the session.</p>
+<button id="copyBtn" type="button">Copy answers</button><span id="copyStatus"></span>
+<textarea id="payload" readonly></textarea>
+</div>
+</div></div></div>
+<script>
+(function () {
+    var Q = [
+        ["q1", "1. uiMounted in the React snapshot"],
+        ["q2", "2. showToolboxChanged's inverted parameter"],
+        ["q3", "3. How loudly setOpenTool should refuse"],
+        ["q4", "4. Next step: replies and the push"]
+    ];
+    function val(sel) { var e = document.querySelector(sel); return e ? e.value.trim() : ""; }
+    function build() {
+        var L = [];
+        L.push("Decisions from a decider form");
+        L.push("Project: BloomDesktop \u2014 BL-16608, toolbox cleanup 4/4");
+        L.push("PR: https://github.com/BloomBooks/BloomDesktop/pull/8447");
+        L.push("Branch: BL-16608-toolbox-3-react");
+        L.push("Worktree: C:\\dev\\BloomDesktop.worktrees\\BL-16608");
+        L.push("Date: 2026-10-21");
+        L.push("Form: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16608-store.html");
+        L.push("");
+        Q.forEach(function (q) {
+            var picked = document.querySelector('input[name="' + q[0] + '"]:checked');
+            if (!picked) return;
+            L.push(q[1]);
+            var ok = picked.getAttribute("data-other");
+            if (ok) {
+                L.push("  Other: " + (val('input[data-q="' + ok + '"]') || "(no text given)"));
+            } else {
+                L.push("  " + (picked.getAttribute("data-instruction") || ""));
+            }
+            var cb = document.querySelector('input[data-q="' + q[0] + '_comment"]');
+            if (cb && cb.checked) {
+                L.push("  Leave comment: record this decision durably as a code comment next to the relevant code.");
+            }
+            var n = val('textarea[data-q="' + q[0] + '_notes"]');
+            if (n) L.push("  Notes: " + n);
+            L.push("");
+        });
+        return L.join("\n").replace(/\n+$/, "\n");
+    }
+    var btn = document.getElementById("copyBtn"),
+        st = document.getElementById("copyStatus"),
+        pay = document.getElementById("payload");
+    function refresh() { pay.value = build(); }
+    document.addEventListener("input", refresh);
+    document.addEventListener("change", refresh);
+    btn.addEventListener("click", function () {
+        try {
+            var t = build();
+            pay.value = t; pay.focus(); pay.select();
+            st.className = ""; st.textContent = "";
+            var done = function () { st.className = "ok"; st.textContent = "Copied \u2713"; };
+            var manual = function () {
+                st.className = "";
+                st.textContent = "Couldn't copy automatically \u2014 the text is selected below; press Ctrl+C (\u2318C on Mac).";
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(t).then(done, function () {
+                    var ok2 = false; try { ok2 = document.execCommand("copy"); } catch (e) { ok2 = false; }
+                    ok2 ? done() : manual();
+                });
+            } else {
+                var ok2 = false; try { ok2 = document.execCommand("copy"); } catch (e) { ok2 = false; }
+                ok2 ? done() : manual();
+            }
+        } catch (e) {
+            st.className = ""; st.textContent = "Couldn't build the answers \u2014 please copy your selections manually.";
+        }
+    });
+    refresh();
+})();
+</script>
+</body></html>
