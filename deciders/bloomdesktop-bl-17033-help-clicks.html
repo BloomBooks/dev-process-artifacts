@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-17033 Preflight Report</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf7f2;color:#2b2a27;font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#1d5fa8}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 16px}
+header{margin-bottom:20px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d8d2c7;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem}
+.chip.ok{border-color:#8fbf9a;background:#eef7f0}
+.links a{text-decoration:none}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:20px}
+.grid>*{min-width:0}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd2;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7dc;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600}
+.numeral{font-family:Consolas,monospace;font-variant-numeric:tabular-nums}
+.pass{color:#2f7a44;font-weight:600}.warn{color:#9a6a00;font-weight:600}
+ul{padding-left:1.2em;margin:.3em 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>BL-17033: Help keeps working after repeated presses</h1>
+<div>Preflight finished clean: the gates pass, Devin is satisfied, and nothing is waiting on you.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8491" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+<span class="chip ok">Mergeable into Version6.4</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 decisions waiting</span>
+<span class="chip">Board: ready for my review</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8491" target="_blank" rel="noopener">PR #8491</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8491/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8491/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17033" target="_blank" rel="noopener">BL-17033</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8491" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+
+<div class="grid">
+<main>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>After about six presses of a Help button in one of Bloom's React dialogs (Book Metadata, Collection Settings, Decodable Reader setup, Team Collection), Help stopped opening. Other parts of Bloom also quietly stopped updating until a restart.</p>
+<h3>Cause</h3>
+<p>The <code>help</code>, <code>externalLink</code> and <code>app/showDownloadsPage</code> endpoints all finish with <code>ExternalLinkSucceeded()</code>. That method set a 200 status but never closed the response, so every press left one request hanging. Once the browser's connections to Bloom's server were all used up, other API calls stopped being answered.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><code>ExternalLinkSucceeded()</code> now sends <code>204 No Content</code> and closes the response. A 204 also tells a browser following a plain <code>&lt;a href&gt;</code> to one of these endpoints to stay on the current page, which those links rely on. The tests' pretend request now matches.</li>
+<li>Backports master's <code>robustfile-hook: allow FileStream</code> opt-out to 6.4's pre-commit check, and marks the deliberate shared-read <code>FileStream</code> already in <code>RequestInfo.cs</code>. Without it, no commit touching that file could pass the hook on 6.4.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>C# build (BloomExe)</td><td class="pass">0 errors</td></tr>
+<tr><td>C# tests, full suite (<code>dotnet test</code>)</td><td><span class="warn">1 failed</span>: <span class="numeral">2976 passed · 1 failed · 13 skipped</span>. The one failure is the opt-in Reading App Builder real-build test, which fails on this machine regardless of the code. Rerun after the test-double fix: <span class="numeral">54/54</span> server and request tests passed.</td></tr>
+<tr><td>TypeScript typecheck, lint, tests</td><td>Not run: no front-end code in the diff.</td></tr>
+<tr><td>Pre-commit hooks</td><td class="pass">Pass, including the backported robust-file check (verified it still rejects a plain <code>new FileStream</code>)</td></tr>
+<tr><td>Merge with Version6.4</td><td class="pass">Up to date; mergeable</td></tr>
+<tr><td>Repo check: e2e specs at nightly size</td><td>Did not apply: no e2e specs in the diff.</td></tr>
+<tr><td>Manual check</td><td class="pass">Tested by hand in a running Bloom: repeated Help presses and the anchor-style links.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Pushed the branch and opened the draft PR against Version6.4. Fixed Devin's one point by making the tests' pretend request reply 204 like the real code. Posted the PR link and QA test ideas on the card. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8491/commits" target="_blank" rel="noopener">commits</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review</td><td>Light sub-agent pass: clean, no findings.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8491" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>8c0ceee</code>. No bugs. One point to investigate (the tests' pretend request still recorded 200): fixed and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8491#discussion_r4339478744" target="_blank" rel="noopener">resolved in its thread</a>. The re-review repeats that point, but the fix is already in the commit it reviewed.</td></tr>
+<tr><td>Other review bots</td><td>None have posted on this PR.</td></tr>
+<tr><td>CI</td><td>The only PR check is <code>pr-automation</code> (it triggers Devin): passed.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>When 6.4 next merges forward, <code>build/check-csharp-robustfile.sh</code> may conflict trivially; keep master's version.</li>
+<li>The branch has three commits. Squash them before human review.</li>
+</ul>
+</section>
+</main>
+
+<aside>
+<section class="card">
+<h2>Decisions</h2>
+<p>Nothing needs a decision from you. Next step: your own review, then <code>pr-ready-for-human</code> when you're happy.</p>
+</section>
+</aside>
+</div>
+</div>
+</body>
+</html>
