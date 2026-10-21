@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>lameta Tooling Refresh</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column under 900px */
+:root{--bg:#f7f5f0;--card:#fff;--line:#ddd8cc;--fg:#24231f;--muted:#6b675d;--accent:#2f5d8a;--ok:#2e7d4f;--warn:#9a6a12;
+--serif:Georgia,"Times New Roman",serif;--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Consolas,monospace;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 var(--sans);padding-block:24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1300px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--serif);text-wrap:balance;margin:0}
+h1{font-size:1.7rem}h2{font-size:1.25rem;margin-bottom:10px}h3{font-size:1rem;margin:12px 0 4px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:3px 12px;font-size:.88rem}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+a{color:var(--accent)}a:focus-visible{outline:2px solid var(--accent)}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:20px;align-items:start}
+.grid>*{min-width:0;display:flex;flex-direction:column;gap:20px}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:18px 20px}
+ul{margin:4px 0;padding-left:20px}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.numeral{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.9em}
+.pass{color:var(--ok);font-weight:600}.note{color:var(--warn);font-weight:600}
+.muted{color:var(--muted)}
+pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);padding:10px;font:13px/1.4 var(--mono)}
+button{font:inherit;padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:4px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:10px">
+<h1>lameta tooling refresh</h1>
+<p style="margin:0">Preflight run on <code>tooling-refresh</code> at <a href="https://github.com/onset/lameta/commit/11ce043a768c86d283f395f9585df11b85ec60a6" target="_blank" rel="noopener"><span class="numeral">11ce043a</span></a>: every local gate is green and both reviews came back clean.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Up to date with master</span>
+<span class="chip ok">No bot comments</span>
+<span class="chip ok">0 waiting on you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/onset/lameta/pull/81" target="_blank" rel="noopener">PR #81</a>
+<a class="chip" href="https://github.com/onset/lameta/pull/81/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/onset/lameta/pull/81/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://devinreview.com/onset/lameta/pull/81" target="_blank" rel="noopener">Devin (declined)</a>
+</div>
+</header>
+<div class="grid">
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>The build tools had fallen behind and the checks were not clean: about 590 lint warnings, about 630 unformatted files, and specs, e2e tests and scripts were never type-checked, so the pre-commit hook rejected ordinary merges. Localization ran on Lingui 3 through Babel. On master, <code>strings:extract</code> (which CI's <code>fullbuild</code> runs before packaging) deletes the translations from every non-English <code>fields.po</code> and <code>vocabularies.po</code>, so CI installers can show English field labels in every language. Several e2e tests failed intermittently.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><strong>Tooling:</strong> removes unused ESLint, webpack-era packages, Storybook, tslint, wallaby, patch-package; upgrades TypeScript 7, Playwright 1.64, electron-builder 26.17 (packaging no longer hangs), happy-dom 21, Crowdin CLI 5. Electron stays at 44.</li>
+<li><strong>Localization:</strong> Lingui 6, whose Vite plugin compiles the catalogs into the build; <code>lingui extract</code> can no longer touch <code>fields.po</code> or <code>vocabularies.po</code>; synced with Crowdin V3 after a backup.</li>
+<li><strong>Checks:</strong> specs, e2e and scripts are type-checked; lint is at zero and the hook fails on any warning; every file is formatted (commit listed in <code>.git-blame-ignore-revs</code>); LF line endings.</li>
+<li><strong>Bugs that lint pointed to:</strong> a new person was not saved; a failed delete left the confirm dialog stuck; promises never settled in file copy-in and media stats; failed folder deletions were dropped; "Help translate" called <code>openPath</code> on a URL; several tests asserted nothing.</li>
+<li><strong>Dead code:</strong> removed commented-out UI, including the rules-file chooser, so a previously saved rules file is no longer read.</li>
+<li><strong>e2e:</strong> startup waits for a slow registration dialog (the cause of the flakes); a run stops if <code>src/</code> or <code>locale/</code> is newer than <code>dist/</code>.</li>
+<li><strong>CI:</strong> electron-builder signs on macOS again through <code>CSC_LINK</code>.</li>
+</ul>
+</section>
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tbl"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (tsc)</td><td class="pass"><span class="numeral">0 errors</span></td></tr>
+<tr><td>Lint (vp lint)</td><td class="pass"><span class="numeral">0 errors · 0 warnings</span></td></tr>
+<tr><td>Format (vp fmt --check)</td><td class="pass">clean</td></tr>
+<tr><td>Unit tests (vitest)</td><td class="pass"><span class="numeral">1462 passed · 9 skipped</span></td></tr>
+<tr><td>End-to-end (Playwright, full suite)</td><td class="pass"><span class="numeral">171 passed · 0 failed · 7 skipped</span></td></tr>
+<tr><td>Installer (pnpm run package, Windows alpha)</td><td class="pass">built; launched <span class="numeral">10/10</span></td></tr>
+<tr><td>C# tests</td><td class="muted">N/A, none in this repo</td></tr>
+<tr><td>Merge state</td><td class="pass">up to date with master <span class="numeral">3d107da9</span></td></tr>
+<tr><td>Repo-declared checks</td><td class="muted">none declared</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>What changed this run</h2>
+<p>Created the draft PR and synced Crowdin V3 (after a backup). See the <a href="https://github.com/onset/lameta/pull/81/commits" target="_blank" rel="noopener">commit list</a>.</p>
+</section>
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tbl"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Complete. Clean, no findings.</td></tr>
+<tr><td>Devin</td><td>Unavailable: it rejected the PR because the diff exceeds its size limit. A read-only Sonnet sub-agent review substituted for it and came back clean.</td></tr>
+<tr><td>Comment-posting bots</td><td>None on this repo.</td></tr>
+<tr><td>CI</td><td>No checks run on PRs; <code>main.yml</code> builds only on pushes to master, beta and release.</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li><span class="note">macOS signing and notarization are unverified.</span> The Windows and macOS CI build, including the signing change, first runs on the push build after merge.</li>
+<li>There is no tracker for lameta, so no card steps ran.</li>
+</ul>
+</section>
+</div>
+<div>
+<section class="card">
+<h2>Decisions</h2>
+<p class="muted">Nothing is waiting on you.</p>
+</section>
+<section class="card">
+<h2>Copy back</h2>
+<pre id="payload">Preflight report for https://github.com/onset/lameta/pull/81
+No open decisions.</pre>
+<button id="copy" type="button">Copy</button>
+</section>
+</div>
+</div>
+</div>
+<script>
+document.getElementById('copy').addEventListener('click',function(){var t=document.getElementById('payload').textContent;var b=this;
+function sel(){var r=document.createRange();r.selectNodeContents(document.getElementById('payload'));var s=getSelection();s.removeAllRanges();s.addRange(r);}
+if(navigator.clipboard){navigator.clipboard.writeText(t).then(function(){b.textContent='Copied'},sel)}else sel();});
+</script>
+</body>
+</html>
