@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bloom-player back-button preflight</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d6470;
+  --line: #dddbd3;
+  --accent: #b5223b;      /* Bloom red, used sparingly */
+  --good: #2e7d4f;
+  --warn: #9a6400;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 48px; }
+main { max-width: 1280px; margin: 0 auto; display: grid; gap: 20px; }
+header h1 { font: 600 1.6rem/1.2 var(--serif); margin: 0 0 6px; text-wrap: balance; }
+header p { margin: 0 0 10px; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 11px; font-size: .85rem; color: var(--ink); text-decoration: none; }
+a.chip:hover { border-color: var(--accent); }
+.chip.good { border-color: var(--good); color: var(--good); }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.cols > * { min-width: 0; display: grid; gap: 20px; }
+@media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+h2 { font: 600 1.15rem/1.3 var(--serif); margin: 0 0 10px; }
+h3 { font: 600 .95rem/1.3 var(--sans); margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+h3:first-of-type { margin-top: 0; }
+p { margin: 0 0 8px; max-width: 70ch; }
+ul { margin: 0 0 8px; padding-left: 20px; }
+code { font: .88em var(--mono); background: var(--ground); padding: 1px 4px; border-radius: 3px; }
+a { color: var(--accent); }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .9em; }
+.ok { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); }
+.q { border-top: 1px solid var(--line); padding-top: 14px; margin-top: 14px; }
+.q:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.q h3 { text-transform: none; letter-spacing: 0; color: var(--ink); font-size: 1rem; }
+.opt { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .foot { color: var(--muted); font-size: .85rem; }
+.tag { font-size: .75rem; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; margin-left: 4px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lc { font-size: .85rem; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+input[type=text], textarea { font: inherit; width: 100%; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; background: var(--card); color: var(--ink); }
+.other { display: flex; gap: 8px; align-items: center; flex: 1; }
+textarea { min-height: 54px; resize: vertical; margin-top: 6px; }
+#payload { font: .82rem/1.45 var(--mono); min-height: 160px; }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 5px; padding: 8px 14px; cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#status { margin-left: 10px; font-size: .9rem; color: var(--muted); }
+#status.copied { color: var(--good); }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>bloom-player: backButtonIcon url param</h1>
+  <p>Preflight report for branch <code>back-button</code> at <a href="https://github.com/BloomBooks/bloom-player/commit/5b82bc3b604975d5890cdff6f9cf7bd631d6bc5d" target="_blank" rel="noopener"><span class="numeral">5b82bc3</span></a>, 2026-10-21. Gates green, reviewers terminal, one question about the PWA's page-scaling workaround.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable into alpha</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">2 items waiting on you</span>
+    <span class="chip">Board: in progress</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/443" target="_blank" rel="noopener">PR #443</a>
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/443/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/443/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/bloom-player/pull/443" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://github.com/sillsdev/appbuilder-pwa/pull/1137" target="_blank" rel="noopener">appbuilder-pwa #1137</a>
+  </div>
+</header>
+
+<div class="cols">
+<div>
+  <section>
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>A host app that embeds bloom-player in an iframe and passes <code>showBackButton=true</code> gets an ellipsis ("More") on that button instead of a back arrow. The App Builders PWA (<a href="https://github.com/sillsdev/appbuilder-pwa/pull/1137" target="_blank" rel="noopener">appbuilder-pwa #1137</a>) hits this. Its button really does go back, so it currently uses a <code>MutationObserver</code> to rewrite our SVG path and <code>aria-label</code> inside the iframe.</p>
+    <h3>Cause</h3>
+    <p>When the player has no in-book history, it picks the icon from where it is running: an arrow if it is the top window (Bloom Reader), an ellipsis if it is embedded. The ellipsis is for bloomlibrary.org, where the button opens the book's detail page. A host had no way to say which it meant.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>New URL param <code>backButtonIcon=arrow|ellipsis</code> overrides that automatic choice (<a href="https://github.com/BloomBooks/bloom-player/blob/5b82bc3b604975d5890cdff6f9cf7bd631d6bc5d/src/bloom-player-controls.tsx#L942" target="_blank" rel="noopener">bloom-player-controls.tsx:942</a>). If it is missing or has any other value, behavior is unchanged. Once the reader has followed a link within the book, the button is still always an arrow.</li>
+      <li>README documents the param (<a href="https://github.com/BloomBooks/bloom-player/blob/5b82bc3b604975d5890cdff6f9cf7bd631d6bc5d/README.md#L70" target="_blank" rel="noopener">README.md:70</a>) and corrects the <code>showBackButton</code> note, which had the top-level and embedded cases backwards.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck (tsc)</td><td class="ok">Passed</td></tr>
+      <tr><td>Lint</td><td class="na">N/A, no lint script in this repo</td></tr>
+      <tr><td>Unit tests (vitest)</td><td><span class="ok">Passed</span> <span class="numeral">166 tests · 18 files</span></td></tr>
+      <tr><td>E2E tests (Playwright)</td><td><span class="ok">Passed</span> <span class="numeral">23 tests</span>; the 3 new ones re-run after the test fix</td></tr>
+      <tr><td>Merge with alpha</td><td class="ok">Up to date, mergeable</td></tr>
+      <tr><td>Repo checks</td><td class="na">None declared in AGENTS.md</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>What changed this run</h2>
+    <p>Added the param, its README entry and three e2e cases, then tightened the e2e test after the local review showed one case could pass against the iframe before it reloaded. See the <a href="https://github.com/BloomBooks/bloom-player/pull/443/commits" target="_blank" rel="noopener">2 commits</a>.</p>
+  </section>
+
+  <section>
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>No correctness problems. It flagged one weak test, which was fixed in <a href="https://github.com/BloomBooks/bloom-player/commit/5b82bc3b604975d5890cdff6f9cf7bd631d6bc5d" target="_blank" rel="noopener">5b82bc3</a>.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/bloom-player/pull/443" target="_blank" rel="noopener">Devin</a></td><td>Complete for <span class="numeral">5b82bc3</span>: no bugs, no flags.</td></tr>
+      <tr><td>Other review bots</td><td class="na">None active on this repo</td></tr>
+      <tr><td>CI</td><td class="na">No PR checks run on this repo</td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>No tracker card: the branch name has no BL id, so no PR link or test ideas were posted to YouTrack.</li>
+      <li>The PWA's page-scaling workaround is not addressed here. I could not reproduce the problem: a current Bloom book (A5Portrait, page size set through <code>--page-width</code>) sized correctly at the top level, inside an 800×600 iframe, and in an iframe that was hidden and then shown. In all three, <code>max-width</code> resolved to <code>559.37px</code>, not <code>none</code>. See the first question.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section id="decisions">
+    <h2>Decisions</h2>
+
+    <div class="q">
+      <h3>What should we do about the App Builders PWA's page-scaling workaround?</h3>
+      <p>The PWA's <code>BloomPlayerElement.svelte</code> injects its own stylesheet into the player's iframe. It recomputes the page scale from a table of page sizes in millimetres, because in their setup the page's CSS width resolves to <code>none</code>, so the player measures the wrong size once and keeps it. You don't want a page-size table in bloom-player. Without that table, the player can only size a page from the book's own CSS, so the fix has to make that CSS apply.</p>
+      <p>I could not reproduce the problem with a current Bloom book in an iframe, and bloomlibrary.org embeds the player the same way. Their file renaming only normalizes Unicode, and our scoped-style polyfill only rewrites selectors, so neither should drop the <code>--page-width</code> variables. The likeliest causes are on their side: a book stylesheet that fails to load (bloom-player <a href="https://github.com/BloomBooks/bloom-player/blob/5b82bc3b604975d5890cdff6f9cf7bd631d6bc5d/src/stylesheets.ts#L45" target="_blank" rel="noopener">skips failed stylesheets silently</a>), an App Builders step that rewrites the book's CSS and drops custom properties, or an old bloom-player copy.</p>
+      <label class="opt"><input type="radio" name="q1" value="ask" data-q="q1" checked data-instruction="Reply on sillsdev/appbuilder-pwa PR #1137 (or ask Andrew to relay) asking for one converted Bloom book exactly as the PWA serves it, plus, from devtools inside the player iframe: the computed --page-width on .bloom-page and which rule sets it, and any 404s for basePage.css or appearance.css. Then reproduce the scaling problem in bloom-player with that book and fix the actual cause, without a page-size table."><span>Ask the PWA developer for one converted book and three devtools readings, then fix the real cause <span class="tag">Recommended</span><br><span class="foot">(no code yet; recommended because the cause can't be diagnosed without their book, and any fix made blind would be a guess)</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="warn" data-q="q1" data-instruction="In bloom-player (branch back-button or a new branch off alpha), make src/stylesheets.ts log a console warning naming the URL when a book stylesheet fails to load, instead of skipping it silently. Then also ask the PWA developer for a converted book as in the recommended option."><span>Also add a console warning when a book stylesheet fails to load, so hosts can see the cause<br><span class="foot">(~5 lines in stylesheets.ts, low risk; only diagnostic)</span></span></label>
+      <div class="opt row"><label class="opt" style="padding:0"><input type="radio" name="q1" value="leave" data-q="q1" data-instruction="Leave as is: take no action on the App Builders PWA's page-scaling workaround in bloom-player."><span>Leave as is</span></label><label class="lc"><input type="checkbox" id="q1-lc" data-q="q1-lc" data-instruction="Record the decision as a code comment in src/bloom-player-controls.tsx next to the page measurement in scalePageToWindow (where maxPageDimension is captured)."> Leave comment</label></div>
+      <div class="opt"><input type="radio" name="q1" value="other" data-q="q1" id="q1-other-r"><div class="other"><label for="q1-other">Other:</label><input type="text" id="q1-other" data-q="q1-other"></div></div>
+      <textarea id="q1-notes" data-q="q1-notes" placeholder="Notes"></textarea>
+    </div>
+
+    <div class="q">
+      <h3>Next step for PR #443</h3>
+      <p>The PR is a draft against <code>alpha</code> with all gates green. The PWA can't use <code>backButtonIcon=arrow</code> until a bloom-player build that includes it ships.</p>
+      <label class="opt"><input type="radio" name="q2" value="review" data-q="q2" checked data-instruction="Andrew reviews BloomBooks/bloom-player PR #443 (branch back-button) himself, then runs /pr-ready-for-human to squash and hand it to peer review. After it ships, tell the appbuilder-pwa #1137 author to pass backButtonIcon=arrow and delete applyBackArrowFix and its MutationObserver."><span>I'll review it, then hand it to peer review; tell the PWA author once it ships <span class="tag">Recommended</span><br><span class="foot">(no code; the change is small and done)</span></span></label>
+      <div class="opt row"><label class="opt" style="padding:0"><input type="radio" name="q2" value="leave" data-q="q2" data-instruction="Leave as is: take no further action on BloomBooks/bloom-player PR #443 for now."><span>Leave as is</span></label></div>
+      <div class="opt"><input type="radio" name="q2" value="other" data-q="q2" id="q2-other-r"><div class="other"><label for="q2-other">Other:</label><input type="text" id="q2-other" data-q="q2-other"></div></div>
+      <textarea id="q2-notes" data-q="q2-notes" placeholder="Notes"></textarea>
+    </div>
+  </section>
+
+  <section>
+    <h2>Send your answers back</h2>
+    <p>Copies your choices as text to paste into a Claude Code session.</p>
+    <div class="row" style="justify-content:flex-start"><button id="copy" type="button">Copy answers</button><span id="status" role="status"></span></div>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+</div>
+</div>
+</main>
+<script>
+const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-player-back-button.html";
+const QS = [
+  { id: "q1", title: "What should we do about the App Builders PWA's page-scaling workaround?" },
+  { id: "q2", title: "Next step for BloomBooks/bloom-player PR #443" },
+];
+function serialize() {
+  const lines = [
+    "Decisions from a preflight report (decider form)",
+    "Repo: BloomBooks/bloom-player, branch back-button, PR https://github.com/BloomBooks/bloom-player/pull/443",
+    "Date: 2026-10-21",
+    "Report: " + URL_,
+    "",
+  ];
+  for (const q of QS) {
+    const sel = document.querySelector(`input[name="${q.id}"]:checked`);
+    lines.push("Q: " + q.title);
+    if (!sel) lines.push("  (no choice)");
+    else if (sel.value === "other") lines.push("  Other: " + (document.getElementById(q.id + "-other").value.trim() || "(blank)"));
+    else lines.push("  " + sel.dataset.instruction);
+    const lc = document.getElementById(q.id + "-lc");
+    if (lc && lc.checked) lines.push("  Leave comment: " + lc.dataset.instruction);
+    const notes = document.getElementById(q.id + "-notes").value.trim();
+    if (notes) lines.push("  Notes: " + notes);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+const payload = document.getElementById("payload");
+function refresh() { payload.value = serialize(); }
+document.addEventListener("input", (e) => {
+  if (e.target.id && e.target.id.endsWith("-other") && e.target.value) {
+    const r = document.getElementById(e.target.id + "-r"); if (r) r.checked = true;
+  }
+  refresh();
+});
+document.addEventListener("change", refresh);
+refresh();
+document.getElementById("copy").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  status.className = "";
+  try {
+    refresh(); payload.focus(); payload.select();
+    let ok = false;
+    try { await navigator.clipboard.writeText(payload.value); ok = true; } catch (e) {
+      try { payload.select(); ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+    }
+    if (ok) { status.textContent = "Copied ✓"; status.className = "copied"; }
+    else status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch (e) {
+    status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+  }
+});
+</script>
+</body>
+</html>
