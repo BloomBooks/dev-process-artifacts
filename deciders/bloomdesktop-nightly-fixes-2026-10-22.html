@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Preflight: vitest teardown fix</title>
+<title>Preflight: unit tests off the network</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -39,7 +39,7 @@
 <body>
 <div class="wrap">
 <header>
-  <h1>Preflight: stop tableEditing.test.ts failing the vitest run</h1>
+  <h1>Preflight: unit tests no longer reach the network</h1>
   <p class="summary">Branch <code>nightly-fixes-2026-10-22</code> is clean: every reviewer is done, nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
@@ -52,6 +52,7 @@
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">PR #8495</a>
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495/files" target="_blank" rel="noopener">Files changed</a>
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17040" target="_blank" rel="noopener">BL-17040</a>
     <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Devin review</a>
   </div>
 </header>
@@ -63,10 +64,12 @@
     <h3>Problem</h3>
     <p>The 2026-10-22 nightly reported the TypeScript unit tests as failed although all 1564 tests passed: vitest counted 9 "EnvironmentTeardownError: Closing rpc while 'onUserConsoleLog' was pending" errors from <code>bookEdit/js/tableEditing.test.ts</code> and failed the run. It can happen on any run, so the suite is flaky.</p>
     <h3>Cause</h3>
-    <p>Each table cell editor these tests create gets long-press (<code>activateLongPressFor</code>), which asks the server whether long-press is on, using <code>axios</code> directly. The test's <code>bloomApi</code> mock does not catch that, and under jsdom there is no server, so each request fails a moment later and logs. When those logs arrive after vitest has torn the file's environment down, vitest reports them as errors. Usually they arrive in time, which is why it had passed since the test was added.</p>
+    <p>Unit tests were making real network requests. Under jsdom there is no server, so each request fails a moment later and logs; when that log arrives after vitest has torn the test file down, vitest fails the run. In <code>tableEditing.test.ts</code> the requests came from long-press setup (<code>activateLongPressFor</code>), which calls <code>axios</code> directly. Six other files did the same: 129 requests in all, mostly the Talking Book specs asking for the audio devices.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/459130818ee48d21f8f3ec31e44518f3373cc9f6/src/BloomBrowserUI/bookEdit/js/tableEditing.test.ts#L16" target="_blank" rel="noopener"><code>tableEditing.test.ts</code></a> mocks <code>activateLongPressFor</code>, which none of its tests exercise, so no request is made. Kept alive 3 s after its tests, the file now logs no late network errors (it logged several before).</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/9c69c2265cbe7cb30cff17f1d65526b091446af1/src/BloomBrowserUI/vitest.setup.ts#L494" target="_blank" rel="noopener"><code>vitest.setup.ts</code></a> refuses every <code>XMLHttpRequest</code> and <code>fetch</code> at once and fails the test that made it, naming the request (from <code>afterEach</code>, since the code under test usually catches the error itself). No request can fail late any more, and a new test that reaches the network fails immediately.</li>
+      <li>The seven files mock what they call, with <code>vi.mock</code> of <code>utils/bloomApi</code> (or <code>bloomEditing</code>'s <code>activateLongPressFor</code>). The two Talking Book specs share a small helper that answers the audio-devices and recording-mode requests.</li>
+      <li><code>src/BloomBrowserUI/AGENTS.md</code> states the rule and says to mock with <code>vi.mock</code>, not <code>bloomApi</code>'s global <code>mockReplies</code>.</li>
       <li><code>docs/nightly-failures/README.md</code> records the 2026-10-22 nightly: this failure, and the e2e suite's failure to load (a stale <code>canUndo</code> import, already fixed by <a href="https://github.com/BloomBooks/BloomDesktop/pull/8494" target="_blank" rel="noopener">#8494</a>).</li>
     </ul>
   </section>
@@ -77,10 +80,9 @@
     <table>
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>Type-check (front end, commit hook)</td><td class="pass">Passed</td></tr>
-      <tr><td>Lint (front end, commit hook)</td><td class="pass">Passed</td></tr>
+      <tr><td>Lint (changed files)</td><td class="pass">Passed (warnings only, all pre-existing)</td></tr>
       <tr><td>Merge with master</td><td class="pass">Up to date; mergeable, clean</td></tr>
-      <tr><td>TypeScript unit tests (vitest, full suite)</td><td class="pass"><span class="numeral">108 files, 1564 passed</span>, no errors</td></tr>
-      <tr><td>The fixed file, kept alive 3 s after its tests</td><td class="pass"><span class="numeral">5 passed</span>, no late network errors</td></tr>
+      <tr><td>TypeScript tests (vitest, unit + browser projects)</td><td class="pass"><span class="numeral">108 files, 1564 passed</span>, no errors</td></tr>
       <tr><td>C# tests</td><td class="na">Not run: no C# in the diff</td></tr>
       <tr><td>E2E suite</td><td class="na">Not run: no e2e code in the diff</td></tr>
       <tr><td>Repo check: e2e specs at the nightly's window size</td><td class="na">Did not apply: no <code>*.spec.ts</code> added or changed</td></tr>
@@ -90,7 +92,7 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>First run. One commit: the test fix and the doc entries. The branch originally also fixed the stale <code>canUndo</code> import; that came out once #8494 made the same fix on master.</p>
+    <p>The single commit grew from the one-file fix to the class-wide guard (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17040" target="_blank" rel="noopener">BL-17040</a>), then took Greptile's style fix (a nested ternary). Still <a href="https://github.com/BloomBooks/BloomDesktop/commit/9c69c2265cbe7cb30cff17f1d65526b091446af1" target="_blank" rel="noopener">one commit</a>.</p>
   </section>
 
   <section class="card">
@@ -99,8 +101,8 @@
     <table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
       <tr><td>Local review (light sub-agent pass)</td><td>Complete: clean, no findings.</td></tr>
-      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Devin</a></td><td>Complete for the head commit: no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8495#issuecomment-6347474841" target="_blank" rel="noopener">Consultation logged</a>.</td></tr>
-      <tr><td>Other review bots</td><td>None active on this repo.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Devin</a></td><td>Complete for the head commit: no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8495#issuecomment-6348628154" target="_blank" rel="noopener">Consultation logged</a>.</td></tr>
+      <tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8495#issuecomment-6347489275" target="_blank" rel="noopener">Greptile</a></td><td>Complete on the guard version: one style finding (nested ternary), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8495#discussion_r4352197085" target="_blank" rel="noopener">fixed and resolved</a>. Not re-run on the one-line fix.</td></tr>
       <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed.</td></tr>
     </table>
     </div>
@@ -109,8 +111,7 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>Other test files show the same kind of network-error noise in the vitest log, so they may carry the same latent race. Not checked here.</li>
-      <li>No YouTrack card, so no card link and no test-ideas comment.</li>
+      <li>A new unit test that reaches the network now fails, naming the request. That is the point, but a developer will meet it the first time.</li>
     </ul>
   </section>
 </main>
