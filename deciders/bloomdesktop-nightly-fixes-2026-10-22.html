@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: vitest teardown fix</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #faf8f4; color: #23211d; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 .5em; }
+  h1 { font-size: 1.55rem; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1rem; margin-top: 1em; }
+  p { margin: .4em 0; }
+  ul { margin: .4em 0; padding-left: 1.3em; }
+  a { color: #1f5f8b; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: .9em; background: #f1ede4; padding: 0 .25em; border-radius: 3px; }
+  .numeral { font-family: Consolas, "Cascadia Mono", monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 18px; }
+  .summary { margin: .2em 0 .8em; color: #4a463e; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+  .chip { display: inline-block; border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: .85rem; }
+  .chip.ok { border-color: #9cc5a1; background: #eff7f0; }
+  a.chip { text-decoration: none; color: #1f5f8b; }
+  .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .card { background: #fff; border: 1px solid #e3ddd0; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8dc; }
+  th { font-weight: 600; font-size: .9rem; color: #4a463e; }
+  .pass { color: #2f6b38; font-weight: 600; }
+  .na { color: #6b665b; }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: stop tableEditing.test.ts failing the vitest run</h1>
+  <p class="summary">Branch <code>nightly-fixes-2026-10-22</code> is clean: every reviewer is done, nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 waiting on you</span>
+    <span class="chip">Board: ready for my review</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">PR #8495</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8495/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>The 2026-10-22 nightly reported the TypeScript unit tests as failed although all 1564 tests passed: vitest counted 9 "EnvironmentTeardownError: Closing rpc while 'onUserConsoleLog' was pending" errors from <code>bookEdit/js/tableEditing.test.ts</code> and failed the run. It can happen on any run, so the suite is flaky.</p>
+    <h3>Cause</h3>
+    <p>Each table cell editor these tests create gets long-press (<code>activateLongPressFor</code>), which asks the server whether long-press is on, using <code>axios</code> directly. The test's <code>bloomApi</code> mock does not catch that, and under jsdom there is no server, so each request fails a moment later and logs. When those logs arrive after vitest has torn the file's environment down, vitest reports them as errors. Usually they arrive in time, which is why it had passed since the test was added.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/459130818ee48d21f8f3ec31e44518f3373cc9f6/src/BloomBrowserUI/bookEdit/js/tableEditing.test.ts#L16" target="_blank" rel="noopener"><code>tableEditing.test.ts</code></a> mocks <code>activateLongPressFor</code>, which none of its tests exercise, so no request is made. Kept alive 3 s after its tests, the file now logs no late network errors (it logged several before).</li>
+      <li><code>docs/nightly-failures/README.md</code> records the 2026-10-22 nightly: this failure, and the e2e suite's failure to load (a stale <code>canUndo</code> import, already fixed by <a href="https://github.com/BloomBooks/BloomDesktop/pull/8494" target="_blank" rel="noopener">#8494</a>).</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Type-check (front end, commit hook)</td><td class="pass">Passed</td></tr>
+      <tr><td>Lint (front end, commit hook)</td><td class="pass">Passed</td></tr>
+      <tr><td>Merge with master</td><td class="pass">Up to date; mergeable, clean</td></tr>
+      <tr><td>TypeScript unit tests (vitest, full suite)</td><td class="pass"><span class="numeral">108 files, 1564 passed</span>, no errors</td></tr>
+      <tr><td>The fixed file, kept alive 3 s after its tests</td><td class="pass"><span class="numeral">5 passed</span>, no late network errors</td></tr>
+      <tr><td>C# tests</td><td class="na">Not run: no C# in the diff</td></tr>
+      <tr><td>E2E suite</td><td class="na">Not run: no e2e code in the diff</td></tr>
+      <tr><td>Repo check: e2e specs at the nightly's window size</td><td class="na">Did not apply: no <code>*.spec.ts</code> added or changed</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>First run. One commit: the test fix and the doc entries. The branch originally also fixed the stale <code>canUndo</code> import; that came out once #8494 made the same fix on master.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete: clean, no findings.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8495" target="_blank" rel="noopener">Devin</a></td><td>Complete for the head commit: no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8495#issuecomment-6347474841" target="_blank" rel="noopener">Consultation logged</a>.</td></tr>
+      <tr><td>Other review bots</td><td>None active on this repo.</td></tr>
+      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Other test files show the same kind of network-error noise in the vitest log, so they may carry the same latent race. Not checked here.</li>
+      <li>No YouTrack card, so no card link and no test-ideas comment.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
