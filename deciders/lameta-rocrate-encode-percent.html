@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: rocrate-encode-percent</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#faf8f4;color:#222;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+main{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr;gap:20px}
+main>*{min-width:0}
+@media (max-width:760px){main{grid-template-columns:1fr}}
+header{max-width:1200px;margin:0 auto 20px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600}
+h1{font-size:24px;margin-bottom:8px}
+h2{font-size:18px;margin-bottom:8px}
+h3{font-size:15px;margin:10px 0 4px}
+.card{background:#fff;border:1px solid #e2ddd3;border-radius:8px;padding:16px;margin-bottom:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-block;border:1px solid #d6cfc2;border-radius:999px;padding:2px 10px;font-size:13px;background:#fff;color:#222;text-decoration:none}
+a.chip{color:#1d5fa8}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:6px 8px;border-top:1px solid #eee;vertical-align:top}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+a{color:#1d5fa8}
+ul{padding-left:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>Preflight: encode &quot;%&quot; in RO-Crate ids</h1>
+<p>Draft PR open, gates green, Devin clean, nothing waiting on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip">Mergeable</span><span class="chip">Bots quiet</span><span class="chip">0 decisions</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/onset/lameta/pull/102" target="_blank" rel="noopener">PR #102</a>
+<a class="chip" href="https://github.com/onset/lameta/pull/102/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/onset/lameta/pull/102/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://devinreview.com/onset/lameta/pull/102" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<main>
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>In an RO-Crate export, a file or folder whose name holds &quot;%&quot; gets the wrong <code>@id</code>. The session folder <code>Percent %20 name</code> becomes <code>Sessions/Percent%20%20%20name/</code>, which decodes to a folder that does not exist, and of the two files <code>a b.wav</code> and <code>a%20b.wav</code> one is missing from the crate (torture project finding 22).</p>
+<h3>Cause</h3>
+<p><code>sanitizeForIri</code> percent-encodes spaces and a few delimiters but leaves &quot;%&quot; alone, so the encoding cannot be reversed.</p>
+<h3>What the PR does</h3>
+<ul><li><code>sanitizeForIri</code> encodes &quot;%&quot; as <code>%25</code> first, so every id decodes back to its name and names that differ by <code>%20</code> versus a space get different ids.</li>
+<li>The test that pinned the old behavior is replaced; a new export test with that session folder and both files checks the crate.</li></ul>
+</section>
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (tsc)</td><td>passed</td></tr>
+<tr><td>Lint (vp lint)</td><td>passed</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td><span class="numeral">468 passed · 1 skipped</span> across the RO-Crate specs, plus the new export spec; the rest of the suite was not run, because only RO-Crate id generation changed</td></tr>
+<tr><td>E2E (Playwright)</td><td>not run: no UI change</td></tr>
+<tr><td>Merge with master</td><td>clean</td></tr>
+</table>
+</section>
+<section class="card">
+<h2>What changed this run</h2>
+<p>First run: committed the fix and its tests, opened the draft PR, and added the export-level test that Devin suggested. <a href="https://github.com/onset/lameta/pull/102/commits" target="_blank" rel="noopener">Commits</a></p>
+</section>
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><td>Local review</td><td>Light pass, done inline (a one-line fix): clean, no findings.</td></tr>
+<tr><td>Devin</td><td>Complete for 6e9351f3. One bug (preview anchors collide), answered and resolved on its <a href="https://github.com/onset/lameta/pull/102#discussion_r4361580538" target="_blank" rel="noopener">thread</a> as predating this PR; one informational note, acted on with the export test.</td></tr>
+<tr><td>CI</td><td>No checks run on this repo's PRs.</td></tr>
+</table>
+</section>
+<section class="card">
+<h2>Worth knowing</h2>
+<ul><li>The HTML preview makes each entity&#39;s anchor by turning every non-alphanumeric character of its id into <code>_</code>, so two entities whose ids differ only in such characters (<code>#A-B</code> and <code>#A_B</code>) share an anchor and a link may land on the wrong one. That is so on master too; fixing it changes every preview anchor and is left for a separate decision.</li></ul>
+</section>
+</div>
+<div>
+<section class="card">
+<h2>Decisions</h2>
+<p>None.</p>
+</section>
+</div>
+</main>
+</body>
+</html>
