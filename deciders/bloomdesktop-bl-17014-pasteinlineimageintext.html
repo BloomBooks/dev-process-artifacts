@@ -91,12 +91,12 @@ figcaption { font-size: 0.85rem; color: var(--muted); }
 <div class="wrap">
 <header>
   <h1>BL-17014: paste a picture into a text block as an inline image</h1>
-  <p class="summary">Preflight of branch <code>BL-17014-PasteInlineImageInText</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/690f545298a0d0815afc9fd9ce1a770f4ac2e30c" target="_blank" rel="noopener"><code>690f54529</code></a>, 2026-10-23 (second run, after your answers). Gates green, every reviewer finished, one question for you.</p>
+  <p class="summary">Preflight of branch <code>BL-17014-PasteInlineImageInText</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/8a7b20166b359c1602706da79f593d62ffeda543" target="_blank" rel="noopener"><code>8a7b20166</code></a>, 2026-10-23 (third run, after simplifying the code). Gates green, every reviewer finished, nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8499" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
     <span class="chip good">Mergeable, clean</span>
     <span class="chip good">Bots quiet</span>
-    <span class="chip warn">1 decision waiting</span>
+    <span class="chip good">No decisions waiting</span>
   </div>
   <div class="chips links">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8499" target="_blank" rel="noopener">PR #8499</a>
@@ -117,9 +117,10 @@ figcaption { font-size: 0.85rem; color: var(--muted); }
     <h3>What the PR does</h3>
     <ul>
       <li>With the focus in a text block that can take inline images, pasting a picture (Ctrl+V or the Paste button) adds an <strong>inline image</strong> holding it to that block, docked right at the start of the block, where Insert Image puts one.</li>
-      <li>With an inline image <strong>selected</strong>, the pasted picture <strong>replaces its picture</strong> instead, through the image's own "Paste image" command. Bloom leaves an image it has just inserted or pasted selected, so Insert Image followed by a paste fills the new image, and a second paste right after a first replaces it, as on a canvas.</li>
-      <li>It reuses the canvas paste's round trip, so there is <strong>no C# change</strong>. The image appears only once the picture has arrived, so a failed or cancelled paste leaves nothing, <strong>one Undo</strong> takes back the paste, and a save made in the meantime waits for the picture.</li>
-      <li>A clipboard with <strong>formatted text</strong> as well as a picture (Word, Excel, part of a web page) still pastes as text. Blocks that can't take inline images, and a paste with a canvas picture selected, behave as before. The Paste button with the focus in a text block now pastes there instead of onto the canvas.</li>
+      <li>With an inline image <strong>selected</strong>, the pasted picture <strong>replaces its picture</strong>, through the image's own "Paste image" command. Bloom leaves an image it has just inserted or pasted selected, so Insert Image followed by a paste fills the new image, and a second paste right after a first replaces it, as on a canvas.</li>
+      <li>It reuses the canvas paste's round trip through C#. The image appears only once the picture has arrived, so a failed or cancelled paste leaves nothing, <strong>one Undo</strong> takes back the paste, and a save made in the meantime waits for the picture. The "Paste image" command now holds that wait for every picture, canvas ones too, and ignores a second paste over a picture still being replaced.</li>
+      <li>One small C# change: when importing a pasted picture fails, C# now tells the page, which before was left waiting.</li>
+      <li>A clipboard with <strong>formatted text</strong> as well as a picture still pastes as text. Blocks that can't take inline images, and a paste with a canvas picture selected, behave as before.</li>
     </ul>
     <figure>
       <img src="https://bloombooks.github.io/dev-process-artifacts/pr-screenshots/bloomdesktop-8499-pasted-inline-image.png" alt="A picture pasted into a text block appears at the block's top right, selected, with its toolbar">
@@ -135,8 +136,8 @@ figcaption { font-size: 0.85rem; color: var(--muted); }
       <tbody>
         <tr><td>Typecheck (<code>pnpm typecheck</code>)</td><td><span class="ok">Pass</span></td></tr>
         <tr><td>Lint (eslint on the changed files, and in the commit hook)</td><td><span class="ok">Pass</span>, <span class="numeral">0</span> errors</td></tr>
-        <tr><td>TypeScript tests (vitest, full suite at HEAD)</td><td><span class="ok">Pass</span>, <span class="numeral">1629 passed · 112 files</span></td></tr>
-        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="na">Not run</span>: no C# in this PR's diff, and the C# tests read none of the changed front-end files</td></tr>
+        <tr><td>TypeScript tests (vitest, full suite)</td><td><span class="ok">Pass</span>, <span class="numeral">1630 passed · 113 files</span>, at <code>696cba0ed</code>; the front-end has changed since only by a comment</td></tr>
+        <tr><td>C# tests (<code>dotnet test</code> via <code>build/agent-dotnet.sh</code>, full suite at HEAD)</td><td><span class="ok">Pass</span>, <span class="numeral">3837 passed · 1 skipped</span></td></tr>
         <tr><td>Repo check: e2e specs at the nightly's window size</td><td><span class="na">Did not apply</span>: the diff adds or changes no <code>src/BloomE2E/tests/*.spec.ts</code></td></tr>
         <tr><td>Merge with <code>master</code></td><td><span class="ok">Clean</span>, up to date</td></tr>
         <tr><td>CI (<code>pr-automation</code>)</td><td><span class="ok">Pass</span></td></tr>
@@ -147,20 +148,20 @@ figcaption { font-size: 0.85rem; color: var(--muted); }
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Carried out your answers: a paste with an inline image selected now replaces its picture, and the Reader-tools problem is filed as <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17041" target="_blank" rel="noopener">BL-17041</a>. Devin found that a paste over a selected image did not hold back a save, and Greptile that two quick pastes over one image left a save delay behind; both are fixed. The QA test ideas on the card are updated. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499/commits" target="_blank" rel="noopener">commit list</a>.</p>
+    <p>Simplified the paste code as you asked: the save delay and the double-paste guard moved into the "Paste image" command, the unneeded file-name fallback and an early return went, and a stray comment was folded in. The light review found that the move left one gap, a failed picture import that C# never reported, which a small C# fix closes. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499/commits" target="_blank" rel="noopener">commit list</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <dl class="reviewers">
       <dt>Local review (light sub-agent pass)</dt>
-      <dd>This run: one finding, that Bloom selects an image it has just inserted, pasted or changed, so a second paste replaces the first instead of adding another. Kept, since it matches the canvas and makes Insert Image then paste fill the new image; the <a href="https://github.com/BloomBooks/BloomDesktop/blob/690f545298a0d0815afc9fd9ce1a770f4ac2e30c/src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts#L94" target="_blank" rel="noopener">code comment</a> now says so, a test covers it, and it is the question on the right. The first run's two findings (a selected canvas picture losing the paste; two quick pastes) are fixed.</dd>
+      <dd>One finding on the simplification: when C# failed to import a pasted picture it sent the page no answer, so the new double-paste guard would have ignored every later paste onto that picture. Fixed in <code>c46293b11</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/8a7b20166b359c1602706da79f593d62ffeda543/src/BloomExe/Edit/EditingModel.cs#L2118" target="_blank" rel="noopener">ChangePicture</a> now reports failure, so <code>OnPasteImage</code> tells the page). It checked the GIF, empty-clipboard, declined-JPEG and new-canvas-element paths and found them fine.</dd>
       <dt>Devin</dt>
-      <dd>Complete for <code>690f54529</code>, clean. It found that <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4362329706" target="_blank" rel="noopener">a paste over a selected image did not hold back a save</a>, fixed in <code>d7a39a1e4</code>; Devin now marks both of its bugs resolved. Its other findings are answered (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361885521" target="_blank" rel="noopener">save during a new paste</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361885739" target="_blank" rel="noopener">text-free HTML</a>). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#issuecomment-6370869863" target="_blank" rel="noopener">Consultation log</a>.</dd>
+      <dd>Complete for <code>8a7b20166</code>, nothing new. On the simplification it raised two bugs, both answered as not acting: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4362873862" target="_blank" rel="noopener">image files without a MIME type</a> (the fallback was removed on purpose) and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4362874584" target="_blank" rel="noopener">a cancelled paste keeps an entry</a> (it lasts only until the page changes). All its earlier findings are fixed or answered. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#issuecomment-6371782139" target="_blank" rel="noopener">Consultation log</a>.</dd>
       <dt>Greptile</dt>
-      <dd>Complete for <code>d7a39a1e4</code> (re-triggered, since its last review predated the replace-on-paste change). One finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4362395238" target="_blank" rel="noopener">two quick pastes over the same selected image left a save delay behind</a>, fixed in <code>690f54529</code>, which only answers that finding, so it was not re-triggered again. Its first-run finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361748381" target="_blank" rel="noopener">a save during a new paste</a>, is fixed.</dd>
+      <dd>Complete for <code>696cba0ed</code> (re-triggered for the simplification): "no new actionable issue". It has not reviewed the C# fix or the comment fix after it, which Devin has; it was not re-triggered for those.</dd>
       <dt>CI</dt>
-      <dd><code>pr-automation</code> passed for <code>690f54529</code>.</dd>
+      <dd><code>pr-automation</code> passed for <code>8a7b20166</code>.</dd>
       <dt>Repo check: e2e specs at the nightly's window size</dt>
       <dd>Did not apply; no e2e spec changed.</dd>
     </dl>
@@ -169,125 +170,19 @@ figcaption { font-size: 0.85rem; color: var(--muted); }
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>Checked by hand in a running Bloom this run: a paste with an inline picture selected replaced it in all four languages, and the Undo button took back each replacement and then the insertion. Earlier: an Explorer file copy, a Bloom-style picture plus path, the Paste button, and a Word-style clipboard (left as text). <strong>Not</strong> checked by hand: a paste with a canvas picture selected (unit-tested only), a screenshot or browser "Copy image", and declining the JPEG warning.</li>
-      <li>With a Reader tool open, Ctrl+Z in the text does not take back a pasted picture; the Undo button does. That predates this PR and is <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17041" target="_blank" rel="noopener">BL-17041</a>; the test ideas tell testers.</li>
+      <li>The simplification has not been tried in a running Bloom; the earlier live checks (paste into text, replace a selected picture, undo) were of the code before it. Unit tests cover the moved delay and guard, and the C# change has the full C# suite behind it.</li>
+      <li>The canvas picture's own "Paste image" now waits and drops a quick second paste too; the test ideas on the card ask testers to check it still replaces the picture.</li>
     </ul>
   </section>
 </div>
 
 <div>
-  <section class="card q" data-question="q1">
-    <h3>Should a second paste replace a picture Bloom has just added?</h3>
-    <p>A paste with an inline picture selected now replaces that picture, as you chose. But "selected" includes pictures Bloom selects itself: a picture just added with Insert Image, just pasted, or just changed by Undo stays selected, with its handles showing, until the user clicks somewhere else on the page (typing does not deselect it). So Insert Image followed by a paste fills the new empty picture, which is handy, and pasting twice in a row replaces the first picture rather than adding a second. That is also what the canvas does: a picture pasted onto a canvas stays selected, and the next paste replaces it. To add a second picture, the user clicks in the text first. The test ideas on the card describe this.</p>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1a" value="clickonly" data-q="q1"
-        data-instruction="In C:\work\BL-17014 (branch BL-17014-PasteInlineImageInText, PR BloomBooks/BloomDesktop#8499), make a picture paste replace a selected inline image only when the user selected it by clicking it, not when Bloom selected it after Insert Image, a paste or an undo: remember the image a press on the page selected (src/BloomBrowserUI/bookEdit/js/inlineImageInteractions.ts onPointerDown) and have getInlineImagePasteTarget in inlineImagePaste.ts check it. Update the tests and the test ideas on BL-17014, then re-run preflight.">
-      <label for="q1a">Replace only a picture the user clicked<span class="foot">About 25 lines in the selection and paste code plus tests; low risk. Insert Image followed by a paste would then add a second picture beside the empty one.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q1" id="q1b" value="leave" checked data-q="q1"
-        data-instruction="Leave as is: take no action on: a picture paste replaces whichever inline picture is selected, including one Bloom selected itself after Insert Image, a paste or an undo, so a second paste right after a first replaces it (as on a canvas).">
-      <label for="q1b">Leave as is <span class="rec">Recommended</span></label>
-      <span class="leavecomment"><input type="checkbox" id="q1c" data-q="q1-comment"
-        data-instruction="Record this decision as a code comment near getInlineImagePasteTarget in src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts (it already explains the behavior; add that it was a deliberate choice)."><label for="q1c">Leave comment</label></span>
-    </div>
-    <div class="opt other">
-      <input type="radio" name="q1" id="q1d" value="other" data-q="q1">
-      <label for="q1d">Other:<input type="text" id="q1o" data-q="q1-other" aria-label="Other answer for the second-paste question"></label>
-    </div>
-    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" rows="2" data-q="q1-notes"></textarea></div>
-  </section>
-
-  <section class="card q" data-question="q2">
-    <h3>Next step</h3>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2a" value="go" checked data-q="q2"
-        data-instruction="Carry out the chosen option above (if it changes code, re-run preflight); otherwise the PR on branch BL-17014-PasteInlineImageInText (BloomBooks/BloomDesktop#8499) is ready for my own final review.">
-      <label for="q2a">Carry out my choice; then it's ready for my own review <span class="rec">Recommended</span><span class="foot">No further work if you leave it as is.</span></label>
-    </div>
-    <div class="opt">
-      <input type="radio" name="q2" id="q2b" value="leave" data-q="q2"
-        data-instruction="Leave as is: take no further action on PR BloomBooks/BloomDesktop#8499 for now.">
-      <label for="q2b">Leave as is</label>
-    </div>
-    <div class="opt other">
-      <input type="radio" name="q2" id="q2d" value="other" data-q="q2">
-      <label for="q2d">Other:<input type="text" id="q2o" data-q="q2-other" aria-label="Other next step"></label>
-    </div>
-    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" rows="2" data-q="q2-notes"></textarea></div>
-  </section>
-
   <section class="card">
-    <h2>Send your answers back</h2>
-    <p>Copies your choices as text to paste into a Claude session.</p>
-    <div><button type="button" id="copybtn">Copy answers</button><span id="copystatus" role="status"></span></div>
-    <textarea id="payload" readonly aria-label="Your answers as text"></textarea>
+    <h2>Nothing waiting on you</h2>
+    <p>Your last answer (leave the second-paste behavior as it is) is recorded in the code comment on <a href="https://github.com/BloomBooks/BloomDesktop/blob/8a7b20166b359c1602706da79f593d62ffeda543/src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts#L78" target="_blank" rel="noopener">getInlineImagePasteTarget</a> and in the test ideas on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17014" target="_blank" rel="noopener">BL-17014</a>. The PR is ready for your own final review.</p>
   </section>
 </div>
 </div>
 </div>
-<script>
-(function () {
-  var URL_SELF = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17014-pasteinlineimageintext.html";
-  var questions = [
-    { id: "q1", title: "Should a second paste replace a picture Bloom has just added?" },
-    { id: "q2", title: "Next step" }
-  ];
-  function serialize() {
-    var lines = [
-      "Decisions from a decider form (preflight report)",
-      "Project: BloomBooks/BloomDesktop, branch BL-17014-PasteInlineImageInText, PR #8499 (YouTrack BL-17014)",
-      "Date: 2026-10-23",
-      "Report: " + URL_SELF,
-      ""
-    ];
-    questions.forEach(function (q) {
-      lines.push("## " + q.title);
-      var chosen = document.querySelector('input[name="' + q.id + '"]:checked');
-      if (chosen && chosen.value === "other") {
-        var o = document.getElementById(q.id + "o").value.trim();
-        lines.push("Other: " + (o || "(no text given)"));
-      } else if (chosen) {
-        lines.push(chosen.getAttribute("data-instruction"));
-      }
-      var lc = document.querySelector('input[data-q="' + q.id + '-comment"]');
-      if (lc && lc.checked) lines.push(lc.getAttribute("data-instruction"));
-      var n = document.getElementById(q.id + "n").value.trim();
-      if (n) lines.push("Notes: " + n);
-      lines.push("");
-    });
-    return lines.join("\n");
-  }
-  var payload = document.getElementById("payload");
-  function refresh() { payload.value = serialize(); }
-  document.addEventListener("input", refresh);
-  document.addEventListener("change", refresh);
-  refresh();
-  document.getElementById("copybtn").addEventListener("click", async function () {
-    var status = document.getElementById("copystatus");
-    status.className = "";
-    try {
-      refresh();
-      payload.focus();
-      payload.select();
-      try {
-        await navigator.clipboard.writeText(payload.value);
-        status.textContent = "Copied ✓";
-        status.className = "copied";
-        return;
-      } catch (e) { /* fall through */ }
-      payload.select();
-      if (document.execCommand && document.execCommand("copy")) {
-        status.textContent = "Copied ✓";
-        status.className = "copied";
-        return;
-      }
-      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
-    } catch (e) {
-      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
-    }
-  });
-})();
-</script>
 </body>
 </html>
