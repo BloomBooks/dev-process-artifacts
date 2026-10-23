@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-17037 Bloom Gallery Pin Preflight</title>
+<style>
+  /* Layout: report on the left, decisions on the right; one column when narrow. Light only, per the preflight report spec. */
+  :root {
+    --ground: #f6f5f1;
+    --card: #ffffff;
+    --ink: #22252a;
+    --muted: #5d636c;
+    --rule: #dedbd2;
+    --accent: #1f5f8b;
+    --accent-soft: #e6eff6;
+    --good: #2f6b3a;
+    --good-soft: #e5f1e6;
+    --warn: #8a5a00;
+    --warn-soft: #fbf1dc;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+    --sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: "Cascadia Mono", Consolas, "SFMono-Regular", Menlo, monospace;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px 48px;
+  }
+  .page { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.6rem; line-height: 1.25; }
+  h2 { font-size: 1.2rem; }
+  h3 { font-size: 1rem; font-family: var(--sans); font-weight: 600; margin-top: 4px; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  code { font-family: var(--mono); font-size: 0.88em; background: #f1efe8; padding: 1px 4px; border-radius: 3px; }
+  .numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+
+  header { display: flex; flex-direction: column; gap: 10px; }
+  .summary { color: var(--muted); max-width: 70ch; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); font-size: 0.85rem; }
+  .chip.good { background: var(--good-soft); border-color: #c5dec8; color: var(--good); }
+  .chip.warn { background: var(--warn-soft); border-color: #ecd6a6; color: var(--warn); }
+  .chip.state { background: var(--accent-soft); border-color: #c8dbea; color: var(--accent); }
+  .links a.chip { text-decoration: none; color: var(--accent); }
+  .links a.chip:hover { border-color: var(--accent); }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .cols > * { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+  .card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+  .about h3 { color: var(--accent); }
+
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+  th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  td.status { white-space: nowrap; }
+  .ok { color: var(--good); font-weight: 600; }
+  .na { color: var(--muted); font-weight: 600; }
+
+  .q { gap: 12px; }
+  .q .context { display: flex; flex-direction: column; gap: 8px; }
+  fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  legend { position: absolute; left: -9999px; }
+  .opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 5px; }
+  .opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .opt input[type=radio] { margin-top: 4px; }
+  .opt .label { flex: 1; min-width: 0; }
+  .foot { color: var(--muted); font-size: 0.85rem; }
+  .rec { display: inline-block; font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--good); border: 1px solid #c5dec8; background: var(--good-soft); border-radius: 3px; padding: 0 5px; margin-left: 4px; }
+  .lc { display: inline-flex; gap: 5px; align-items: center; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+  .other-text { flex: 1; min-width: 0; font: inherit; padding: 3px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+  textarea { width: 100%; font: inherit; font-size: 0.92rem; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+  .copyback button { align-self: flex-start; font: inherit; font-weight: 600; padding: 7px 16px; border-radius: 5px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+  #copy-status { font-size: 0.88rem; color: var(--muted); }
+  #copy-status.done { color: var(--good); font-weight: 600; }
+  #payload { font-family: var(--mono); font-size: 0.8rem; min-height: 180px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>Pin the gallery that reports offline image searches; add its two strings</h1>
+    <p class="summary">Preflight run on 2026-10-23 for <code>BloomDesktop</code>, branch <code>BL-17037-image-gallery-offline</code> into <code>Version6.5</code>, head <a href="https://github.com/BloomBooks/BloomDesktop/commit/9b80df47a9c41a4e340b9ac59b430943c595e23f" target="_blank" rel="noopener"><span class="numeral">9b80df4</span></a>. Gates are green, every reviewer is clean, and nothing is waiting on you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip state" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable · up to date with Version6.5</span>
+      <span class="chip good">Bots quiet · no findings</span>
+      <span class="chip good">0 items waiting on you</span>
+    </div>
+    <div class="chips links">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8496" target="_blank" rel="noopener">PR #8496</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8496/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8496/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17037" target="_blank" rel="noopener">BL-17037</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8496" target="_blank" rel="noopener">Devin review</a>
+      <a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8496" target="_blank" rel="noopener">Greptile</a>
+      <a class="chip" href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8496" target="_blank" rel="noopener">Reviewable</a>
+    </div>
+  </header>
+
+  <div class="cols">
+    <div class="report">
+      <section class="card about">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>With the computer offline, searching <strong>Openverse</strong> or <strong>Pixabay</strong> in the Image Chooser did nothing visible: no error, no "No matches found", just an empty results area. The fix is in the <code>bloom-image-gallery</code> package (<a href="https://github.com/BloomBooks/bloom-image-gallery/pull/23" target="_blank" rel="noopener">bloom-image-gallery#23</a>, merged), and Bloom doesn't get it until it picks up that version.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li><strong>Pins the gallery to <a href="https://github.com/BloomBooks/bloom-image-gallery/commit/5c7e7f4d549437c806d76b4623422a405f25940f" target="_blank" rel="noopener"><span class="numeral">5c7e7f4</span></a></strong> (version 0.0.5) in <code>package.json</code> and <code>pnpm-lock.yaml</code>; only the gallery's entries change. In the Image Chooser:
+            <ul>
+              <li>a search that can't reach the website says "Could not reach Openverse. Check that this computer is connected to the internet.";</li>
+              <li>a warning shows while the computer reports being offline;</li>
+              <li>any other failed search shows an error instead of an empty area.</li>
+            </ul>
+          </li>
+          <li><strong>Adds the two new strings</strong> to <code>BloomLowPriority.xlf</code> (your choice of file): <code>ImageLibrary.CannotReachSource</code> and <code>ImageLibrary.ComputerSeemsOffline</code>. Both are <code>translate="no"</code>, and each has a note for translators.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td>Front-end typecheck (<code>pnpm typecheck</code>)</td><td class="status ok">Pass</td><td>Compiles the gallery's source too, since Bloom imports it as TypeScript.</td></tr>
+              <tr><td>Front-end lint</td><td class="status na">Not run</td><td>The diff changes no <code>.ts</code>/<code>.tsx</code> file.</td></tr>
+              <tr><td>Front-end tests (vitest)</td><td class="status ok">Pass</td><td><span class="numeral">873 passed · 5 skipped · 73 files</span></td></tr>
+              <tr><td>Production bundle (<code>build/agent-vite.sh</code>)</td><td class="status ok">Pass</td><td>Rollup bundling and post-build steps complete with gallery 0.0.5.</td></tr>
+              <tr><td>Lockfile</td><td class="status ok">Pass</td><td><code>pnpm install --frozen-lockfile</code> installs gallery 0.0.5 with no other change.</td></tr>
+              <tr><td>XLF well-formed</td><td class="status ok">Pass</td><td><code>BloomLowPriority.xlf</code> parses as XML, and both new units are present.</td></tr>
+              <tr><td>C# tests</td><td class="status na">Not run</td><td>No C# in the diff, and no C# test reads the English xlf files.</td></tr>
+              <tr><td>Repo check: e2e specs at nightly size</td><td class="status na">Did not apply</td><td>The diff adds or changes no <code>src/BloomE2E/tests/*.spec.ts</code>.</td></tr>
+              <tr><td>Merge with Version6.5</td><td class="status ok">Clean</td><td>Already up to date.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Built the branch on <code>Version6.5</code>, as the card's [6.5] prefix requires and you confirmed. Re-pinned the gallery, added the two strings, opened the draft PR and linked it on the card. Corrected one translator note after the local review. Updated the test ideas to name the 6.5 build. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8496/commits" target="_blank" rel="noopener">Commits</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Reviewer</th><th>Outcome</th></tr></thead>
+            <tbody>
+              <tr><td>Local review (light sub-agent pass)</td><td>One finding, fixed before commit: the note for <code>ComputerSeemsOffline</code> said the warning shows "before any search", but it shows whenever the computer is offline. Ids, English and the pin all checked out.</td></tr>
+              <tr><td>Devin</td><td>Complete for <span class="numeral">9b80df4</span>. Clean: no bugs, no flags.</td></tr>
+              <tr><td>Greptile</td><td>Complete for <span class="numeral">9b80df4</span>. "Safe to merge; no actionable defects."</td></tr>
+              <tr><td>CI</td><td><code>pr-automation</code> passed; Greptile's check passed.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Not tried in a running Bloom. The gallery behaviour was checked by hand in the gallery's own dev server; here, the typecheck, tests and bundle build confirm that Bloom compiles and loads the new version.</li>
+          <li>Until the strings go to Crowdin, both messages show in English in every UI language. The test ideas on the card tell testers that's expected.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="decisions">
+      <section class="card">
+        <h2>Decisions</h2>
+        <p>Nothing is waiting on you. Once you've looked it over yourself, <code>pr-ready-for-human</code> hands it to a colleague.</p>
+      </section>
+    </div>
+  </div>
+</div>
+</body>
+</html>
