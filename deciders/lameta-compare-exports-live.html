@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: live export comparison</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2723; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; margin: 0 0 .5em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; margin-top: 1em; }
+  p { margin: 0 0 .7em; } ul { margin: 0 0 .7em; padding-left: 1.2em; } li { margin: .2em 0; }
+  a { color: #1f5c8a; }
+  code { font-family: Consolas, Menlo, monospace; font-size: .9em; background: #f1ede6; padding: 0 .25em; border-radius: 3px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .chip { display: inline-block; border: 1px solid #d8d1c6; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: .85rem; text-decoration: none; color: inherit; }
+  .chip.good { border-color: #9cc5a1; background: #eef7ef; }
+  a.chip { color: #1f5c8a; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd3; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8de; }
+  th { font-weight: 600; }
+  .numeral { font-variant-numeric: tabular-nums; }
+  .ok { color: #2f6b38; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Compare exports with the newest beta or release, live</h1>
+  <p>Preflight of <code>compare-exports-live</code> (#119) and its stacked PR #120: every gate green, every reviewer finished, nothing waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/onset/lameta/pull/119" target="_blank" rel="noopener">PR #119</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/119/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/119/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/120" target="_blank" rel="noopener">PR #120 (delete the committed project)</a>
+    <a class="chip" href="https://devinreview.com/onset/lameta/pull/119" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Checking what a change does to lameta's exports meant comparing with golden files of master's output, or with a generated project committed under <code>sample data</code>. Both have to be regenerated and re-reviewed whenever exports change on purpose. What John needs before publishing is different: what this build exports that the version testers or users have does not.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><code>pnpm run compare-exports [&lt;tag&gt;]</code> does the whole comparison. Unless it is given a tag, it compares with the newest beta or release (alphas are skipped; today v3.0.21-beta).</li>
+      <li>It makes a git worktree of that tag under <code>tmp/compare-exports</code> and installs it the first time; an install counts as done only once it finishes.</li>
+      <li>It generates the torture project with this checkout's generator for each version, checks that its paths fit Windows' limit, runs the export harness in both, and writes the differences to <code>tmp/compare-exports/differences.txt</code>.</li>
+      <li>The generator can be called in-process, and vitest no longer collects specs under <code>tmp/</code>.</li>
+      <li>#120, stacked on this PR, deletes the generated torture project from <code>sample data</code> and gitignores its folder; nothing reads it any more.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck (<code>tsc --noEmit</code>)</td><td class="ok">passed</td></tr>
+      <tr><td>Lint (<code>vp lint</code>)</td><td class="ok">passed</td></tr>
+      <tr><td>Unit tests, full suite (vitest, 2 workers)</td><td><span class="ok">passed</span> <span class="numeral">1626 passed · 10 skipped</span>, after the vitest config change. Later commits change only the comparison script and the README, which no test runs.</td></tr>
+      <tr><td>The comparison itself</td><td><span class="ok">ran end to end</span> against v3.0.21-beta, on a fresh worktree and on a reused one. A mistyped tag and a folder that is too deep both stop it before it changes anything.</td></tr>
+      <tr><td>End-to-end tests</td><td>Not run: no app code changes.</td></tr>
+      <tr><td>Merge with master</td><td class="ok">clean, up to date with 4d6d1e15</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Built the live comparison, then fixed the two problems that the local review found and the three that Devin found. Moved the deletion of the generated project into #120, because Devin cannot review a diff of 3,700 files. <a href="https://github.com/onset/lameta/pull/119/commits" target="_blank" rel="noopener">Commit list</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete. Found two problems: a failed install that later runs would take as finished, and <code>--out</code> given with no folder. Both fixed.</td></tr>
+      <tr><td>Devin (#119)</td><td>Complete; the last round raised nothing new. Its three bugs each have a resolved thread; two are fixed and marked resolved by Devin. On the third, it still asks to keep the previous exports when a run fails; that scratch output is not kept, and the reason is on the thread. <a href="https://github.com/onset/lameta/pull/119" target="_blank" rel="noopener">Threads on the PR</a>.</td></tr>
+      <tr><td>Devin (#120)</td><td>Not run: the diff is over Devin's size limit, and it only deletes generated files.</td></tr>
+      <tr><td>CI</td><td>No checks run on PR branches in this repo.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The first run on a machine installs v3.0.21-beta's dependencies into <code>tmp/compare-exports/lameta-v3.0.21-beta</code>: about 1.7 GB and two minutes. Later runs take about ten minutes, most of it the two harness runs.</li>
+      <li>#114, the golden files, is closed without merging.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None. Nothing in these PRs is waiting on you.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
