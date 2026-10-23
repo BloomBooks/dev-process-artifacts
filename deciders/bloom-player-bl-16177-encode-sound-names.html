@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16177 Preflight Report</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d6470;
+  --line: #ddd8cc;
+  --accent: #2f5d8a;
+  --good: #2e7d4f;
+  --good-bg: #e6f2ea;
+  --warn-bg: #f6efdc;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 0 0 8px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: 0.88em; background: #f0ede5; padding: 0 3px; border-radius: 3px; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 10px; margin-bottom: 22px; }
+.summary { color: var(--muted); max-width: 75ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 11px; font-size: 0.86rem; }
+.chip.good { background: var(--good-bg); border-color: #b9dcc6; color: var(--good); }
+.chip.wait { background: var(--warn-bg); border-color: #e3d3a6; }
+.links a.chip { text-decoration: none; }
+.links a.chip:hover { border-color: var(--accent); }
+.cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.cols > * { min-width: 0; display: grid; gap: 18px; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+.card ul { margin: 4px 0 8px; padding-left: 20px; }
+.card li { margin-bottom: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.pass { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .foot { color: var(--muted); font-size: 0.86rem; }
+.rec { display: inline-block; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--good); border: 1px solid #b9dcc6; background: var(--good-bg); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+.leaverow { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.leavecomment { font-size: 0.86rem; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+.other { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.other input[type=text] { flex: 1 1 200px; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; resize: vertical; }
+.noteslabel { display: block; font-size: 0.86rem; color: var(--muted); margin-top: 8px; }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+#payload { font-family: var(--mono); font-size: 0.82rem; min-height: 160px; margin-top: 10px; }
+#copystatus { margin-left: 10px; font-size: 0.9rem; color: var(--muted); }
+#copystatus.ok { color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>BL-16177: game sounds with “#” in the name don’t play</h1>
+  <p class="summary">Preflight of the bloom-player fix on <code>BL-16177-encode-sound-names</code> → <code>alpha</code>, HEAD <span class="numeral">4fad92a</span>. Gates are green, Devin and the local review found nothing, and one question is open.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/bloom-player/pull/444" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip wait">2 questions for you</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/444" target="_blank" rel="noopener">PR #444</a>
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/444/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/444/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16177" target="_blank" rel="noopener">BL-16177</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16688" target="_blank" rel="noopener">BL-16688</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/bloom-player/pull/444" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="cols">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>In a Match Sounds game, an audio button does nothing when its sound file has <code>#</code> in its name. This happens both in Bloom’s Play mode and in BloomPUB. A <code>%</code> in the name breaks the sound the same way (BL-16688), and the same goes for a game page’s correct-answer and wrong-answer sounds.</p>
+    <h3>Cause</h3>
+    <p>Bloom stores these sound attributes as the plain file name. That was decided on purpose in BL-16669, so whatever turns the name into a URL has to encode it. Bloom’s editor preview does; the game runtime in Bloom Player didn’t. So <code>bird#1.mp3</code> was requested as <code>audio/bird</code>, and <code>beep%41.mp3</code> as <code>audio/beepA.mp3</code>.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>One helper, <a href="https://github.com/BloomBooks/bloom-player/blob/4fad92a7d9cf25853a07664c504a1fc3517ba277/src/shared/dragActivityRuntime.ts#L934" target="_blank" rel="noopener"><code>getSoundUrl</code></a>, builds the URL for a sound in the book’s audio folder and encodes the file name. Bloom’s default correct/wrong sound URLs are left as they are.</li>
+      <li>Preloading (<a href="https://github.com/BloomBooks/bloom-player/blob/4fad92a7d9cf25853a07664c504a1fc3517ba277/src/shared/dragActivityRuntime.ts#L968" target="_blank" rel="noopener">line 968</a>) and playing (<a href="https://github.com/BloomBooks/bloom-player/blob/4fad92a7d9cf25853a07664c504a1fc3517ba277/src/shared/dragActivityRuntime.ts#L1064" target="_blank" rel="noopener">line 1064</a>) both use it, so a preloaded sound is still found when it is time to play it.</li>
+      <li><a href="https://github.com/BloomBooks/bloom-player/blob/4fad92a7d9cf25853a07664c504a1fc3517ba277/src/shared/dragActivityRuntime.test.ts#L234" target="_blank" rel="noopener">Three unit tests</a> cover a <code>#</code> name, a <code>%</code> name, and preload-then-play of a correct-answer sound. All three fail without the fix.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td class="pass">Pass</td><td><code>tsc --noEmit</code></td></tr>
+        <tr><td>Lint</td><td class="na">N/A</td><td>No lint script in this repo, and <code>eslint</code> finds no config it can use. Prettier reports issues in both files, but only in lines this PR doesn’t touch.</td></tr>
+        <tr><td>Unit tests (vitest)</td><td class="pass">Pass</td><td><span class="numeral">169 passed</span> in 18 files</td></tr>
+        <tr><td>E2E (Playwright)</td><td class="pass">Pass</td><td><span class="numeral">23 passed</span> against a fresh standalone build. The quiz tests answer right and wrong, which preloads and plays Bloom’s default sounds through the changed code.</td></tr>
+        <tr><td>C# / other stacks</td><td class="na">N/A</td><td>None in this repo</td></tr>
+        <tr><td>Merge with <code>alpha</code></td><td class="pass">Clean</td><td>Already up to date with <code>origin/alpha</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>No new code. The fix was already committed and the draft PR open. This run added the reviewer sections to the PR description, linked the PR on the card and posted the QA test ideas there. <a href="https://github.com/BloomBooks/bloom-player/pull/444/commits" target="_blank" rel="noopener">Commits</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td><strong>Local review</strong><br>light sub-agent pass</td><td>Clean, no findings. It asked whether any existing book could hold an already-encoded name, which would then be encoded twice. Bloom has always written these attributes with a plain <code>setAttribute</code> (since the games feature was added in 2024), so dismissed.</td></tr>
+        <tr><td><strong>Devin</strong></td><td>Complete at <span class="numeral">4fad92a</span>: no bugs, no flags. <a href="https://github.com/BloomBooks/bloom-player/pull/444#issuecomment-6374336199" target="_blank" rel="noopener">Consultation log</a></td></tr>
+        <tr><td><strong>CI</strong></td><td>No checks run on bloom-player pull requests.</td></tr>
+        <tr><td><strong>Other bots</strong></td><td>None active on this repo.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Nobody has played a sound by hand yet. Bloom only gets the fix after this merges, the new <code>alpha</code> publishes, and BloomDesktop master updates its <code>bloom-player</code> dependency. That follow-up (plus updating the BL-16688 note in <code>UrlPathString.cs</code>) is a separate BloomDesktop PR, on branch <code>BL-16177-MatchSoundGamesSilentForFileWithHash</code>.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card" id="q1">
+    <h2>Should the fix also go into Bloom 6.5?</h2>
+    <p>The card is on the Bloom 6.6 board and its title has no <code>[6.5]</code> prefix, so by our rules the fix belongs on master. But the bug also happens in 6.4 and 6.5, which the reporter hit in 6.4.</p>
+    <p>Master installs <code>bloom-player@alpha</code>, so it gets this fix automatically. Version6.5 pins <code>bloom-player</code> at exactly <code>2.20.2</code>. Fixing 6.5 means publishing a <code>2.20.x</code> release from bloom-player’s master branch and moving 6.5’s pin to it, which also brings along every other bloom-player change made since 2.20.2. I recommend leaving 6.5 alone: the bug only affects sounds with unusual file names, and the workaround (rename the file) is easy.</p>
+    <fieldset>
+      <legend>Bloom 6.5</legend>
+      <label class="opt"><input type="radio" name="q1" id="q1-a" data-q="Should the BL-16177 sound-name fix also go into Bloom 6.5?" data-instruction="Also bring the BL-16177 fix to Bloom 6.5: after bloom-player PR #444 merges to alpha, merge it to bloom-player master so a 2.20.x stable release is published, then in BloomDesktop branch Version6.5 change src/BloomBrowserUI/package.json's bloom-player pin from 2.20.2 to that release, update the lockfile, and open a PR to Version6.5 after checking what else the bloom-player bump brings in."><span>Also fix in 6.5 <span class="foot">(a bloom-player release from master plus a pin bump on Version6.5; moderate, because the bump brings in other bloom-player changes)</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q1" id="q1-b" checked data-q="Should the BL-16177 sound-name fix also go into Bloom 6.5?" data-instruction="Leave as is — take no action on: the BL-16177 sound-name fix reaches Bloom 6.6 (master) only; Bloom 6.5 keeps bloom-player 2.20.2."><span>Leave as is <span class="rec">Recommended</span></span></label>
+        <label class="leavecomment"><input type="checkbox" id="q1-comment" data-q="Should the BL-16177 sound-name fix also go into Bloom 6.5?" data-comment="Record this decision as a code comment next to getSoundUrl in bloom-player src/shared/dragActivityRuntime.ts.">Leave comment</label>
+      </div>
+      <div class="other"><label class="opt"><input type="radio" name="q1" id="q1-c" data-q="Should the BL-16177 sound-name fix also go into Bloom 6.5?" data-other="q1-other"><span>Other:</span></label><input type="text" id="q1-other" aria-label="Other answer for Bloom 6.5"></div>
+    </fieldset>
+    <label class="noteslabel" for="q1-notes">Notes</label>
+    <textarea id="q1-notes" data-q="Should the BL-16177 sound-name fix also go into Bloom 6.5?" data-notes="1"></textarea>
+  </section>
+
+  <section class="card" id="q2">
+    <h2>Next step</h2>
+    <p>The PR is a draft. Once you have looked at it yourself, <code>pr-ready-for-human</code> marks it ready for a teammate’s review. After it merges, the BloomDesktop follow-up updates the dependency and is checked by hand in Play mode and BloomPUB.</p>
+    <fieldset>
+      <legend>What now</legend>
+      <label class="opt"><input type="radio" name="q2" id="q2-a" checked data-q="Next step for bloom-player PR #444 (BL-16177)" data-instruction="Run the pr-ready-for-human skill on bloom-player PR #444 (worktree C:\work\bloom-player-BL-16177, branch BL-16177-encode-sound-names) to mark it ready for peer review; after it merges and the new bloom-player alpha is published, do the BloomDesktop follow-up in C:\work\BL-16177: pnpm update bloom-player in src/BloomBrowserUI, update the BL-16688 note in src/BloomExe/UrlPathString.cs, verify '#' and '%' sound names play in Play mode and BloomPUB, then preflight that PR."><span>Promote it with <code>pr-ready-for-human</code> <span class="rec">Recommended</span> <span class="foot">(no code; the follow-up waits for the merge)</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q2" id="q2-b" data-q="Next step for bloom-player PR #444 (BL-16177)" data-instruction="Leave as is — take no action on: bloom-player PR #444 (BL-16177) stays a draft for now."><span>Leave as is</span></label>
+      </div>
+      <div class="other"><label class="opt"><input type="radio" name="q2" id="q2-c" data-q="Next step for bloom-player PR #444 (BL-16177)" data-other="q2-other"><span>Other:</span></label><input type="text" id="q2-other" aria-label="Other next step"></div>
+    </fieldset>
+    <label class="noteslabel" for="q2-notes">Notes</label>
+    <textarea id="q2-notes" data-q="Next step for bloom-player PR #444 (BL-16177)" data-notes="1"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into a Claude session.</p>
+    <button type="button" id="copybtn">Copy answers</button><span id="copystatus" role="status"></span>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+</aside>
+</div>
+</div>
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-player-bl-16177-encode-sound-names.html";
+  var questions = ["q1", "q2"];
+  function serialize() {
+    var lines = [
+      "Decisions from a preflight report (decider form)",
+      "Project: bloom-player PR #444 (https://github.com/BloomBooks/bloom-player/pull/444), branch BL-16177-encode-sound-names -> alpha; follow-up in BloomDesktop worktree C:\\work\\BL-16177",
+      "Card: BL-16177. Date: 2026-10-23",
+      "Full report: " + REPORT_URL,
+      ""
+    ];
+    questions.forEach(function (id) {
+      var card = document.getElementById(id);
+      var picked = card.querySelector("input[type=radio]:checked");
+      var title = card.querySelector("h2").textContent.trim();
+      lines.push("## " + title);
+      if (picked) {
+        if (picked.dataset.other) {
+          lines.push("Other: " + document.getElementById(picked.dataset.other).value.trim());
+        } else {
+          lines.push(picked.dataset.instruction);
+        }
+      }
+      var lc = card.querySelector("input[type=checkbox][data-comment]");
+      if (lc && lc.checked) lines.push("Leave comment: " + lc.dataset.comment);
+      var notes = card.querySelector("textarea[data-notes]");
+      if (notes && notes.value.trim()) lines.push("Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n").trim() + "\n";
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async function () {
+    var status = document.getElementById("copystatus");
+    status.className = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      var ok = false;
+      try { await navigator.clipboard.writeText(payload.value); ok = true; } catch (e) {
+        try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+      }
+      if (ok) { status.textContent = "Copied ✓"; status.className = "ok"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (err) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
