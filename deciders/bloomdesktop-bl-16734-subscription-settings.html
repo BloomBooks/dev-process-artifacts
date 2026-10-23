@@ -75,10 +75,10 @@ code { font-family: var(--mono); font-size: 0.88em; }
 <div class="wrap">
 <header>
   <h1>Preflight: Collection Settings in React, Subscription page (BL-16734)</h1>
-  <p class="summary">Draft PR #8487, in GitHub stack #8498 between #8489 (BL-17032) below and #8493 (BL-16733) above. One commit on top of squashed BL-17032 (Config-R 1.0.0-alpha.30), reviewed, tests green; nothing waiting on you.</p>
+  <p class="summary">Draft PR #8487 into master, the bottom of GitHub stack #8498 with #8493 (BL-16733) above it. Reworked so the code that stays after the old dialog is deleted carries nothing for the old dialog; reviewed, tests green; nothing waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8487" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
-    <span class="chip good">Mergeable into BL-17032</span>
+    <span class="chip good">Mergeable into master</span>
     <span class="chip good">Bots quiet</span>
     <span class="chip good">No decisions waiting</span>
     <span class="chip">Board: ready for your review</span>
@@ -89,7 +89,6 @@ code { font-family: var(--mono); font-size: 0.88em; }
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8487/commits" target="_blank" rel="noopener">Commits</a>
     <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16734" target="_blank" rel="noopener">BL-16734</a>
     <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8487" target="_blank" rel="noopener">Devin review</a>
-    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8489" target="_blank" rel="noopener">Below: #8489</a>
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8493" target="_blank" rel="noopener">Above: #8493</a>
   </div>
 </header>
@@ -102,11 +101,11 @@ code { font-family: var(--mono); font-size: 0.88em; }
     <p>The new (React) Collection Settings dialog had only a placeholder for its Subscription page, so a subscription code could still be entered only in the old WinForms dialog. Every subscription badge and gated menu item ("this needs a subscription, click to get one") also still opened the old dialog.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li>A real Subscription page, built from the pieces of the old Subscription tab (intro, code box with Copy/Paste, tier and expiry, branding summary, expiry warnings, community-subscription invitation), laid out like the card's mockup.</li>
+      <li>A real Subscription page, laid out like the card's mockup: the intro above a card holding the code box (Copy/Paste), tier and expiry, branding summary, expiry warnings and the community-subscription invitation. It shares the code box and status line with the old tab; the old tab itself is now a self-contained copy that the cutover (BL-17042) deletes whole.</li>
       <li>The code saves with the rest of the dialog: a changed code turns OK into Restart and goes through the existing subscription-and-bookshelf rules, before the front/back-matter check because a branding can choose the pack. An unchanged code keeps the collection's own subscription, which a book downloaded for editing relies on.</li>
-      <li>Cancel leaves nothing behind: the page checks a typed code without telling Bloom about it, so the code reaches Bloom only on OK. The old dialog's tab uses the same check and still keeps its own code in C# for its own OK.</li>
-      <li>Every "open the Subscription settings" entry point opens the new dialog on that page. Badges and gated menu items open it directly in the browser, including from the toolbox and page frames. Where no new dialog is there (the old dialog's tabs), and for the comic-book ReadMe links, Bloom's C# side opens it, or switches the open old dialog to its own tab.</li>
-      <li>A badge on one of the new dialog's own pages switches the open dialog to the Subscription page, keeping edits, through Config-R's new page handle (from #8489).</li>
+      <li>Cancel leaves nothing behind: the page checks a typed code without telling Bloom about it, so the code reaches Bloom only on OK.</li>
+      <li>Every subscription badge and gated menu item opens the new dialog on its Subscription page, directly in the browser (including from the toolbox and page frames). The comic-book ReadMe links ask Bloom's C# side, which opens it the same way. Until the cutover, a badge on one of the old dialog's own tabs does nothing.</li>
+      <li>A badge on one of the new dialog's own pages switches the open dialog to the Subscription page, keeping edits, through Config-R's page handle.</li>
     </ul>
   </section>
 
@@ -116,26 +115,27 @@ code { font-family: var(--mono); font-size: 0.88em; }
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>TypeScript typecheck</td><td><span class="ok">Pass</span></td></tr>
       <tr><td>ESLint</td><td><span class="ok">Pass</span>, no errors</td></tr>
-      <tr><td>Front-end tests (vitest)</td><td><span class="ok">Pass</span> <span class="numeral">1617 passed in 113 files</span></td></tr>
-      <tr><td>C# tests (BloomTests)</td><td><span class="ok">Pass</span> <span class="numeral">3840 passed</span></td></tr>
-      <tr><td>Repo check: changed e2e spec at the nightly window size</td><td><span class="ok">Pass</span>: collection-settings-subscription <span class="numeral">4/4</span>, run with the Help and bookshelf specs <span class="numeral">3/3</span></td></tr>
-      <tr><td>Integration with base</td><td><span class="ok">One commit</span> <span class="numeral">bf70216470</span> on the squashed BL-17032 <span class="numeral">aa605ef94a</span>; same tree as the commit the suites and reviewers ran on; mergeable</td></tr>
+      <tr><td>Front-end tests (vitest)</td><td><span class="ok">Pass</span> <span class="numeral">1613 passed in 112 files</span></td></tr>
+      <tr><td>C# tests (BloomTests)</td><td><span class="ok">Pass</span> <span class="numeral">3839 passed</span>; the one failure is the opt-in Reading App Builder real-build test, failing in this machine's shared RAB build folder (a known local problem, never run by CI; nothing in this PR touches app building)</td></tr>
+      <tr><td>Repo check: changed e2e spec at the nightly window size</td><td><span class="ok">Pass</span>: collection-settings-subscription <span class="numeral">4/4</span>, against a build with this run's C#</td></tr>
+      <tr><td>Running Bloom</td><td><span class="ok">Pass</span>: the page with no code, an expired code and the Enterprise test code; badges on the Bloom Library and Experimental pages; the book menu's Export to Spreadsheet; the Publish › Apps overlay. Nothing saved.</td></tr>
+      <tr><td>Integration with base</td><td><span class="ok">Up to date</span> with master; mergeable</td></tr>
     </table></div>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Merged BL-17032 (Help button, Config-R 1.0.0-alpha.30, master) and moved the in-dialog badge onto Config-R's page handle; after BL-17032 was squashed, put this PR's own changes in one commit on top of it (same tree, force-pushed). Badges now open the dialog in the browser, falling back to C# where no dialog is mounted (a regression the local review caught in the old dialog's tabs). Fixed two small findings from Devin. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8487/commits" target="_blank" rel="noopener">commits</a>.</p>
+    <p>At your request, the code that will outlive the old dialog was cleaned of everything there only for it: the page owns its markup, the old tab is a self-contained legacy copy, badges no longer fall back to C#, and the code box carries its own styles. Also dropped the lines between the page's pieces. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8487/commits" target="_blank" rel="noopener">commits</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <div class="tablewrap"><table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: badges in the old dialog's tabs went nowhere, because those windows load the workspace code but have no new dialog. They now fall back to C#, with unit tests for both cases.</td></tr>
-      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8487" target="_blank" rel="noopener">Devin</a></td><td>Complete on <span class="numeral">470272efb0</span> (same tree as <span class="numeral">bf70216470</span>), re-review clean. Two new findings, both fixed and marked resolved by Devin (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8487/files" target="_blank" rel="noopener">threads</a>); its other items repeat earlier findings already answered on their threads.</td></tr>
-      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed on <span class="numeral">bf70216470</span>.</td></tr>
-      <tr><td>Reviewable</td><td>Its status shows pending with "5 discussions left": the mirrored Devin threads, resolved on GitHub but still open in Reviewable's own bookkeeping. It is a human-review status, not a check that will finish.</td></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean. (A separate adversarial simplification review, which you asked for, drove this run's changes.)</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8487" target="_blank" rel="noopener">Devin</a></td><td>Complete on <span class="numeral">846e278d7d</span>. One new finding, that the old dialog's Advanced-tab badge would throw: not an issue (that window has the workspace code, so the badge does nothing, as intended), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8487#discussion_r4364927610" target="_blank" rel="noopener">replied and resolved</a>. Its other items repeat threads already resolved.</td></tr>
+      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed on <span class="numeral">846e278d7d</span>.</td></tr>
+      <tr><td>Reviewable</td><td>Pending with "6 discussions left": the mirrored Devin threads, resolved on GitHub but still open in Reviewable's own bookkeeping. A human-review status, not a check that finishes.</td></tr>
       <tr><td>Other review bots</td><td>None active on this PR.</td></tr>
     </table></div>
   </section>
@@ -143,8 +143,8 @@ code { font-family: var(--mono); font-size: 0.88em; }
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>This PR is the middle of GitHub stack #8498 now: #8489 (BL-17032) below, and #8493 (BL-16733, Front &amp; Back Matter) above. Merging #8487 also merges #8489.</li>
-      <li>The old dialog's own badges were checked by reading the code and by unit tests only: the e2e suite cannot reach the WinForms dialog.</li>
+      <li>The bottom of GitHub stack #8498: #8493 (BL-16733, Front &amp; Back Matter) sits above it, and its agent has been asked to rebase onto this run's commits and run its own preflight.</li>
+      <li>A subscription badge on one of the old dialog's own tabs now does nothing until the cutover. The card's test ideas say so, so testers won't report it.</li>
     </ul>
   </section>
 </div>
@@ -152,8 +152,8 @@ code { font-family: var(--mono); font-size: 0.88em; }
 <div class="col" id="decisions">
   <section class="card">
     <h2>Nothing waiting on you</h2>
-    <p>No open questions this run. The three decisions from the first run are recorded in the card's test ideas and on their Devin threads.</p>
-    <p>Next: your own review of the draft PR, then <code>pr-ready-for-human</code> when you are happy with it. The agent of #8493, stacked above, has been asked to merge this branch and run its own preflight.</p>
+    <p>No open questions this run.</p>
+    <p>Next: your own review of the draft PR, then <code>pr-ready-for-human</code> when you are happy with it.</p>
   </section>
 </div>
 </div>
