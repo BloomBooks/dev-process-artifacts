@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-17014 Preflight Report</title>
+<style>
+/* Layout: header band, then two columns (report left, decisions right), one column when narrow. */
+:root {
+  --ground: #f7f5f0;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d6470;
+  --line: #ddd8cc;
+  --accent: #2f6f8f;
+  --accent-soft: #e5eff4;
+  --good: #2d7a46;
+  --good-soft: #e3f1e7;
+  --warn: #8a5a12;
+  --warn-soft: #f7ecd9;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 6px 0; }
+ul { margin: 6px 0; padding-left: 20px; }
+li { margin: 3px 0; }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--accent-soft); padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.summary { color: var(--muted); max-width: 70ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 3px 11px; font-size: 0.85rem; }
+.chip.good { background: var(--good-soft); border-color: #bcdcc6; color: var(--good); }
+.chip.warn { background: var(--warn-soft); border-color: #e6cfa4; color: var(--warn); }
+.chip a { color: inherit; }
+.links .chip { text-decoration: none; color: var(--accent); }
+.links .chip:hover { background: var(--accent-soft); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+.narrative h3:first-child { margin-top: 0; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+.ok { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); font-weight: 600; }
+.reviewers dt { font-weight: 600; margin-top: 10px; }
+.reviewers dt:first-child { margin-top: 0; }
+.reviewers dd { margin: 2px 0 0; }
+.q { display: flex; flex-direction: column; gap: 8px; }
+.q h3 { margin: 0; font-size: 1.05rem; }
+.opt { display: flex; align-items: flex-start; gap: 8px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; }
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt label { flex: 1; min-width: 0; }
+.opt input[type="radio"] { margin-top: 4px; }
+.foot { display: block; color: var(--muted); font-size: 0.85rem; }
+.rec { display: inline-block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; background: var(--accent); color: #fff; border-radius: 3px; padding: 0 5px; margin-left: 4px; }
+.leavecomment { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; color: var(--muted); white-space: nowrap; }
+.other input[type="text"] { width: 100%; margin-top: 4px; font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; resize: vertical; }
+.notes label { font-size: 0.85rem; color: var(--muted); }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; }
+#copystatus { margin-left: 10px; font-size: 0.9rem; color: var(--muted); }
+#copystatus.copied { color: var(--good); }
+#payload { font-family: var(--mono); font-size: 0.8rem; min-height: 160px; margin-top: 10px; background: #fbfaf7; }
+figure { margin: 10px 0 0; }
+figure img { max-width: 100%; width: 400px; border: 1px solid var(--line); border-radius: 4px; }
+figcaption { font-size: 0.85rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>BL-17014: paste a picture into a text block as an inline image</h1>
+  <p class="summary">Preflight of branch <code>BL-17014-PasteInlineImageInText</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/f4bc7d7547a226c86fc75eafc7457e7ecd3b8941" target="_blank" rel="noopener"><code>f4bc7d754</code></a>, 2026-10-23. Gates green, every reviewer finished, two product questions for you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8499" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip good">Mergeable, clean</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">2 decisions waiting</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8499" target="_blank" rel="noopener">PR #8499</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8499/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8499/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17014" target="_blank" rel="noopener">BL-17014</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8499" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8499" target="_blank" rel="noopener">Greptile</a>
+  </div>
+</header>
+
+<div class="grid">
+<div>
+  <section class="card narrative">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Pasting a picture into a text block pasted the picture's file path as text instead of the picture. Ctrl+V in a text block is left to the browser and CKEditor, and most picture copies (Bloom's own Copy Image, a file copied in Explorer, a browser's "Copy image") put the path or URL on the clipboard as text beside the picture, so the text is what got pasted. The top-bar Paste button sent the picture to the page's canvas instead, or pasted the same text.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>With the focus in a text block that can take inline images, pasting a picture (Ctrl+V or the Paste button) adds an <strong>inline image</strong> holding it to that block, docked right at the start of the block, where Insert Image puts one.</li>
+      <li>It reuses the canvas paste's round trip, so there is <strong>no C# change</strong>: JS asks C# for the clipboard picture with an id unique to that paste, and C# copies it into the book folder and calls <code>changeImage</code> with the id. The image appears only once the picture has arrived, so a failed or cancelled paste leaves nothing, and <strong>one Undo</strong> takes back the whole paste. A save made in the meantime waits for the picture.</li>
+      <li>A clipboard with <strong>formatted text</strong> as well as a picture (Word, Excel, part of a web page) still pastes as text.</li>
+      <li>Blocks that can't take inline images, and a paste with a canvas picture selected, behave as before. The Paste button with the focus in an ordinary text block now adds an inline image there instead of pasting onto the canvas.</li>
+    </ul>
+    <figure>
+      <img src="https://bloombooks.github.io/dev-process-artifacts/pr-screenshots/bloomdesktop-8499-pasted-inline-image.png" alt="A picture pasted into a text block appears at the block's top right, selected, with its toolbar">
+      <figcaption>A picture pasted into a text block, selected, with its toolbar.</figcaption>
+    </figure>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck (<code>pnpm typecheck</code>)</td><td><span class="ok">Pass</span></td></tr>
+        <tr><td>Lint (eslint on the changed files, and in the commit hook)</td><td><span class="ok">Pass</span>, <span class="numeral">0</span> errors</td></tr>
+        <tr><td>TypeScript tests (vitest, full suite at HEAD)</td><td><span class="ok">Pass</span>, <span class="numeral">1625 passed · 112 files</span></td></tr>
+        <tr><td>C# tests (<code>dotnet test</code>)</td><td><span class="na">Not run</span>: no C# in this PR's diff, and the C# tests read none of the changed front-end files</td></tr>
+        <tr><td>Repo check: e2e specs at the nightly's window size</td><td><span class="na">Did not apply</span>: the diff adds or changes no <code>src/BloomE2E/tests/*.spec.ts</code></td></tr>
+        <tr><td>Merge with <code>master</code></td><td><span class="ok">Clean</span>, merged before the first push</td></tr>
+        <tr><td>CI (<code>pr-automation</code>)</td><td><span class="ok">Pass</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the work, merged <code>master</code>, and opened the draft PR. Fixed what the light review found (a selected canvas picture would lose the paste; two quick pastes broke), and what Devin and Greptile both found (a save during a paste could miss the picture). Also kept the new tests off the network, as <code>master</code> now requires. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499/commits" target="_blank" rel="noopener">commit list</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <dl class="reviewers">
+      <dt>Local review (light sub-agent pass)</dt>
+      <dd>Two findings, both fixed: the paste target came from the leftover text selection, so a paste meant for a selected canvas picture went into the text instead (now chosen by the focus, see <a href="https://github.com/BloomBooks/BloomDesktop/blob/f4bc7d7547a226c86fc75eafc7457e7ecd3b8941/src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts#L72" target="_blank" rel="noopener">getInlineImagePasteTarget</a>); and a single waiting-paste slot made a second quick paste throw (now one entry per paste, see <a href="https://github.com/BloomBooks/BloomDesktop/blob/f4bc7d7547a226c86fc75eafc7457e7ecd3b8941/src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts#L48" target="_blank" rel="noopener">pendingPastes</a>).</dd>
+      <dt>Devin</dt>
+      <dd>Complete for <code>f4bc7d754</code> (about 3 min). One bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361885521" target="_blank" rel="noopener">a save during a paste could miss the picture</a>, fixed and marked resolved by Devin. One Investigate flag, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361885739" target="_blank" rel="noopener">text-free structured HTML counts as a picture</a>, answered as not an issue. One informational note, answered by new tests. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#issuecomment-6369802546" target="_blank" rel="noopener">Consultation log</a>.</dd>
+      <dt>Greptile</dt>
+      <dd>Complete for <code>bb0ef4e7c</code>, with one finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8499#discussion_r4361748381" target="_blank" rel="noopener">the same save-during-paste issue</a>, fixed in <code>f4bc7d754</code>. It has not reviewed the current code: it did not start for <code>f4bc7d754</code>, which only answers that finding, so it was not re-triggered.</dd>
+      <dt>CI</dt>
+      <dd><code>pr-automation</code> passed for <code>f4bc7d754</code>.</dd>
+      <dt>Repo check: e2e specs at the nightly's window size</dt>
+      <dd>Did not apply; no e2e spec changed.</dd>
+    </dl>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Checked by hand in a running Bloom: Ctrl+V of an Explorer file copy and of a Bloom-style picture plus path, the Paste button (before and after the focus change), and a Word-style clipboard (left as text). <strong>Not</strong> checked by hand: a paste with a canvas picture selected (unit-tested only), a screenshot or browser "Copy image", and declining the JPEG warning.</li>
+      <li>With a Reader tool (Leveled or Decodable) open, Ctrl+Z in the text goes to the Reader tool by design (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f4bc7d7547a226c86fc75eafc7457e7ecd3b8941/src/BloomBrowserUI/bookEdit/js/inlineImageInteractions.ts#L800" target="_blank" rel="noopener">onUndoOrRedoKeyDown</a>), so it does not take back a pasted picture; the Undo button does. Insert Image has always behaved the same. See the second decision.</li>
+    </ul>
+  </section>
+</div>
+
+<div>
+  <section class="card q" data-question="q1">
+    <h3>With an inline picture selected, should pasting a picture replace it?</h3>
+    <p>Clicking an inline picture selects it without taking the focus out of its text block. So if you select one and press Ctrl+V with a picture on the clipboard, this PR adds a <em>second</em> picture to the block and leaves the selected one alone. On a canvas, pasting onto a selected picture replaces it (BL-16542), and an inline picture's own toolbar already has a "Paste image" button that replaces it. Before this PR, the same keystroke pasted the file path as text.</p>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1a" value="replace" checked data-q="q1"
+        data-instruction="In C:\work\BL-17014 (branch BL-17014-PasteInlineImageInText, PR BloomBooks/BloomDesktop#8499), make a picture paste (Ctrl+V or the top-bar Paste button) replace the picture of the selected inline image, the way the image's own Paste image toolbar button does, instead of adding a new inline image, when an inline image is selected in the focused text block. Change src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts (pasteImageIntoTextAsInlineImage and the Paste button route in pasteImpl in bloomEditing.ts), add unit tests, then re-run preflight.">
+      <label for="q1a">Replace the selected picture <span class="rec">Recommended</span>, recommended because it matches what pasting onto a selected picture does everywhere else in Bloom and what the picture's own toolbar button does.<span class="foot">About 20 lines in the paste module plus tests; low risk, since it only applies when an inline picture is selected.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q1" id="q1b" value="leave" data-q="q1"
+        data-instruction="Leave as is: take no action on: with an inline picture selected, a picture paste into its text block adds a second inline picture instead of replacing the selected one (BloomBooks/BloomDesktop#8499).">
+      <label for="q1b">Leave as is</label>
+      <span class="leavecomment"><input type="checkbox" id="q1c" data-q="q1-comment"
+        data-instruction="Record this decision as a code comment near pasteImageIntoTextAsInlineImage in src/BloomBrowserUI/bookEdit/js/inlineImagePaste.ts: a picture paste adds a new inline picture even when one is selected."><label for="q1c">Leave comment</label></span>
+    </div>
+    <div class="opt other">
+      <input type="radio" name="q1" id="q1d" value="other" data-q="q1">
+      <label for="q1d">Other:<input type="text" id="q1o" data-q="q1-other" aria-label="Other answer for the selected inline picture question"></label>
+    </div>
+    <div class="notes"><label for="q1n">Notes</label><textarea id="q1n" rows="2" data-q="q1-notes"></textarea></div>
+  </section>
+
+  <section class="card q" data-question="q2">
+    <h3>File a card for the Reader tools' Ctrl+Z with inline pictures?</h3>
+    <p>With the Leveled or Decodable Reader tool open, Ctrl+Z in the text is taken by the Reader tool for its own history, so it doesn't remove an inline picture just added (pasted or inserted); only the Undo button does. During the live check, that Reader-tool undo also put back a hidden CKEditor bookmark (an invisible <code>cke_bm</code> span that looked like an extra space in the text), which would have been saved into the book. Both predate this PR and are outside its scope.</p>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2a" value="card" checked data-q="q2"
+        data-instruction="Create a YouTrack bug on the newest Bloom board (Bloom 6.6): with the Leveled or Decodable Reader tool open, Ctrl+Z in a text block is handled by the Reader tool, so it does not undo inserting or pasting an inline picture (the Undo button does); and the Reader tool's undo can restore a hidden CKEditor bookmark span (span id cke_bm_...) into the text, which would be saved into the book. Mention it was found while testing BL-17014 (PR BloomBooks/BloomDesktop#8499).">
+      <label for="q2a">File one bug card on the Bloom 6.6 board <span class="rec">Recommended</span>, recommended because the stray bookmark can end up saved in a book, and the Ctrl+Z gap will now be met more often since pasting makes inline pictures easier to add.<span class="foot">No code in this PR; a card for later.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q2" id="q2b" value="leave" data-q="q2"
+        data-instruction="Leave as is: take no action on: with a Reader tool open, Ctrl+Z does not undo adding an inline picture, and the Reader tool's undo can restore a hidden CKEditor bookmark into the text.">
+      <label for="q2b">Leave as is</label>
+    </div>
+    <div class="opt other">
+      <input type="radio" name="q2" id="q2d" value="other" data-q="q2">
+      <label for="q2d">Other:<input type="text" id="q2o" data-q="q2-other" aria-label="Other answer for the Reader tools question"></label>
+    </div>
+    <div class="notes"><label for="q2n">Notes</label><textarea id="q2n" rows="2" data-q="q2-notes"></textarea></div>
+  </section>
+
+  <section class="card q" data-question="q3">
+    <h3>Next step</h3>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3a" value="go" checked data-q="q3"
+        data-instruction="Carry out the chosen options above now, then re-run preflight on branch BL-17014-PasteInlineImageInText (PR BloomBooks/BloomDesktop#8499).">
+      <label for="q3a">Carry out my choices now, then re-run preflight <span class="rec">Recommended</span><span class="foot">One more preflight round if the first answer changes code.</span></label>
+    </div>
+    <div class="opt">
+      <input type="radio" name="q3" id="q3b" value="leave" data-q="q3"
+        data-instruction="Leave as is: take no further action on PR BloomBooks/BloomDesktop#8499 for now.">
+      <label for="q3b">Leave as is</label>
+    </div>
+    <div class="opt other">
+      <input type="radio" name="q3" id="q3d" value="other" data-q="q3">
+      <label for="q3d">Other:<input type="text" id="q3o" data-q="q3-other" aria-label="Other next step"></label>
+    </div>
+    <div class="notes"><label for="q3n">Notes</label><textarea id="q3n" rows="2" data-q="q3-notes"></textarea></div>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copies your choices as text to paste into a Claude session.</p>
+    <div><button type="button" id="copybtn">Copy answers</button><span id="copystatus" role="status"></span></div>
+    <textarea id="payload" readonly aria-label="Your answers as text"></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var URL_SELF = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17014-pasteinlineimageintext.html";
+  var questions = [
+    { id: "q1", title: "With an inline picture selected, should pasting a picture replace it?" },
+    { id: "q2", title: "File a card for the Reader tools' Ctrl+Z with inline pictures?" },
+    { id: "q3", title: "Next step" }
+  ];
+  function serialize() {
+    var lines = [
+      "Decisions from a decider form (preflight report)",
+      "Project: BloomBooks/BloomDesktop, branch BL-17014-PasteInlineImageInText, PR #8499 (YouTrack BL-17014)",
+      "Date: 2026-10-23",
+      "Report: " + URL_SELF,
+      ""
+    ];
+    questions.forEach(function (q) {
+      lines.push("## " + q.title);
+      var chosen = document.querySelector('input[name="' + q.id + '"]:checked');
+      if (chosen && chosen.value === "other") {
+        var o = document.getElementById(q.id + "o").value.trim();
+        lines.push("Other: " + (o || "(no text given)"));
+      } else if (chosen) {
+        lines.push(chosen.getAttribute("data-instruction"));
+      }
+      var lc = document.querySelector('input[data-q="' + q.id + '-comment"]');
+      if (lc && lc.checked) lines.push(lc.getAttribute("data-instruction"));
+      var n = document.getElementById(q.id + "n").value.trim();
+      if (n) lines.push("Notes: " + n);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async function () {
+    var status = document.getElementById("copystatus");
+    status.className = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      try {
+        await navigator.clipboard.writeText(payload.value);
+        status.textContent = "Copied ✓";
+        status.className = "copied";
+        return;
+      } catch (e) { /* fall through */ }
+      payload.select();
+      if (document.execCommand && document.execCommand("copy")) {
+        status.textContent = "Copied ✓";
+        status.className = "copied";
+        return;
+      }
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
