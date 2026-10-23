@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: export comparison</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2723; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; margin: 0 0 .5em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; margin-top: 1em; }
+  p { margin: 0 0 .7em; } ul { margin: 0 0 .7em; padding-left: 1.2em; } li { margin: .2em 0; }
+  a { color: #1f5c8a; }
+  code { font-family: Consolas, Menlo, monospace; font-size: .9em; background: #f1ede6; padding: 0 .25em; border-radius: 3px; }
+  .wrap { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .chip { display: inline-block; border: 1px solid #d8d1c6; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: .85rem; text-decoration: none; color: inherit; }
+  .chip.good { border-color: #9cc5a1; background: #eef7ef; }
+  a.chip { color: #1f5c8a; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd3; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8de; }
+  th { font-weight: 600; }
+  .numeral { font-variant-numeric: tabular-nums; }
+  .ok { color: #2f6b38; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Compare what two versions of lameta export</h1>
+  <p>Preflight of <code>torture-compare</code> (#113) and its stacked golden-files PR (#114): every gate green, every reviewer finished, nothing waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/onset/lameta/pull/113" target="_blank" rel="noopener">PR #113</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/113/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/113/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://github.com/onset/lameta/pull/114" target="_blank" rel="noopener">PR #114 (golden files)</a>
+    <a class="chip" href="https://devinreview.com/onset/lameta/pull/113" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Testers have v3.0.21-beta, and master has many PRs since. Nothing showed what those PRs changed in the files lameta exports (IMDI, OPEX, RO-Crate, CSV, PARADISEC, and the metadata lameta saves). Comparing two versions by hand fails, because every export differs in its date, lameta's version and random guids, and on master by a <code>lameta-source</code> comment before each IMDI element.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><code>compare-exports.ts run</code> runs the export harness in any lameta worktree, on a copy of the project, because loading a project writes into it. A version too old to have the harness gets a copy of it, and one from before Vite+ runs under the Node version that its <code>package.json</code> names.</li>
+      <li>It writes the output without what changes from run to run: export dates, lameta's version, file times, random guids and the paths of the run.</li>
+      <li><code>compare-exports.ts diff</code> lists each changed line, or each changed CSV cell, once, with the files that it is in. <code>--ignore-source-comments</code> handles comparing with a version that predates those comments.</li>
+      <li>The harness also writes the three generic CSVs and each session's RO-Crate as files.</li>
+      <li>Master's normalized output for the portable torture project is the golden set. It is in #114, stacked on this PR, because Devin cannot review a diff of about 590,000 generated lines. Two runs give identical files.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck (<code>tsc --noEmit</code>)</td><td class="ok">passed</td></tr>
+      <tr><td>Lint (<code>vp lint</code>)</td><td class="ok">passed</td></tr>
+      <tr><td>Unit tests, this PR's spec</td><td><span class="ok">passed</span> <span class="numeral">20 tests</span></td></tr>
+      <tr><td>Unit tests, full suite (vitest, 2 workers)</td><td><span class="ok">passed</span> <span class="numeral">1554 passed · 10 skipped</span>, on cb34c877. Later commits change only the comparison script and its spec, which passed again.</td></tr>
+      <tr><td>End-to-end tests</td><td>Not run: no app code changes.</td></tr>
+      <tr><td>Merge with master</td><td class="ok">clean, up to date with a8dba0f6</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <ul>
+      <li>Fixed four problems that the local review found and four that Devin found. The script now runs on a copy of the project, and the comparison no longer misses or invents differences.</li>
+      <li>Moved the golden files to #114, and refreshed them for master's #100, #102, #105 and #106.</li>
+    </ul>
+    <p><a href="https://github.com/onset/lameta/pull/113/commits" target="_blank" rel="noopener">Commit list</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete. Found five problems: RO-Crate file times, the export date on the documents' pseudo-sessions, the harness writing into its own input, differences that the line comparison missed, and the order in which paths were replaced. All five fixed, each with a test.</td></tr>
+      <tr><td>Devin (#113)</td><td>Complete, three rounds; the last round is clean. It raised three bugs, all fixed and marked resolved by Devin, and two Investigate flags: one fixed, one not an issue. Each has its own resolved thread on the PR. <a href="https://github.com/onset/lameta/pull/113#issuecomment-6370321665" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+      <tr><td>Devin (#114)</td><td>Not run: the diff is over Devin's size limit, and it holds only generated files.</td></tr>
+      <tr><td>CI</td><td>No checks run on PR branches in this repo.</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The comparison of v3.0.21-beta with master is written up in the worker's <code>compare-findings.md</code>. No regression remains on master: the one it found, for a contributor with no <code>&lt;role&gt;</code>, was fixed by #106. There is one question for John: master writes <code>lameta-source</code> comments into the IMDI and OPEX files it exports.</li>
+      <li>On the torture project, both versions stop the IMDI and OPEX bundle exports at the first session (finding 3), and both fail on the project RO-Crate (finding 4). So the bundles are only compared for what comes before that.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None. Nothing in this PR is waiting on you.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
