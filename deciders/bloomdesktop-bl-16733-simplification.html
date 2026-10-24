@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16733 Simplification</title>
+<style>
+/* Layout: findings on the left, decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f4ef; --card: #ffffff; --ink: #23262b; --muted: #5d636d; --rule: #dcd8cf;
+  --accent: #1f6f8b; --accent-soft: #e3eff3; --good: #2e7d4f;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); padding-block: 24px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1360px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; } h2 { font-size: 1.2rem; } h3 { font-size: 1.05rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+.card ol, .card ul { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+code { font-family: var(--mono); font-size: 0.88em; }
+.options { display: flex; flex-direction: column; gap: 8px; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.foot { color: var(--muted); font-size: 0.85rem; }
+.rec { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.75rem; font-weight: 600; }
+.leave-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.other-text { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; }
+textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+.notes { min-height: 2.6em; }
+#payload { min-height: 12em; font: 0.85rem/1.4 var(--mono); }
+button { font: inherit; padding: 7px 16px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; align-self: flex-start; }
+#copyStatus.done { color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="card">
+  <h1>BL-16733: simplifying the Front &amp; Back Matter page</h1>
+  <p>An adversarial review of <a href="https://github.com/BloomBooks/BloomDesktop/pull/8493" target="_blank" rel="noopener">PR #8493</a> looked for complexity, especially any that exists only because the old WinForms dialog is still around. The fixes on the left have a single obvious form and need no decision. Three findings need your call.</p>
+</header>
+<div class="grid">
+<div>
+<section class="card">
+  <h2>Fixes with one obvious form</h2>
+  <ol>
+    <li><strong>The pack list comes from the dialog's own GET.</strong> <em>Legacy-driven.</em> Today the page makes a second fetch to <code>settings/xmatter</code>, an endpoint built for the old dialog, whose POST feeds <code>DialogBeingEdited</code>. Instead, <code>GET collection/settings</code> would carry the packs (value, label, description), and a small helper would share the label code with the old handler until cutover. The page then needs no effect, no state and no <code>dialogOpen</code>. The tests' URL switch and the e2e poll get simpler, and cutover no longer has to split the old handler.</li>
+    <li><strong>The badge data rides in the same GET.</strong> That's the QR image, the language name, the address and the default caption. <code>collection/qrCodeBadge</code> goes away, so there's one response and one fetch per open.</li>
+    <li><strong>The value is the pack Bloom will really use.</strong> The GET would report the valid pack (<code>GetValidXmatter</code>) plus an explicit "branding chose this" flag. The page then drops two rules: adding an uninstalled pack to the list as a raw name, and guessing "branding chose it" from the list length. C# already replaces an uninstalled pack on save, so the first rule protected nothing.</li>
+    <li><strong>The preview stops mirroring the dialog's trim rule.</strong> The dialog already works out the values as they'll be saved, for its restart check; it would pass those to the page. That drops the <code>captionWhenOpened</code> prop and its test.</li>
+    <li><strong>One place for the QR link rule.</strong> <code>?utm_source=qr</code> and the <code>lang-qr-code.png</code> name are each written twice in <code>BookStorage</code>. <code>GenerateQrCodeImage</code> would call <code>MakeLanguageQrCodeBitmap</code> and use one file-name constant.</li>
+    <li><strong>Cleanup.</strong>
+      <ul>
+        <li>Delete two tests that only test a mock or a refactor.</li>
+        <li>Stop exporting <code>QrCodeBadgePreview</code>, which nothing outside the file uses.</li>
+        <li>Fix the comment that says every branding has the same badge picture. Five brandings use a dark badge and one a white-on-red one; the preview is a generic badge.</li>
+      </ul>
+    </li>
+  </ol>
+  <p>Checked and not carried over: the review's "latent bug" in the pack rule can't happen. When a branding chooses a pack, <code>XMatterPackName</code> already returns that pack, so the saved pack can't differ from the forced one.</p>
+</section>
+<section class="card">
+  <h2>Checked and kept</h2>
+  <ul>
+    <li><strong>The old string ids</strong> (<code>AdvancedTab.*</code>, <code>ProjectInformationTab.*</code>, the pack names) stay. Renaming an id loses its translations, and the plan says to reuse ids.</li>
+    <li><strong>The QR image comes from C#,</strong> so it matches the books' styled code and link.</li>
+    <li><strong>The five-line bold-language split in the preview stays,</strong> because a live preview has to be built in the browser.</li>
+    <li><strong>Restart for QR changes stays:</strong> every book's badge has to be rebuilt.</li>
+  </ul>
+</section>
+</div>
+<div>
+<section class="card question">
+  <h3>How should the QR caption box work?</h3>
+  <p>The caption box opens filled with the default caption ("More books in {0} language:") as if the user had typed it. C# then remembers what it sent out and saves the caption only if it changed. Otherwise the default would be frozen in today's interface language. This trick was copied from the WinForms dialog into the new save model (BL-16902). It's also why the default caption has to reach the page a second way, for when the user clears the box.</p>
+  <p>Without the old dialog, we would send the stored caption as it is (usually empty) and save whatever comes back. The preview already shows the default when the caption is empty. What the user sees changes: the box opens empty instead of showing the default.</p>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="empty" checked data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-16733-xmatter-settings (branch BL-16733-xmatter-settings, PR #8493): make FrontBackMatterValues.QrcodeCaption read and write CollectionSettings.BadgeQrCodeLabel directly (empty when the collection has none), delete _qrcodeCaptionBeforeChanges and its compare-on-save rule, and let the box open empty. The description says that an empty caption uses the default, and the preview keeps showing the default when the caption is empty."><span>Store the caption as it is, and let the box open empty. Its description says an empty box uses the default caption. <span class="rec">Recommended</span> This removes the trick entirely, needs no other repo, and the preview still shows exactly what books will get. <span class="foot">(small: C# getter and setter, one field, a few tests)</span></span></label>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="placeholder" data-instruction="Same as storing the caption as it is (FrontBackMatterValues.QrcodeCaption reads and writes BadgeQrCodeLabel directly; delete _qrcodeCaptionBeforeChanges), and in addition add a placeholder prop to Config-R's ConfigrInput (sillsdev/config-r PR plus release) so the empty caption box shows the default caption greyed out; bump Bloom to that Config-R version."><span>The same, and also add a placeholder to Config-R's text box, so the empty box shows the default caption greyed out. <span class="foot">(moderate: a sillsdev/config-r PR and release, then a version bump here)</span></span></label>
+    <div class="leave-row"><label class="opt"><input type="radio" name="q1" data-q="q1" value="leave" data-instruction="Leave as is — take no action on: the caption box opens pre-filled with the default caption and C# saves it only if it changed (a rule copied from the WinForms dialog)."><span>Leave as is</span></label>
+      <label class="opt"><input type="checkbox" data-q="q1-comment" id="q1-comment" data-instruction="Also record this decision as a code comment on FrontBackMatterValues.QrcodeCaption in src/BloomExe/web/controllers/CollectionSettingsTypes.cs."><span>Leave comment</span></label></div>
+    <label class="opt"><input type="radio" name="q1" data-q="q1" value="other" data-instruction="Other"><span>Other:</span> <input type="text" class="other-text" data-q="q1-other" id="q1-other" aria-label="Other answer for the caption question"></label>
+  </div>
+  <textarea class="notes" data-q="q1-notes" id="q1-notes" placeholder="Notes" aria-label="Notes on the caption question"></textarea>
+</section>
+
+<section class="card question">
+  <h3>Should Page Numbering Style leave the Front &amp; Back Matter group of the save model now?</h3>
+  <p>The save model groups values by the page that shows them. <code>pageNumberStyle</code> still sits in <code>frontBackMatter</code>, but we decided it belongs on the Languages page (BL-16739), so that card would have to move it. Nothing on the client reads it yet, so it could move now.</p>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="later" checked data-instruction="Leave pageNumberStyle in frontBackMatter for now, and add a line to the BL-16739 entry in docs/collection-settings-react/PLAN.md saying that BL-16739 moves it into the languages group of the save model (C# FrontBackMatterValues/LanguagesValues and collectionSettingsTypes.ts) when it adds the control."><span>Let BL-16739 move it when it adds the control, and say so in the plan. <span class="rec">Recommended</span> The move belongs with the code that reads it, and BL-16739 is already working in that model. <span class="foot">(no code, one plan line)</span></span></label>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="now" data-instruction="In this PR, move PageNumberStyle (with its RequiresRestart mark) out of FrontBackMatterValues into the languages group of the save model (C# and collectionSettingsTypes.ts), fixing the tests; tell the BL-16739 session it moved."><span>Move it in this PR. <span class="foot">(small, but it changes a model BL-16735 and BL-16739 are building on, so they'd have to rebase on it)</span></span></label>
+    <div class="leave-row"><label class="opt"><input type="radio" name="q2" data-q="q2" value="leave" data-instruction="Leave as is — take no action on: pageNumberStyle stays in the frontBackMatter group of the save model with no note."><span>Leave as is</span></label></div>
+    <label class="opt"><input type="radio" name="q2" data-q="q2" value="other" data-instruction="Other"><span>Other:</span> <input type="text" class="other-text" data-q="q2-other" id="q2-other" aria-label="Other answer for the page numbering question"></label>
+  </div>
+  <textarea class="notes" data-q="q2-notes" id="q2-notes" placeholder="Notes" aria-label="Notes on the page numbering question"></textarea>
+</section>
+
+<section class="card question">
+  <h3>How should the Places explanation be shown?</h3>
+  <p>Config-R draws a group's heading but ignores its <code>description</code>. So the page draws the Places heading and its explanation itself, copying Config-R's heading style, and that copy will drift if Config-R's styling changes. This isn't caused by the old dialog, but every later page will want group descriptions too.</p>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="configr" checked data-instruction="Add support for ConfigrGroup's description prop in sillsdev/config-r (shown between the group's heading and its box), get it released, bump Bloom to that version, and change the Places group in FrontBackMatterPage.tsx to <ConfigrGroup label={placesLabel} description={placesDescription}>, deleting the hand-built ConfigrStatic heading."><span>Teach Config-R to show group descriptions, then use a plain labelled group. <span class="rec">Recommended</span> It fixes the cause once, for every page. <span class="foot">(moderate: a sillsdev/config-r PR and release, then a version bump; until then, keep today's version)</span></span></label>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="drop" data-instruction="In FrontBackMatterPage.tsx, replace the hand-built Places ConfigrStatic heading with <ConfigrGroup label={placesLabel}>, and drop the Places explanation sentence (mark its XLF string obsolete rather than deleting it)."><span>Use a plain labelled group and drop the explanation sentence. <span class="foot">(tiny, but the mockup's explanation goes)</span></span></label>
+    <div class="leave-row"><label class="opt"><input type="radio" name="q3" data-q="q3" value="leave" data-instruction="Leave as is — take no action on: the Places heading and explanation are hand-built in a ConfigrStatic because Config-R ignores group descriptions."><span>Leave as is</span></label>
+      <label class="opt"><input type="checkbox" data-q="q3-comment" id="q3-comment" data-instruction="Also record this decision as a code comment on the Places ConfigrStatic in FrontBackMatterPage.tsx."><span>Leave comment</span></label></div>
+    <label class="opt"><input type="radio" name="q3" data-q="q3" value="other" data-instruction="Other"><span>Other:</span> <input type="text" class="other-text" data-q="q3-other" id="q3-other" aria-label="Other answer for the Places question"></label>
+  </div>
+  <textarea class="notes" data-q="q3-notes" id="q3-notes" placeholder="Notes" aria-label="Notes on the Places question"></textarea>
+</section>
+
+<section class="card question">
+  <h3>What next?</h3>
+  <div class="options">
+    <label class="opt"><input type="radio" name="q4" data-q="q4" value="go" checked data-instruction="Implement all of the fixes listed as having one obvious form (packs and badge data in GET collection/settings, the valid pack plus a branding flag, the preview using the saved-form values, one QR link rule in BookStorage, the cleanup) plus the choices above, in PR #8493; then run /preflight and pass the rebase instruction up the stack to BL-16735 before force-pushing if history changes."><span>Implement the fixes on the left plus my choices above, then run /preflight. <span class="rec">Recommended</span></span></label>
+    <label class="opt"><input type="radio" name="q4" data-q="q4" value="discuss" data-instruction="Do nothing yet; discuss the simplification findings with me first."><span>Discuss first.</span></label>
+    <div class="leave-row"><label class="opt"><input type="radio" name="q4" data-q="q4" value="leave" data-instruction="Leave as is — make no simplification changes to PR #8493 now."><span>Leave as is</span></label></div>
+    <label class="opt"><input type="radio" name="q4" data-q="q4" value="other" data-instruction="Other"><span>Other:</span> <input type="text" class="other-text" data-q="q4-other" id="q4-other" aria-label="Other answer for next step"></label>
+  </div>
+  <textarea class="notes" data-q="q4-notes" id="q4-notes" placeholder="Notes" aria-label="Notes on next step"></textarea>
+</section>
+
+<section class="card">
+  <h2>Send your answers back</h2>
+  <p>Paste this into a Claude Code session.</p>
+  <button type="button" id="copyButton">Copy answers</button>
+  <span id="copyStatus" role="status"></span>
+  <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+</section>
+</div>
+</div>
+</div>
+<script>
+(function () {
+  var url = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16733-simplification.html";
+  var questions = ["q1", "q2", "q3", "q4"];
+  function title(q) { return document.querySelector('input[data-q="' + q + '"]').closest(".question").querySelector("h3").textContent; }
+  function build() {
+    var lines = ["Decisions from a decider form (BL-16733 simplification review)",
+      "Project: BloomBooks/BloomDesktop, branch BL-16733-xmatter-settings, PR https://github.com/BloomBooks/BloomDesktop/pull/8493 (card BL-16733)",
+      "Worktree: C:\\dev\\_worktrees\\BloomDesktop\\BL-16733-xmatter-settings",
+      "Date: 2026-10-23", "Full form: " + url, ""];
+    questions.forEach(function (q, i) {
+      lines.push((i + 1) + ". " + title(q));
+      var chosen = document.querySelector('input[type=radio][data-q="' + q + '"]:checked');
+      if (chosen) {
+        if (chosen.value === "other") lines.push("   Other: " + (document.querySelector('[data-q="' + q + '-other"]').value.trim() || "(nothing typed)"));
+        else lines.push("   " + chosen.getAttribute("data-instruction"));
+      }
+      var c = document.querySelector('[data-q="' + q + '-comment"]');
+      if (c && c.checked) lines.push("   " + c.getAttribute("data-instruction"));
+      var n = document.querySelector('[data-q="' + q + '-notes"]').value.trim();
+      if (n) lines.push("   Notes: " + n);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyButton").addEventListener("click", async function () {
+    var status = document.getElementById("copyStatus");
+    status.className = "";
+    var fail = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+    try {
+      refresh(); payload.focus(); payload.select();
+      var copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; }
+      catch (e) { try { copied = document.execCommand("copy"); } catch (e2) { copied = false; } }
+      if (copied) { status.textContent = "Copied ✓"; status.className = "done"; } else { status.textContent = fail; }
+    } catch (e) { status.textContent = fail; }
+  });
+})();
+</script>
+</body>
+</html>
