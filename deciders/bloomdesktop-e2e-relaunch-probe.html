@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: e2e relaunch probe</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: #faf8f4; color: #23211d; font: 15px/1.55 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 .5em; }
+  h1 { font-size: 1.55rem; }
+  h2 { font-size: 1.15rem; }
+  h3 { font-size: 1rem; margin-top: 1em; }
+  p { margin: .4em 0; }
+  ul { margin: .4em 0; padding-left: 1.3em; }
+  a { color: #1f5f8b; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: .9em; background: #f1ede4; padding: 0 .25em; border-radius: 3px; }
+  .numeral { font-family: Consolas, "Cascadia Mono", monospace; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 18px; }
+  .summary { margin: .2em 0 .8em; color: #4a463e; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+  .chip { display: inline-block; border: 1px solid #d8d2c4; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: .85rem; }
+  .chip.ok { border-color: #9cc5a1; background: #eff7f0; }
+  a.chip { text-decoration: none; color: #1f5f8b; }
+  .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .card { background: #fff; border: 1px solid #e3ddd0; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8dc; }
+  th { font-weight: 600; font-size: .9rem; color: #4a463e; }
+  .pass { color: #2f6b38; font-weight: 600; }
+  .na { color: #6b665b; }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: find a relaunched Bloom again, and type-check the e2e tests</h1>
+  <p class="summary">Branch <code>e2e-relaunch-probe</code> is clean: every reviewer is done, nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8503" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 waiting on you</span>
+    <span class="chip">Board: ready for my review</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8503" target="_blank" rel="noopener">PR #8503</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8503/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8503/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8503" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Since 2026-10-24 the nightly's e2e suite has failed every night on "renaming the collection on the Advanced page renames its folder and reopens it" (Test Case 838): it times out, then teardown reports "A Bloom is still answering on port 8089". The relaunched Bloom then stayed alive for the rest of the run, holding that port.</p>
+    <h3>Cause</h3>
+    <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8405" target="_blank" rel="noopener">#8405</a> gave the fixture's probes a required deadline but missed the two calls in <code>waitForRelaunchedBloom</code>. Their timeout became <code>NaN</code>, <code>AbortSignal.timeout(NaN)</code> throws, and <code>readInstanceInfo</code> reads any error as "nothing answering here". So the fixture never saw the Bloom that relaunched itself under the new name, and the cleanup that should kill a stray copy failed the same way.</p>
+    <p>Nothing type-checks <code>src/BloomE2E</code>, so <code>tsc</code>'s "Expected 2 arguments, but got 1" never surfaced. The same gap let a stale <code>canUndo</code> import stop the whole suite from loading on 2026-10-22.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/69d6ea9dd7c970ae1ca6c59d6f1c9ee251298d6d/src/BloomE2E/fixtures/launchBloom.ts#L957" target="_blank" rel="noopener"><code>waitForRelaunchedBloom</code></a> passes its deadline when looking for the relaunched Bloom, and uses quick 2 s probes in its fallback cleanup, like the matching cleanup in <code>startBloomOn</code>.</li>
+      <li>The <a href="https://github.com/BloomBooks/BloomDesktop/blob/69d6ea9dd7c970ae1ca6c59d6f1c9ee251298d6d/src/BloomBrowserUI/.vite-hooks/pre-commit#L186" target="_blank" rel="noopener">pre-commit hook</a> type-checks <code>src/BloomE2E</code> whenever e2e sources are staged, and blocks the commit if it can't.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Type-check, e2e project (<code>tsc --noEmit</code>)</td><td class="pass">Passed (2 errors on master)</td></tr>
+      <tr><td>The new hook check, on a staged file with the missing argument</td><td class="pass">Blocked the commit with the TS2554 errors</td></tr>
+      <tr><td>Merge with master</td><td class="pass">Up to date; mergeable</td></tr>
+      <tr><td>E2E: <code>collection-settings-advanced.spec.ts</code>, headless, nightly window size</td><td class="pass"><span class="numeral">2 passed</span>; on master's fixture the rename test fails exactly as the nightly did</td></tr>
+      <tr><td>TypeScript unit tests (vitest)</td><td class="na">Not run: no front-end source in the diff (the hook script is not part of the vitest program)</td></tr>
+      <tr><td>C# tests</td><td class="na">Not run: no C# in the diff</td></tr>
+      <tr><td>Repo check: e2e specs at the nightly's window size</td><td class="na">Did not apply: no <code>*.spec.ts</code> changed (the affected spec ran anyway, above)</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>First run. One commit; it took Devin's catch that a staged <code>.tsx</code> e2e file would skip the hook's type check.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete: clean, no findings.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8503" target="_blank" rel="noopener">Devin</a></td><td>Complete for the head commit. One bug (a staged <code>.tsx</code> e2e file skipped the type check), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8503#discussion_r4378989813" target="_blank" rel="noopener">fixed and resolved</a>; one flag (<code>init.sh</code> does not install the e2e dependencies), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8503#discussion_r4378990138" target="_blank" rel="noopener">answered and resolved</a>. Its re-review repeats both; the fix is in the reviewed code.</td></tr>
+      <tr><td>Greptile</td><td>Complete on the first commit: no findings. Not re-run on the one-line <code>.tsx</code> fix.</td></tr>
+      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed.</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>No YouTrack card: an e2e-only fix.</li>
+      <li>Once merged, an e2e commit in a worktree without <code>src/BloomE2E/node_modules</code> is blocked until <code>pnpm install</code> is run there.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review; it's e2e-only, so you merge it.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
