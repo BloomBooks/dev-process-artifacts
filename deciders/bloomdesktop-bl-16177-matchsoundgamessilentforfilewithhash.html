@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16177 Preflight Report (Bloom)</title>
+<style>
+/* Layout: report on the left, decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d6470;
+  --line: #ddd8cc;
+  --accent: #2f5d8a;
+  --good: #2e7d4f;
+  --good-bg: #e6f2ea;
+  --warn-bg: #f6efdc;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 0 0 8px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: 0.88em; background: #f0ede5; padding: 0 3px; border-radius: 3px; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+header { display: grid; gap: 10px; margin-bottom: 22px; }
+.summary { color: var(--muted); max-width: 75ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 11px; font-size: 0.86rem; }
+.chip.good { background: var(--good-bg); border-color: #b9dcc6; color: var(--good); }
+.chip.wait { background: var(--warn-bg); border-color: #e3d3a6; }
+.links a.chip { text-decoration: none; }
+.links a.chip:hover { border-color: var(--accent); }
+.cols { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.cols > * { min-width: 0; display: grid; gap: 18px; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; }
+.card ul { margin: 4px 0 8px; padding-left: 20px; }
+.card li { margin-bottom: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.pass { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); font-weight: 600; }
+fieldset { border: 0; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; }
+legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .foot { color: var(--muted); font-size: 0.86rem; }
+.rec { display: inline-block; font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--good); border: 1px solid #b9dcc6; background: var(--good-bg); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+.leaverow { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.leavecomment { font-size: 0.86rem; color: var(--muted); display: flex; gap: 5px; align-items: center; }
+.other { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.other input[type=text] { flex: 1 1 200px; min-width: 0; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; font: inherit; }
+textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 4px; font: inherit; resize: vertical; }
+.noteslabel { display: block; font-size: 0.86rem; color: var(--muted); margin-top: 8px; }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 6px; padding: 7px 14px; cursor: pointer; }
+#payload { font-family: var(--mono); font-size: 0.82rem; min-height: 160px; margin-top: 10px; }
+#copystatus { margin-left: 10px; font-size: 0.9rem; color: var(--muted); }
+#copystatus.ok { color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>BL-16177: game sounds with “#” in the name don’t play (Bloom side)</h1>
+  <p class="summary">Preflight of <code>BL-16177-MatchSoundGamesSilentForFileWithHash</code> → <code>master</code>, HEAD <span class="numeral">1cdda67</span>. Gates are green and every reviewer has finished. Devin, Greptile and the local review found nothing.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8504" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip wait">1 question for you</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8504" target="_blank" rel="noopener">PR #8504</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8504/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8504/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16177" target="_blank" rel="noopener">BL-16177</a>
+    <a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/444" target="_blank" rel="noopener">bloom-player#444</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8504" target="_blank" rel="noopener">Devin review</a>
+    <a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8504" target="_blank" rel="noopener">Greptile</a>
+  </div>
+</header>
+
+<div class="cols">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>In a Match Sounds game, an audio button does nothing when its sound file has <code>#</code> in its name. This happens in the Game tool’s Play mode and in BloomPUB. A <code>%</code> in the name breaks the sound the same way, and the same goes for a game page’s correct-answer and wrong-answer sounds.</p>
+    <h3>Cause</h3>
+    <p>Bloom stores these sound names unencoded on purpose (BL-16669), so whatever builds a URL from one must encode it. The game runtime that plays them, in both Play mode and BloomPUB, is bloom-player’s, and it didn’t encode the name. So <code>bird#1.mp3</code> was requested as <code>audio/bird</code>.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>bloom-player now encodes the name (<a href="https://github.com/BloomBooks/bloom-player/pull/444" target="_blank" rel="noopener">bloom-player#444</a>, published as <code>2.22.0-alpha.2</code>). This PR moves <a href="https://github.com/BloomBooks/BloomDesktop/blob/1cdda67bd13817ddb4f934482b045fc30d66050e/src/BloomBrowserUI/pnpm-lock.yaml#L2712" target="_blank" rel="noopener">Bloom’s lockfile</a> from <code>2.20.3-alpha.1</code> to that version. <code>package.json</code> already asks for <code>alpha</code>.</li>
+      <li>The <a href="https://github.com/BloomBooks/BloomDesktop/blob/1cdda67bd13817ddb4f934482b045fc30d66050e/src/BloomExe/UrlPathString.cs#L50" target="_blank" rel="noopener"><code>UrlPathString.cs</code> note</a> that said Bloom Player doesn’t encode these names yet is updated, and the <a href="https://github.com/BloomBooks/BloomDesktop/blob/1cdda67bd13817ddb4f934482b045fc30d66050e/src/BloomBrowserUI/bookEdit/toolbox/games/GameTool.tsx#L1870" target="_blank" rel="noopener">comment on the editor’s <code>playSound</code></a> now mentions <code>#</code> as well as <code>%</code>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td>Typecheck</td><td class="pass">Pass</td><td><code>pnpm typecheck</code>, and again in the commit hook</td></tr>
+        <tr><td>Lint</td><td class="pass">Pass</td><td>eslint on <code>GameTool.tsx</code>: no errors; its warnings are all on lines this PR doesn’t touch. Prettier clean.</td></tr>
+        <tr><td>Front-end tests (vitest)</td><td class="pass">Pass</td><td><span class="numeral">1613 passed</span> in 112 files, on the tree that was committed</td></tr>
+        <tr><td>C# tests (dotnet test)</td><td class="na">Not run</td><td>The only C# change is a doc comment in <code>UrlPathString.cs</code>, so nothing compiled differs.</td></tr>
+        <tr><td>E2E (Playwright)</td><td class="pass">Pass</td><td>A temporary spec (not committed) checked that sounds with <code>#</code> in their names play in Play mode: <span class="numeral">1 passed</span>.</td></tr>
+        <tr><td>Repo check: e2e specs at nightly window size</td><td class="na">Did not apply</td><td>The diff adds or changes no <code>src/BloomE2E/tests/*.spec.ts</code></td></tr>
+        <tr><td>Merge with <code>master</code></td><td class="pass">Clean</td><td>Already up to date with <code>origin/master</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the dependency update and the two comment updates as one commit, opened the draft PR, linked it on the card, and updated the card’s test ideas to point at this PR. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8504/commits" target="_blank" rel="noopener">Commits</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tbody>
+        <tr><td><strong>Local review</strong><br>light sub-agent pass</td><td>Clean, no findings. It compared the old and new bloom-player packages: every name Bloom imports is still exported with the same signature, and the only change to the game code is the sound-URL fix.</td></tr>
+        <tr><td><strong>Devin</strong></td><td>Complete at <span class="numeral">1cdda67</span>: no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8504#issuecomment-6423328411" target="_blank" rel="noopener">Consultation log</a></td></tr>
+        <tr><td><strong>Greptile</strong></td><td>Complete at <span class="numeral">1cdda67</span>: “no actionable issue was found” (low impact). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8504#issuecomment-6423349003" target="_blank" rel="noopener">Summary comment</a></td></tr>
+        <tr><td><strong>CI (pr-automation)</strong></td><td>Pass</td></tr>
+        <tr><td><strong>CodeRabbit</strong></td><td>Configured in the repo but not posting on BloomDesktop PRs; none of the last four merged PRs has a CodeRabbit comment.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The sound picker opens a Windows file dialog, which a test can’t drive, so the e2e check set the sound attributes directly. Choosing a <code>#</code>-named sound through the toolbox by hand hasn’t been tried.</li>
+      <li>BloomPUB Viewer and Bloom Reader carry their own copy of Bloom Player, so they get the fix in their next release, not from this PR.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card" id="q1">
+    <h2>Next step</h2>
+    <p>Everything is green, and nothing found needs your decision. Once you have looked the PR over yourself, <code>pr-ready-for-human</code> marks it ready for a teammate’s review and moves BL-16177 to Ready For Code Review. The card is in “Has Comments” at the moment.</p>
+    <fieldset>
+      <legend>What now</legend>
+      <label class="opt"><input type="radio" name="q1" id="q1-a" checked data-q="Next step for BloomDesktop PR #8504 (BL-16177)" data-instruction="Run the pr-ready-for-human skill on BloomDesktop PR #8504 (worktree C:\work\BL-16177, branch BL-16177-MatchSoundGamesSilentForFileWithHash) to mark it ready for peer review and move BL-16177 to Ready For Code Review."><span>Promote it with <code>pr-ready-for-human</code> <span class="rec">Recommended</span> <span class="foot">(no code)</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="q1" id="q1-b" data-q="Next step for BloomDesktop PR #8504 (BL-16177)" data-instruction="Leave as is — take no action on: BloomDesktop PR #8504 (BL-16177) stays a draft for now."><span>Leave as is</span></label>
+      </div>
+      <div class="other"><label class="opt"><input type="radio" name="q1" id="q1-c" data-q="Next step for BloomDesktop PR #8504 (BL-16177)" data-other="q1-other"><span>Other:</span></label><input type="text" id="q1-other" aria-label="Other next step"></div>
+    </fieldset>
+    <label class="noteslabel" for="q1-notes">Notes</label>
+    <textarea id="q1-notes" data-q="Next step for BloomDesktop PR #8504 (BL-16177)" data-notes="1"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into a Claude session.</p>
+    <button type="button" id="copybtn">Copy answers</button><span id="copystatus" role="status"></span>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </section>
+</aside>
+</div>
+</div>
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16177-matchsoundgamessilentforfilewithhash.html";
+  var questions = ["q1"];
+  function serialize() {
+    var lines = [
+      "Decisions from a preflight report (decider form)",
+      "Project: BloomDesktop PR #8504 (https://github.com/BloomBooks/BloomDesktop/pull/8504), branch BL-16177-MatchSoundGamesSilentForFileWithHash -> master, worktree C:\\work\\BL-16177",
+      "Card: BL-16177. Date: 2026-10-26",
+      "Full report: " + REPORT_URL,
+      ""
+    ];
+    questions.forEach(function (id) {
+      var card = document.getElementById(id);
+      var picked = card.querySelector("input[type=radio]:checked");
+      lines.push("## " + card.querySelector("h2").textContent.trim());
+      if (picked) {
+        if (picked.dataset.other) lines.push("Other: " + document.getElementById(picked.dataset.other).value.trim());
+        else lines.push(picked.dataset.instruction);
+      }
+      var lc = card.querySelector("input[type=checkbox][data-comment]");
+      if (lc && lc.checked) lines.push("Leave comment: " + lc.dataset.comment);
+      var notes = card.querySelector("textarea[data-notes]");
+      if (notes && notes.value.trim()) lines.push("Notes: " + notes.value.trim());
+      lines.push("");
+    });
+    return lines.join("\n").trim() + "\n";
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = serialize(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copybtn").addEventListener("click", async function () {
+    var status = document.getElementById("copystatus");
+    status.className = "";
+    try {
+      refresh();
+      payload.focus();
+      payload.select();
+      var ok = false;
+      try { await navigator.clipboard.writeText(payload.value); ok = true; } catch (e) {
+        try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
+      }
+      if (ok) { status.textContent = "Copied ✓"; status.className = "ok"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (err) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
