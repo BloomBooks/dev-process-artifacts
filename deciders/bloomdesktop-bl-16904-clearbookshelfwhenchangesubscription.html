@@ -84,10 +84,10 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0
         <p>The save logic was meant to clear the bookshelf on a subscription change, but it compared the new subscription with itself. The check ran right after the collection's subscription had been replaced, so it was always false.</p>
         <h3>What the PR does</h3>
         <ul>
-          <li>Compares the new code with the <strong>original</strong> subscription, in both the new Collection Settings dialog (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919/src/BloomExe/Collection/CollectionSettingsUpdater.cs#L147" target="_blank" rel="noopener"><code>CollectionSettingsUpdater.cs:147</code></a>) and the legacy WinForms dialog that the <strong>Old Settings</strong> button still opens (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919/src/BloomExe/Collection/CollectionSettingsDialog.cs#L465" target="_blank" rel="noopener"><code>CollectionSettingsDialog.cs:465</code></a>).</li>
-          <li>Two valid codes count as the same subscription only when their names match exactly. A renewed code keeps the bookshelf; a different subscription clears it, even when its name extends the old one (<code>Fake</code> → <code>Fake-LC</code>). The looser prefix match only applies when one code isn't well-formed, so a mistyped code doesn't lose the bookshelf (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919/src/BloomExe/Collection/CollectionSettingsUpdater.cs#L240" target="_blank" rel="noopener">the shared rule</a>, also used by the BL-15056 expired-bookshelf recovery).</li>
+          <li>Compares the new code with the <strong>original</strong> subscription, in both the new Collection Settings dialog (<a href="https://github.com/BloomBooks/BloomDesktop/blob/be7ff2f55975ef21b5e2c581e59b83b3ea7875a8/src/BloomExe/Collection/CollectionSettingsUpdater.cs#L147" target="_blank" rel="noopener"><code>CollectionSettingsUpdater.cs:147</code></a>) and the legacy WinForms dialog that the <strong>Old Settings</strong> button still opens (<a href="https://github.com/BloomBooks/BloomDesktop/blob/be7ff2f55975ef21b5e2c581e59b83b3ea7875a8/src/BloomExe/Collection/CollectionSettingsDialog.cs#L465" target="_blank" rel="noopener"><code>CollectionSettingsDialog.cs:465</code></a>).</li>
+          <li>Two valid codes count as the same subscription only when their names match exactly. A renewed code keeps the bookshelf; a different subscription clears it, even when its name extends the old one (<code>Fake</code> → <code>Fake-LC</code>). The looser prefix match only applies when one code isn't well-formed, so a mistyped code doesn't lose the bookshelf. Both dialogs and the BL-15056 expired-bookshelf recovery now call <a href="https://github.com/BloomBooks/BloomDesktop/blob/be7ff2f55975ef21b5e2c581e59b83b3ea7875a8/src/BloomExe/Collection/CollectionSettingsUpdater.cs#L232" target="_blank" rel="noopener">one copy of this rule</a>; the legacy dialog's duplicate is gone, so they can't drift apart.</li>
           <li>A bookshelf picked in the same session as the new code is cleared too, since the dialog lists the saved (old) subscription's bookshelves.</li>
-          <li>Unit tests cover a different subscription, a valid prefix-related pair, a renewal and a mistyped code. Each one checks the bookshelf both in memory and in the saved file (<a href="https://github.com/BloomBooks/BloomDesktop/blob/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919/src/BloomTests/Collection/CollectionSettingsUpdaterTests.cs#L447" target="_blank" rel="noopener"><code>CollectionSettingsUpdaterTests.cs:447</code></a>).</li>
+          <li>Unit tests cover a different subscription, a valid prefix-related pair, a renewal and a mistyped code. Each one checks the bookshelf both in memory and in the saved file (<a href="https://github.com/BloomBooks/BloomDesktop/blob/be7ff2f55975ef21b5e2c581e59b83b3ea7875a8/src/BloomTests/Collection/CollectionSettingsUpdaterTests.cs#L447" target="_blank" rel="noopener"><code>CollectionSettingsUpdaterTests.cs:447</code></a>).</li>
         </ul>
       </section>
 
@@ -97,7 +97,7 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0
         <table>
           <tr><th>Check</th><th>Result</th></tr>
           <tr><td>C# build</td><td><span class="ok">Pass</span></td></tr>
-          <tr><td>C# tests (dotnet test, full suite)</td><td><span class="numeral">3882 passed · 1 failed · 1 skipped</span>. The one failure is <code>SafeXmlTests.Xml_DoesNotProvide_ThreadSafety</code>, a known-flaky test the team already excludes from CI. It only passes when a thread race happens, and it can't be reached from this diff.</td></tr>
+          <tr><td>C# tests (dotnet test, full suite)</td><td><span class="ok">Pass</span> · <span class="numeral">3890 passed · 0 failed · 1 skipped</span>, on the HEAD merged with master.</td></tr>
           <tr><td>TypeScript typecheck / lint / vitest</td><td>Not run: there is no front-end code in the diff.</td></tr>
           <tr><td>Repo check: e2e specs at the nightly window size</td><td>Did not apply: no <code>src/BloomE2E/tests/*.spec.ts</code> in the diff.</td></tr>
           <tr><td>Merge with master</td><td><span class="ok">Up to date, mergeable</span></td></tr>
@@ -108,7 +108,7 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>First run. I committed the fix and its test, then fixed Devin's finding: a valid code for a different subscription whose name extends the old one used to keep the old bookshelf. I also applied the same fix to the legacy dialog. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8510/commits" target="_blank" rel="noopener">two commits</a>.</p>
+        <p>Second run. At your request, the legacy dialog now calls the shared rule instead of keeping its own copy (<a href="https://github.com/BloomBooks/BloomDesktop/commit/3945d166e" target="_blank" rel="noopener"><code>3945d166e</code></a>), and master is merged in, including the Front &amp; Back Matter settings page (BL-16733). See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8510/commits" target="_blank" rel="noopener">commits</a>.</p>
       </section>
 
       <section class="card">
@@ -116,10 +116,10 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0
         <div class="tablewrap">
         <table>
           <tr><th>Reviewer</th><th>Outcome</th></tr>
-          <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings. It pointed out that the legacy dialog had the same bug, which is now fixed.</td></tr>
-          <tr><td>Devin</td><td>Complete. Its one bug, fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919" target="_blank" rel="noopener"><code>a5f90fa25</code></a>, is marked resolved by Devin's re-review (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8510#discussion_r4404856135" target="_blank" rel="noopener">thread</a>, resolved). The re-review raised nothing new.</td></tr>
-          <tr><td>Greptile</td><td>Complete. It reviewed both commits and found no issues (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8510#issuecomment-6477901059" target="_blank" rel="noopener">summary</a>).</td></tr>
-          <tr><td>CI</td><td>Complete, all checks pass.</td></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings, on both runs. The second run confirmed that the shared rule gets the same values at both of the legacy dialog's call sites.</td></tr>
+          <tr><td>Devin</td><td>Complete for the current HEAD. Its only bug, from the first run, was fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/a5f90fa25cd033e2a6c31d9d7a55fd3c21d90919" target="_blank" rel="noopener"><code>a5f90fa25</code></a> and is still marked resolved (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8510#discussion_r4404856135" target="_blank" rel="noopener">thread</a>, resolved). Nothing new was raised.</td></tr>
+          <tr><td>Greptile</td><td>Complete for the current HEAD (re-triggered, since it had skipped the merge push). Three reviews so far, none with any issues (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8510#issuecomment-6477901059" target="_blank" rel="noopener">summary</a>).</td></tr>
+          <tr><td>CI</td><td>Complete, all checks pass. Reviewable shows "pending" until a person reviews the PR, which is expected while it is a draft.</td></tr>
         </table>
         </div>
       </section>
@@ -127,7 +127,7 @@ th { font-weight: 600; color: var(--muted); font-size: 0.8rem; letter-spacing: 0
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>Nobody has exercised this by hand. The change is covered by unit tests only, and the legacy dialog's copy has no automated coverage.</li>
+          <li>Nobody has exercised this by hand. The change is covered by unit tests only. The legacy dialog's save path has no automated coverage, though it now calls the tested rule.</li>
           <li>Out of scope: the new dialog's bookshelf list doesn't refresh when a new code is typed in the same session. It always shows the saved subscription's bookshelves until you click OK and Bloom restarts.</li>
         </ul>
       </section>
