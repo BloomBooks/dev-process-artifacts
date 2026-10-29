@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17001</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#faf8f4;color:#2a2722;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600}
+h1{font-size:24px;margin-bottom:8px}
+h2{font-size:18px;margin-bottom:10px}
+h3{font-size:15px;margin:12px 0 4px}
+p,li{margin-bottom:6px}
+ul{padding-left:20px}
+a{color:#1f5f8b}
+.wrap{max-width:1300px;margin:0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-block;border:1px solid #d8d2c6;background:#fff;border-radius:999px;padding:2px 10px;font-size:13px}
+.ok{border-color:#9cc59c;background:#f0f8f0}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;margin-top:16px}
+.grid>div{min-width:0}
+.card{background:#fff;border:1px solid #e3ddd2;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse}
+td,th{text-align:left;padding:6px 8px;border-bottom:1px solid #eee7da;vertical-align:top}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:13px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Preflight: Let Upload proceed when the bookshelf list can't be fetched</h1>
+<p>Preflight clean. No items waiting on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip ok">0 decisions</span><span class="chip">Board: ready for my review</span>
+</div>
+<div class="chips">
+<a class="chip" target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8511">PR #8511</a>
+<a class="chip" target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8511/files">Files changed</a>
+<a class="chip" target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8511/commits">Commits</a>
+<a class="chip" target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17001">BL-17001</a>
+<a class="chip" target="_blank" rel="noopener" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8511">Devin review</a>
+</div>
+
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>On Publish &gt; Web, a subscriber sometimes sees a red "Bloom could not reach the server to get the list of bookshelves" banner, and the Upload button is greyed out. She can't upload, though the upload itself would work. It depends on timing: click Upload quickly and it works; wait a few seconds and the button is already disabled.</p>
+<h3>Cause</h3>
+<p>The bookshelf list comes from Contentful, which refuses requests from some regions (Venezuela, for the BL-16987 user). Any failure of that lookup disabled Upload, but only after Contentful's client finished its retries, which is why timing mattered.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>A failed bookshelf lookup is now a yellow warning, and Upload stays enabled.</li>
+<li>Bloom then can't check that the collection's bookshelf belongs to the subscription, so the book is tagged with it unchecked. C# still requires a matching subscription with a tier that allows bookshelves.</li>
+<li>The one gap is that a user with a paid subscription could hand-edit their collection to name another organization's shelf and block Contentful. It is documented in the code as acceptable (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/2b7b4b916322f3ac7366d2e3aacdd2a25d922179/src/BloomBrowserUI/publish/LibraryPublish/LibraryPublishSteps.tsx#L434">LibraryPublishSteps.tsx:434</a>).</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck</td><td>Passed</td></tr>
+<tr><td>Lint</td><td>Passed (one existing warning, not in the change)</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td><span class="numeral">112 files · 1620 passed</span></td></tr>
+<tr><td>C# tests</td><td>Not run: no C# in the diff, and nothing in it reaches .NET</td></tr>
+<tr><td>E2E repo check</td><td>Did not apply: no e2e spec changed</td></tr>
+<tr><td>Merge with master</td><td>Already up to date</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>What changed this run</h2>
+<p>Committed the fix, pushed the branch, opened the draft PR, linked it on the card, and posted the QA test ideas. See the <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/2b7b4b916322f3ac7366d2e3aacdd2a25d922179">commit</a>.</p>
+</div>
+
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><td>Local review</td><td>Light sub-agent pass: clean, no findings.</td></tr>
+<tr><td><a target="_blank" rel="noopener" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8511">Devin</a></td><td>Complete: no bugs, no flags.</td></tr>
+<tr><td>Greptile</td><td>Complete: "Low impact"; safe to merge, given the accepted bookshelf tradeoff. No inline comments.</td></tr>
+<tr><td>CI</td><td>pr-automation passed.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Not tried in a running Bloom with Contentful blocked. The test ideas on the card say how to block it (a hosts-file line).</li>
+</ul>
+</div>
+</div>
+
+<div>
+<div class="card">
+<h2>Decisions</h2>
+<p>None. The test decision was yours earlier: no new test.</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
