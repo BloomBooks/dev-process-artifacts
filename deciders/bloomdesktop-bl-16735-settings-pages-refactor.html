@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: settings pages refactor</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf8f4;color:#2a2722;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25}
+h1{font-size:1.5rem;margin:0 0 .4rem}
+h2{font-size:1.15rem;margin:0 0 .6rem}
+h3{font-size:1rem;margin:1rem 0 .3rem}
+a{color:#1d6b74}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 16px}
+header{margin-bottom:18px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:.5rem 0}
+.chip{display:inline-block;border:1px solid #d9d3c7;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem}
+.chip.warn{border-color:#d9a441;background:#fff7e6}
+.chip.ok{border-color:#9cc5a1;background:#f1f8f2}
+.links a{text-decoration:none}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+.grid>div{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd1;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;vertical-align:top;padding:6px 8px;border-top:1px solid #eee7da}
+th{font-weight:600;width:28%}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.9em}
+.pass{color:#2d7a3a;font-weight:600}
+ul{padding-left:1.2rem;margin:.3rem 0}
+.q p{margin:.4rem 0}
+.opt{display:flex;gap:8px;align-items:flex-start;margin:.35rem 0}
+.opt input[type=radio]{margin-top:.3rem}
+.rec{font-size:.75rem;background:#e6f2f3;color:#1d6b74;border-radius:4px;padding:0 5px;margin-left:4px}
+.foot{color:#6b655a;font-size:.85rem}
+.leave{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.leave label.lc{font-size:.85rem;color:#6b655a;white-space:nowrap}
+input[type=text],textarea{width:100%;font:inherit;border:1px solid #d9d3c7;border-radius:6px;padding:6px 8px;background:#fffdf9}
+textarea{min-height:56px}
+button{font:inherit;background:#1d6b74;color:#fff;border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+#status{margin-left:10px;font-size:.9rem}
+#payload{margin-top:10px;min-height:160px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Preflight: Collection Settings, every page takes one context</h1>
+<div>Branch <code>BL-16735-settings-pages-refactor</code> at e792089af1, on master; the bottom of the stack, with #8500 (Team Collection page) on top. Reviewers are done; one decision waits on you.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable, up to date with master</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip warn">1 decision waiting</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8512" target="_blank" rel="noopener">PR #8512</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8512/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8512/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16735" target="_blank" rel="noopener">BL-16735</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8512" target="_blank" rel="noopener">Devin review</a>
+<a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8512" target="_blank" rel="noopener">Greptile</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8500" target="_blank" rel="noopener">Next in stack: #8500</a>
+</div>
+</header>
+
+<div class="grid">
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Each page of the new React Collection Settings dialog took its own set of props, and the dialog held logic for particular pages: the subscription code's own state, its seeding, reset and merge into the saved values, the placeholder pages, and a table of help topics by page. Every new page added more of that to the dialog.</p>
+<h3>What the PR does</h3>
+<ul>
+<li><strong>One contract for every page.</strong> Each page is a hook that takes an <code>ISettingsPageContext</code> (whether the dialog is open, the loaded settings, the values as typed and as they would be saved, and <code>editValues</code> for an editor that is not a Config-R control) and returns an <code>ISettingsPage</code> (its <code>ConfigrPage</code> and its help topic). The dialog builds the context once and lists the pages.</li>
+<li><strong>One generic state for values edited outside Config-R</strong>, replacing the subscription code's own state.</li>
+<li><strong>Placeholder pages and help topics move onto the pages</strong>, replacing <code>collectionSettingsHelpTopic.ts</code>.</li>
+<li>The Subscription page's block is wrapped in <code>ConfigrStatic</code>, as the other pages' blocks are, ending a React warning.</li>
+</ul>
+<p>No behavior change. Values whose editors are not Config-R controls stay outside Config-R: binding a full-width block to a Config-R value would need a kind of component that does not fit Config-R's row-per-setting design.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Typecheck</th><td><span class="pass">Passed</span> at HEAD.</td></tr>
+<tr><th>Lint</th><td><span class="pass">Passed</span> (no errors) at HEAD.</td></tr>
+<tr><th>Merge</th><td>Up to date with master; mergeable. The PR lists only its own <span class="numeral">11</span> files.</td></tr>
+<tr><th>TypeScript tests (vitest)</th><td><span class="pass">Passed</span> at HEAD: <span class="numeral">1612</span>, full suite.</td></tr>
+<tr><th>C# tests (NUnit)</th><td>Not run: no C# in the diff, and nothing the C# suite reads or builds changed.</td></tr>
+<tr><th>Repo check: e2e specs at nightly size</th><td>Did not apply: the diff changes no <code>src/BloomE2E/tests/*.spec.ts</code>. All six <code>collection-settings-*</code> specs did pass at the nightly size on this code with #8500 on top.</td></tr>
+<tr><th>Test of the change</th><td>Awaiting your decision (right).</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Fixed the two findings Greptile raised: the page list now has React keys, and edits made outside Config-R merge into the latest edits so two before a render both count (<a href="https://github.com/BloomBooks/BloomDesktop/commit/e792089af136c2d05d2dd9704f6007145dd0f057" target="_blank" rel="noopener">e792089af1</a>). Put the PR description in preflight's format, and listed both PRs, in stack order, in the card's PR-link comment.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review (light sub-agent pass)</th><td>1 finding, fixed: the unkeyed page list (the same as Greptile's). It checked close and reopen, a user who may not edit, the deferred Config-R change, trimming, restart detection, hook order and the Help fallback against master, and found them unchanged.</td></tr>
+<tr><th>Devin</th><td>Complete for HEAD: no bugs, no flags, on both commits. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8512#issuecomment-6511075537" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+<tr><th>Greptile</th><td>Reviewed 38ebeddb2d: 2 findings, both fixed and resolved (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8512#discussion_r4418991035" target="_blank" rel="noopener">edits overwrite</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8512#discussion_r4418991282" target="_blank" rel="noopener">keys</a>). It has not reviewed the fix-up commit, which only answers those two.</td></tr>
+<tr><th>CI</th><td><code>pr-automation</code> passed. There is no build or test CI on this PR; the local gates stand in for it.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>The card's test ideas were not refreshed for this PR: it changes nothing a tester can see, and the card's test-ideas comment describes the Team Collection page (#8500), which this PR's changes do not alter.</li>
+<li>The BL-16739 Languages page (#8502) sits on top of #8500 but has not been restacked onto this PR yet; its session is not running. Its page will need converting to the context.</li>
+</ul>
+</section>
+</div>
+
+<div>
+<section class="card q">
+<h2>Does this PR need a test of its own?</h2>
+<p>Every PR either comes with an automated test of what it changes, or you say it doesn't need one. This PR adds no test. It is meant to change no behavior: it restructures how the Collection Settings dialog's pages get what they need. The existing dialog tests (<code>CollectionSettingsDialog.test.tsx</code>) drive every page through the dialog, including Help's topic and saving the subscription code, and pass unchanged; so do all six Collection Settings e2e journeys. The one deleted test, <code>collectionSettingsHelpTopic.test.ts</code>, went with the module it tested, as you approved.</p>
+<div class="opt"><input type="radio" name="q1" id="q1a" data-q="q1" checked data-instruction="In BloomDesktop PR #8512 (branch BL-16735-settings-pages-refactor), record the test decision as: Test of the change: none — developer's decision: a refactor meant to change no behavior; the existing dialog vitest tests and the Collection Settings e2e journeys exercise every page unchanged."><label for="q1a">No test needed: it is a refactor meant to change no behavior, and the existing dialog tests and e2e journeys exercise every page unchanged <span class="rec">Recommended</span> <span class="foot">(no code; recommended because a new test would only restate what those tests already check)</span></label></div>
+<div class="opt"><input type="radio" name="q1" id="q1b" data-q="q1" data-instruction="In BloomDesktop PR #8512 (branch BL-16735-settings-pages-refactor), add a vitest test in src/BloomBrowserUI/collection/CollectionSettingsDialog.test.tsx that edits the subscription code twice before a render and checks the saved values carry the second edit, then record it as the test of the change."><label for="q1b">Add a dialog test that two quick edits outside Config-R both reach the saved values <span class="foot">(~20 lines in the dialog test; covers the one fix Greptile prompted)</span></label></div>
+<div class="leave"><div class="opt"><input type="radio" name="q1" id="q1c" data-q="q1" data-instruction="Leave as is — take no action on: whether PR #8512 (the Collection Settings page-context refactor) needs a test of its own; its test line stays 'awaiting the developer's decision'."><label for="q1c">Leave as is</label></div></div>
+<div class="opt"><input type="radio" name="q1" id="q1d" data-q="q1" data-other="1"><label for="q1d">Other:</label><input type="text" data-q="q1-other" aria-label="Other"></div>
+<textarea data-q="q1-notes" placeholder="Notes"></textarea>
+</section>
+
+<section class="card q">
+<h2>Next step</h2>
+<div class="opt"><input type="radio" name="q2" id="q2a" data-q="q2" checked data-instruction="Carry out the answer above on PR #8512, keep the PR a draft, and re-run /preflight only if code changed."><label for="q2a">Carry out the answer above <span class="rec">Recommended</span></label></div>
+<div class="opt"><input type="radio" name="q2" id="q2b" data-q="q2" data-instruction="Leave as is — take no action on PR #8512 for now."><label for="q2b">Leave as is</label></div>
+<div class="opt"><input type="radio" name="q2" id="q2c" data-q="q2" data-other="1"><label for="q2c">Other:</label><input type="text" data-q="q2-other" aria-label="Other"></div>
+<textarea data-q="q2-notes" placeholder="Notes"></textarea>
+</section>
+
+<section class="card">
+<h2>Send your answers back</h2>
+<p>Copies your answers as text to paste into the session.</p>
+<button id="copy">Copy answers</button><span id="status"></span>
+<textarea id="payload" readonly></textarea>
+</section>
+</div>
+</div>
+</div>
+<script>
+const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16735-settings-pages-refactor.html";
+const QUESTIONS = [
+  ["q1", "Does PR #8512 (the Collection Settings page-context refactor) need a test of its own?"],
+  ["q2", "Next step"],
+];
+function serialize() {
+  const lines = [
+    "Decisions from the preflight report for BloomDesktop PR #8512 (branch BL-16735-settings-pages-refactor), " + new Date().toISOString().slice(0, 10) + ".",
+    "Report: " + URL_, ""];
+  for (const [id, title] of QUESTIONS) {
+    lines.push(title);
+    const chosen = document.querySelector(`input[type=radio][data-q="${id}"]:checked`);
+    if (chosen) {
+      if (chosen.dataset.other) lines.push("Other: " + (document.querySelector(`[data-q="${id}-other"]`).value || "(blank)"));
+      else lines.push(chosen.dataset.instruction);
+    }
+    const notes = document.querySelector(`[data-q="${id}-notes"]`).value.trim();
+    if (notes) lines.push("Notes: " + notes);
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+function refresh() { document.getElementById("payload").value = serialize(); }
+document.querySelectorAll("input,textarea").forEach((el) => el.addEventListener("input", refresh));
+document.querySelectorAll("input[type=radio]").forEach((el) => el.addEventListener("change", refresh));
+refresh();
+document.getElementById("copy").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  const area = document.getElementById("payload");
+  try {
+    refresh(); area.focus(); area.select();
+    try { await navigator.clipboard.writeText(area.value); status.textContent = "Copied ✓"; return; } catch (e) {}
+    if (document.execCommand("copy")) { status.textContent = "Copied ✓"; return; }
+    status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C.";
+  } catch (e) {
+    status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C.";
+  }
+});
+</script>
+</body>
+</html>
