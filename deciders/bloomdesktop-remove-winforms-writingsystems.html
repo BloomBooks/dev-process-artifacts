@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Drop WinForms WritingSystems</title>
+<style>
+/* Layout: report on the left, the one open question on the right; one column when narrow. */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #1f2328;
+  --muted: #5d636b;
+  --line: #dcd9d0;
+  --accent: #2f5d8a;
+  --ok: #2e7d4f;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; margin-bottom: 10px; }
+h3 { font-size: 0.98rem; margin: 14px 0 4px; }
+p { margin: 0 0 8px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-block; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 0.85rem; }
+.chip.good { border-color: var(--ok); color: var(--ok); }
+.links a { font-size: 0.88rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 16px 18px; }
+ul { margin: 4px 0 8px; padding-left: 20px; }
+li { margin: 2px 0; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88rem; }
+.pass { color: var(--ok); font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.88em; }
+.muted { color: var(--muted); }
+.opt { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; }
+.opt input[type=text] { flex: 1; min-width: 0; }
+.tag { font-size: 0.75rem; color: var(--ok); border: 1px solid var(--ok); border-radius: 4px; padding: 0 5px; margin-left: 6px; }
+.foot { color: var(--muted); font-size: 0.85rem; }
+textarea, input[type=text] { width: 100%; font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; background: var(--card); color: var(--ink); }
+button { font: inherit; padding: 7px 14px; border-radius: 4px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+#status { font-size: 0.88rem; margin-left: 10px; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Drop SIL.Windows.Forms.WritingSystems</h1>
+  <p class="muted">Preflight on <code>remove-winforms-writingsystems</code>, 2026-10-30. Gates green, bots quiet, one question below.</p>
+  <div class="row">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip">1 question waiting</span>
+  </div>
+  <div class="row links">
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8518" target="_blank" rel="noopener">PR #8518</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8518/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomDesktop/pull/8518/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8518" target="_blank" rel="noopener">Devin review</a>
+    <a href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8518" target="_blank" rel="noopener">Greptile</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Bloom references the WinForms-only package SIL.Windows.Forms.WritingSystems for one thing: a static <code>LanguageLookupModel</code> in <code>Collection/WritingSystem.cs</code>. It is one of the WinForms dependencies the <a href="https://github.com/BloomBooks/BloomDesktop/blob/remove-winforms-writingsystems/docs/winforms-dependencies/PLAN.md" target="_blank" rel="noopener">WinForms dependency plan</a> sets out to remove.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><code>WritingSystem</code> now holds a <code>LanguageLookup</code> from the netstandard SIL.WritingSystems package, which Bloom already references. It is built exactly as the model built it, so language lookups give the same answers. The retry for an abandoned SLDR mutex (BL-16802) still wraps the call that takes the mutex.</li>
+      <li>The package reference is gone, and the plan no longer lists it. Keyboarding and WindowsAPICodePack are the one-call packages left.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tbl"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>C# build (Debug, and Release x64 of Bloom, BloomPdfMaker, BloomFreezeDoctor)</td><td class="pass">pass</td></tr>
+      <tr><td>C# tests (<code>dotnet test</code> via agent-dotnet)</td><td><span class="pass">pass</span> <span class="numeral">3891 passed · 0 failed</span>, plus the new test</td></tr>
+      <tr><td>Dependency versions (<code>check-dependency-versions.ps1</code>)</td><td><span class="pass">pass</span>, 5 co-located apps agree</td></tr>
+      <tr><td>TypeScript typecheck, lint, vitest</td><td>not run: no front-end files in the diff</td></tr>
+      <tr><td>E2E specs at nightly window size (repo check)</td><td>did not apply: no spec files changed</td></tr>
+      <tr><td>Merge with master</td><td class="pass">clean, up to date</td></tr>
+    </table></div>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Made the package swap with a test for the code path it changes, rewrote a code comment to give its reason rather than its history, and updated the plan. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8518/commits" target="_blank" rel="noopener">commit list</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tbl"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review</td><td>Light sub-agent pass: clean, no findings.</td></tr>
+      <tr><td>Devin</td><td>Complete on <span class="numeral">cbd22eb43d</span>: no bugs, no flags.</td></tr>
+      <tr><td>Greptile</td><td>Complete on <span class="numeral">cbd22eb43d</span>: low impact, no actionable issues.</td></tr>
+      <tr><td>CI</td><td>No build checks run on PRs here; pr-automation only triggers Devin.</td></tr>
+    </table></div>
+    <p class="foot">The last commit (<span class="numeral">1e7d8e4f75</span>) only edits PLAN.md; by your call, no bot re-review was awaited for it.</p>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Live-checked in Bloom from this branch: with every <code>IsCustomName</code> removed from a collection's settings file, opening it computes "English" (<code>en</code>) as not custom and "français" (<code>fr</code>) as custom, because the lookup's own name for <code>fr</code> differs. That comparison and its data are unchanged from before, so this is existing behavior, not new.</li>
+    </ul>
+  </section>
+</div>
+
+<div class="col">
+  <section class="card" data-item="next">
+    <h2>Next step</h2>
+    <p>The PR is a draft with green gates and quiet bots. The plan's next two one-call removals are SIL.Windows.Forms.Keyboarding (one Windows TSF check that would need rewriting; removing it drops ibusdotnet and KeymanLegacyBundle) and WindowsAPICodePack (one folder dialog, swappable for .NET 8's FolderBrowserDialog).</p>
+    <div class="opt"><input type="radio" name="next" id="next-review" checked data-q="next"
+      data-instruction="In BloomDesktop PR #8518 (branch remove-winforms-writingsystems), nothing more to do: I will review it myself and run pr-ready-for-human when satisfied.">
+      <label for="next-review">I'll review it and promote it myself<span class="tag">Recommended</span><br><span class="foot">No code; the PR is done from preflight's side.</span></label></div>
+    <div class="opt"><input type="radio" name="next" id="next-codepack" data-q="next"
+      data-instruction="In BloomDesktop, on a new branch off master, replace Microsoft.WindowsAPICodePack's CommonOpenFileDialog in src/BloomExe/MiscUI/BloomFolderChooser.cs with .NET 8's FolderBrowserDialog, remove the Microsoft-WindowsAPICodePack-Shell package reference, update docs/winforms-dependencies/PLAN.md, test, and run /preflight.">
+      <label for="next-codepack">Next, drop WindowsAPICodePack the same way<br><span class="foot">~20 lines in one file; low risk, but the dialog should get a live look.</span></label></div>
+    <div class="opt"><input type="radio" name="next" id="next-keyboard" data-q="next"
+      data-instruction="In BloomDesktop, on a new branch off master, investigate replacing SIL.Windows.Forms.Keyboarding's KeyboardController.IsFormUsingInputProcessor in src/BloomExe/web/controllers/KeyboardingConfigApi.cs so the package can be removed; report the options before implementing.">
+      <label for="next-keyboard">Next, look into dropping Keyboarding<br><span class="foot">Moderate: the TSF check needs a replacement; start with an investigation.</span></label></div>
+    <div class="opt"><input type="radio" name="next" id="next-leave" data-q="next"
+      data-instruction="Leave as is: take no further action on BloomDesktop PR #8518 for now.">
+      <label for="next-leave">Leave as is</label></div>
+    <div class="opt"><input type="radio" name="next" id="next-other" data-q="next" data-instruction="Other:">
+      <label for="next-other">Other:</label><input type="text" id="next-other-text" data-q="next-other" aria-label="Other next step"></div>
+    <label for="next-notes" class="foot">Notes</label>
+    <textarea id="next-notes" rows="2" data-q="next-notes"></textarea>
+  </section>
+
+  <section class="card">
+    <h2>Send your answers back</h2>
+    <p class="foot">Paste this into a Claude session.</p>
+    <button id="copy" type="button">Copy answers</button><span id="status" aria-live="polite"></span>
+    <textarea id="payload" rows="8" readonly style="margin-top:10px"></textarea>
+  </section>
+</div>
+</div>
+</div>
+<script>
+const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-remove-winforms-writingsystems.html";
+function build() {
+  const lines = ["Decisions from a preflight report", "Repo: BloomBooks/BloomDesktop, branch remove-winforms-writingsystems, PR https://github.com/BloomBooks/BloomDesktop/pull/8518", "Date: 2026-10-30", "Report: " + URL_, ""];
+  lines.push("Q: Next step for the WinForms dependency work");
+  const chosen = document.querySelector('input[name="next"]:checked');
+  if (chosen.id === "next-other") lines.push("Other: " + document.getElementById("next-other-text").value);
+  else lines.push(chosen.dataset.instruction);
+  const notes = document.getElementById("next-notes").value.trim();
+  if (notes) lines.push("Notes: " + notes);
+  return lines.join("\n");
+}
+const payload = document.getElementById("payload");
+function refresh() { payload.value = build(); }
+document.querySelectorAll("[data-q]").forEach(el => el.addEventListener("input", refresh));
+document.querySelectorAll("[data-q]").forEach(el => el.addEventListener("change", refresh));
+refresh();
+document.getElementById("copy").addEventListener("click", async () => {
+  const status = document.getElementById("status");
+  try {
+    refresh(); payload.focus(); payload.select();
+    try { await navigator.clipboard.writeText(payload.value); status.textContent = "Copied ✓"; return; } catch (e) {}
+    if (document.execCommand && document.execCommand("copy")) { status.textContent = "Copied ✓"; return; }
+    status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch (e) {
+    status.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  }
+});
+</script>
+</body>
+</html>
