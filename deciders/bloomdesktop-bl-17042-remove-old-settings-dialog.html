@@ -49,12 +49,12 @@
 <body>
 <header>
   <h1>BL-17042: Remove the old Collection Settings dialog</h1>
-  <div>Preflight on 2026-10-30: gates green, every reviewer clean, five questions for you.</div>
+  <div>Preflight run 2 on 2026-10-30: gates green, every reviewer clean, three questions for you.</div>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
     <span class="chip ok">Bots quiet</span>
-    <span class="chip warn">5 decisions waiting</span>
+    <span class="chip warn">3 decisions waiting</span>
     <span class="chip">Board: needs response</span>
   </div>
   <div class="chips">
@@ -62,6 +62,7 @@
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8516/files" target="_blank" rel="noopener">Files changed</a>
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8516/commits" target="_blank" rel="noopener">Commits</a>
     <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17042" target="_blank" rel="noopener">BL-17042</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17057" target="_blank" rel="noopener">BL-17057 (help)</a>
     <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8516" target="_blank" rel="noopener">Devin</a>
     <a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8516" target="_blank" rel="noopener">Greptile</a>
   </div>
@@ -75,9 +76,9 @@
     <p>Every page of the React Collection Settings dialog has landed, but the old WinForms dialog was still there behind an "Old Settings" button, with its own save path, its own <code>settings/*</code> endpoints and its own copies of the language chooser and several panels. Two save paths meant every rule had to be fixed twice, and the old one kept code alive that nothing else needed.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><b>Removes the old dialog</b> and everything only it used: the WinForms dialog and Script Settings dialog, the Old Settings button, the four React tab bundles, the old <code>settings/*</code> endpoints, the old Create Team Collection path, and a startup check that could never fire. Every rule of the old OK handler is in the new save path, except the dead "experimental book sources" option.</li>
-      <li><b>The language chooser now only runs in the browser.</b> The Publish tab's sign-language link, its last WinForms user, opens it itself and saves with one POST.</li>
-      <li><b>Simplifies the new dialog:</b> it mounts only while open, so every open starts fresh with no reset code; a non-administrator gets a reply holding just the reason; the Create Team Collection dialog gets its folder and name from the dialog (two endpoints fewer); fonts travel on the languages instead of a parallel array.</li>
+      <li><b>Removes the old dialog</b> and everything only it used: both WinForms dialogs, the Old Settings button, the four React tab bundles, the old <code>settings/*</code> endpoints and <code>SubscriptionSettingsEditorApi</code>, the old Create Team Collection path, and a startup check that could never fire. Every rule of the old OK handler is in the new save path, except the dead "experimental book sources" option.</li>
+      <li><b>The language chooser only runs in the browser.</b> The Publish tab's sign-language link, its last WinForms user, opens it itself and saves with one POST.</li>
+      <li><b>Simplifies the new dialog:</b> it loads its settings before it shows and is rebuilt on every open; a non-administrator gets a small dialog of its own; the Create Team Collection dialog gets its folder and name from the dialog; the posted languages and fonts go straight into the collection's list instead of through copies; one component draws a settings row with its subscription badge.</li>
       <li><b>Strings and docs:</b> ten strings nothing uses are marked obsolete (none deleted); the plan doc is removed; e2e docs, the run-bloom skill and the branding-report tool no longer describe or call the old dialog.</li>
     </ul>
   </div>
@@ -87,11 +88,10 @@
     <table>
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>Typecheck</td><td class="pass">pass</td></tr>
-      <tr><td>Lint (changed files)</td><td class="pass">pass <span class="na">(warnings only, all pre-existing)</span></td></tr>
+      <tr><td>Lint (changed files)</td><td class="pass">pass <span class="na">(warnings only, none new)</span></td></tr>
       <tr><td>TypeScript tests (vitest, unit)</td><td class="pass"><span class="numeral">1591 passed</span></td></tr>
-      <tr><td>C# tests (BloomTests)</td><td class="pass"><span class="numeral">3894 passed</span></td></tr>
-      <tr><td>Production bundle (agent-vite)</td><td class="pass">builds</td></tr>
-      <tr><td>Repo check: changed e2e specs at nightly size (font-chooser, xmatter-packs)</td><td class="pass"><span class="numeral">18 passed</span></td></tr>
+      <tr><td>C# tests (BloomTests)</td><td class="pass"><span class="numeral">3893 passed</span> <span class="na">+ the local Reading App Builder real-build test, which failed in Gradle inside the full run and passed when re-run alone (its known shared-folder issue on this machine)</span></td></tr>
+      <tr><td>Repo check: e2e specs at nightly size (font-chooser, xmatter-packs)</td><td class="pass"><span class="numeral">18 passed</span> <span class="na">(xmatter-packs re-run after the known Playwright worker crash; noted in AUTOMATION-DEBT)</span></td></tr>
       <tr><td>Extra: collection-settings-*.spec.ts at nightly size</td><td class="pass"><span class="numeral">15 passed</span></td></tr>
       <tr><td>Merge with base (BL-16739-languages-page)</td><td class="pass">up to date</td></tr>
     </table>
@@ -99,15 +99,15 @@
 
   <div class="card">
     <h2>What changed this run</h2>
-    <p>The whole cutover was built and committed this run (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8516/commits" target="_blank" rel="noopener">2 commits</a>), including a cleanup pass on the new dialog informed by a separate Fable review.</p>
+    <p>Applied a second simplification review to the new dialog (<a href="https://github.com/BloomBooks/BloomDesktop/commit/15a1d71ca1" target="_blank" rel="noopener">15a1d71</a>), made the help card <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17057" target="_blank" rel="noopener">BL-17057</a> for Marlon, live-checked the Publish tab's sign-language chooser (it works end to end), and rewrote BL-17042's test ideas to cover the whole dialog.</p>
   </div>
 
   <div class="card">
     <h2>Reviewer outcomes</h2>
     <table>
-      <tr><td><b>Local review</b></td><td>Light sub-agent pass: clean. One comment's wording was corrected.</td></tr>
-      <tr><td><b>Devin</b></td><td>Complete: no bugs, no flags.</td></tr>
-      <tr><td><b>Greptile</b></td><td>Complete: "no actionable regressions".</td></tr>
+      <tr><td><b>Local review</b></td><td>Light sub-agent pass on the new commit: clean.</td></tr>
+      <tr><td><b>Devin</b></td><td>Complete at 15a1d71: no bugs, no flags.</td></tr>
+      <tr><td><b>Greptile</b></td><td>Complete at 15a1d71: "no actionable new issues".</td></tr>
       <tr><td><b>CI</b></td><td>pr-automation passed.</td></tr>
       <tr><td><b>Repo check</b></td><td>E2E specs at nightly size: passed.</td></tr>
     </table>
@@ -116,8 +116,8 @@
   <div class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The Publish tab's sign-language chooser (now in the browser) has not been exercised in a running Bloom; no test covers it. See the first question.</li>
-      <li>The Settings dialog no longer fades out when it closes, because it unmounts. Noted in the test ideas as expected.</li>
+      <li>Two review ideas were not taken: reshaping the bookshelves hook (the Library publish screen uses the fields the review thought unused), and replacing <code>ChosenLanguage</code> with a camelCase contract (the new-collection wizard posts the same object, so it pays only when that wizard changes).</li>
+      <li>The Settings dialog no longer fades out when it closes, because it unmounts. The test ideas say this is expected.</li>
     </ul>
   </div>
 </div>
@@ -126,61 +126,51 @@
   <div class="card">
     <h2>Decisions</h2>
 
-    <div class="q" data-title="Live-check the Publish tab's sign-language chooser">
-      <h3>Live-check the Publish tab's sign-language chooser</h3>
-      <p>On the Publish tab, a book with videos offers a link (in the Sign Language tooltip) that sets the collection's sign language. It used to open a separate WinForms window; it now opens the same browser dialog the Settings Languages page uses and saves with one POST. Unit tests and e2e don't cover this path, and nobody has clicked it in a running Bloom yet. It is reachable over CDP, so I can drive it without touching your mouse.</p>
-      <div class="opt"><input type="radio" name="q1" data-q="q1" checked data-instruction="In C:\dev\_worktrees\BloomDesktop\BL-17042-remove-old-settings-dialog (branch BL-17042-remove-old-settings-dialog, PR #8516), start Bloom with the run-bloom skill, open a book with a video in a collection with no sign language, and drive the Publish tab's sign-language link over CDP: choose a sign language, confirm the tooltip shows it, the Sign Language checkbox is ticked, and Settings shows it; then cancel a second choice. Record the result as a live check in the PR description's E2E Coverage section."><span class="grow">Do a live check now over CDP <span class="rec">Recommended</span> <span class="foot">(~10 min, no code change; recommended because it is the one user-visible path that changed and nothing has run it)</span></span></div>
-      <div class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="For PR #8516 (branch BL-17042-remove-old-settings-dialog), propose an e2e spec that sets a sign language from the Publish tab's tooltip link and checks the tooltip, the Sign Language checkbox and the collection's saved sign language; discuss it with me before writing it."><span class="grow">Discuss an e2e test for it before writing one <span class="foot">(no code yet; a test needs a book with a video in the fixtures)</span></span></div>
-      <div class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="Leave as is — take no action on: the Publish tab's sign-language chooser on PR #8516 has not been exercised in a running Bloom; leave it to the testers (it is in the BL-17042 test ideas)."><span class="grow">Leave as is</span></div>
+    <div class="q" data-title="An e2e test for the Publish tab's sign-language chooser">
+      <h3>An e2e test for the Publish tab's sign-language chooser</h3>
+      <p>Choosing a sign language from the Publish tab's tooltip link now opens the browser language chooser and saves with one POST. Nothing automated covers it. A test is easy now: the e2e suite already ships a one-second video (<code>fixtures/videos/short.mp4</code>) and <code>chooseVideoFile</code>, which puts it in a video box through the Sign Language tool's real Import path. A throwaway version of this test ran green in about 20 seconds this session.</p>
+      <p>The proposed spec, <code>src/BloomE2E/tests/publish-sign-language.spec.ts</code>:</p>
+      <ul>
+        <li>make a Basic Book, add a "Video Over Text" page, put the short video in it;</li>
+        <li>on Publish &gt; BloomPUB, hover Sign Language, click the link, search "American Sign Language", pick <code>ase</code>, OK;</li>
+        <li>check: the tooltip names it, the Sign Language checkbox is ticked, the <code>.bloomCollection</code> has <code>SignLanguageIso639Code</code> <code>ase</code>, and Settings' Languages page shows "American Sign Language (ase)";</li>
+        <li>open it again, pick another, Cancel: nothing changes.</li>
+      </ul>
+      <p>It would need a small <code>helpers/publish.ts</code> addition (open the sign-language chooser) and a language-chooser helper (search, pick by code, OK/Cancel) that the Languages-page specs could reuse. Note that the e2e fixture's collections start with "English" as their sign language (see the last question), so the test starts from a language already set.</p>
+      <div class="opt"><input type="radio" name="q1" data-q="q1" checked data-instruction="On branch BL-17042-remove-old-settings-dialog (PR #8516) of BloomBooks/BloomDesktop, add src/BloomE2E/tests/publish-sign-language.spec.ts as proposed in the preflight report: Basic Book + Video Over Text page + fixtures/videos/short.mp4 via chooseVideoFile; on Publish > BloomPUB open the sign-language chooser from the Sign Language tooltip, choose American Sign Language (ase), OK; check tooltip, checkbox, the .bloomCollection's SignLanguageIso639Code and the Settings Languages page; then open again, pick another and Cancel, and check nothing changed. Add helpers for opening the chooser and picking a language by search and code. Run it at the nightly window size, then re-run /preflight."><span class="grow">Write it as proposed <span class="rec">Recommended</span> <span class="foot">(~150 lines incl. two helpers; ~20 s per run; recommended because it is the one changed path nothing covers)</span></span></div>
+      <div class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="For PR #8516, add the Publish-tab sign-language e2e test in a separate e2e-only PR off BL-17042-remove-old-settings-dialog, not in #8516 itself."><span class="grow">Write it, but as a separate e2e PR <span class="foot">(same work; keeps #8516's diff to the cutover)</span></span></div>
+      <div class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="Leave as is — take no action on: no e2e test covers choosing a sign language from the Publish tab on PR #8516; testers cover it from the BL-17042 test ideas."><span class="grow">Leave as is</span></div>
       <div class="opt"><input type="radio" name="q1" data-q="q1" data-other="1"><span class="grow">Other: <input class="other" data-q="q1-other" type="text"></span></div>
       <textarea class="notes" data-q="q1-notes" placeholder="Notes"></textarea>
     </div>
 
-    <div class="q" data-title="Whole-dialog test ideas on BL-16271">
-      <h3>Whole-dialog test ideas on BL-16271</h3>
-      <p>BL-17042's checklist asked for test ideas "for the whole dialog" on BL-16271, the parent card for the React Collection Settings work. Preflight posted test ideas for this PR's change on BL-17042 itself. A whole-dialog set (every page, as one feature now that the old dialog is gone) would be a separate, longer write-up. Testers would most likely test the dialog end to end once this lands.</p>
-      <div class="opt"><input type="radio" name="q2" data-q="q2" checked data-instruction="Write test ideas for the whole React Collection Settings dialog (all seven pages: Languages, Front &amp; Back Matter, Subscription, Team Collection, Bloom Library, Advanced, Experimental) with the add-test-ideas skill, grounded in the code on branch BL-17042-remove-old-settings-dialog of BloomBooks/BloomDesktop, and post them as a comment on YouTrack card BL-16271."><span class="grow">Post a whole-dialog set on BL-16271 <span class="rec">Recommended</span> <span class="foot">(no code; one long comment; recommended because the card asked for it and the dialog is now one feature to test)</span></span></div>
-      <div class="opt"><input type="radio" name="q2" data-q="q2" data-instruction="Write whole-dialog test ideas for the React Collection Settings dialog and post them on YouTrack card BL-17042 (not BL-16271), as a second comment."><span class="grow">Post them on BL-17042 instead <span class="foot">(no code)</span></span></div>
-      <div class="opt"><input type="radio" name="q2" data-q="q2" data-instruction="Leave as is — take no action on: no whole-dialog test ideas are posted on BL-16271; only BL-17042's change-specific test ideas exist."><span class="grow">Leave as is</span></div>
+    <div class="q" data-title="Team Collection folder in the GET reply (deletes 3 tests)">
+      <h3>Team Collection folder in the GET reply (deletes 3 tests)</h3>
+      <p>The review suggested one more simplification I didn't make without asking: the Team Collection page's panel fetches the shared folder's path itself (<code>teamCollection/repoFolderPath</code>), although the dialog's GET could carry it. Moving it would make the panel a plain component and remove one fetch. But that endpoint would then have no caller, and deleting it deletes its three existing tests in <code>TeamCollectionApiTests</code>, which needs your OK.</p>
+      <div class="opt"><input type="radio" name="q2" data-q="q2" data-instruction="On branch BL-17042-remove-old-settings-dialog (PR #8516): add the Team Collection's shared folder (RepoDescription, or '' when not a Team Collection) to the GET collection/settings reply, pass it to TeamCollectionSettings as a prop instead of its useApiStringState fetch, delete the teamCollection/repoFolderPath endpoint and its three tests in TeamCollectionApiTests, then re-run /preflight."><span class="grow">Move it, and delete the endpoint and its 3 tests <span class="foot">(~40 lines out, moderate; one fewer fetch)</span></span></div>
+      <div class="opt"><input type="radio" name="q2" data-q="q2" checked data-instruction="Leave as is — take no action on: TeamCollectionSettings keeps fetching teamCollection/repoFolderPath itself; the endpoint and its tests stay."><span class="grow">Leave as is <span class="rec">Recommended</span></span><label class="leavecomment"><input type="checkbox" data-q="q2-leave-comment" data-instruction="Record this decision as a code comment at the teamCollection/repoFolderPath fetch in src/BloomBrowserUI/teamCollection/TeamCollectionSettings.tsx: it could come in the GET collection/settings reply, but was left as its own fetch (BL-17042 review)."> Leave comment</label></div>
       <div class="opt"><input type="radio" name="q2" data-q="q2" data-other="1"><span class="grow">Other: <input class="other" data-q="q2-other" type="text"></span></div>
       <textarea class="notes" data-q="q2-notes" placeholder="Notes"></textarea>
+      <p class="foot">Recommended to leave: one local fetch costs nothing a user notices, and the gain does not outweigh removing tested code.</p>
     </div>
 
-    <div class="q" data-title="Help pages for the new dialog">
-      <h3>Help pages for the new dialog</h3>
-      <p>The card asks to "update the help mapping and the help pages". The mapping (which topic Help opens on each page) is unchanged: there are no better topics to point at yet. The help pages themselves come from Bloom.chm, built outside this repo, so this PR could not change them. Per the card's comment, the general Settings topic still describes the old tabs, and Bloom Library, Advanced (auto update) and Experimental have no topic of their own.</p>
-      <div class="opt"><input type="radio" name="q3" data-q="q3" checked data-instruction="Create a YouTrack card on the Bloom 6.6 board (youtrack-create-issue skill) for rewriting the Bloom help for the new React Collection Settings dialog: rewrite User_Interface/Dialog_boxes/Settings_dialog_box.htm for the seven pages, add topics for Bloom Library, Advanced (automatic updating) and Experimental, and then update src/BloomBrowserUI/collection/collectionSettingsHelpTopic.ts to point at them; link it from BL-17042, citing the help-topics comment on BL-17042."><span class="grow">Make a card for the help rewrite <span class="rec">Recommended</span> <span class="foot">(no code here; recommended because the work lives outside this repo and would otherwise be lost when BL-17042 closes)</span></span></div>
-      <div class="opt"><input type="radio" name="q3" data-q="q3" data-instruction="Leave as is — take no action on: the Bloom help pages still describe the old Collection Settings tabs; nothing tracks rewriting them."><span class="grow">Leave as is</span></div>
+    <div class="q" data-title="Collections with no sign-language entry read it as English">
+      <h3>Collections with no sign-language entry read it as English</h3>
+      <p>Found during the live check; old behavior, not from this PR. When a <code>.bloomCollection</code> file has no <code>SignLanguageIso639Code</code>, Bloom reads the sign language as <b>English ("en")</b>: <code>WritingSystem.ReadFromXml</code> defaults any missing language tag to "en". The Publish tab then says the book's videos contain English, the Sign Language feature is on, and Settings would show English as the sign language. The e2e fixture's collection files are written this way. Collections Bloom itself saves always carry the element, so it matters for older or hand-made files.</p>
+      <div class="opt"><input type="radio" name="q3" data-q="q3" checked data-instruction="Create a YouTrack Bug on the Bloom 6.6 board (youtrack-create-issue skill, Ready For Work): a .bloomCollection with no SignLanguageIso639Code element reads its sign language as English, because WritingSystem.ReadFromXml (src/BloomExe/Collection/WritingSystem.cs) defaults a missing tag to 'en' and CollectionSettings reads the sign language with it; the Publish tab then reports the videos as English and turns Sign Language on. Suggest treating a missing sign-language tag as none, and making the e2e fixture (src/BloomE2E/fixtures/launchBloom.ts collection XML) write an empty sign language. Link it from BL-17042."><span class="grow">Make a bug card for it <span class="rec">Recommended</span> <span class="foot">(no code here; the fix is small but out of this PR's scope)</span></span></div>
+      <div class="opt"><input type="radio" name="q3" data-q="q3" data-instruction="On branch BL-17042-remove-old-settings-dialog (PR #8516), make a missing sign-language tag in a .bloomCollection read as no sign language (WritingSystem.ReadFromXml / CollectionSettings), with a unit test, then re-run /preflight."><span class="grow">Fix it in this PR <span class="foot">(~10 lines + a test; changes how older files load)</span></span></div>
+      <div class="opt"><input type="radio" name="q3" data-q="q3" data-instruction="Leave as is — take no action on: a .bloomCollection with no sign-language entry reads its sign language as English."><span class="grow">Leave as is</span></div>
       <div class="opt"><input type="radio" name="q3" data-q="q3" data-other="1"><span class="grow">Other: <input class="other" data-q="q3-other" type="text"></span></div>
       <textarea class="notes" data-q="q3-notes" placeholder="Notes"></textarea>
     </div>
 
-    <div class="q" data-title="Two cleanup ideas from the review that I did not do">
-      <h3>Two cleanup ideas from the review that I did not do</h3>
-      <p>(a) The dialog lets a page change its own values just before saving (<code>ISettingsPage.valuesToSave</code>), which exists only so the Languages page can tidy the reader tools' alphabet (commas and line breaks into single spaces). Doing that tidy-up in C# instead would remove the mechanism, but breaks the plan's rule that clean-up belongs in the client and duplicates the tidying code. (b) The Subscription page asks Bloom twice per keystroke (the code editor and the status line each look up the code); fixing it means reshaping <code>SubscriptionStatus</code>, which the Collections tab shares, to save a local call that takes milliseconds. I recommend leaving both.</p>
-      <div class="opt"><input type="radio" name="q4" data-q="q4" data-instruction="On branch BL-17042-remove-old-settings-dialog (PR #8516), remove ISettingsPage.valuesToSave: clean the reader tools' letters in C# (ReaderToolsValues.Letters setter, same rules as cleanSpaceDelimitedList), delete withEditedLettersCleaned and valuesToSaveFrom, and update the tests."><span class="grow">Do (a): clean the alphabet in C# <span class="foot">(~60 lines removed, moderate; changes where a rule lives)</span></span></div>
-      <div class="opt"><input type="radio" name="q4" data-q="q4" data-instruction="On branch BL-17042-remove-old-settings-dialog (PR #8516), make the Subscription page look the typed code up once: call useSubscriptionInfo in SubscriptionPage and pass the result to SubscriptionControls and SubscriptionStatus, keeping the Collections tab's use of SubscriptionStatus unchanged."><span class="grow">Do (b): one lookup per keystroke <span class="foot">(moderate; touches a component the Collections tab shares)</span></span></div>
-      <div class="opt"><input type="radio" name="q4" data-q="q4" checked data-instruction="Leave as is — take no action on: ISettingsPage.valuesToSave stays (only the alphabet uses it), and the Subscription page keeps asking Bloom twice per keystroke."><span class="grow">Leave as is <span class="rec">Recommended</span></span><label class="leavecomment"><input type="checkbox" data-q="q4-leave-comment" data-instruction="Record this decision as a code comment at ISettingsPage.valuesToSave in src/BloomBrowserUI/collection/settingsPages/settingsPage.ts: the alphabet's clean-up deliberately stays in the client (BL-17042 review)."> Leave comment</label></div>
-      <div class="opt"><input type="radio" name="q4" data-q="q4" data-other="1"><span class="grow">Other: <input class="other" data-q="q4-other" type="text"></span></div>
-      <textarea class="notes" data-q="q4-notes" placeholder="Notes"></textarea>
-    </div>
-
-    <div class="q" data-title="Run the nightly on this branch">
-      <h3>Run the nightly on this branch</h3>
-      <p>The nightly runs the whole e2e suite against a Release build. The specs this PR could affect (the two with edited comments, and the eight collection-settings specs) were run locally at the nightly's window size. The rest of the suite was not run on this branch. You asked to be asked before any nightly is dispatched.</p>
-      <div class="opt"><input type="radio" name="q5" data-q="q5" data-instruction="Dispatch the nightly workflow (.github/workflows/nightly.yml) on branch BL-17042-remove-old-settings-dialog of BloomBooks/BloomDesktop with the e2e suite selected, wait for it, and report the result on PR #8516."><span class="grow">Dispatch the nightly on this branch <span class="foot">(~1–2 h of CI, no code)</span></span></div>
-      <div class="opt"><input type="radio" name="q5" data-q="q5" checked data-instruction="Leave as is — take no action on: the full nightly e2e suite has not been run on branch BL-17042-remove-old-settings-dialog; it will run after merge."><span class="grow">Leave as is <span class="rec">Recommended</span></span></div>
-      <div class="opt"><input type="radio" name="q5" data-q="q5" data-other="1"><span class="grow">Other: <input class="other" data-q="q5-other" type="text"></span></div>
-      <textarea class="notes" data-q="q5-notes" placeholder="Notes"></textarea>
-    </div>
-
     <div class="q" data-title="Next step">
       <h3>Next step</h3>
-      <div class="opt"><input type="radio" name="q6" data-q="q6" checked data-instruction="Carry out the choices above now, then re-run /preflight on PR #8516 (draft only; do not mark it ready or request reviews)."><span class="grow">Carry out my choices, then re-run preflight <span class="rec">Recommended</span></span></div>
-      <div class="opt"><input type="radio" name="q6" data-q="q6" data-instruction="Discuss the choices above with me before changing anything on PR #8516."><span class="grow">Discuss first</span></div>
-      <div class="opt"><input type="radio" name="q6" data-q="q6" data-instruction="Leave as is — take no further action on PR #8516 for now."><span class="grow">Leave as is</span></div>
-      <div class="opt"><input type="radio" name="q6" data-q="q6" data-other="1"><span class="grow">Other: <input class="other" data-q="q6-other" type="text"></span></div>
-      <textarea class="notes" data-q="q6-notes" placeholder="Notes"></textarea>
+      <div class="opt"><input type="radio" name="q4" data-q="q4" checked data-instruction="Carry out the choices above now, then re-run /preflight on PR #8516 (draft only; do not mark it ready or request reviews)."><span class="grow">Carry out my choices, then re-run preflight <span class="rec">Recommended</span></span></div>
+      <div class="opt"><input type="radio" name="q4" data-q="q4" data-instruction="Discuss the choices above with me before changing anything on PR #8516."><span class="grow">Discuss first</span></div>
+      <div class="opt"><input type="radio" name="q4" data-q="q4" data-instruction="Leave as is — take no further action on PR #8516 for now."><span class="grow">Leave as is</span></div>
+      <div class="opt"><input type="radio" name="q4" data-q="q4" data-other="1"><span class="grow">Other: <input class="other" data-q="q4-other" type="text"></span></div>
+      <textarea class="notes" data-q="q4-notes" placeholder="Notes"></textarea>
     </div>
   </div>
 
