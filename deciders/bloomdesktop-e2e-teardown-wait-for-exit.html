@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: E2E teardown</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf7f2;color:#2b2a27;font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#2f5d8a}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:.6em 0}
+.chip{display:inline-block;border:1px solid #d9d2c5;background:#fff;border-radius:999px;padding:2px 12px;font-size:.85rem}
+.chip.ok{border-color:#9cc5a1;background:#eef7ef}
+.chip.ask{border-color:#e0b46c;background:#fdf5e6}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;margin-top:16px}
+.grid>*{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd1;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;width:32%}
+.numeral{font-family:Consolas,Menlo,monospace;font-variant-numeric:tabular-nums}
+.pass{color:#2e7d32;font-weight:600}.na{color:#7a6f5e}
+code{font-family:Consolas,Menlo,monospace;font-size:.9em;background:#f4efe6;padding:0 3px;border-radius:3px}
+.q p{margin:.4em 0}
+.opt{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
+.opt input[type=radio]{margin-top:4px}
+.rec{font-size:.75rem;background:#2f5d8a;color:#fff;border-radius:4px;padding:0 6px;margin-left:4px}
+.foot{color:#7a6f5e;font-size:.85rem}
+.leave{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.other{flex:1;min-width:0}
+input[type=text],textarea{width:100%;font:inherit;border:1px solid #d9d2c5;border-radius:6px;padding:5px 8px}
+textarea.notes{min-height:2.4em;margin-top:6px}
+button{font:inherit;background:#2f5d8a;color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
+#status{margin-left:10px;font-size:.9rem}
+#payload{min-height:10em;margin-top:10px;font-family:Consolas,Menlo,monospace;font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Preflight: E2E teardown waits for Bloom to exit</h1>
+<div>Branch <code>e2e-teardown-wait-for-exit</code>, head <a href="https://github.com/BloomBooks/BloomDesktop/commit/36298c611f1641a99b484f41b6018fc84b6883f8" target="_blank" rel="noopener"><code>36298c611f</code></a>. No card.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 decisions waiting</span>
+<span class="chip">Board: ready for your review</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8515" target="_blank" rel="noopener">PR #8515</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8515/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8515/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8515" target="_blank" rel="noopener">Devin</a>
+<a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8515" target="_blank" rel="noopener">Greptile</a>
+</div>
+
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Every so often the nightly's e2e suite fails with "1 error was not a part of any test", though every test passed: the fixture's teardown cannot delete the test's <code>bloom-e2e-*</code> temp folder ("EPERM, Permission denied"). It has happened three times (10-12, 10-13, 10-30), each right after a spec that restarts or relaunches Bloom.</p>
+<h3>Cause</h3>
+<p>Teardown kills Bloom, waits only until its HTTP port goes dark, then deletes the folder, counting on <code>fs.rmSync</code>'s <code>maxRetries</code> to wait while the dying Bloom lets go of its files. On Node 24 (the repo's <code>.node-version</code>) <code>rmSync</code> does not retry on EPERM: it throws at once. Reproduced locally with a file held open by another process; on 10-30 it threw 0.15 s after the test ended.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>After the port goes dark, the kill helper (now <a href="https://github.com/BloomBooks/BloomDesktop/blob/36298c611f1641a99b484f41b6018fc84b6883f8/src/BloomE2E/fixtures/launchBloom.ts#L1022" target="_blank" rel="noopener"><code>killAndWaitForBloomToExit</code></a>) waits until the serving Bloom process has exited, within the same 15 s deadline. Windows closes a process's handles before it counts as exited, so the delete then succeeds. <code>restart()</code> and both <code>stop()</code>s use it.</li>
+<li>Records the cause in <code>docs/nightly-failures/README.md</code> (nightly triage 2026-10-30).</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Typecheck (BloomE2E)</th><td><span class="pass">pass</span></td></tr>
+<tr><th>Lint</th><td class="na">N/A — BloomE2E has no lint setup; the pre-commit hook passed</td></tr>
+<tr><th>Merge with master</th><td><span class="pass">clean</span>, up to date</td></tr>
+<tr><th>E2E tests (Playwright)</th><td><span class="pass">pass</span> <span class="numeral">42 passed (4.7 m)</span>, headless, on a local Debug build at this head: the 12 specs that restart or relaunch Bloom or use the chooser, including <code>collection-settings-advanced</code> and <code>toolbox-tools</code>. Every teardown deleted its folder. The full suite runs in tonight's nightly.</td></tr>
+<tr><th>TypeScript unit tests (vitest)</th><td class="na">not run — nothing in BloomBrowserUI changed</td></tr>
+<tr><th>C# tests</th><td class="na">not run — no C# in the diff</td></tr>
+<tr><th>Repo check: e2e specs at the nightly window size</th><td class="na">did not apply — no <code>tests/*.spec.ts</code> changed</td></tr>
+<tr><th>Local experiments</th><td>Node 24 <code>rmSync</code> with <code>maxRetries</code> threw EPERM after <span class="numeral">1 ms</span> on a held file; <code>process.kill(pid, 0)</code> reported a <code>taskkill /f</code>-ed process gone within <span class="numeral">5 ms</span></td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>What changed this run</h2>
+<p>Committed the fix and the README entry and opened draft <a href="https://github.com/BloomBooks/BloomDesktop/pull/8515" target="_blank" rel="noopener">#8515</a>. Fixed the local review's edge case (wait on the serving pid only, since a handed-off launcher's pid may be reused) and Greptile's (check the exit at least once even if the port probe used up the deadline). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8515/commits" target="_blank" rel="noopener">Commits</a></p>
+</div>
+
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review (light sub-agent pass)</th><td>No bugs. One edge case raised and fixed: after a startup hand-off, the launcher's exited pid could be reused by another process and stall teardown, so the wait is now on the serving pid only. Its other note (WebView2 children) does not apply: WebView2's data folder is outside the temp folder.</td></tr>
+<tr><th>Devin</th><td>Complete for both commits, <code>36298c611f</code> last: no bugs, no flags.</td></tr>
+<tr><th>Greptile</th><td>Complete for <code>36298c611f</code>: no findings ("appears safe to merge"). Its one finding on the first commit, that a successful shutdown could fail teardown at the deadline, was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8515#discussion_r4425490227" target="_blank" rel="noopener">fixed and resolved</a>.</td></tr>
+<tr><th>CI</th><td><code>pr-automation</code> passed. The PR runs no other checks; the e2e suite runs only in the nightly.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li><code>restart()</code> still waits a fixed second after the kill; with the new wait that second is likely unneeded but was left alone.</li>
+<li>The launch-failure cleanup (<code>removeTempRoot</code>) has the same ignored <code>maxRetries</code>; it only logs a failed delete, so it was not changed.</li>
+</ul>
+</div>
+</div>
+
+<div>
+<div class="card">
+<h2>Decisions</h2>
+<p>None waiting. Settled in chat on 2026-10-30: no retry backstop around the delete; no test of its own (recorded in the PR's Automated Tests section); no manual nightly dispatch.</p>
+</div>
+</div>
+</div>
+</div>
+</body>
+</html>
