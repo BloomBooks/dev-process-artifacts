@@ -44,7 +44,7 @@
 <div class="wrap">
 <header>
   <h1>fs: stop burning Supabase egress (BL-17059)</h1>
-  <p class="summary">Second preflight run on <code>BL-17059-fs-egress</code>. Every gate is green, all reviewers are clean at HEAD, and nothing is waiting on you.</p>
+  <p class="summary">Third preflight run on <code>BL-17059-fs-egress</code>. Every gate is green, all reviewers are clean at HEAD, and nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable (clean)</span>
@@ -75,6 +75,7 @@
       <li><strong>Response handling moved into the worker:</strong> the header whitelist, GET/HEAD, 304 and 206 passed through, other S3 failures become 404, <code>x-amz-*</code> stripped, a one-year cache on harvest thumbnails, and CORS copied from the function's 302.</li>
       <li><strong>No open proxy:</strong> the worker only follows redirects into our four buckets on <code>https://s3.amazonaws.com/</code>; anything else is a 502.</li>
       <li><strong>Only the worker may use fs.</strong> The 302 reveals S3 addresses (older books' paths contain the uploader's email), so fs answers 401 unless the request carries the worker's <code>BLOOM_WORKER_SECRET</code>. The check is constant-time and fails closed; OPTIONS is exempt. The worker adds the header, replacing a client's, and never sends it to S3. One value serves staging and production.</li>
+      <li><strong>Paths can't leave the book's folder.</strong> A double-encoded <code>..</code> (<code>%252e%252e</code>) could walk out of a book's folder to other files in the bucket. This was already live in production with the old function. <code>getContentUrl</code> now only returns URLs inside the book's folder (otherwise 404), and the worker only follows redirects to an object, never the bucket itself or a URL with a query string.</li>
       <li><strong>Deploy order:</strong> set the secret on both Supabase projects, put it on the staging worker and redeploy, merge to develop, then the production worker, then merge to main. Spelled out in the PR description and <code>cloudflare/README.md</code>.</li>
     </ul>
   </section>
@@ -85,17 +86,17 @@
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>Typecheck (<code>deno check</code>)</td><td class="pass">pass</td></tr>
       <tr><td>Lint</td><td class="na">N/A: no linter configured in this repo</td></tr>
-      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">112 passed · 0 failed</span></td></tr>
-      <tr><td>CI <code>test</code></td><td class="pass">pass at 15897eb</td></tr>
+      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">115 passed · 0 failed</span></td></tr>
+      <tr><td>CI <code>test</code></td><td class="pass">pass at 3df9f52; re-running on 3c73cc9</td></tr>
       <tr><td>Merge with <code>develop</code></td><td class="pass">clean (already up to date)</td></tr>
-      <tr><td>Live run: function (Deno) + worker (<code>wrangler dev</code>) against real Parse and S3, with the secret</td><td class="pass">pass at abaa9b6 (15897eb changes only docs)</td></tr>
+      <tr><td>Live run: function (Deno) + worker (<code>wrangler dev</code>) against real Parse and S3, with the secret</td><td class="pass">staging verified end to end at 15897eb (2026-11-02); traversal fix checked with the function run locally against real Parse data at 3c73cc9</td></tr>
       <tr><td><code>supabase start</code> local stack</td><td class="na">not run: no Docker on this machine (the function was served with Deno directly instead)</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Following your decision on the direct-endpoint question, added the worker↔function shared secret (<a href="https://github.com/BloomBooks/bloom-core-supabase/commit/abaa9b6bdde5749ea4c384f3b2528ad683d02e5b" target="_blank" rel="noopener">abaa9b6</a>), then switched the docs to one secret for staging and production (<a href="https://github.com/BloomBooks/bloom-core-supabase/commit/15897eb81a7ecf283a87dda9a66fba0361d94596" target="_blank" rel="noopener">15897eb</a>). Recorded the decision on the Greptile thread and refreshed the PR description and the card's test ideas.</p>
+    <p>Two read-only Fable reviews (user-visible behaviour, security). The behaviour review found the change equivalent for real clients. The security review found a path-traversal hole that is live in production with the old function; fixed in <a href="https://github.com/BloomBooks/bloom-core-supabase/commit/3c73cc9" target="_blank" rel="noopener">3c73cc9</a>, with tests. The PR description now also records today's staging verification.</p>
   </section>
 
   <section class="card">
@@ -103,9 +104,9 @@
     <table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
       <tr><td>Local review (light sub-agent pass, first run)</td><td>One finding (non-ASCII in the Parse <code>baseUrl</code> would break the <code>Location</code> header), fixed with a test. The secret change was checked by tests and a live run rather than a second review.</td></tr>
-      <tr><td>Devin</td><td>Complete at 15897eb: no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/14" target="_blank" rel="noopener">Review</a></td></tr>
-      <tr><td>Greptile</td><td>Complete at 15897eb, no new findings: "appears safe to merge after completing the documented secret setup and worker-first deployment." Its earlier finding (uploader emails via the direct URL) is fixed by the secret; <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/14#discussion_r4428327428" target="_blank" rel="noopener">thread</a>.</td></tr>
-      <tr><td>CI</td><td>Complete at 15897eb: <code>test</code> passed.</td></tr>
+      <tr><td>Devin</td><td>Complete at 3df9f52 (3c73cc9 changes only comments): no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/14" target="_blank" rel="noopener">Review</a></td></tr>
+      <tr><td>Greptile</td><td>Complete at 3df9f52 (3c73cc9 changes only comments), no new findings: "appears safe to merge with the documented secret-and-worker-first deploy order." Its earlier finding (uploader emails via the direct URL) is fixed by the secret; <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/14#discussion_r4428327428" target="_blank" rel="noopener">thread</a>.</td></tr>
+      <tr><td>CI</td><td>Passed at 3df9f52; re-running on 3c73cc9 (comments only).</td></tr>
     </table>
   </section>
 </div>
@@ -121,6 +122,7 @@
     <ul>
       <li><strong>Deploying is the fix, and every step is needed.</strong> All of this period's egress was Edge Functions, i.e. fs, and the rest of the period is already over quota. A missed secret step makes every fs file fail with 401; the verification curls in <code>cloudflare/README.md</code> run after each step to catch that.</li>
       <li><strong>Nothing in production calls the Supabase fs URL directly</strong> (checked OPDS in bloom-azure-functions, BloomLibrary2, bloom-player, the harvester and BloomDesktop). Local dev now needs <code>BLOOM_WORKER_SECRET</code> in <code>.env.local</code>.</li>
+      <li><strong>Staging runs the pre-fix function</strong> (15897eb) until fs is redeployed there or this merges to develop.</li>
       <li><strong>OPDS crawl findings</strong> (one program crawling with two internal accounts' keys on Oct 20–21) are on the card; they're separate from this PR and need Azure-side follow-ups.</li>
     </ul>
   </section>
