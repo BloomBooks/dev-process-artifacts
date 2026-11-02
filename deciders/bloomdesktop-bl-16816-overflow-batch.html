@@ -68,7 +68,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
 <div class="wrap">
   <header class="card">
     <h1>Preflight: BL-16816 page-wide overflow check per batch, BL-16815 single-press helpers</h1>
-    <p class="summary">Brought up to date with master (156 commits, no conflicts) and re-verified: typecheck, lint, the full front-end suite, CI and Devin are all clean at the merge commit. Nothing is waiting on you.</p>
+    <p class="summary">Added the fix that stops repeated requests from postponing a box's overflow check, merged master again, and re-verified: typecheck, lint, the full front-end suite, CI and Devin are all clean at f2e2e7d612. Nothing is waiting on you.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
@@ -96,10 +96,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
         <h3>What the PR does</h3>
         <ul>
           <li>When a box's timer fires, it checks only that box, as before.</li>
-          <li>The page-wide check runs once for all the boxes whose timers fire together, on a zero-delay timer after all of them (<a href="https://github.com/BloomBooks/BloomDesktop/blob/3b0b857c8cdbd8153e09ced61769fa79422b37d3/src/BloomBrowserUI/bookEdit/OverflowChecker/OverflowChecker.ts#L418" target="_blank" rel="noopener">CheckPageAncestorOverflowSoon</a>). If the box that asked last has been deleted by then, the check uses another box in the same margin box.</li>
+          <li>The page-wide check runs once for all the boxes whose timers fire together, on a zero-delay timer after all of them (<a href="https://github.com/BloomBooks/BloomDesktop/blob/f2e2e7d6120c29ca4dbfeb7b554db59808e563b8/src/BloomBrowserUI/bookEdit/OverflowChecker/OverflowChecker.ts#L418" target="_blank" rel="noopener">CheckPageAncestorOverflowSoon</a>). If the box that asked last has been deleted by then, the check uses another box in the same margin box.</li>
+          <li>Asking again for a box whose check is already waiting no longer restarts its one-second wait. Restarting it let a steady stream of requests, such as window resize events every 110 ms or so, postpone the check until the stream stopped; in one Bloom session a cell's outline did not appear until Bloom lost focus.</li>
           <li>Typing and pasting still run the full check right away.</li>
           <li>The e2e table helpers <code>clickCell</code> and <code>focusCellTextBox</code> press a cell once instead of up to three times (BL-16815), so a cell that needs a second click fails a test instead of being hidden. A cell of a table inside a cell still gets a double-click first, as a person gives it.</li>
-          <li>Three browser tests cover when and how often the page-wide check runs.</li>
+          <li>Four browser tests cover when and how often the checks run, including a box asked every 100 ms.</li>
         </ul>
         <p>On the production bundle, Bloom's JavaScript after the jump to the Alphabet Book page went from <span class="numeral">9.0 s</span> to <span class="numeral">1.75 s</span>, and the page is idle by about <span class="numeral">4 s</span> instead of about <span class="numeral">11 s</span>. A plain page is unchanged.</p>
       </section>
@@ -110,26 +111,27 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
           <tr><th>Check</th><th>Result</th></tr>
           <tr><td>Typecheck</td><td class="pass">passed</td></tr>
           <tr><td>Lint (changed files)</td><td><span class="pass">passed</span>; 0 errors, warnings only on lines this PR does not touch</td></tr>
-          <tr><td>TypeScript tests (vitest, unit and browser)</td><td><span class="pass">passed</span>, <span class="numeral">1630 tests in 112 files</span>, at the merge commit</td></tr>
+          <tr><td>TypeScript tests (vitest, unit and browser)</td><td><span class="pass">passed</span>, <span class="numeral">1631 tests in 112 files</span>, at f2e2e7d612</td></tr>
           <tr><td>C# tests (dotnet test)</td><td>not run: no C# in the diff, and the .NET suite does not read the changed file</td></tr>
-          <tr><td>E2E (Playwright), table specs</td><td><span class="pass">passed</span>, <span class="numeral">44 tests</span> in tables-core, tables-extended and tables-gating, run once against a Vite dev server of this branch before the master merge (not re-run: the merge left the PR's own diff unchanged)</td></tr>
+          <tr><td>E2E (Playwright), table specs</td><td><span class="pass">passed</span>, <span class="numeral">44 tests</span> in tables-core, tables-extended and tables-gating, run once against a Vite dev server of this branch before the timer fix (not re-run: the fix changes when the load-time check runs, which those specs do not exercise)</td></tr>
+          <tr><td>Live check in Bloom</td><td><span class="pass">passed</span>: with a window resize sent every 110 ms for 8 s, the table cell is outlined about <span class="numeral">1.5 s</span> after load; with the old timer restarts it was not outlined within <span class="numeral">9 s</span></td></tr>
           <tr><td>Merge with master</td><td class="pass">clean</td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>Merged master (<a href="https://github.com/BloomBooks/BloomDesktop/commit/3b0b857c8cdbd8153e09ced61769fa79422b37d3" target="_blank" rel="noopener">3b0b857c8c</a>), which left the PR's own diff unchanged, and added the Automated Tests section to the PR description. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8464/commits" target="_blank" rel="noopener">commits</a>.</p>
+        <p>Added the timer fix with its browser test (<a href="https://github.com/BloomBooks/BloomDesktop/commit/c1e9dfa78f" target="_blank" rel="noopener">c1e9dfa78f</a>), merged 5 new master commits (<a href="https://github.com/BloomBooks/BloomDesktop/commit/f2e2e7d612" target="_blank" rel="noopener">f2e2e7d612</a>), and updated the PR description and the test ideas on the card. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8464/commits" target="_blank" rel="noopener">commits</a>.</p>
       </section>
 
       <section class="card">
         <h2>Reviewer outcomes</h2>
         <div class="tablewrap"><table>
           <tr><th>Reviewer</th><th>Outcome</th></tr>
-          <tr><td>Local review</td><td>Light sub-agent pass on the merged diff: clean, no findings.</td></tr>
-          <tr><td>Devin</td><td>Complete. The first review found one bug: the page-wide check was skipped if the last box to ask for it was deleted before it ran. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/0cb2bc3a1eb5eb65a5d3165bc487dfa494d7d483" target="_blank" rel="noopener">0cb2bc3a1e</a>, with a test; the re-review of the master merge marks it fixed and found nothing new (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8464#discussion_r4251391455" target="_blank" rel="noopener">thread, resolved</a>).</td></tr>
+          <tr><td>Local review</td><td>Light sub-agent pass on the timer fix: clean, no findings.</td></tr>
+          <tr><td>Devin</td><td>Complete. The first review found one bug: the page-wide check was skipped if the last box to ask for it was deleted before it ran. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/0cb2bc3a1eb5eb65a5d3165bc487dfa494d7d483" target="_blank" rel="noopener">0cb2bc3a1e</a>, with a test; the re-review of f2e2e7d612 marks it fixed and found nothing new (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8464#discussion_r4251391455" target="_blank" rel="noopener">thread, resolved</a>).</td></tr>
           <tr><td>Other review bots</td><td>None active: CodeRabbit's auto review is off in <code>.coderabbit.yml</code>, and no Greptile on this repo.</td></tr>
-          <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed on 3b0b857c8c. It is the only check this PR gets.</td></tr>
+          <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed on f2e2e7d612. It is the only check this PR gets.</td></tr>
           <tr><td>Repo check: e2e specs at the nightly window size</td><td>Did not apply: the PR changes no e2e spec.</td></tr>
         </table></div>
       </section>
@@ -138,6 +140,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px
         <h2>Worth knowing</h2>
         <ul>
           <li>The Alphabet Book page measured here is not on master yet (BL-16918); the test ideas on the card tell a tester to build a similar big table instead.</li>
+          <li>The window resize events that exposed the timer restarts (about 9 a second in every frame, no change in size, while Bloom had focus) were seen in one long-running Bloom session only; a fresh Bloom on master and on this branch showed none. Their cause is unknown and outside this PR.</li>
           <li>No e2e test checks the overflow marks that appear a second after a page loads. <code>tables-extended.spec.ts</code> checks overflow in a cell, but through typing, which this PR does not change.</li>
         </ul>
       </section>
