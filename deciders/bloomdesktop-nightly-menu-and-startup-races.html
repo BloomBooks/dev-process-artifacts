@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: Nightly races</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf7f2;color:#2b2a27;font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#2f5d8a}
+.wrap{max-width:1400px;margin:0 auto;padding:24px 16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:.6em 0}
+.chip{display:inline-block;border:1px solid #d9d2c5;background:#fff;border-radius:999px;padding:2px 12px;font-size:.85rem}
+.chip.ok{border-color:#9cc5a1;background:#eef7ef}
+.chip.ask{border-color:#e0b46c;background:#fdf5e6}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;margin-top:16px}
+.grid>*{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd1;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;width:32%}
+.numeral{font-family:Consolas,Menlo,monospace;font-variant-numeric:tabular-nums}
+.pass{color:#2e7d32;font-weight:600}.na{color:#7a6f5e}
+code{font-family:Consolas,Menlo,monospace;font-size:.9em;background:#f4efe6;padding:0 3px;border-radius:3px}
+.q p{margin:.4em 0}
+.opt{display:flex;gap:8px;align-items:flex-start;margin:6px 0}
+.opt input[type=radio]{margin-top:4px}
+.rec{font-size:.75rem;background:#2f5d8a;color:#fff;border-radius:4px;padding:0 6px;margin-left:4px}
+.foot{color:#7a6f5e;font-size:.85rem}
+.leave{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.other{flex:1;min-width:0}
+input[type=text],textarea{width:100%;font:inherit;border:1px solid #d9d2c5;border-radius:6px;padding:5px 8px}
+textarea.notes{min-height:2.4em;margin-top:6px}
+button{font:inherit;background:#2f5d8a;color:#fff;border:0;border-radius:6px;padding:7px 14px;cursor:pointer}
+#status{margin-left:10px;font-size:.9rem}
+#payload{min-height:10em;margin-top:10px;font-family:Consolas,Menlo,monospace;font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Preflight: two nightly races, a focus-opened submenu and the startup book selection</h1>
+<div>Branch <code>nightly-menu-and-startup-races</code>, head <a href="https://github.com/BloomBooks/BloomDesktop/commit/8ea2706902896141c2d82116cd4520a8de0d022e" target="_blank" rel="noopener"><code>8ea2706902</code></a>. No card.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ask">1 decision waiting</span>
+<span class="chip">Board: needs your response</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8528" target="_blank" rel="noopener">PR #8528</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8528/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8528/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8528" target="_blank" rel="noopener">Devin</a>
+<a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8528" target="_blank" rel="noopener">Greptile</a>
+</div>
+
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Two nightly failures, each a race between a test and Bloom. On 11-01 the e2e test <code>rotate-and-flip-images</code> (Change Image) left the Flip submenu open, and the menu helper gave up after 30 s. On 11-02 the visual regression suite's first case, right after launch, asked Bloom for a BloomPUB preview and Bloom threw because no book was selected.</p>
+<h3>Cause</h3>
+<ul>
+<li>The submenu opened because its row got keyboard focus. Bloom's submenus (<code>mui-nested-menu-item</code>) open on mouse-enter or focus but close only on mouse-leave or ArrowLeft, so the helper's "move the pointer off" never closes a focus-opened one.</li>
+<li><code>e2e/isCollectionReady</code> turns true as soon as the collection's books can be listed. Bloom's own startup selection runs after that: it clears the selection and then reloads the last-selected book. The test's call landed in that gap.</li>
+</ul>
+<h3>What the PR does</h3>
+<ul>
+<li>The e2e helper <code>closeCanvasElementMenu</code> closes a submenu with Escape on the submenu, after giving the menu the focus so the submenu cannot hand it back to its own row and reopen.</li>
+<li>Bloom reaches a new startup milestone, <code>startupBookSelected</code>, when <code>WorkspaceView.SelectBookAtStartup</code> finishes (in a <code>finally</code>, so always). <code>e2e/isCollectionReady</code> stays false until then. Nothing users run waits on it.</li>
+<li>Records both failures and their causes in <code>docs/nightly-failures/README.md</code>.</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Typecheck (BloomE2E)</th><td><span class="pass">pass</span></td></tr>
+<tr><th>Lint / format</th><td><span class="pass">pass</span> (pre-commit hook; it reformatted the two C# files)</td></tr>
+<tr><th>Merge with master</th><td><span class="pass">clean</span>, up to date at <code>e51f21e59b</code></td></tr>
+<tr><th>E2E tests (Playwright)</th><td><span class="pass">pass</span> <span class="numeral">45 passed (3.4 m)</span>, headless: the 4 specs that close menus through the changed helper (<code>rotate-and-flip-images</code>, <code>tables-core</code>, <code>tables-gating</code>, <code>canvas-layer-order</code>). Every spec waits on <code>isCollectionReady</code> at launch.</td></tr>
+<tr><th>Visual regression</th><td><span class="pass">pass</span> <span class="numeral">12/12</span> with the milestone built in</td></tr>
+<tr><th>C# tests</th><td><span class="pass">pass</span> <span class="numeral">3895 passed (6.0 m)</span>, full BloomTests suite after the master merge</td></tr>
+<tr><th>TypeScript unit tests (vitest)</th><td class="na">not run — nothing in BloomBrowserUI changed</td></tr>
+<tr><th>Repo check: e2e specs at the nightly window size</th><td class="na">did not apply — no <code>tests/*.spec.ts</code> changed</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>What changed this run</h2>
+<p>Committed the fixes and README entries, merged master, opened draft <a href="https://github.com/BloomBooks/BloomDesktop/pull/8528" target="_blank" rel="noopener">#8528</a>, and linked both README entries to it. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8528/commits" target="_blank" rel="noopener">Commits</a></p>
+</div>
+
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review (light sub-agent pass)</th><td>Menu helper: one finding fixed (Escape alone would hand focus back to the Flip row and reopen the submenu; the menu now gets the focus first). Milestone: clean.</td></tr>
+<tr><th>Devin</th><td>Complete for <code>8ea2706902</code>: no bugs. One Investigate flag, whether the developer approved the milestone as a test hook, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8528#discussion_r4445200979" target="_blank" rel="noopener">answered (approved) and resolved</a>.</td></tr>
+<tr><th>Greptile</th><td>Complete for <code>17e352cfa4</code>: no findings ("appears safe to merge"). The one later commit only links the README entries to this PR.</td></tr>
+<tr><th>CI</th><td><code>pr-automation</code> passed. The e2e and visual regression suites run only in the nightly.</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Neither race can be forced locally: a focus-opened submenu needs Bloom's window to have focus, which an agent's <code>--dont-disturb</code> run never has. The nightly is where both fixes get proven.</li>
+<li>Why focus landed on the Flip row on 11-01 is still unknown; the fix makes it not matter.</li>
+</ul>
+</div>
+</div>
+
+<div>
+<div class="card q" data-title="Test of the change">
+<h2>Test of the change</h2>
+<p>The PR adds no test of its own. Both changes fix races that only show under timing or window focus a local run cannot set up, and the code they change is already run by every nightly: every e2e spec and the visual regression suite wait on <code>isCollectionReady</code> at launch, and four specs close menus through the changed helper. A test that forced either race would need a hook in Bloom to make startup slow or to give a menu row focus.</p>
+<div class="opt"><input type="radio" name="t" id="t1" data-q="t" checked data-instruction="In BloomDesktop PR #8528 (branch nightly-menu-and-startup-races), record in the PR's Automated Tests section: 'Test of the change: none — developer's decision: both are races in test timing; the nightly's e2e and visual regression suites run the changed code on every launch and every menu close, and forcing either race would need a test hook in Bloom.'"><label for="t1">No test needed: the nightly's existing suites run the changed code, and forcing either race would need a test hook in Bloom <span class="rec">Recommended</span> <span class="foot">(no code — a line in the PR description)</span></label></div>
+<div class="opt"><input type="radio" name="t" id="t2" data-q="t" data-instruction="In BloomDesktop PR #8528 (branch nightly-menu-and-startup-races), add an e2e test in src/BloomE2E that opens the canvas element menu, gives the Flip row keyboard focus so its submenu opens, then calls closeCanvasElementMenu and asserts no menu is open."><label for="t2">Add an e2e test that opens the Flip submenu by focusing its row, then checks <code>closeCanvasElementMenu</code> closes everything <span class="foot">(~30 lines; focus may not take in a --dont-disturb run, so it may only prove itself on CI)</span></label></div>
+<div class="opt leave"><span><input type="radio" name="t" id="t3" data-q="t" data-instruction="Leave as is — take no action on: PR #8528 has no test of its own, so its Automated Tests line stays 'awaiting the developer's decision'."><label for="t3">Leave as is</label></span><label class="foot"><input type="checkbox" data-q="t-comment" data-instruction="Record this decision as a code comment near closeCanvasElementMenu in src/BloomE2E/helpers/canvasElements.ts."> Leave comment</label></div>
+<div class="opt"><input type="radio" name="t" id="t4" data-q="t" data-other="t-other"><label for="t4">Other:</label><input type="text" class="other" data-q="t-other"></div>
+<textarea class="notes" data-q="t-notes" placeholder="Notes"></textarea>
+</div>
+
+<div class="card q" data-title="Next step">
+<h2>Next step</h2>
+<div class="opt"><input type="radio" name="n" id="n1" data-q="n" checked data-instruction="Apply the decision above to BloomDesktop PR #8528, then run pr-ready-for-human on branch nightly-menu-and-startup-races."><label for="n1">Apply the decision, then promote the PR for human review <span class="rec">Recommended</span> <span class="foot">(squashes to one commit)</span></label></div>
+<div class="opt"><input type="radio" name="n" id="n2" data-q="n" data-instruction="Apply the decision above to BloomDesktop PR #8528 and stop; I will review it myself before promoting."><label for="n2">Apply the decision only; I'll review first</label></div>
+<div class="opt"><input type="radio" name="n" id="n3" data-q="n" data-instruction="Leave as is — take no action on: PR #8528 stays a draft with its test decision open."><label for="n3">Leave as is</label></div>
+<div class="opt"><input type="radio" name="n" id="n4" data-q="n" data-other="n-other"><label for="n4">Other:</label><input type="text" class="other" data-q="n-other"></div>
+<textarea class="notes" data-q="n-notes" placeholder="Notes"></textarea>
+</div>
+
+<div class="card">
+<h2>Send your answers back</h2>
+<p>Paste the block into the session.</p>
+<button id="copy">Copy answers</button><span id="status"></span>
+<textarea id="payload" readonly></textarea>
+</div>
+</div>
+</div>
+</div>
+<script>
+const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-nightly-menu-and-startup-races.html";
+function build(){
+  const lines=["Decisions from a preflight report","Repo: BloomBooks/BloomDesktop, branch nightly-menu-and-startup-races, PR #8528","Date: 2026-11-02","Report: "+URL_,""];
+  document.querySelectorAll(".card.q").forEach(card=>{
+    lines.push("## "+card.dataset.title);
+    const r=card.querySelector("input[type=radio]:checked");
+    if(r){
+      if(r.dataset.other){lines.push("Other: "+(card.querySelector('[data-q="'+r.dataset.other+'"]').value||""));}
+      else lines.push(r.dataset.instruction);
+    }
+    const c=card.querySelector("input[type=checkbox]");
+    if(c&&c.checked) lines.push(c.dataset.instruction);
+    const n=card.querySelector("textarea.notes");
+    if(n&&n.value.trim()) lines.push("Notes: "+n.value.trim());
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+document.getElementById("copy").addEventListener("click",async()=>{
+  const st=document.getElementById("status"),ta=document.getElementById("payload");
+  try{
+    ta.value=build();ta.select();
+    try{await navigator.clipboard.writeText(ta.value);st.textContent="Copied ✓";return;}catch(e){}
+    if(document.execCommand("copy")){st.textContent="Copied ✓";return;}
+    st.textContent="Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  }catch(e){st.textContent="Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";}
+});
+</script>
+</body>
+</html>
