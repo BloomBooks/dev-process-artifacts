@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-16799 page change</title>
+<style>
+/* Layout: two columns (report left, decisions right), one column under 900px */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5f6670;
+  --rule: #dcdad3;
+  --accent: #2f5d8a;
+  --ok: #2d7a4b;
+  --warn: #9a6a10;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: Consolas, "SFMono-Regular", monospace;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; }
+p { margin: 6px 0; max-width: 70ch; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: grid; gap: 10px; margin-bottom: 22px; }
+.summary { color: var(--muted); margin: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; border: 1px solid var(--rule); background: var(--card); border-radius: 999px; padding: 2px 11px; font-size: 0.85rem; }
+.chip.ok { border-color: var(--ok); color: var(--ok); }
+.links a.chip { text-decoration: none; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 22px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: grid; gap: 18px; }
+section { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 20px; }
+ul { margin: 6px 0; padding-left: 20px; }
+li { margin: 3px 0; max-width: 70ch; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.9em; }
+.pass { color: var(--ok); font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.88em; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: BL-16799 page change</h1>
+  <p class="summary">Run of 2026-11-02 on <code>BL-16799-page-change</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/a9dbb034bf9f53309d1fd0ccdb373676729c6900" target="_blank" rel="noopener"><code>a9dbb034bf</code></a>, base <code>master</code>.</p>
+  <div class="row">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 decisions waiting</span>
+  </div>
+  <div class="row links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8299" target="_blank" rel="noopener">PR #8299</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8299/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8299/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16799" target="_blank" rel="noopener">BL-16799</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8299" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<div class="col">
+  <section>
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p><code>editView/jumpToPage</code> replied with success to a page jump that it had dropped. When the Edit tab was saving or loading a page, the jump was ignored, but the caller was told it worked. An e2e test that asked at the wrong moment saw an empty page frame and asked again, up to three times, 20 seconds apart, and a real "this page will not load" defect looked exactly the same.</p>
+    <h3>Cause</h3>
+    <p>A page announces to Bloom that it has loaded twice. A page change that arrives between the two announcements starts a save that the second announcement leaves unanswered, and the Edit tab then changes no pages at all. The state alone reads Editing in that window, and the DOM cannot show it.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><code>EditingModel.JumpToPage</code> says whether it did the jump, and the API replies with a failure when it did not: tab busy, no book, or no such page. A jump asked for while the Edit tab is hidden is shown when the tab opens.</li>
+      <li>The two front-end callers turn off the problem report for that failure, since a user cannot put it right.</li>
+      <li>A new e2e-only endpoint, <code>e2e/editState</code>, reports the Edit tab's state and how many times its page has announced itself. Every e2e helper that changes the page waits for it to settle first.</li>
+      <li><code>AUTOMATION-DEBT.md</code> records the underlying Bloom defect and two fix directions, both of which change production save behavior.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>Quality gate</h2>
+    <div class="tbl"><table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Front-end typecheck</td><td class="pass">passed</td></tr>
+      <tr><td>Lint (pre-commit hook)</td><td class="pass">passed</td></tr>
+      <tr><td>Merge with master</td><td class="pass">clean; one doc conflict in <code>AUTOMATION-DEBT.md</code>, both sides kept</td></tr>
+      <tr><td>C# tests (dotnet test)</td><td><span class="pass">passed</span> <span class="numeral">3894 passed · 1 skipped</span> on the merge; the related <span class="numeral">38</span> again after the last fix</td></tr>
+      <tr><td>TypeScript tests (vitest)</td><td><span class="pass">passed</span> <span class="numeral">1627 passed</span></td></tr>
+      <tr><td>e2e tests (Playwright, headless, Vite dev server)</td><td><span class="pass">passed</span> <span class="numeral">13 passed · 4.4 min</span> in <code>publish-text-languages</code> and <code>duplicate-page</code>; the rest of the suite was not run</td></tr>
+      <tr><td>Repo check: e2e specs at the nightly window size</td><td>did not apply: the diff changes no <code>tests/*.spec.ts</code></td></tr>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>What changed this run</h2>
+    <p>Merged master (389 commits) into the branch, moved the point where <code>EditingModel</code> hands itself to <code>e2e/editState</code> until after its state machine exists, rewrote two comments that still described queuing a jump, and rewrote the PR description now that the rest of the stack has merged. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8299/commits" target="_blank" rel="noopener">Commits</a>.</p>
+  </section>
+
+  <section>
+    <h2>Reviewer outcomes</h2>
+    <div class="tbl"><table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete. One finding fixed (the e2e-only endpoint could throw while <code>EditingModel</code> was still being built), two stale comments fixed, no production-path problems.</td></tr>
+      <tr><td>Devin</td><td>Complete at <code>a9dbb034bf</code>. Nothing new: its three findings all have resolved threads (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8299#discussion_r3927683862" target="_blank" rel="noopener">unknown page id</a>, fixed; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8299#discussion_r3927684084" target="_blank" rel="noopener">fixed wait</a>, approved; <a href="https://github.com/BloomBooks/BloomDesktop/pull/8299#discussion_r3929370425" target="_blank" rel="noopener">refused jumps are silent</a>, left as is on purpose).</td></tr>
+      <tr><td>CodeRabbit</td><td>Has not reviewed this PR (configured in the repo, never posted here).</td></tr>
+      <tr><td>CI</td><td>Complete: <code>pr-automation</code> passed.</td></tr>
+    </table></div>
+  </section>
+</div>
+
+<div class="col">
+  <section>
+    <h2>Decisions</h2>
+    <p>None waiting.</p>
+  </section>
+</div>
+</div>
+</div>
+</body>
+</html>
