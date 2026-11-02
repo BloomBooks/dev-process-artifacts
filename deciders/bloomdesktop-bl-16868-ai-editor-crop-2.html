@@ -19,7 +19,6 @@ header p{margin:.2rem 0 .8rem;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:.4rem 0}
 .chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;font-size:.85rem}
 .chip.warn{border-color:#e2c08f;color:var(--warn)}
-.chip.bad{border-color:#e0a99f;color:var(--bad)}
 .chip.good{border-color:#a9cfae;color:var(--good)}
 .grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;margin-top:16px}
 .grid>*{min-width:0}
@@ -31,7 +30,7 @@ table{width:100%;border-collapse:collapse;font-size:.92rem}
 th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px}
 th{font-weight:600;color:var(--muted);border-top:none}
 .numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.88rem}
-.ok{color:var(--good);font-weight:600}.fail{color:var(--bad);font-weight:600}.skip{color:var(--warn);font-weight:600}
+.ok{color:var(--good);font-weight:600}.skip{color:var(--warn);font-weight:600}
 code{font-family:ui-monospace,Consolas,monospace;font-size:.86em;background:#f3efe8;padding:0 3px;border-radius:3px}
 .q{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
 .q:first-of-type{border-top:none;margin-top:0;padding-top:0}
@@ -53,13 +52,12 @@ button{font:inherit;background:var(--accent);color:#fff;border:none;border-radiu
 <div class="wrap">
 <header>
 <h1>Preflight: Undo of an AI image editor replacement</h1>
-<p>Branch <code>BL-16868-ai-editor-crop-2</code> → <code>master</code>, card BL-16988, 2026-10-06. Merged master and resolved the conflict with its rotate-and-flip undo work; every reviewer is done and nothing is waiting on you.</p>
+<p>Branch <code>BL-16868-ai-editor-crop-2</code> → <code>master</code>, card BL-16988, 2026-11-02. Merged master, which now has John Thomson's one undo stack, and made Ctrl+Z run that stack. Every reviewer is done; one question is waiting on you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip good">Mergeable</span>
 <span class="chip good">Bots quiet</span>
-<span class="chip good">0 decisions waiting</span>
-<span class="chip">Board: Personal Review</span>
+<span class="chip warn">1 decision waiting</span>
 </div>
 <div class="chips">
 <a class="chip" target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8367">PR #8367</a>
@@ -78,13 +76,13 @@ button{font:inherit;background:var(--accent);color:#fff;border:none;border-radiu
 <h3>Problem</h3>
 <p>After <b>Edit with AI...</b> puts a new picture on the page, Undo cannot reliably put back what was there. Ctrl+Z does nothing, and the Undo button can bring the old picture back <b>uncropped</b>: a cropped picture returns showing the whole photo, at the wrong shape.</p>
 <h3>Cause</h3>
-<p>Nothing listened for Ctrl+Z over a picture: text has CKEditor's undo and layout mode has origami's, but an image change had neither.</p>
+<p>Ctrl+Z outside a text box reached no undo at all. Text has CKEditor's undo and layout mode has origami's, but a picture change had neither, so only the Undo button could undo it.</p>
 <p>A crop is two boxes: the picture, which grows past its frame and slides under it, and the frame, which has the shape of the part that shows. The undo record kept only the picture's box. The frame had meanwhile been reshaped for the new picture, so the sizing code refit the restored picture to the whole image, erasing the crop.</p>
 <h3>What the PR does</h3>
 <ul>
-<li>Undo puts back the picture's own box (master's rotate-and-flip work already puts back the frame's) and tells the sizing code this is not a new image, so the crop survives instead of the frame being refit to the whole picture.</li>
-<li>Ctrl+Z reaches the image undo in the page frame and the top window, in the Undo button's order: text fields, dialogs and the AI editor first, then layout mode, then a toolbox tool with its own undo, then the picture. Only the page frame listens, not the toolbox frame.</li>
-<li>Unit tests cover capture and restore on the background and ordinary-picture paths.</li>
+<li>Undo puts back the picture's own box (master's rotate-and-flip work already puts back the frame's box and rotation) and tells the sizing code this is not a new image, so the crop survives.</li>
+<li>Ctrl+Z outside text now does exactly what the Undo button does: it runs the page's one undo stack (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8387">#8387</a>). This works in the page frame and in the top window, where the keystroke lands right after the AI Image Editor closes. Text boxes, form fields, dialogs and the AI editor keep their own undo; in layout mode the key stays with origami.</li>
+<li>The key is matched by the character typed, so Ctrl+Y on a German keyboard and Ctrl+W on a French one are not taken as undo.</li>
 </ul>
 <p>Targets master (6.6), not 6.5. Out of scope: a <b>Fill</b> background picture can come back at the wrong scale (<a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16880">BL-16880</a>).</p>
 </section>
@@ -94,34 +92,38 @@ button{font:inherit;background:var(--accent);color:#fff;border:none;border-radiu
 <table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>Typecheck</td><td><span class="ok">pass</span></td></tr>
-<tr><td>Lint and Prettier (changed files)</td><td><span class="ok">pass</span> <span class="numeral">0 errors</span></td></tr>
-<tr><td>TypeScript tests (vitest, full suite)</td><td><span class="ok">pass</span> <span class="numeral">1113 passed</span></td></tr>
+<tr><td>Lint (changed files)</td><td><span class="ok">pass</span> <span class="numeral">0 errors</span></td></tr>
+<tr><td>TypeScript tests (vitest, full suite)</td><td><span class="ok">pass</span> <span class="numeral">1635 passed</span></td></tr>
 <tr><td>C# tests (dotnet test)</td><td><span class="skip">not run</span>: the PR's diff against master has no C#</td></tr>
+<tr><td>E2E specs at the nightly window size (repo check)</td><td><span class="skip">did not apply</span>: the diff changes no e2e spec</td></tr>
 <tr><td>Merge with master</td><td><span class="ok">up to date</span>, mergeable</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Merged master and rebuilt the crop restore on master's rotate-and-flip undo record, which already puts the frame's box back; this PR now only adds putting the picture's own box back and the "not a new image" sizing (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/3fc07f5c3b">3fc07f5</a>). Checked live in Bloom: a cropped background picture replaced and undone with Ctrl+Z came back with its file, crop and frame size.</p>
+<ul>
+<li>Merged master (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/04973f1862">04973f1</a>), keeping both master's rotation reset and this PR's crop restore where they conflicted.</li>
+<li>Made both Ctrl+Z listeners run the one undo stack and match the typed key, after the local review found the two problems those fix; restored master's OverflowChecker test fixtures, which an earlier merge had reformatted (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/9b701e609d">9b701e6</a>).</li>
+<li>Checked live in Bloom: Ctrl+Z with the page focused and with the top window focused each brought back a replaced picture; Ctrl+Y on the physical Z key (German layout) did not undo.</li>
+</ul>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review</td><td>Light sub-agent pass over the merge resolution: clean, no findings.</td></tr>
-<tr><td>Devin</td><td>Complete for <code>3fc07f5</code> after 2 min. Two items, both on resolved threads: <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8367#discussion_r4196789483">layout-mode Ctrl+Z running two undos</a>, already fixed in <code>1bfd428</code>, and <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8367#discussion_r4196790394">the master target</a>, which was deliberate. Its four earlier bugs it now marks fixed.</td></tr>
+<tr><td>Local review</td><td>Light sub-agent pass: two findings, both fixed in <code>9b701e6</code>. On German and French keyboards Ctrl+Y and Ctrl+W counted as undo. With a reader tool open, Ctrl+Z could undo older typing ahead of a newer change that the Undo button would undo first.</td></tr>
+<tr><td>Devin</td><td>Complete for <code>9b701e6</code> after 2 min, incremental review: nothing new. It marks all five of its earlier bugs fixed; their threads and the <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8367#discussion_r4196790394">master-target question</a> are resolved.</td></tr>
 <tr><td>CI</td><td><code>pr-automation</code> passed; it is the only workflow that runs on this PR.</td></tr>
-<tr><td>Reviewable (JohnThomson)</td><td>Approved on 2026-09-18; the changes since then are not reviewed yet.</td></tr>
+<tr><td>Reviewable (JohnThomson)</td><td>Approved on 2026-09-18; the changes since then, including this run's Ctrl+Z rework, are not reviewed yet.</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Master's rotate-and-flip work offers undo of a picture replacement only while that picture is selected. The AI editor selects the replaced picture, so Ctrl+Z works right after accepting a result; the test ideas tell testers about the rule.</li>
-<li>Not tried live after the merge: a smaller picture added on top of a page, and a rotated picture. Unit tests cover the first.</li>
+<li>The live checks changed the picture through Bloom's own image-change call, not through the AI editor or a crop; unit tests cover the crop restore.</li>
 </ul>
 </section>
 </div>
@@ -129,10 +131,71 @@ button{font:inherit;background:var(--accent);color:#fff;border:none;border-radiu
 <div>
 <section class="card" id="decisions">
 <h2>Decisions</h2>
-<p>Nothing is waiting on you. The PR is ready for your own review.</p>
+<div class="q" data-title="Ctrl+Z outside text runs the whole undo stack">
+<h3>Ctrl+Z outside text now does whatever the Undo button does</h3>
+<p>Before this run, Ctrl+Z outside a text box only undid two things: a reader tool's change or a picture change. The local review found that this could disagree with the Undo button. With a Decodable or Leveled Reader tool open, the key undid older typing while the button would first undo a newer table or inline-picture change.</p>
+<p>To make them agree, both Ctrl+Z listeners now call the one undo stack behind the Undo button. As a result, Ctrl+Z outside text now also undoes anything else the button would undo next: typing in a text box that the user has since clicked out of, a table row, an inline picture. Inside a text box nothing changes. Before this PR, Ctrl+Z outside text did nothing at all.</p>
+<label class="opt"><input type="radio" name="q1" data-q="q1" checked data-instruction="In D:\bloom\BL-16868-ai-editor-crop-2 (branch BL-16868-ai-editor-crop-2, PR 8367), keep Ctrl+Z outside text running the one undo stack (handleImageUndoKey in src/BloomBrowserUI/bookEdit/js/bloomEditing.ts and the keydown listener in src/BloomBrowserUI/bookEdit/workspaceRoot.ts), so the keystroke always matches the Undo button."><span>Keep it: the keystroke matches the button<span class="rec">Recommended</span> <span class="fn">(no code; already done)</span>. Recommended because one rule ("Ctrl+Z is the Undo button when you are not typing") is easier for users to predict, and it is what master's undo stack was built for.</span></label>
+<label class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="In D:\bloom\BL-16868-ai-editor-crop-2 (branch BL-16868-ai-editor-crop-2, PR 8367), restrict Ctrl+Z outside text to picture changes only: in handleImageUndoKey (bloomEditing.ts) and the workspaceRoot.ts keydown listener, take the key only when the next entry the one undo stack would undo is the image provider's, and otherwise leave the keystroke alone."><span>Restrict it to picture changes <span class="fn">(~30 lines in two files plus tests; needs a way to ask the stack which mechanism would undo next)</span></span></label>
+<div class="leave"><label class="opt"><input type="radio" name="q1" data-q="q1" data-instruction="Leave as is — take no action on: Ctrl+Z outside text now runs the whole undo stack, the same as the Undo button."><span>Leave as is</span></label><label class="lc"><input type="checkbox" data-q="q1-comment" data-instruction="Record this decision as a code comment above handleImageUndoKey in src/BloomBrowserUI/bookEdit/js/bloomEditing.ts."> Leave comment</label></div>
+<label class="opt"><input type="radio" name="q1" data-q="q1" value="other"><span>Other:</span></label>
+<input type="text" data-q="q1-other" placeholder="">
+<textarea class="notes" data-q="q1-notes" placeholder="Notes"></textarea>
+</div>
+
+<div class="q" data-title="Next step">
+<h3>Next step</h3>
+<label class="opt"><input type="radio" name="q2" data-q="q2" checked data-instruction="Apply the decisions above on branch BL-16868-ai-editor-crop-2 (PR 8367), then re-run preflight."><span>Apply my answers, then re-run preflight <span class="rec">Recommended</span></span></label>
+<label class="opt"><input type="radio" name="q2" data-q="q2" data-instruction="Discuss the decisions above with me before changing anything on branch BL-16868-ai-editor-crop-2."><span>Discuss first</span></label>
+<div class="leave"><label class="opt"><input type="radio" name="q2" data-q="q2" data-instruction="Leave as is — take no further action on PR 8367 for now."><span>Leave as is</span></label></div>
+<label class="opt"><input type="radio" name="q2" data-q="q2" value="other"><span>Other:</span></label>
+<input type="text" data-q="q2-other" placeholder="">
+<textarea class="notes" data-q="q2-notes" placeholder="Notes"></textarea>
+</div>
+</section>
+
+<section class="card">
+<h2>Send your answers back</h2>
+<p>Paste this into a Claude Code session.</p>
+<button id="copyBtn" type="button">Copy answers</button><span id="copyStatus"></span>
+<textarea id="payload" readonly></textarea>
 </section>
 </div>
 </div>
 </div>
+<script>
+const URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16868-ai-editor-crop-2.html";
+function build(){
+  const lines=["Decisions from a preflight report","Repo: BloomBooks/BloomDesktop, branch BL-16868-ai-editor-crop-2, PR https://github.com/BloomBooks/BloomDesktop/pull/8367","Date: 2026-11-02","Report: "+URL_,""];
+  document.querySelectorAll(".q").forEach((q,i)=>{
+    const name="q"+(i+1);
+    lines.push((i+1)+". "+q.dataset.title);
+    const sel=q.querySelector('input[name="'+name+'"]:checked');
+    if(sel){
+      if(sel.value==="other"){lines.push("   Other: "+(q.querySelector('[data-q="'+name+'-other"]').value||""));}
+      else lines.push("   "+sel.dataset.instruction);
+    }
+    const c=q.querySelector('[data-q="'+name+'-comment"]');
+    if(c&&c.checked)lines.push("   "+c.dataset.instruction);
+    const n=q.querySelector('[data-q="'+name+'-notes"]').value.trim();
+    if(n)lines.push("   Notes: "+n);
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+function refresh(){document.getElementById("payload").value=build();}
+document.addEventListener("input",refresh);document.addEventListener("change",refresh);refresh();
+document.getElementById("copyBtn").addEventListener("click",async()=>{
+  const st=document.getElementById("copyStatus");st.className="";st.textContent="";
+  const ta=document.getElementById("payload");
+  try{
+    refresh();ta.focus();ta.select();
+    let ok=false;
+    try{await navigator.clipboard.writeText(ta.value);ok=true;}catch(e){ok=document.execCommand&&document.execCommand("copy");}
+    if(ok){st.textContent="Copied ✓";st.className="done";}
+    else st.textContent="Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  }catch(e){st.textContent="Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";}
+});
+</script>
 </body>
 </html>
