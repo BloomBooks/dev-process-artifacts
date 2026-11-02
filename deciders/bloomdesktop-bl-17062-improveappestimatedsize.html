@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BL-17062 Preflight Report</title>
+<style>
+/* Layout: report on the left, the open decision and copy-back on the right; one column when narrow. */
+:root {
+  --ground: #f6f4ef;
+  --card: #ffffff;
+  --ink: #23261f;
+  --muted: #5f6359;
+  --rule: #dcd8cd;
+  --accent: #1d6f7a;          /* Bloom-ish teal, the one accent */
+  --good: #2e7d4f;
+  --warn: #a5620c;
+  --good-bg: #e8f3ec;
+  --warn-bg: #fbf0df;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.2rem; margin-bottom: 10px; }
+h3 { font-size: 1rem; margin: 14px 0 4px; font-family: var(--sans); }
+p { margin: 6px 0; max-width: 72ch; }
+ul { margin: 6px 0; padding-left: 1.2em; }
+li { margin: 3px 0; }
+.wrap { max-width: 1320px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+.summary { color: var(--muted); max-width: 90ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--rule); background: var(--card); font-size: 0.85rem; color: var(--ink); text-decoration: none; }
+.chip.good { background: var(--good-bg); border-color: #b9dcc7; }
+.chip.warn { background: var(--warn-bg); border-color: #ecd2a6; }
+a.chip:hover { border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 18px; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 8px; padding: 18px 20px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--rule); }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.88em; }
+.pass { color: var(--good); font-weight: 600; }
+.open { color: var(--warn); font-weight: 600; }
+code { font-family: var(--mono); font-size: 0.88em; background: #f0eee8; padding: 0 3px; border-radius: 3px; }
+.q { display: flex; flex-direction: column; gap: 8px; }
+.opt { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; }
+.opt input[type=radio] { margin-top: 4px; }
+.opt .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; flex: 1; }
+.tag { font-size: 0.75rem; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 0 7px; margin-left: 4px; }
+.foot { color: var(--muted); font-size: 0.85rem; }
+.other { flex: 1; min-width: 0; padding: 4px 6px; border: 1px solid var(--rule); border-radius: 4px; font: inherit; }
+textarea { width: 100%; min-height: 54px; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; font: 0.9rem/1.4 var(--sans); }
+#payload { font-family: var(--mono); font-size: 0.8rem; min-height: 150px; background: #faf9f6; }
+button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; cursor: pointer; }
+#copyStatus { font-size: 0.88rem; color: var(--muted); }
+#copyStatus.ok { color: var(--good); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>BL-17062 preflight: Apps size estimates</h1>
+    <p class="summary">Preflight finished for the four commits on this branch: every reviewer reached a final state, all test suites are green at the head commit, and one design question is waiting for you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip good">Mergeable into Version6.5</span>
+      <span class="chip good">Reviewers finished</span>
+      <span class="chip warn">1 decision waiting</span>
+    </div>
+    <div class="chips">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8531" target="_blank" rel="noopener">PR #8531</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8531/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8531/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17062" target="_blank" rel="noopener">BL-17062</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8531" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div>
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>Publish → Apps shows a size bar so users can tell whether their app fits under the roughly 100 MB Android limit. Before a book had been built its figure was far too high: a Little Zebra book with big pictures showed 116 MB for an app that was really 16 MB. The real sizes that appeared after a build were thrown away each time the user came back to Apps.</p>
+        <h3>Cause</h3>
+        <p>Until a book's BloomPUB existed, Bloom counted every file in the book folder: full-size original pictures, a PDF left from an earlier publish, backups. A BloomPUB leaves most of that out and shrinks the pictures. And entering Apps deleted every BloomPUB made earlier, which also raced with the size request and caused an occasional error.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li><strong>Estimates what publishing will actually produce.</strong> Counts only the files the BloomPUB export takes, and applies publishing's own rules to the pictures on the book's pages: shrunk to the publish resolution, an opaque PNG or shrunk JPEG at a typical JPEG rate, a picture that is or will be made transparent kept as a PNG. Pictures publishing leaves alone count at full size. Checking a PNG for transparency means decoding it, so that runs in the background, is remembered per picture, and the bar updates when it finishes.</li>
+          <li><strong>Keeps built BloomPUBs between visits.</strong> Each gets a small record of what it was made from (Bloom version, publish settings, subscription, the book's content and metadata). The size bar and Build reuse a BloomPUB only while it still matches.</li>
+          <li><strong>Shows estimated and measured sizes differently</strong> (striped vs. solid), and adds a <strong>Measure exact sizes</strong> button that makes the missing BloomPUBs without building the app.</li>
+        </ul>
+        <p>On the card's collection (estimate → actual): Apwiya 5.3 → <span class="numeral">3.7 MB</span> (the old method counted about 104 MB), Atthu 6.4 → <span class="numeral">6.5 MB</span>, Epuri 9.0 → <span class="numeral">6.9 MB</span>, Epwittipwitthi 7.3 → <span class="numeral">6.2 MB</span>. The 4-book app showed 40 MB before measuring and 35 MB after, the size of its built APK.</p>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Check</th><th>Result</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>TypeScript typecheck</td><td class="pass">Pass</td><td>No errors.</td></tr>
+            <tr><td>Lint (eslint, prettier)</td><td class="pass">Pass</td><td>0 errors; 2 warnings in files this PR doesn't touch.</td></tr>
+            <tr><td>Front-end tests (vitest, full)</td><td class="pass">Pass</td><td><span class="numeral">879 passed · 5 skipped</span> in 74 files. The front end hasn't changed since this run.</td></tr>
+            <tr><td>C# tests (dotnet test, full)</td><td class="pass">Pass</td><td><span class="numeral">3709 passed · 13 skipped</span> at the head commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/ecb2ee97b048a1394b2721894b26ca00d9e49494" target="_blank" rel="noopener">ecb2ee97b</a>.</td></tr>
+            <tr><td>Merge with Version6.5</td><td class="pass">Clean</td><td>Up to date with the base; no conflicts.</td></tr>
+            <tr><td>By hand in a running Bloom</td><td class="pass">Pass</td><td>At the head commit: Measure exact sizes turned all four books solid with their actual sizes, and they stayed actual after leaving Apps and coming back.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>Committed the work (<a href="https://github.com/BloomBooks/BloomDesktop/commit/21938abebcc6b916c101705313c6db2fda641624" target="_blank" rel="noopener">21938abeb</a>), opened the draft PR, then fixed what the reviewers found in three follow-up commits: <a href="https://github.com/BloomBooks/BloomDesktop/commit/c1a0c1fa18da724ea81f4da68b1d77579511b6f6" target="_blank" rel="noopener">c1a0c1fa1</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/e2d345fe46706f1db37eadff1c78a411a3314050" target="_blank" rel="noopener">e2d345fe4</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/ecb2ee97b048a1394b2721894b26ca00d9e49494" target="_blank" rel="noopener">ecb2ee97b</a>. Posted the PR link and the QA test ideas on the card.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewer outcomes</h2>
+        <div class="tablewrap">
+        <table>
+          <thead><tr><th>Reviewer</th><th>State</th><th>Outcome</th></tr></thead>
+          <tbody>
+            <tr><td>Local review (light sub-agent pass)</td><td class="pass">Complete</td><td>2 findings, both fixed in c1a0c1fa1: a renamed book never showed as measured, and a file vanishing mid-check could fail the whole size request.</td></tr>
+            <tr><td>Devin</td><td class="pass">Complete</td><td>Four reviews, the last of the head commit. Six findings: five fixed (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448481395" target="_blank" rel="noopener">unshrunk pictures</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448482055" target="_blank" rel="noopener">concurrent saves</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448482826" target="_blank" rel="noopener">metadata changes</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448540168" target="_blank" rel="noopener">background-image pictures</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448573297" target="_blank" rel="noopener">cover color</a>); one <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448573767" target="_blank" rel="noopener">left open</a> for the decision on the right.</td></tr>
+            <tr><td>Greptile</td><td class="pass">Complete</td><td>Reviewed the first commit (3 findings, all fixed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448459809" target="_blank" rel="noopener">expired subscriptions</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448459817" target="_blank" rel="noopener">renamed books</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448459820" target="_blank" rel="noopener">transparent pictures</a>), and on request re-reviewed e2d345fe4: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#issuecomment-6589888898" target="_blank" rel="noopener">no new blocking issues</a>. It has not seen ecb2ee97b, a two-line cache-key change.</td></tr>
+            <tr><td>CodeRabbit</td><td>Not active</td><td>The repo has a config file, but CodeRabbit has not posted on this PR.</td></tr>
+            <tr><td>CI</td><td class="pass">Pass</td><td><code>pr-automation</code> passed at the head commit; it is the only check on this PR.</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>No automated test runs the real export-and-reuse path; the unit tests and the opt-in Reading App Builder test both stand in for it. It was exercised by hand with Measure at the head commit, but a full <strong>Build</strong> was not re-run by hand after the review fixes.</li>
+          <li>Kept BloomPUBs now stay in the collection's <code>Bloom App Data</code> folder, a few MB per measured book. In a OneDrive or Dropbox collection they get synced.</li>
+          <li>Fonts installed on the computer are not part of a kept BloomPUB's record, so a font update alone doesn't make Bloom rebuild a book.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div>
+      <section class="card q">
+        <h2>Photos on colored pages are overestimated</h2>
+        <p>Publishing makes a picture transparent, which turns it into a PNG even if it was a JPEG, in three situations: the picture is marked <em>Transparent background</em>, it sits on a page with a colored background, or it is an overlay on a background picture. In the last two, publishing first checks whether the picture looks like line art, and leaves photos as JPEGs.</p>
+        <p>The estimator doesn't decode pictures to make that check, so on colored pages it counts every picture as a PNG at about 2 bytes per pixel. A photo that publishing will really keep as a JPEG (about 0.5 bytes per pixel) is counted about 4× too big. The estimate errs high, never low, and <em>Measure exact sizes</em> gives the real figure. None of the four Little Zebra books has colored pages, so none is affected. Devin flagged this (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8531#discussion_r4448573767" target="_blank" rel="noopener">thread, left open</a>).</p>
+        <p>I recommend leaving it: the error is always on the safe side, only books with colored pages are affected, Measure gives the exact figure, and checking would mean decoding many more pictures on the first visit to Apps.</p>
+        <label class="opt"><input type="radio" name="q1" id="q1-decode" data-q="q1" value="decode"
+          data-instruction="In C:\work\BL-17062 (branch BL-17062-ImproveAppEstimatedSize, PR BloomBooks/BloomDesktop#8531), make the size estimator decide pictures in transparency mode Auto (colored pages, overlays on a background picture) the way publishing does: decode them in the background with ImageUtils.ShouldMakeBackgroundTransparent, remember the answer per picture next to the PNG transparency answers in PngTransparencyCache, and count them as a JPEG or a PNG accordingly; keep counting bloom-transparent (Force) pictures as PNGs. Add tests, then reply on and resolve the Devin thread discussion_r4448573767.">
+          <span class="row"><span>Check those pictures the way publishing does, in the background like PNGs <span class="foot">(about 60 lines plus tests; moderate; more pictures decoded on first visit)</span></span></span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1-leave" data-q="q1" value="leave" checked
+          data-instruction="Leave as is — take no action on: the Apps size estimator counts pictures on colored pages (transparency mode Auto) as PNGs, overestimating photos there; reply on and resolve the Devin thread discussion_r4448573767 on PR BloomBooks/BloomDesktop#8531 recording that decision.">
+          <span class="row"><span>Leave as is <span class="tag">Recommended</span></span>
+          <span><input type="checkbox" id="q1-comment" data-q="q1-comment" data-instruction="Also record this decision as a code comment in src/BloomExe/Publish/Rab/BloomPubSizeEstimator.cs, beside FindPicturesPublishingProcesses where Auto-mode pictures are treated as possibly transparent."> Leave comment</span></span></label>
+        <label class="opt"><input type="radio" name="q1" id="q1-other" data-q="q1" value="other">
+          <span class="row"><span>Other:</span><input class="other" type="text" id="q1-other-text" data-q="q1-other-text" aria-label="Other choice for photos on colored pages"></span></label>
+        <textarea id="q1-notes" data-q="q1-notes" aria-label="Notes on photos on colored pages" placeholder="Notes"></textarea>
+      </section>
+
+      <section class="card q">
+        <h2>Next step</h2>
+        <label class="opt"><input type="radio" name="q2" id="q2-review" data-q="q2" value="review" checked
+          data-instruction="Apply the decision above; then I will review PR BloomBooks/BloomDesktop#8531 (branch BL-17062-ImproveAppEstimatedSize) myself and run pr-ready-for-human when satisfied.">
+          <span class="row"><span>Apply the decision, then I'll review the PR myself <span class="tag">Recommended</span> <span class="foot">(no code beyond the decision)</span></span></span></label>
+        <label class="opt"><input type="radio" name="q2" id="q2-leave" data-q="q2" value="leave"
+          data-instruction="Leave as is — take no action on: what to do next with PR BloomBooks/BloomDesktop#8531 after this preflight.">
+          <span class="row"><span>Leave as is</span></span></label>
+        <label class="opt"><input type="radio" name="q2" id="q2-other" data-q="q2" value="other">
+          <span class="row"><span>Other:</span><input class="other" type="text" id="q2-other-text" data-q="q2-other-text" aria-label="Other next step"></span></label>
+        <textarea id="q2-notes" data-q="q2-notes" aria-label="Notes on the next step" placeholder="Notes"></textarea>
+      </section>
+
+      <section class="card q">
+        <h2>Send your answers back</h2>
+        <p class="foot">Copies your choices as text to paste into a Claude Code session.</p>
+        <div><button type="button" id="copyBtn">Copy answers</button> <span id="copyStatus" aria-live="polite"></span></div>
+        <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17062-improveappestimatedsize.html";
+  var questions = [
+    { id: "q1", title: "Photos on colored pages are overestimated by the Apps size estimate", comment: "q1-comment" },
+    { id: "q2", title: "Next step for PR #8531" }
+  ];
+  function build() {
+    var lines = [
+      "Decisions from a preflight report (decider form)",
+      "Project: BloomBooks/BloomDesktop, branch BL-17062-ImproveAppEstimatedSize, PR https://github.com/BloomBooks/BloomDesktop/pull/8531",
+      "Date: 2026-11-02",
+      "Report: " + REPORT_URL,
+      ""
+    ];
+    questions.forEach(function (q, i) {
+      lines.push((i + 1) + ". " + q.title);
+      var picked = document.querySelector('input[name="' + q.id + '"]:checked');
+      if (picked && picked.value === "other") {
+        lines.push("   Other: " + (document.getElementById(q.id + "-other-text").value.trim() || "(no text)"));
+      } else if (picked) {
+        lines.push("   " + picked.getAttribute("data-instruction"));
+      }
+      if (q.comment) {
+        var box = document.getElementById(q.comment);
+        if (box && box.checked) lines.push("   " + box.getAttribute("data-instruction"));
+      }
+      var notes = document.getElementById(q.id + "-notes").value.trim();
+      if (notes) lines.push("   Notes: " + notes);
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+  var payload = document.getElementById("payload");
+  function refresh() { payload.value = build(); }
+  document.addEventListener("input", refresh);
+  document.addEventListener("change", refresh);
+  refresh();
+  document.getElementById("copyBtn").addEventListener("click", async function () {
+    var status = document.getElementById("copyStatus");
+    status.className = ""; status.textContent = "";
+    try {
+      refresh(); payload.focus(); payload.select();
+      var copied = false;
+      try { await navigator.clipboard.writeText(payload.value); copied = true; }
+      catch (e) { try { copied = document.execCommand("copy"); } catch (e2) { copied = false; } }
+      if (copied) { status.className = "ok"; status.textContent = "Copied ✓"; }
+      else { status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac)."; }
+    } catch (e) {
+      status.textContent = "Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).";
+    }
+  });
+})();
+</script>
+</body>
+</html>
