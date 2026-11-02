@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16773 Preflight</title>
+<style>
+/* Layout: two columns — the report on the left, the decisions on the right; one column when narrow. */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #23272b;
+  --muted: #5d656c;
+  --rule: #dcdcd4;
+  --accent: #1f5f8b;
+  --good: #2d6a3e;
+  --warn: #8a5a00;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 24px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.15rem; margin-bottom: 10px; }
+h3 { font-size: 0.98rem; margin: 12px 0 4px; }
+p { margin: 0 0 8px; }
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+code { font-family: var(--mono); font-size: 0.88em; background: #f0efe9; padding: 0 3px; border-radius: 3px; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.92em; }
+header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.summary { color: var(--muted); max-width: 70ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-block; border: 1px solid var(--rule); background: var(--card); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; }
+.chip.good { border-color: #b9d6c1; color: var(--good); }
+.chip.warn { border-color: #e2cf9f; color: var(--warn); }
+.links a.chip { text-decoration: none; }
+.links a.chip:hover { border-color: var(--accent); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--rule); border-radius: 6px; padding: 16px 18px; }
+.narrative ul { margin: 4px 0 0; padding-left: 20px; }
+.narrative li { margin-bottom: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 0.82rem; letter-spacing: 0.03em; text-transform: uppercase; }
+.pass { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); }
+.reviewers dt { font-weight: 600; margin-top: 10px; }
+.reviewers dt:first-child { margin-top: 0; }
+.reviewers dd { margin: 2px 0 0; }
+.decision fieldset { border: 0; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.decision legend { font-weight: 600; margin-bottom: 4px; padding: 0; }
+.opt { display: flex; gap: 8px; align-items: flex-start; }
+.opt input[type=radio] { margin-top: 4px; }
+.fn { color: var(--muted); font-size: 0.86rem; }
+.tag { font-size: 0.75rem; color: var(--good); border: 1px solid #b9d6c1; border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+.leaverow { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+.leaverow .lc { font-size: 0.86rem; color: var(--muted); display: flex; gap: 4px; align-items: center; }
+.otherrow input[type=text] { flex: 1; min-width: 0; font: inherit; padding: 2px 6px; border: 1px solid var(--rule); border-radius: 4px; }
+textarea { width: 100%; font: inherit; padding: 6px 8px; border: 1px solid var(--rule); border-radius: 4px; resize: vertical; }
+.notes { margin-top: 8px; }
+.notes label { font-size: 0.86rem; color: var(--muted); }
+button { font: inherit; background: var(--accent); color: #fff; border: 0; border-radius: 4px; padding: 6px 14px; cursor: pointer; }
+#copied { color: var(--good); margin-left: 8px; font-size: 0.9rem; }
+#payload { margin-top: 10px; font-family: var(--mono); font-size: 0.82rem; min-height: 9em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>BL-16773: command-line spreadsheet import with audio</h1>
+  <p class="summary">Preflight converged on <a href="https://github.com/BloomBooks/BloomDesktop/commit/14fc8b3507e30d7dcb44af5b7f68a307ea094772" target="_blank" rel="noopener"><span class="numeral">14fc8b3507</span></a>: every gate and reviewer is done, and two Devin findings are waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable, up to date with master</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip warn">2 decisions waiting</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8529" target="_blank" rel="noopener">PR #8529</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8529/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8529/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16773" target="_blank" rel="noopener">BL-16773</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8529" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<section>
+  <div class="card narrative">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Testing BL-16773 found that importing a spreadsheet <em>with audio</em> worked from inside Bloom but not from the command line (<code>spreadsheetImport</code>). The command printed nothing and left the book unchanged. The same round of testing found that a few bad command-line arguments crashed with a raw stack trace instead of saying what was wrong: a spreadsheet path that doesn't exist, and <code>sendFontAnalytics</code> given the book's <code>.htm</code> file, or a stray word, where it wants the book's folder.</p>
+    <h3>Cause</h3>
+    <p>To import audio, Bloom splits the text into sentences and checksums each recording with a hidden browser, which loads a helper page from Bloom's local web server. The app always has that server running; the console verb never started one, so the page address was <code>http://localhost:0/…</code>, the page never loaded, and the importer waited forever. Imports without audio never need the browser, which is why they worked. The argument crashes are older than BL-16767/BL-16773; nothing checked the paths before using them.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><code>spreadsheetImport</code> starts a local server for the duration of the import.</li>
+      <li>If the helper page never loads, the import fails after 20&nbsp;s with an error naming the URL instead of hanging, and the helper browser is always cleaned up.</li>
+      <li><code>spreadsheetImport</code> checks that the book and spreadsheet exist, runs the same validation as the in-app import, and backs up the book only after that. It prints the importer's progress, warnings and errors, which were previously all discarded.</li>
+      <li><code>sendFontAnalytics</code> accepts the book's <code>.htm</code> file as meaning its folder, and reports a missing book folder or collection file in one line, with a new exit code 4.</li>
+      <li>A new test runs the real <code>spreadsheetImport</code> command in the console message loop with a real browser and mp3. It hung before the fix.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Check</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>C# build, and the spreadsheet, command-line and console-loop tests</td><td><span class="pass">Pass</span> <span class="numeral">440 passed</span></td></tr>
+        <tr><td>C# full suite (<code>dotnet test</code>) at HEAD</td><td><span class="pass">Pass</span> <span class="numeral">3901 passed · 1 skipped</span></td></tr>
+        <tr><td>C# formatting (csharpier, pre-commit checks)</td><td><span class="pass">Pass</span></td></tr>
+        <tr><td>TypeScript typecheck, lint, vitest</td><td class="na">Not run: there is no TypeScript in the diff, and none of it reads anything the diff changes.</td></tr>
+        <tr><td>Merge with master</td><td><span class="pass">Clean</span> (branch includes current master)</td></tr>
+        <tr><td>Real command-line runs</td><td><span class="pass">Pass</span> The tester's <em>Peters Basis boek</em> spreadsheet imported both recordings. A bad spreadsheet path, the word <code>bookPath</code>, and an <code>.htm</code> path to <code>sendFontAnalytics</code> each got a one-line message.</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the fix and the follow-up fixes for the tester's other findings, opened the draft PR, then fixed four review findings: two from Devin (the browser is always cleaned up, and the time limit covers the navigation too), Greptile's matching point, and missing test comments. The local review also made the new test hand its server to the test suite's server-retirement queue instead of shutting it down on the spot. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529/commits" target="_blank" rel="noopener">Commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/471a06f50d0e80fffcd73cb05a8a762c7d676282" target="_blank" rel="noopener"><span class="numeral">471a06f</span></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/14fc8b3507e30d7dcb44af5b7f68a307ea094772" target="_blank" rel="noopener"><span class="numeral">14fc8b3</span></a>.</p>
+  </div>
+
+  <div class="card">
+    <h2>Reviewer outcomes</h2>
+    <dl class="reviewers">
+      <dt>Local review (light sub-agent pass)</dt>
+      <dd>2 findings. 1 fixed: the new test let the command shut down a live test server immediately, which the test guidelines forbid. 1 dismissed: it noted the import now refuses a spreadsheet with nothing Bloom recognizes, which is intended and matches the in-app import.</dd>
+      <dt>Devin (complete)</dt>
+      <dd>2 bugs and 2 "investigate" flags on the first commit. Fixed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892476" target="_blank" rel="noopener">browser left running on failure</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892725" target="_blank" rel="noopener">time limit didn't cover navigation</a>. Open for you: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892196" target="_blank" rel="noopener">exit code on audio errors</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892914" target="_blank" rel="noopener">old recordings kept</a>. Its re-review of <span class="numeral">14fc8b3</span> found nothing new.</dd>
+      <dt>Greptile (complete, first commit only)</dt>
+      <dd>2 findings, both fixed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446876175" target="_blank" rel="noopener">navigation wait</a> (same as Devin's) and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446876184" target="_blank" rel="noopener">missing method comments</a>. Greptile reviews only a PR's first commit.</dd>
+      <dt>CI (pr-automation)</dt>
+      <dd>Passed on both commits.</dd>
+    </dl>
+  </div>
+
+  <div class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>A successful <code>sendFontAnalytics</code> run was not tried, because it sends real analytics. Only the argument checks in front of it changed.</li>
+      <li>The QA notes on the card are a new <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16773" target="_blank" rel="noopener">"Round 2" comment</a>. The tester had already worked the earlier test-ideas comment, so it was kept as the record.</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <div class="card decision" id="d1">
+    <h2>Should the command report failure when audio didn't import?</h2>
+    <p>When a recording named in the spreadsheet is missing or isn't a valid mp3, the command-line import now prints an "Error: Did not import audio on page …" line, but it still saves the book and exits with code 0, meaning success. A script running the import can't tell that some audio was skipped without reading the output. The import inside Bloom behaves the same way: it reports the problem and keeps going. Before this PR the command also exited 0, and printed nothing at all. Devin flagged this (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892196" target="_blank" rel="noopener">thread</a>). Nothing in our repos checks this command's exit code.</p>
+    <fieldset>
+      <legend>Decision</legend>
+      <label class="opt"><input type="radio" name="d1" data-q="Exit code when audio fails to import" value="Exit with a new code 2 ('completed with errors') when any error was reported; still save the book" checked> <span>Exit with a new code 2, "completed with errors", when any error was reported, and still save the book. <span class="tag">Recommended</span> <span class="fn">(~5 lines, localized, low risk. Recommended because a script then sees that something went wrong, and nothing is lost: the book is saved as now.)</span></span></label>
+      <label class="opt"><input type="radio" name="d1" data-q="Exit code when audio fails to import" value="Exit 1 and do not save the book when any error was reported"> <span>Exit 1 and don't save the book when any error was reported. <span class="fn">(~8 lines, but stricter than the in-app import, which keeps going; a book with one bad recording would get none of its text either.)</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="d1" data-q="Exit code when audio fails to import" value="Leave as is"> <span>Leave as is</span></label>
+        <label class="lc"><input type="checkbox" id="d1-lc" data-q="Exit code when audio fails to import" data-kind="leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt otherrow"><input type="radio" name="d1" data-q="Exit code when audio fails to import" value="__other__" id="d1-o"> <label for="d1-o">Other:</label> <input type="text" id="d1-ot" data-q="Exit code when audio fails to import" data-kind="other-text" aria-label="Other answer"></div>
+    </fieldset>
+    <div class="notes"><label for="d1-n">Notes</label><textarea id="d1-n" rows="2" data-q="Exit code when audio fails to import" data-kind="notes"></textarea></div>
+  </div>
+
+  <div class="card decision" id="d2">
+    <h2>Should the command-line import clear old recordings first?</h2>
+    <p>The import inside Bloom deletes the book's <code>audio</code> folder before importing, so the book ends up with exactly the recordings the spreadsheet names. The command-line import never did. Importing into a book that already has recordings leaves the old mp3 files sitting in the folder, unused by any text box. Readers don't hear them, but they make the book folder bigger. Matching the in-app import would delete recordings the spreadsheet doesn't mention. The book is backed up first, as it is in the app. Devin flagged this (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8529#discussion_r4446892914" target="_blank" rel="noopener">thread</a>). This is older than this PR.</p>
+    <fieldset>
+      <legend>Decision</legend>
+      <label class="opt"><input type="radio" name="d2" data-q="Clear old recordings in command-line import" value="Delete the book's audio folder before importing, as the in-app import does" checked> <span>Delete the book's <code>audio</code> folder before importing, as the in-app import does. <span class="tag">Recommended</span> <span class="fn">(~4 lines, low risk. Recommended because the two imports then give the same result, which is what the tester compares, and the backup covers a mistake.)</span></span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="d2" data-q="Clear old recordings in command-line import" value="Leave as is"> <span>Leave as is</span></label>
+        <label class="lc"><input type="checkbox" id="d2-lc" data-q="Clear old recordings in command-line import" data-kind="leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt otherrow"><input type="radio" name="d2" data-q="Clear old recordings in command-line import" value="__other__" id="d2-o"> <label for="d2-o">Other:</label> <input type="text" id="d2-ot" data-q="Clear old recordings in command-line import" data-kind="other-text" aria-label="Other answer"></div>
+    </fieldset>
+    <div class="notes"><label for="d2-n">Notes</label><textarea id="d2-n" rows="2" data-q="Clear old recordings in command-line import" data-kind="notes"></textarea></div>
+  </div>
+
+  <div class="card decision" id="d3">
+    <h2>Next step</h2>
+    <fieldset>
+      <legend>Decision</legend>
+      <label class="opt"><input type="radio" name="d3" data-q="Next step" value="Implement the choices above and re-run preflight" checked> <span>Implement the choices above and re-run preflight. <span class="tag">Recommended</span> <span class="fn">(both are small and self-contained.)</span></span></label>
+      <label class="opt"><input type="radio" name="d3" data-q="Next step" value="Discuss first"> <span>Discuss first.</span></label>
+      <div class="leaverow">
+        <label class="opt"><input type="radio" name="d3" data-q="Next step" value="Leave as is"> <span>Leave as is</span></label>
+        <label class="lc"><input type="checkbox" id="d3-lc" data-q="Next step" data-kind="leave-comment"> Leave comment</label>
+      </div>
+      <div class="opt otherrow"><input type="radio" name="d3" data-q="Next step" value="__other__" id="d3-o"> <label for="d3-o">Other:</label> <input type="text" id="d3-ot" data-q="Next step" data-kind="other-text" aria-label="Other answer"></div>
+    </fieldset>
+    <div class="notes"><label for="d3-n">Notes</label><textarea id="d3-n" rows="2" data-q="Next step" data-kind="notes"></textarea></div>
+  </div>
+
+  <div class="card">
+    <h2>Send your answers back</h2>
+    <p>Copy this and paste it into the Claude session.</p>
+    <button type="button" id="copy">Copy answers</button><span id="copied" hidden>Copied</span>
+    <textarea id="payload" readonly aria-label="Answers to paste back"></textarea>
+  </div>
+</section>
+</div>
+</div>
+<script>
+(function () {
+  var items = ["d1", "d2", "d3"];
+  function serialize() {
+    var lines = ["Preflight decisions for BL-16773 (PR #8529, https://github.com/BloomBooks/BloomDesktop/pull/8529):", ""];
+    items.forEach(function (id) {
+      var card = document.getElementById(id);
+      var q = card.querySelector("[data-q]").getAttribute("data-q");
+      var sel = card.querySelector("input[type=radio]:checked");
+      var answer = sel ? sel.value : "(no choice)";
+      if (answer === "__other__") answer = "Other: " + (document.getElementById(id + "-ot").value || "");
+      lines.push("- " + q + ": " + answer);
+      if (document.getElementById(id + "-lc").checked) lines.push("  Leave comment");
+      var notes = document.getElementById(id + "-n").value.trim();
+      if (notes) lines.push("  Notes: " + notes);
+    });
+    document.getElementById("payload").value = lines.join("\n");
+  }
+  document.addEventListener("input", serialize);
+  document.addEventListener("change", serialize);
+  items.forEach(function (id) {
+    document.getElementById(id + "-ot").addEventListener("focus", function () { document.getElementById(id + "-o").checked = true; serialize(); });
+  });
+  document.getElementById("copy").addEventListener("click", function () {
+    serialize();
+    var ta = document.getElementById("payload");
+    var done = function () { var c = document.getElementById("copied"); c.hidden = false; setTimeout(function () { c.hidden = true; }, 2000); };
+    var fallback = function () { ta.focus(); ta.select(); try { document.execCommand("copy"); } catch (e) {} done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(done, fallback); else fallback();
+  });
+  serialize();
+})();
+</script>
+</body>
+</html>
