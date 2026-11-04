@@ -65,20 +65,20 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
 <div class="wrap">
   <header class="card">
     <h1>Preflight: Edge to Edge vs. custom page margins</h1>
-    <p class="summary">Branch <code>BL-17050-CustomBookStylesCssVsTheme</code>, head <a href="https://github.com/BloomBooks/BloomDesktop/commit/594f32c9814fa8c7d59881ccd711f4bb76635098" target="_blank" rel="noopener"><code>594f32c98</code></a>. Gates green, Greptile and CI clean, one Devin flag fixed. One decision is waiting.</p>
+    <p class="summary">Branch <code>BL-17050-CustomBookStylesCssVsTheme</code>, head <a href="https://github.com/BloomBooks/BloomDesktop/commit/ecc3531ccc7ff7ca2782da8be04cddd5d050d46d" target="_blank" rel="noopener"><code>ecc3531cc</code></a>. Gates green, Greptile and CI clean, one Devin finding answered. One question about the follow-up work.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
       <span class="chip good">Bots quiet</span>
-      <span class="chip ask">1 decision waiting</span>
+      <span class="chip ask">1 question</span>
     </div>
     <div class="chips">
       <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8507" target="_blank" rel="noopener">PR #8507</a>
       <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8507/files" target="_blank" rel="noopener">Files changed</a>
       <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8507/commits" target="_blank" rel="noopener">Commits</a>
       <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17050" target="_blank" rel="noopener">BL-17050</a>
+      <a class="chip" href="https://sil-language-software.slack.com/archives/C0CE75BEJTU/p1793811673389039" target="_blank" rel="noopener">Slack design thread</a>
       <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8507" target="_blank" rel="noopener">Devin review</a>
-      <a class="chip" href="https://app.greptile.com/bloom/github/bloombooks/bloomdesktop/-/pull/8507" target="_blank" rel="noopener">Greptile</a>
     </div>
   </header>
 
@@ -89,45 +89,40 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
         <h3>Problem</h3>
         <p>Books migrated from Little Zebra keep their page margins when the user switches to the Edge to Edge theme. On A4/A5/A6 pages, pictures and "Size to fit image" never reach the page edge, and Bloom gives no warning. Deleting the book's <code>customBookStyles2.css</code> makes it work.</p>
         <h3>Cause</h3>
-        <p>Little Zebra's migrated <code>customBookStyles2.css</code> sets the per-side margin variables directly on <code>.A4Portrait</code>, <code>.A5Portrait</code> and so on. Edge to Edge only set the general <code>--page-margin</code>, which the per-side variables normally fall back to, so the custom values won. This appeared in 6.6 because BL-15958 widened Edge to Edge from the Ebook/Device sizes, which Little Zebra's CSS never targets, to every page size.</p>
+        <p>Little Zebra's migrated <code>customBookStyles2.css</code> sets the per-side margin variables directly on <code>.A4Portrait</code>, <code>.A5Portrait</code> and so on. Edge to Edge only set the general <code>--page-margin: 0mm</code>, which the per-side variables normally fall back to, so the custom 12mm values won. This appeared in 6.6 because BL-15958 widened Edge to Edge from the Ebook/Device sizes, which Little Zebra's CSS never targets, to every page size.</p>
         <h3>What the PR does</h3>
         <ul>
-          <li><strong>Numbered pages:</strong> Edge to Edge's numbered-page rule now also sets the four per-side margins to <code>var(--page-margin)</code> (0). That two-class rule beats the custom CSS's one-class page-size rules.</li>
-          <li><strong>Front and back matter:</strong> a <code>div.bloom-frontMatter, div.bloom-backMatter</code> rule sets the per-side margins, and the outside covers' top and bottom margins, from the theme's own margin: 3mm, or the standard margin with Full Bleed. The <code>div</code> is just enough to beat Little Zebra's one-class rules. Two-class rules, which xMatter packs use for their own covers and title pages, still win, as do custom layouts and image covers.</li>
+          <li>Edge to Edge's numbered-page rule now also sets the four per-side margins to <code>var(--page-margin)</code> (0). Content pages then have no margins under Edge to Edge, whatever custom CSS sets them per page size.</li>
           <li><code>customBookStyles2.css</code> stays linked, so its other styles still apply, and the EFL migrations that pair it with a non-default theme are unaffected.</li>
-          <li>Unit tests check that the declarations sit in those two rules.</li>
+          <li>A unit test checks that the four declarations sit inside that numbered-page rule.</li>
         </ul>
-        <p>Checked in a running Bloom on a copy of a Little Zebra book at A5 with Edge to Edge:</p>
-        <ul>
-          <li><strong>Numbered pages:</strong> 12mm before, 0mm now.</li>
-          <li><strong>Inside front cover, title page and credits (no Full Bleed):</strong> now 3mm.</li>
-          <li><strong>Outside front cover:</strong> 3mm at the sides. The top and bottom are still Little Zebra's 10mm (the decision below).</li>
-        </ul>
+        <p>Front and back matter are left alone. An override for them was tried and reverted, because the <a href="https://sil-language-software.slack.com/archives/C0CE75BEJTU/p1793811673389039" target="_blank" rel="noopener">Slack discussion</a> favours fixing Little Zebra books in the migration instead: a Little Zebra theme in place of <code>customBookStyles2.css</code>.</p>
+        <p>Checked in a running Bloom on a copy of a Little Zebra book at A5 with Edge to Edge and Full Bleed. Numbered pages went from 12mm per-side margins to 0mm, with <code>customBookStyles2.css</code> still linked.</p>
       </section>
 
       <section class="card">
         <h2>Quality gate</h2>
         <table>
-          <tr><th>C# tests (dotnet test)</th><td><span class="pass">Pass</span> <span class="numeral">3856 passed · 1 skipped · 0 failed</span> full suite on <code>594f32c98</code></td></tr>
-          <tr><th>TypeScript tests (vitest)</th><td>Not run: no TypeScript in the diff, and no front-end test reads the theme files</td></tr>
-          <tr><th>Typecheck</th><td>Not run: no TypeScript in the diff</td></tr>
+          <tr><th>C# tests (dotnet test)</th><td><span class="pass">Pass</span> <span class="numeral">3906 passed · 1 skipped · 0 failed</span> full suite on the merged head</td></tr>
+          <tr><th>TypeScript tests (vitest)</th><td>Not run: no TypeScript in the PR's diff, and no front-end test reads the theme files</td></tr>
+          <tr><th>Typecheck</th><td>Not run: no TypeScript in the PR's diff</td></tr>
           <tr><th>Formatting</th><td><span class="pass">Pass</span> Prettier on the theme CSS; CSharpier on the test (pre-commit hook)</td></tr>
-          <tr><th>Merge with master</th><td><span class="pass">Clean</span> master's two newer commits (docs and an upload test) merge without conflict</td></tr>
+          <tr><th>Merge with master</th><td><span class="pass">Clean</span> merged 78 newer master commits, no conflicts</td></tr>
           <tr><th>Repo check: e2e specs at nightly size</th><td>Did not apply: no <code>src/BloomE2E/tests/*.spec.ts</code> changed</td></tr>
         </table>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>Extended the fix to front and back matter, with a unit test and a running-Bloom check (<a href="https://github.com/BloomBooks/BloomDesktop/commit/594f32c9814fa8c7d59881ccd711f4bb76635098" target="_blank" rel="noopener">1 commit</a>). Updated the PR description and the test-ideas comment on the card.</p>
+        <p>Reverted the front/back-matter override (<code>43c1427f5</code>) and merged master (<code>ecc3531cc</code>). The PR's change is now the same as at <code>bce5bc7e8</code>. Updated the PR description, and re-posted the PR link and test ideas on the card. Someone had deleted the earlier copies.</p>
       </section>
 
       <section class="card">
         <h2>Reviewer outcomes</h2>
         <table>
-          <tr><th>Local review</th><td>From the previous run: one finding, which you decided to leave as is (hand-set margins in a book's appearance settings).</td></tr>
-          <tr><th>Devin</th><td>Complete for <code>594f32c98</code>: no bugs. One Investigate flag: the description was out of date for the front/back-matter change. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8507#discussion_r4401922519" target="_blank" rel="noopener">Fixed and resolved</a>.</td></tr>
-          <tr><th>Greptile</th><td>Complete for <code>594f32c98</code>: no new findings.</td></tr>
+          <tr><th>Local review</th><td>The change is line-for-line what the earlier light review covered at <code>bce5bc7e8</code>; its one finding was settled as leave as is.</td></tr>
+          <tr><th>Devin</th><td>Complete for <code>ecc3531cc</code>: one non-severe bug, that Little Zebra books keep their front/back-matter margins. That is deliberate after the revert. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8507#discussion_r4472334760" target="_blank" rel="noopener">Answered and resolved</a>.</td></tr>
+          <tr><th>Greptile</th><td>Complete for <code>ecc3531cc</code>: no new findings.</td></tr>
           <tr><th>CI</th><td><span class="pass">Pass</span> <code>pr-automation</code>, Greptile Review</td></tr>
         </table>
       </section>
@@ -135,38 +130,24 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>Under Edge to Edge, a two-class xMatter rule that sets margins on <em>every</em> page now gives way to the theme on numbered pages. ABC-Reader's <code>.HalfLetterPortrait.bloom-page</code> is one, so its content pages lose their 0.5in margins. That is what Edge to Edge is for, but it is a change for such books.</li>
-          <li>Not driven by hand: PDF and BloomPUB output. The running-Bloom check measured each page's margins in Edit.</li>
+          <li>Until the migration work lands, a Little Zebra book under Edge to Edge has no margins on content pages but keeps Little Zebra's margins on its covers, title page and credits. The card's test ideas tell testers not to report that.</li>
+          <li>Under Edge to Edge, an xMatter rule that sets margins on every page, such as ABC-Reader's <code>.HalfLetterPortrait.bloom-page</code>, now gives way on numbered pages.</li>
         </ul>
       </section>
     </div>
 
     <div class="col">
       <section class="card q" data-item="1">
-        <h2>1. Little Zebra margins at the top and bottom of portrait covers</h2>
-        <p>Your instruction was to beat rules like <code>.A5Portrait.outsideFrontCover</code>. I did not. The theme loads before <code>customBookStyles2.css</code>, so beating those two-class rules takes a rule of three classes, or of two classes plus an element. That rule would also beat the same-strength rules the Kyrgyzstan and Uzbekistan xMatter packs use for their own cover margins (0mm and the bleed width). Those covers would get 3mm under Edge to Edge.</p>
-        <p>So in A4, A5 and A6 Portrait, a Little Zebra book's outside front and back covers keep Little Zebra's top and bottom margins (10–15mm) under Edge to Edge. Their sides, and every other front/back-matter page, now follow the theme. The test-ideas comment already tells testers this is expected.</p>
+        <h2>1. Where the Little Zebra theme migration goes</h2>
+        <p>The Slack plan is to ship a Little Zebra theme built from the two migration files and migrate Little Zebra books to it instead of writing <code>customBookStyles2.css</code>. It also needs a one-time conversion of books that are already migrated, or the books this card was reported on stay as they are. Hatton handed the design to you and John Thomson. Tracking it on its own card lets this PR merge for 6.6 while that design settles.</p>
         <fieldset>
-          <label><input type="radio" name="q1" id="q1a" data-q="1" data-instruction="In C:\work\BL-17050 (branch BL-17050-CustomBookStylesCssVsTheme), make Edge to Edge also set --cover-margin-top/bottom on A4/A5/A6 Portrait outside front and back covers with enough specificity to beat customBookStyles2.css's .A5Portrait.outsideFrontCover-style rules, accepting that Kyrgyzstan and Uzbekistan xMatter cover margins then also give way under Edge to Edge; extend the unit test, re-check in a running Bloom, and update the test-ideas comment on BL-17050."> <span>Beat those cover rules too <span class="foot">(a few lines of CSS; Kyrgyzstan and Uzbekistan xMatter covers would get the theme's margins under Edge to Edge)</span></span></label>
-          <div class="opt-row">
-            <label><input type="radio" name="q1" id="q1b" checked data-q="1" data-instruction="Leave as is — take no action on: under Edge to Edge, Little Zebra's portrait outside covers keep their own top and bottom margins, because beating those rules would also override xMatter packs' cover margins (PR #8507, BL-17050)."> <span>Leave as is <span class="tag">Recommended</span></span></label>
-          </div>
+          <label><input type="radio" name="q1" id="q1a" checked data-q="1" data-instruction="Create a new YouTrack card on the Bloom 6.6 board for shipping a Little Zebra appearance theme (built from src/content/appearanceMigrations/little-zebra-1 and -2), migrating Little Zebra books to it instead of writing customBookStyles2.css, and converting already-migrated books; link it to BL-17050 and the Slack thread https://sil-language-software.slack.com/archives/C0CE75BEJTU/p1793811673389039."> <span>Make a separate card for it <span class="tag">Recommended</span></span></label>
+          <label><input type="radio" name="q1" id="q1b" data-q="1" data-instruction="Keep the Little Zebra theme migration under BL-17050, as a follow-up PR on that card after PR #8507."> <span>Keep it under BL-17050, as a follow-up PR</span></label>
+          <label><input type="radio" name="q1" id="q1c" data-q="1" data-instruction="Leave as is — take no action on where the Little Zebra theme migration is tracked; it stays with the Slack discussion for now (BL-17050)."> <span>Leave it with the Slack discussion for now</span></label>
           <label><input type="radio" name="q1" id="q1o" data-q="1" data-other="1"> <span>Other:</span></label>
           <input type="text" id="q1otext" data-q="1" data-other-text="1" aria-label="Other, item 1">
         </fieldset>
         <textarea id="q1notes" data-q="1" data-notes="1" placeholder="Notes"></textarea>
-      </section>
-
-      <section class="card q" data-item="2">
-        <h2>Next step</h2>
-        <fieldset>
-          <label><input type="radio" name="q2" id="q2a" checked data-q="2" data-instruction="In C:\work\BL-17050 (branch BL-17050-CustomBookStylesCssVsTheme, PR #8507), carry out the decision above, then re-run preflight if any code changed."> <span>Carry out the decision above <span class="tag">Recommended</span></span></label>
-          <label><input type="radio" name="q2" id="q2b" data-q="2" data-instruction="Discuss the decision above for PR #8507 (BL-17050) before changing anything."> <span>Discuss first</span></label>
-          <label><input type="radio" name="q2" id="q2c" data-q="2" data-instruction="Leave as is — take no further action on PR #8507 (BL-17050) for now."> <span>Leave as is</span></label>
-          <label><input type="radio" name="q2" id="q2o" data-q="2" data-other="1"> <span>Other:</span></label>
-          <input type="text" id="q2otext" data-q="2" data-other-text="1" aria-label="Other, next step">
-        </fieldset>
-        <textarea id="q2notes" data-q="2" data-notes="1" placeholder="Notes"></textarea>
       </section>
 
       <section class="card">
@@ -185,7 +166,7 @@ button { font: inherit; background: var(--accent); color: #fff; border: 0; borde
   var titles = {};
   document.querySelectorAll(".q[data-item]").forEach(function (s) { titles[s.dataset.item] = s.querySelector("h2").textContent.replace(/^\d+\.\s*/, ""); });
   function build() {
-    var lines = ["Decisions from a decider form (preflight report)", "Repo: BloomBooks/BloomDesktop, branch BL-17050-CustomBookStylesCssVsTheme, PR https://github.com/BloomBooks/BloomDesktop/pull/8507 (BL-17050)", "Date: 2026-10-28", "Report: " + URL, ""];
+    var lines = ["Decisions from a decider form (preflight report)", "Repo: BloomBooks/BloomDesktop, branch BL-17050-CustomBookStylesCssVsTheme, PR https://github.com/BloomBooks/BloomDesktop/pull/8507 (BL-17050)", "Date: 2026-11-04", "Report: " + URL, ""];
     Object.keys(titles).forEach(function (n) {
       lines.push(n + ". " + titles[n]);
       var chosen = document.querySelector('input[type=radio][data-q="' + n + '"]:checked');
