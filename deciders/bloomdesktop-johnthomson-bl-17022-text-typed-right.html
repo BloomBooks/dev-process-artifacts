@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preflight PR 8542</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+main{max-width:1440px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+main>.report,main>.decisions{min-width:0}
+@media (max-width:900px){main{grid-template-columns:minmax(0,1fr)}}
+.report section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.report h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.report h3{font:600 15px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;margin:14px 0 4px}
+.report p{margin:0 0 10px}
+.report ul{margin:0 0 10px;padding-left:20px}
+.report li{margin:3px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;font-size:12.5px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;color:var(--ink);text-decoration:none}
+a.chip{color:var(--accent-strong);border-color:var(--accent)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;border-top:1px solid var(--line);padding:6px 8px;vertical-align:top}
+th{font-weight:600;color:var(--muted)}
+.numeral{font-variant-numeric:tabular-nums}
+.ok{color:#2E7D4F;font-weight:600}
+.no{color:var(--accent-strong);font-weight:600}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-05","about":"BloomBooks/BloomDesktop PR #8542, branch JohnThomson/BL-17022-Text-typed-right (BL-17022: keep text typed while CKEditor is still loading)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-17022-text-typed-right.html","context":["When a page opens, each text box's CKEditor takes a moment to load, then rewrites the box from its own copy. This PR refreshes that copy just before the rewrite, so typing done in that moment is kept, and it puts the caret back afterwards. Both questions below are about rough edges in that first moment only; once the editor is ready nothing here applies."],"questions":[{"title":"How should the caret be put back after CKEditor's rewrite?","context":["The rewrite replaces every node in the box, so the fix records where the caret was as a path of child positions and follows that path afterwards. CKEditor's rewrite also tidies whitespace, and the path has to predict exactly which whitespace it drops. Three reviews in a row found a rule it did not predict: line breaks between paragraphs (fixed), a space between two recorded sentences (fixed, <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486455009\" target=\"_blank\" rel=\"noopener\">Greptile<\/a>), and now a space just before a Shift+Enter line break (<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486537699\" target=\"_blank\" rel=\"noopener\">Devin, open<\/a>).","What a person would see: in a box with a space just before a line break, typing in the first moment after the page opens, at a point after that line break, then carrying on typing once the editor is ready, puts the further typing at the end of the box. No text is lost, and it only happens in that first moment.","The sturdier way is to stop predicting CKEditor: put an invisible marker element at the caret, let the rewrite carry it through like any other markup, then put the caret at the marker and remove it. CKEditor's own bookmarks work this way, and Bloom turns CKEditor's content filter off (<code>allowedContent = true<\/code>), so nothing strips the marker."],"options":[{"label":"Switch to a marker at the caret.","recommended":true,"why":"Recommended because it is right for whatever whitespace CKEditor drops, now or in any case not yet found, and it deletes the whitespace rules rather than adding another.","effort":"replaces most of keepTypingWhenCkEditorLoads.ts with fewer lines; unit tests reworked; low risk, as the marker is in place only between CKEditor's load and ready events","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17022-Text-typed-right (branch JohnThomson/BL-17022-Text-typed-right, PR #8542), change src/BloomBrowserUI/bookEdit/js/keepTypingWhenCkEditorLoads.ts so that the 'loaded' listener inserts a marker element (a span with data-cke-bookmark, display:none, holding &nbsp;, as CKEditor's own bookmarks are made) at the caret when the caret is in the box, and only then refreshes the editor's copy from element.innerHTML; the instanceReady listener finds the marker, puts the caret where it is, removes it and normalizes its parent. Remove the path and whitespace bookkeeping (isDroppable, keptChildren, kBlockElements). Rework keepTypingWhenCkEditorLoads.test.ts accordingly, keeping the cases for whitespace between paragraphs, a space between sentence spans, and adding a space before a <br>. Reply on the Devin thread discussion_r4486537699 that the caret is now restored from a marker, and resolve it. Then re-run preflight."},{"label":"Add <br> to the whitespace rule and a test for it.","why":"Fixes the case found, but keeps the fix copying CKEditor's parsing rules, so another case may turn up.","effort":"~3 lines plus a unit test, low risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17022-Text-typed-right (branch JohnThomson/BL-17022-Text-typed-right, PR #8542), treat BR as a whitespace boundary in isBlockBoundary in src/BloomBrowserUI/bookEdit/js/keepTypingWhenCkEditorLoads.ts (but not as a block for any other purpose), make the test's dropBoundaryWhitespace drop whitespace before a <br> too, and add a unit test for a caret in a span after '<span>one<\/span> <br>'. Reply on the Devin thread discussion_r4486537699 with the fix and resolve it. Then re-run preflight."}],"leaveAsIs":"in a box with a space before a line break, typing during the first moment after the line break can leave the caret at the end of the box.","codeComment":true},{"title":"Should typing done in the first moment be undoable?","context":["Typing in a text box is undone by CKEditor's own per-box history. That history starts when the editor becomes ready, from what the box holds then. So typing done in the first moment after a page opens is part of the starting point: Ctrl+Z after it removes later typing but not that first text (<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486456752\" target=\"_blank\" rel=\"noopener\">Devin<\/a>).","Before this PR that text was destroyed outright, so this is a smaller rough edge than the one being fixed. Making it undoable means planting an earlier state in CKEditor's undo history by hand. Stage 3 of the CKEditor retirement (BL-6681) moves typing onto Bloom's own undo stack and replaces this history anyway."],"options":[{"label":"Seed CKEditor's undo history with the box as it was.","why":"Makes the first moment's typing undoable now, at the cost of reaching into CKEditor's undo manager just before it is retired.","effort":"~20-30 lines plus an e2e check; moderate risk, touches every box's undo history","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17022-Text-typed-right (branch JohnThomson/BL-17022-Text-typed-right, PR #8542), in src/BloomBrowserUI/bookEdit/js/keepTypingWhenCkEditorLoads.ts, when the box's content at 'loaded' differs from what CKEDITOR.inline() copied, make CKEditor's undo history start from the copied content with the typed content as the next step, so that the first Ctrl+Z restores the box as the page opened and Ctrl+Y brings the typing back. Check how src/BloomBrowserUI/bookEdit/undo/ckeditorChanges.ts and the one undo stack treat that step. Extend src/BloomE2E/tests/typing-before-ckeditor-is-ready.spec.ts to press Ctrl+Z and Ctrl+Y after the editor is ready. Reply on the Devin thread discussion_r4486456752 and resolve it. Then re-run preflight."}],"leaveAsIs":"typing done in the first moment after a page opens is kept, but Undo cannot remove it.","leaveAsIsRecommended":"Recommended: leave as is, because the text used to be destroyed, the remaining gap is small, and the work would go into CKEditor's undo history just before Stage 3 replaces it. On this choice I would reply on the Devin thread with that reasoning, resolve it, and add the behavior to the test notes as known and deliberate.","codeComment":true},{"title":"Next step","context":["The PR stays a draft either way."],"options":[{"label":"Do what I chose above, then re-run preflight.","recommended":true,"why":"Recommended because both items are small and the rest of the PR is green.","effort":"one more preflight round","instruction":"Carry out the decisions above on PR #8542 (branch JohnThomson/BL-17022-Text-typed-right), then re-run preflight on it."},{"label":"Discuss first","effort":"no code","instruction":"Make no changes yet to PR #8542; discuss the decisions above with me first."}],"leaveAsIs":"nothing more is done on PR #8542 for now."}]}</script>
+</head>
+<body>
+<main>
+<div class="report"><section>
+<h1>Preflight: keep text typed while CKEditor is still loading</h1>
+<p>BL-17022 · branch <code>JohnThomson/BL-17022-Text-typed-right</code> · head <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/956a5c82ec834a59e1c1efc789df841ba5912807"><code>956a5c8</code></a> · 2026-11-05. Every gate is green; two Devin findings wait on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip">Mergeable: clean</span>
+<span class="chip">Bots quiet except 2 open Devin threads</span>
+<span class="chip">3 items waiting on you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8542">PR #8542</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8542/files">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8542/commits">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17022">BL-17022</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8542">Devin review</a>
+</div>
+</section>
+
+<section>
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Text typed into a box in the first moment after a page opens in the Edit tab could disappear without any sign, at about the moment the page finished loading. On a fast machine the window is too short to hit by hand, but a slower machine widens it to a second or two, and the nightly CI runner repeatedly lost book titles typed on a new book's cover this way.</p>
+<h3>Cause</h3>
+<p><code>CKEDITOR.inline()</code> copies each box's content when Bloom attaches it and returns before the editor is ready. When the editor finishes loading, its <code>loaded</code> handler writes that copy back into the box, replacing whatever was typed in the meantime.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>Just before CKEditor's own <code>loaded</code> handler runs, Bloom refreshes the editor's copy from what the box holds by then, so the rewrite writes back the person's own text; the caret is noted first and put back once the editor is ready (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/956a5c82ec834a59e1c1efc789df841ba5912807/src/BloomBrowserUI/bookEdit/js/keepTypingWhenCkEditorLoads.ts#L90"><code>keepTypingWhenCkEditorLoads.ts:90</code></a>, called from <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/956a5c82ec834a59e1c1efc789df841ba5912807/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L2127"><code>bloomEditing.ts:2127</code></a>).</li>
+<li>A Games page's default instruction is written again on editor-ready only if the box is still blank, so it no longer replaces text typed over it (<a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/956a5c82ec834a59e1c1efc789df841ba5912807/src/BloomBrowserUI/bookEdit/js/PlaceholderProvider.ts#L71"><code>PlaceholderProvider.ts:71</code></a>).</li>
+<li>A new e2e test holds back CKEditor's <code>config.js</code>, types while the editor is still loading, then lets it load; without the fix the box comes back empty.</li>
+<li>The e2e helpers no longer wait for CKEditor before typing, so every typing spec exercises the fix; the <code>[cover-title]</code> logging stays for a few nightlies, and <code>AUTOMATION-DEBT.md</code> records the fix.</li>
+</ul>
+</section>
+
+<section>
+<h2>Quality gate</h2>
+<div class="tablewrap"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (front-end, e2e)</td><td><span class="ok">pass</span></td></tr>
+<tr><td>Lint</td><td><span class="ok">pass</span>, <span class="numeral">0 errors</span></td></tr>
+<tr><td>Merge with master</td><td><span class="ok">clean</span>, branch is on current master</td></tr>
+<tr><td>Front-end tests (vitest, unit and browser)</td><td><span class="ok">pass</span>, <span class="numeral">126 files · 1737 tests</span>, at head</td></tr>
+<tr><td>E2E (Playwright, real Bloom): repo check at the nightly window size</td><td><span class="ok">pass</span>, <span class="numeral">58 tests</span> in the new spec and 6 typing/table/cover-title specs, at head</td></tr>
+<tr><td>C# tests (dotnet test)</td><td>not run: no C# in the diff</td></tr>
+<tr><td>CI</td><td><span class="ok">pass</span> (pr-automation); no build checks run on this PR</td></tr>
+</table></div>
+</section>
+
+<section>
+<h2>What changed this run</h2>
+<p>Committed the fix and its tests, opened the draft PR, then made two fixes from reviewers: the Games default instruction no longer overwrites early typing (Devin), and the caret record keeps the space between two sentence spans (Greptile). See the <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8542/commits">commits</a>.</p>
+</section>
+
+<section>
+<h2>Reviewer outcomes</h2>
+<div class="tablewrap"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>No correctness bugs; one edge case (whitespace between paragraphs could move the caret) fixed before the first push.</td></tr>
+<tr><td>Devin</td><td>Complete for head after 3 rounds. Fixed: <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486456910">placeholders replacing early typing</a>. Open for you: <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486456752">early typing cannot be undone</a>, <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486537699">a space before a line break misplaces the caret</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete for the first commit: <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8542#discussion_r4486455009">one finding</a>, fixed and resolved. It has not reviewed the two small follow-up commits.</td></tr>
+<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+<tr><td>Repo check: e2e specs at the nightly window size</td><td>Passed: 58 of 58 at head.</td></tr>
+</table></div>
+</section>
+
+<section>
+<h2>Worth knowing</h2>
+<ul>
+<li>The QA test ideas are on <a target="_blank" rel="noopener" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17022">the card</a>. Only the main typing case is checked by an automated test in a real Bloom; the caret cases are checked only against a stand-in for CKEditor, and typing over a Games instruction in the window is not checked at all.</li>
+</ul>
+</section>
+</div>
+<div class="decisions">
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button">Copy answers</button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || Q.every((_, qi) => chosen(qi) === null);
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", refresh);
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = "Copied ✓"; return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = "Copied ✓"; return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "Sent to Claude ✓";
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use Copy answers.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use Copy answers.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Sent to Claude ✓ Claude's reply will appear in the comment on this section.";
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use Copy answers.`;
+  } finally {
+    sending = false;
+    sendBtn.textContent = "Send to Claude";
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
