@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16840 preflight</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#f7f4ee;color:#26231f;font:15px/1.55 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25;margin:0 0 .5em}
+h1{font-size:1.45rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#7a3e8c}
+code{font-family:Consolas,Menlo,monospace;font-size:.88em;background:#f1ece3;padding:0 .25em;border-radius:3px}
+header{padding:20px 16px 8px;max-width:1280px;margin:0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d9d1c3;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem;text-decoration:none;color:inherit}
+.chip.ok{border-color:#9cc59c;background:#eef7ee}
+.links .chip{color:#7a3e8c}
+main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;max-width:1280px;margin:0 auto;padding:8px 16px 40px}
+main>div{min-width:0}
+.card{background:#fff;border:1px solid #e3dccf;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:left;padding:6px 8px;border-top:1px solid #eee6d8;vertical-align:top}
+th{font-weight:600;border-top:none}
+.numeral{font-family:Consolas,Menlo,monospace;font-variant-numeric:tabular-nums;font-size:.9em}
+.pass{color:#2f7a2f;font-weight:600}
+.q{border-top:1px solid #eee6d8;padding-top:12px;margin-top:12px}
+.q:first-of-type{border-top:none;margin-top:0;padding-top:0}
+.opt{display:block;margin:6px 0;padding:6px 8px;border:1px solid #eee6d8;border-radius:6px;cursor:pointer}
+.opt small{display:block;color:#6b6358}
+.rec{font-size:.75rem;background:#efe3f3;color:#5c2a6b;border-radius:4px;padding:0 5px;margin-left:4px}
+textarea,input[type=text]{width:100%;font:inherit;border:1px solid #d9d1c3;border-radius:6px;padding:6px}
+textarea{min-height:48px;margin-top:6px}
+pre#payload{white-space:pre-wrap;background:#f7f4ee;border:1px solid #e3dccf;border-radius:6px;padding:10px;font-size:.82rem;max-height:320px;overflow:auto}
+button{font:inherit;background:#7a3e8c;color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer}
+.muted{color:#6b6358;font-size:.9rem}
+@media (max-width:820px){main{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<header>
+<h1>BL-16840 — stop the Edit view leaking every visited page</h1>
+<p class="muted">Preflight, 2026-11-05, on <code>44505843</code>. Gate green, every reviewer clean; two optional follow-ups below.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8540" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+<span class="chip ok">Mergeable (clean)</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip">2 items for you</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8540" target="_blank" rel="noopener">PR #8540</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8540/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8540/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16840" target="_blank" rel="noopener">BL-16840</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8540" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<main>
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Every page you click in the Edit tab leaks that whole page: its document, its frame and its entire JavaScript realm. In a long session the WebView2 renderer grows without limit; Bloom's Performance Measurement tool showed 2.21 GB after 77 page clicks in a large book.</p>
+<h3>Cause</h3>
+<p>Changing pages keeps the toolbox iframe and only navigates the page iframe. On each page load the toolbox binds handlers onto the page's text boxes using the toolbox frame's own jQuery 1.12, which keeps every such element in its global cache until the element is removed <em>through jQuery</em>. Navigating an iframe never tells it, so the long-lived toolbox frame holds one text box per page visited, and each keeps its detached document and whole realm alive.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>Adds <a href="https://github.com/BloomBooks/BloomDesktop/blob/44505843fb3a8654f4fad475116483ab2e167fb3/src/BloomBrowserUI/bookEdit/toolbox/toolbox.ts#L266" target="_blank" rel="noopener"><code>ToolBox.releaseElementsForTools</code></a>: one sweep of jQuery's own <code>cleanData</code> over the page, so no future tool can reintroduce the leak by forgetting to unbind.</li>
+<li>Calls it from <a href="https://github.com/BloomBooks/BloomDesktop/blob/44505843fb3a8654f4fad475116483ab2e167fb3/src/BloomBrowserUI/bookEdit/js/bloomEditing.ts#L1741" target="_blank" rel="noopener"><code>pageUnloading()</code></a>, which every page change and leaving the Edit tab already run, after the active tool detaches.</li>
+<li>Adds a regression test (<code>toolboxReleaseSpec.ts</code>).</li>
+</ul>
+<p class="muted">Measured live: with the release disabled, 12 page clicks kept ~14 dead documents and ~200 MB of JS heap; with it, both stayed flat.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck</td><td class="pass">pass</td></tr>
+<tr><td>Lint (changed files)</td><td><span class="pass">pass</span> — 0 errors; warnings are all on untouched lines</td></tr>
+<tr><td>TypeScript tests (vitest, full suite)</td><td><span class="pass">pass</span> — <span class="numeral">1731 passed · 126 files</span></td></tr>
+<tr><td>C# tests (dotnet test)</td><td>not run — no C# in the diff</td></tr>
+<tr><td>Repo check: e2e specs at nightly window size</td><td>did not apply — no <code>src/BloomE2E/tests/*.spec.ts</code> in the diff</td></tr>
+<tr><td>Merge with master</td><td><span class="pass">clean</span> — up to date with <code>3d8a9dbde</code></td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>First run: cherry-picked the original fix onto current master (resolving its clash with the reworked <code>pageUnloading()</code>), added the regression test, recorded the old remote commit as merged so the branch fast-forwards, and opened the draft PR. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8540/commits" target="_blank" rel="noopener">Commits</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review</td><td>Light sub-agent pass — clean, no findings.</td></tr>
+<tr><td>Devin</td><td>Complete on <code>44505843</code> — no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8540#issuecomment-6669861316" target="_blank" rel="noopener">Consultation log</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete on <code>44505843</code> — "no actionable issues".</td></tr>
+<tr><td>CodeRabbit</td><td>Not active on this repo (config file only; it has not posted on recent PRs).</td></tr>
+<tr><td>CI</td><td>Complete — <code>pr-automation</code> pass; <code>no-dependency-changes</code> skipped (no dependency changes).</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>The fix stops new accumulation; it does not free pages a running Bloom leaked before the fix loaded. Those go when the toolbox frame is rebuilt (leaving the Edit tab and coming back), so this matters only when comparing numbers mid-session.</li>
+<li>Memory figures without a forced garbage collection are meaningless for this leak: they show growth whether or not the fix is in. Testers are told to look for a level line, not a flat one.</li>
+<li>The branch's history has a no-op merge of the original <code>ec4b358</code> commit; <code>pr-ready-for-human</code>'s squash will fold it away.</li>
+</ul>
+</section>
+</div>
+
+<div>
+<section class="card" id="decisions">
+<h2>Decisions</h2>
+
+<div class="q" data-q="Also put the fix on Version6.5?">
+<h3>Also put the fix on Version6.5?</h3>
+<p>The card has no <code>[6.x]</code> prefix and the PR targets master (6.6). The leak is just as present in 6.5, which users run today, and the card's original author noted the fix cherry-picks cleanly. The 6.5 code around <code>pageUnloading()</code> differs from master's, so a 6.5 version would need its own small conflict resolution and its own test pass.</p>
+<label class="opt"><input type="radio" name="q1" data-instruction="In BloomBooks/BloomDesktop, after PR #8540 (branch BL-16840-toolbox-jquery-leak) is reviewed, cherry-pick commits 5eee8adcb and 97e174928 onto a new branch off Version6.5, resolve the pageUnloading() conflict in src/BloomBrowserUI/bookEdit/js/bloomEditing.ts, run pnpm typecheck and pnpm test, and open a draft PR against Version6.5."> Yes, a separate 6.5 PR after this one is reviewed<span class="rec">Recommended</span><small>Recommended because users on 6.5 hit the leak in every long editing session. ~2 files, a small conflict, low risk.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="Leave BL-16840 on master (6.6) only; do not port the fix to Version6.5."> No, 6.6 only<small>No code. 6.5 users keep the leak until they upgrade.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is — take no action on: whether BL-16840's fix also goes to Version6.5."> Leave as is</label>
+<label class="opt"><input type="radio" name="q1" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+
+<div class="q" data-q="File cards for the two Performance Measurement tool defects?">
+<h3>File cards for the two Performance Measurement tool defects?</h3>
+<p>The card describes two bugs in Bloom's own memory measurement, found during the investigation and not fixed by this PR: (1) it can count unrelated programs as part of Bloom, because Windows reuses process ids after a process exits (Adobe's sync tool was seen adding ~30 MB to Bloom's total); (2) "Select Page" always reports 0 seconds and samples memory before the page has loaded. Neither affects users directly, but both make the tool's numbers misleading to whoever investigates the next memory or speed report.</p>
+<label class="opt"><input type="radio" name="q2" data-instruction="Create two YouTrack cards on the Bloom 6.6 board (youtrack-create-issue), each linking BL-16840 and copying its description of the defect: (1) PerformanceMeasurement's descendant-process walk trusts th32ParentProcessID and counts unrelated processes after PID reuse; (2) the Select Page measurement closes before the page loads because PageListApi.HandlePageClickedRequest wraps a fire-and-forget call."> Yes, file both as separate cards<span class="rec">Recommended</span><small>Recommended because the findings are already written up on BL-16840 and would otherwise be lost when it closes. No code, a few minutes.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="Do not file cards for the Performance Measurement tool defects; they stay described only on BL-16840."> No, they stay as notes on BL-16840<small>No work. Easy to forget once BL-16840 closes.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is — take no action on: the two Performance Measurement tool defects described on BL-16840."> Leave as is</label>
+<label class="opt"><input type="radio" name="q2" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+
+<div class="q" data-q="Next step">
+<h3>Next step</h3>
+<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the recommended options above, then hand PR #8540 to pr-ready-for-human once I have reviewed it myself."> Do the recommended follow-ups; I'll review the PR myself next<span class="rec">Recommended</span></label>
+<label class="opt"><input type="radio" name="q3" data-instruction="Hold the follow-ups; discuss them with me first."> Discuss first</label>
+<label class="opt"><input type="radio" name="q3" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+</section>
+
+<section class="card">
+<h2>Copy back</h2>
+<pre id="payload"></pre>
+<button id="copy" type="button">Copy answers</button> <span id="copied" class="muted"></span>
+</section>
+</div>
+</main>
+<script>
+(function(){
+  var header = "Decisions from a decider form\nAbout: BloomBooks/BloomDesktop, branch BL-16840-toolbox-jquery-leak, PR #8540\nDate: 2026-11-05\nURL: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16840-toolbox-jquery-leak.html\n";
+  function build(){
+    var out = [header];
+    document.querySelectorAll(".q").forEach(function(q){
+      var title = q.getAttribute("data-q");
+      var picked = q.querySelector("input[type=radio]:checked");
+      var line;
+      if (!picked) line = "No decision yet — ask again later about: " + title;
+      else if (picked.hasAttribute("data-other")) line = "Other: " + (q.querySelector("[data-other-text]").value || "");
+      else line = picked.getAttribute("data-instruction");
+      var block = "\n## " + title + "\n" + line;
+      var notes = q.querySelector("textarea").value.trim();
+      if (notes) block += "\nNotes: " + notes;
+      out.push(block);
+    });
+    document.getElementById("payload").textContent = out.join("\n");
+  }
+  document.addEventListener("input", build);
+  document.addEventListener("change", build);
+  document.querySelectorAll("[data-other-text]").forEach(function(t){
+    t.addEventListener("focus", function(){ t.closest("label").querySelector("input[type=radio]").checked = true; build(); });
+  });
+  build();
+  document.getElementById("copy").addEventListener("click", function(){
+    var text = document.getElementById("payload").textContent;
+    var done = function(){ document.getElementById("copied").textContent = "Copied"; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else fallback();
+    function fallback(){
+      var r = document.createRange(); r.selectNodeContents(document.getElementById("payload"));
+      var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+      try { document.execCommand("copy"); done(); } catch (e) { document.getElementById("copied").textContent = "Press Ctrl+C to copy"; }
+    }
+  });
+})();
+</script>
+</body>
+</html>
