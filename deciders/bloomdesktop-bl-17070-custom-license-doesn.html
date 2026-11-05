@@ -34,7 +34,7 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <body>
 <div class="wrap">
 <h1>BL-17070: original-copyright wording survives a spreadsheet round trip</h1>
-<p>Preflight run of 2026-11-05 on branch <code>JohnThomson/BL-17070-Custom-license-doesn</code>, HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/46737ca27f2f00c0a4aea324d6d6af4e74ab0d52" target="_blank" rel="noopener">46737ca</a>. Everything is green; nothing is waiting on you.</p>
+<p>Preflight run of 2026-11-05 on branch <code>JohnThomson/BL-17070-Custom-license-doesn</code>, HEAD <a href="https://github.com/BloomBooks/BloomDesktop/commit/dfcad9137b84a59f8812523d03849ba6c7fa95b2" target="_blank" rel="noopener">dfcad91</a>. Everything is green; nothing is waiting on you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip ok">Mergeable (clean)</span>
@@ -54,14 +54,17 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <div class="card">
 <h2>What this PR is about</h2>
 <h3>Problem</h3>
-<p>On a derivative book's credits page, the user can unlock the "adapted from the original" sentence and reword it. When that book is exported to a spreadsheet and imported into a new book, their wording is lost. The credits page goes back to Bloom's generated sentence, without the original title and with the stored original copyright.</p>
+<p>On a derivative book's credits page, the user can unlock the "adapted from the original" sentence and reword it. When that book is exported to a spreadsheet and imported into a new book, their wording is lost: the credits page shows Bloom's generated sentence, with "click to edit original title" and the stored original copyright year.</p>
 <h3>Cause</h3>
-<p>The spreadsheet's <code>*</code> column holds book-wide data-div values. Export wrote them as raw XML (<code>&amp;</code> as <code>&amp;amp;</code>, tags kept), but import XML-escapes everything it reads from that column. So the user's wording came back as literal tag text, and any <code>&amp;</code> in the original title, copyright and similar fields doubled on every round trip.</p>
+<ul>
+<li><strong>The import ran on stale book data.</strong> The importer writes straight into the book's data div, then brings the book up to date. But a book reads its values only when it loads, so that update used the blank book's values. It saw no derivative and no user wording, generated the sentence itself, and removed the original title.</li>
+<li><strong>The <code>*</code> column was escaped twice.</strong> Export wrote book-wide values as raw XML and import escaped them again, so the user's wording came back as literal tag text and any <code>&amp;</code> doubled on every round trip.</li>
+</ul>
 <h3>What the PR does</h3>
 <ul>
-<li>Export <a href="https://github.com/BloomBooks/BloomDesktop/blob/46737ca27f2f00c0a4aea324d6d6af4e74ab0d52/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L145" target="_blank" rel="noopener">writes <code>*</code> column values as plain text</a>, so import's escaping restores exactly the original value.</li>
-<li>The user's wording is real formatted text (paragraphs, italic title), so its <code>*</code> cell gets the <a href="https://github.com/BloomBooks/BloomDesktop/blob/46737ca27f2f00c0a4aea324d6d6af4e74ab0d52/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L355" target="_blank" rel="noopener">rich-text treatment ISBN already had</a>. Its formatting survives, and it can be edited in Excel like book text.</li>
-<li>A new round-trip test writes and reads a real .xlsx and checks the original title, copyright, license and the user's wording all come back unchanged.</li>
+<li>After writing the data div, the importer has the book <a href="https://github.com/BloomBooks/BloomDesktop/blob/dfcad9137b84a59f8812523d03849ba6c7fa95b2/src/BloomExe/Spreadsheet/SpreadsheetImporter.cs#L428" target="_blank" rel="noopener">re-read its data</a> before bringing it up to date.</li>
+<li>Export <a href="https://github.com/BloomBooks/BloomDesktop/blob/dfcad9137b84a59f8812523d03849ba6c7fa95b2/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L145" target="_blank" rel="noopener">writes <code>*</code> column values as plain text</a>, so import's escaping restores exactly the original value.</li>
+<li>The user's wording gets the <a href="https://github.com/BloomBooks/BloomDesktop/blob/dfcad9137b84a59f8812523d03849ba6c7fa95b2/src/BloomExe/Spreadsheet/SpreadsheetIO.cs#L355" target="_blank" rel="noopener">rich-text treatment ISBN already had</a>, so its italics survive and it can be edited in Excel.</li>
 </ul>
 </div>
 
@@ -70,17 +73,17 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>C# build</td><td class="pass">Pass</td></tr>
-<tr><td>C# tests (dotnet test, full suite)</td><td><span class="pass">Pass</span> <span class="numeral">3953 passed · 1 skipped · 0 failed</span></td></tr>
-<tr><td>TypeScript typecheck, lint, vitest</td><td>Not run: no front-end files in the diff</td></tr>
-<tr><td>Repo check: e2e specs at nightly window size</td><td>Did not apply: no e2e spec in the diff</td></tr>
-<tr><td>Merge with master</td><td class="pass">Already up to date; mergeable</td></tr>
-<tr><td>Test of the change</td><td><code>SpreadsheetOriginalCopyrightRoundTripTests</code>; failed before the fix</td></tr>
+<tr><td>C# tests (full suite, at HEAD)</td><td><span class="pass">Pass</span> <span class="numeral">3956 passed · 1 skipped · 0 failed</span></td></tr>
+<tr><td>TypeScript typecheck, lint, vitest</td><td>Not run: no front-end files in this PR's own changes (the master merge brought only an e2e spec of another PR)</td></tr>
+<tr><td>Repo check: e2e specs at nightly window size</td><td>Did not apply: this PR adds or changes no e2e spec</td></tr>
+<tr><td>Merge with master</td><td class="pass">Merged cleanly; mergeable</td></tr>
+<tr><td>Test of the change</td><td><code>SpreadsheetOriginalCopyrightIntoBookTests</code> (reproduced the reported result before the fix), <code>SpreadsheetOriginalCopyrightRoundTripTests</code></td></tr>
 </table>
 </div>
 
 <div class="card">
 <h2>What changed this run</h2>
-<p>Committed the fix and its test, opened the draft PR, and added method comments to the test at Greptile's suggestion. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8539/commits" target="_blank" rel="noopener">commit list</a>.</p>
+<p>The first fix was incomplete: you still saw the reported result with the problem book. Found and fixed the stale-data cause, and added a test that imports into a real book. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8539/commits" target="_blank" rel="noopener">commit list</a>.</p>
 </div>
 
 <div class="card">
@@ -88,8 +91,8 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
 <tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings.</td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8539" target="_blank" rel="noopener">Devin</a></td><td>Complete, on both commits: no bugs, no Investigate flags. One Informational note: the test checks stored values, not the rendered credits page.</td></tr>
-<tr><td>Greptile</td><td>Complete: one finding (test methods lacked comments), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8539#discussion_r4485054462" target="_blank" rel="noopener">fixed and resolved</a>.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8539" target="_blank" rel="noopener">Devin</a></td><td>Complete at HEAD: no bugs, no Investigate flags. Its one Informational note is covered by the new real-book test.</td></tr>
+<tr><td>Greptile</td><td>Complete: re-reviewed the new code, no new findings. Its earlier finding was fixed and resolved.</td></tr>
 <tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
 </table>
 </div>
@@ -97,7 +100,7 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <div class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Not exercised in a running Bloom. The test runs the importer directly, not the full import into a real book. So the credits page's final rendering after import (the step where Colin saw Bloom's sentence) is covered only by the QA test ideas on the card.</li>
+<li>You confirmed the fix in a running Bloom with the card's problem book.</li>
 <li>Spreadsheets exported by older Bloom versions still import their <code>*</code> values double-escaped. Re-export from this version.</li>
 </ul>
 </div>
@@ -106,7 +109,7 @@ code{font-family:Consolas,monospace;font-size:.88em;background:#f1ede6;padding:0
 <div>
 <div class="card">
 <h2>Decisions</h2>
-<p>None. Every reviewer finished, the one bot finding is fixed, and the change comes with its own test.</p>
+<p>None. Every reviewer finished, nothing is outstanding, and the change comes with its own tests.</p>
 <p>Next step is yours: review the PR, then run <code>pr-ready-for-human</code>.</p>
 </div>
 </div>
