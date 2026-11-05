@@ -84,13 +84,13 @@ button:disabled { opacity: .6; cursor: default; }
 <body>
 <div class="wrap">
 <header>
-  <h1>Preflight for BL-16722: each test fixture and each BloomPUB gets its own temp folder</h1>
-  <p>First preflight run on this branch, 2026-11-05. The code is settled, every reviewer has finished, and three questions remain.</p>
+  <h1>Preflight for BL-16722: each test fixture, BloomPUB and ePUB gets its own temp folder</h1>
+  <p>Second preflight run, 2026-11-05, after your three decisions. The code is settled, every reviewer has finished, and nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8538" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
     <span class="chip ok">Mergeable, up to date with master</span>
-    <span class="chip ok">Bots quiet at 17ccf68</span>
-    <span class="chip warn">3 questions for you</span>
+    <span class="chip ok">Bots quiet at 8a387f2</span>
+    <span class="chip ok">No questions for you</span>
   </div>
   <div class="links">
     <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538" target="_blank" rel="noopener">PR #8538</a>
@@ -99,6 +99,7 @@ button:disabled { opacity: .6; cursor: default; }
     <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16722" target="_blank" rel="noopener">BL-16722</a>
     <a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8538" target="_blank" rel="noopener">Devin review</a>
     <a href="https://reviewable.io/reviews/BloomBooks/BloomDesktop/8538" target="_blank" rel="noopener">Reviewable</a>
+    <a href="https://github.com/BloomBooks/bloom-player/pull/445" target="_blank" rel="noopener">bloom-player #445</a>
   </div>
 </header>
 
@@ -107,15 +108,14 @@ button:disabled { opacity: .6; cursor: default; }
   <section class="card">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>The full C# test suite failed intermittently, about two runs in three on one machine, for reasons that had nothing to do with the change under test. Ten test fixtures used the same temp folder, and each test's setup deletes and recreates it, so one fixture could pull the folder out from under work another was still doing.</p>
-    <p>Bloom itself had the same flaw. Every BloomPUB, whether the Publish-tab preview or a real one (saved to a file, sent over USB or Wi-Fi, made in bulk, or built into an app), was staged in one of two fixed temp folders, <code>PlaceForStagingBook</code> and <code>BloomReaderExport</code>. Pictures were shrunk in a third, <code>BloomPubImageAdjust</code>. Starting a new BloomPUB deleted whatever was in them, including another running Bloom's files.</p>
+    <p>The full C# test suite failed intermittently, about two runs in three on one machine, for reasons that had nothing to do with the change under test. Ten test fixtures used the same temp folder, and each test's setup deletes and recreates it, so one fixture could pull the folder out from under work another was still doing. The ePUB tests also all staged into one shared folder.</p>
+    <p>Bloom itself had the same flaw. Every BloomPUB (the Publish-tab preview, or one saved to a file, sent over USB or Wi-Fi, made in bulk, or built into an app) was staged in one of two fixed temp folders, and pictures were shrunk in a third. Every ePUB was staged under <code>ePUB_export\0</code>. Starting a new one deleted whatever was in these folders, including another running Bloom's files.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><strong>Each test fixture gets its own temp folder</strong>, named after the fixture class. A fixture can no longer override the name and bring back a shared one.</li>
-      <li><strong>The ePUB tests release the ePUB they open.</strong> They used to keep <code>output.epub</code> locked for the rest of the run.</li>
-      <li><strong>Each BloomPUB gets its own staging folder</strong>, <code>%TEMP%\bps\&lt;five random characters&gt;</code>, and so does picture shrinking. A Bloom claims a folder by creating a marker file in it in a way that fails if another Bloom got there first.</li>
-      <li><strong>The code that recognized the old folder names now recognizes the <code>bps</code> root</strong>: the Bloom Player link back to the book being previewed, the no-caching rule for the preview, and the filter that hides missing-file noise while publishing.</li>
-      <li><strong>Cleanup that respects other running Blooms.</strong> The root does not start with "bloom", so Bloom's exit sweep of <code>%TEMP%\bloom*</code> never touches it. Instead, every Bloom deletes its own marked staging folders more than a day old when it exits, and a filesystem error there cannot interrupt shutdown.</li>
+      <li><strong>Each test fixture gets its own temp folder</strong>, named after the fixture class, and the ePUB tests release the ePUB they open.</li>
+      <li><strong>Each BloomPUB and each ePUB gets its own staging folder</strong>, <code>%TEMP%\bps\&lt;five random characters&gt;</code>, from the new <code>PublishStaging</code> class, and so does picture shrinking. A Bloom claims a folder by first creating a marker file beside it in a way that fails if another Bloom got there first.</li>
+      <li><strong>The code that recognized the old folder names now recognizes the <code>bps</code> root</strong>: the Bloom Player link back to the book being previewed, the no-caching rule for previews, and the filter that hides missing-file noise while publishing.</li>
+      <li><strong>Cleanup that respects other running Blooms.</strong> The root does not start with "bloom", so Bloom's exit sweep of <code>%TEMP%\bloom*</code> never touches it. Instead, every Bloom deletes staging folders whose marker is more than a day old when it exits, then the marker. It never touches a folder without Bloom's marker, and an error there cannot interrupt shutdown.</li>
     </ul>
   </section>
 
@@ -125,7 +125,8 @@ button:disabled { opacity: .6; cursor: default; }
     <table>
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>C# build and formatting (CSharpier, pre-commit hooks)</td><td class="pass">Pass</td></tr>
-      <tr><td>C# tests, full suite at <a href="https://github.com/BloomBooks/BloomDesktop/commit/17ccf68554b34a42a9d7319464c15d727f46ce48" target="_blank" rel="noopener">17ccf68</a></td><td class="pass">Pass <span class="numeral">3952 passed · 1 skipped · 0 failed</span></td></tr>
+      <tr><td>C# tests, full suite at <a href="https://github.com/BloomBooks/BloomDesktop/commit/8a387f2a4f9b666cc8a5d56037163f4ed310e84a" target="_blank" rel="noopener">8a387f2</a></td><td class="pass">Pass <span class="numeral">3953 passed · 1 skipped · 0 failed</span></td></tr>
+      <tr><td>E2E: the three BloomPUB-preview specs, headless, nightly window size, at <span class="numeral">82de5b7</span></td><td class="pass">Pass <span class="numeral">26 passed</span></td></tr>
       <tr><td>TypeScript typecheck, lint, vitest</td><td class="na">Not run: the only front-end change is two comment lines in the visual-regression spec, which none of these read.</td></tr>
       <tr><td>Repo check: e2e specs at the nightly window size</td><td class="na">Did not apply: no <code>src/BloomE2E/tests/*.spec.ts</code> changed.</td></tr>
       <tr><td>Merge with master</td><td class="pass">Clean, up to date with <span class="numeral">4576177</span></td></tr>
@@ -135,7 +136,7 @@ button:disabled { opacity: .6; cursor: default; }
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Built the branch into a draft PR, then fixed everything the reviewers raised: the exclusive folder claim, cleanup limited to Bloom's own folders, picture shrinking moved into a staging folder, no endless retry when a claim fails for another reason, and no shutdown interruption from the cleanup. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538/commits" target="_blank" rel="noopener">Four commits</a>.</p>
+    <p>Carried out your three decisions: ePUBs now stage through the same class as BloomPUBs, the three BloomPUB-preview e2e specs ran in a real Bloom (26/26), and <a href="https://github.com/BloomBooks/bloom-player/pull/445" target="_blank" rel="noopener">bloom-player #445</a> updates its developer docs. Then moved the claim marker beside its folder after Greptile's second review. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538/commits" target="_blank" rel="noopener">Commits</a>.</p>
   </section>
 
   <section class="card">
@@ -143,9 +144,9 @@ button:disabled { opacity: .6; cursor: default; }
     <div class="tablewrap">
     <table>
       <tr><th>Reviewer</th><th>State</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>Clean: no correctness problems. One note, that a preview left open over a day can lose its files to another Bloom's cleanup, was recorded in a code comment and in the test notes.</td></tr>
-      <tr><td>Devin</td><td>Complete at 17ccf68 after three rounds. It raised three bugs and two flags; all five are fixed, each on its own resolved thread (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484682744" target="_blank" rel="noopener">shared folder claim</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484683578" target="_blank" rel="noopener">cleanup of other programs' folders</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484713547" target="_blank" rel="noopener">endless retry</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484684380" target="_blank" rel="noopener">picture scratch folder</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484685197" target="_blank" rel="noopener">test comments</a>). Devin marks every bug resolved.</td></tr>
-      <tr><td>Greptile</td><td>Complete on the first commit. Its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4484709868" target="_blank" rel="noopener">one finding</a>, that the cleanup could interrupt shutdown, is fixed. It has not re-reviewed the later commits, which are fixes to the bots' findings.</td></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean on the first run; one note was recorded in a code comment. Not repeated this run, since Devin and Greptile both reviewed the new code.</td></tr>
+      <tr><td>Devin</td><td>Complete at 8a387f2 and marks every bug resolved. This run it raised one new bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4485183263" target="_blank" rel="noopener">ePUB previews on Linux</a>; it is in Mono-only code that is never compiled, so I answered it as not an issue.</td></tr>
+      <tr><td>Greptile</td><td>Re-reviewed at 82de5b7 when asked. Its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8538#discussion_r4485187319" target="_blank" rel="noopener">one finding</a>, that a folder whose deletion failed part way could lose its marker and never be cleaned up, is fixed in 8a387f2.</td></tr>
       <tr><td>CI</td><td><code>pr-automation</code> passed; <code>no-dependency-changes</code> skipped itself.</td></tr>
     </table>
     </div>
@@ -154,165 +155,19 @@ button:disabled { opacity: .6; cursor: default; }
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>Nothing has been tried in a running Bloom yet, and the e2e specs that open the BloomPUB preview were not run (question 2). The test ideas on the card list what a tester should try.</li>
-      <li>The card also names the ePUB export folder, which has the same flaw and caused one of its three reported failures. This PR leaves it alone (question 1).</li>
+      <li>Nothing has opened the ePUB preview in a running Bloom; no e2e spec covers it. The ePUB unit tests run the whole staging path, and the card's test ideas ask a tester to check the preview and a saved ePUB.</li>
+      <li>bloom-player #445 targets <code>alpha</code> and only makes sense once this PR ships.</li>
     </ul>
   </section>
 </div>
 
 <div>
-  <section class="card q" id="q1">
-    <h2>1. Give each ePUB export its own folder too?</h2>
-    <p>Every ePUB Bloom makes is staged under one shared folder, <code>%TEMP%\ePUB_export\0</code> (<a href="https://github.com/BloomBooks/BloomDesktop/blob/17ccf68554b34a42a9d7319464c15d727f46ce48/src/BloomExe/Publish/Epub/EpubMaker.cs#L279" target="_blank" rel="noopener">EpubMaker.cs:279</a>). Starting a new ePUB deletes what is there and only moves on to <code>1</code>, <code>2</code>… when that delete fails. This is the same flaw this PR removes for BloomPUBs. The card names it, and one of its three reported test failures (<code>BookSwitchedToDeviceXMatter</code>, a missing file under <code>ePUB_export\0</code>) came from it. For users it bites only when two ePUBs are made at once, for example from two copies of Bloom.</p>
-    <label class="opt"><input type="radio" name="q1" id="q1-a" data-q="q1" checked data-instruction="In C:\Users\JohnThomson\orca\workspaces\BloomDesktop\BL-16722-shared-temp-folders (branch JohnThomson/BL-16722-shared-temp-folders, PR #8538), make EpubMaker stage each ePUB in a folder of its own claimed the same way as BloomPubStaging (generalize that class to cover ePUB staging, or reuse it), replacing the shared %TEMP%\ePUB_export\0..19 scheme in src/BloomExe/Publish/Epub/EpubMaker.cs; update the ePUB checks in RequestInfo.ShouldCache and BloomServer's missing-file filter; then rerun the full C# suite and preflight."><span>Do it in this PR <span class="tag">Recommended</span><span class="foot">Recommended because the card asks for it and it finishes off the card's reported failures. About 40 lines in EpubMaker and the two server checks; moderate, same pattern as the BloomPUB change.</span></span></label>
-    <label class="opt"><input type="radio" name="q1" id="q1-b" data-q="q1" data-instruction="Create a new YouTrack card for giving each ePUB export its own staging folder (EpubMaker currently stages every ePUB under the shared %TEMP%\ePUB_export\0), linked to BL-16722, and leave PR #8538 as it is."><span>Make a separate card for it<span class="foot">No code now; this PR stays BloomPUB-only.</span></span></label>
-    <div class="opt row"><label><input type="radio" name="q1" id="q1-leave" data-q="q1" data-instruction="Leave as is — take no action on: EpubMaker still stages every ePUB under the shared %TEMP%\ePUB_export folder."><span>Leave as is</span></label><span class="lc"><input type="checkbox" id="q1-comment" data-q="q1-comment" data-instruction="Record this decision as a code comment near the ePUB staging loop in src/BloomExe/Publish/Epub/EpubMaker.cs."><label for="q1-comment">Leave comment</label></span></div>
-    <div class="opt other"><input type="radio" name="q1" id="q1-other" data-q="q1" data-instruction="OTHER"><label for="q1-other">Other:</label><input type="text" id="q1-other-text" data-q="q1-other-text" aria-label="Other answer for question 1"></div>
-    <textarea id="q1-notes" data-q="q1-notes" placeholder="Notes"></textarea>
-  </section>
-
-  <section class="card q" id="q2">
-    <h2>2. Try the change in a real Bloom before human review?</h2>
-    <p>Everything so far is unit tests and code review. The BloomPUB preview's move to a new folder each time has not been exercised in a running Bloom. Three e2e specs open the preview (<code>publish-text-languages</code>, <code>tables-core</code>, <code>tables-gating</code>), and the nightly will run them after merge. Running them here first would catch a broken preview before a reviewer or tester sees it.</p>
-    <label class="opt"><input type="radio" name="q2" id="q2-a" data-q="q2" checked data-instruction="In C:\Users\JohnThomson\orca\workspaces\BloomDesktop\BL-16722-shared-temp-folders (PR #8538), build what the e2e tests need and run src/BloomE2E/tests/publish-text-languages.spec.ts, tables-core.spec.ts and tables-gating.spec.ts once, headless (BLOOM_AUTOMATION_MONITOR=headless, BLOOM_E2E_VIEWPORT=nightly), without taking the developer's foreground; record the passing ones as live checks with the commit in the PR's E2E Coverage section, and fix or report any failure."><span>Run the three preview specs here, headless <span class="tag">Recommended</span><span class="foot">Recommended because the preview is the path users hit most and nothing has run it. About 15 to 20 minutes, mostly waiting; no code change, never takes your screen.</span></span></label>
-    <div class="opt row"><label><input type="radio" name="q2" id="q2-leave" data-q="q2" data-instruction="Leave as is — take no action on: the BloomPUB preview has not been exercised in a running Bloom before review; rely on the nightly e2e run and the tester."><span>Leave as is</span></label></div>
-    <div class="opt other"><input type="radio" name="q2" id="q2-other" data-q="q2" data-instruction="OTHER"><label for="q2-other">Other:</label><input type="text" id="q2-other-text" data-q="q2-other-text" aria-label="Other answer for question 2"></div>
-    <textarea id="q2-notes" data-q="q2-notes" placeholder="Notes"></textarea>
-  </section>
-
-  <section class="card q" id="q3">
-    <h2>3. Update bloom-player's developer docs?</h2>
-    <p>bloom-player's <code>README-advanced.md</code> and <code>index-for-developing.html</code> show example URLs under <code>…/Temp/PlaceForStagingBook/&lt;book&gt;</code> for viewing the book Bloom is previewing. That folder no longer exists, and the new folder changes with every preview, so a developer following those docs gets a broken link. Bloom already answers <code>http://localhost:8089/bloom/current-bloompub-url</code> with the current preview's address, which the storybook's "Live from Bloom Editor" story uses.</p>
-    <label class="opt"><input type="radio" name="q3" id="q3-a" data-q="q3" checked data-instruction="In the bloom-player repo (C:\github\bloom-player), make a small docs-only PR that replaces the PlaceForStagingBook example URLs in README-advanced.md and index-for-developing.html with instructions to get the current preview's URL from http://localhost:8089/bloom/current-bloompub-url, noting that BloomDesktop now stages each BloomPUB in its own %TEMP%\bps\<random> folder (BloomDesktop PR #8538)."><span>Small docs PR in bloom-player <span class="tag">Recommended</span><span class="foot">Recommended because those are the instructions a developer follows when debugging the player against Bloom. Docs only, two files, no risk.</span></span></label>
-    <div class="opt row"><label><input type="radio" name="q3" id="q3-leave" data-q="q3" data-instruction="Leave as is — take no action on: bloom-player's developer docs still show PlaceForStagingBook example URLs."><span>Leave as is</span></label></div>
-    <div class="opt other"><input type="radio" name="q3" id="q3-other" data-q="q3" data-instruction="OTHER"><label for="q3-other">Other:</label><input type="text" id="q3-other-text" data-q="q3-other-text" aria-label="Other answer for question 3"></div>
-    <textarea id="q3-notes" data-q="q3-notes" placeholder="Notes"></textarea>
-  </section>
-
-  <section class="card q" id="q4">
-    <h2>Next step</h2>
-    <label class="opt"><input type="radio" name="q4" id="q4-a" data-q="q4" checked data-instruction="Carry out the options chosen above now, then re-run preflight on PR #8538."><span>Do what I chose above, then re-run preflight <span class="tag">Recommended</span></span></label>
-    <label class="opt"><input type="radio" name="q4" id="q4-b" data-q="q4" data-instruction="Discuss the choices above with me before changing anything."><span>Discuss first</span></label>
-    <div class="opt row"><label><input type="radio" name="q4" id="q4-leave" data-q="q4" data-instruction="Leave as is — take no further action on PR #8538 for now."><span>Leave as is</span></label></div>
-    <div class="opt other"><input type="radio" name="q4" id="q4-other" data-q="q4" data-instruction="OTHER"><label for="q4-other">Other:</label><input type="text" id="q4-other-text" data-q="q4-other-text" aria-label="Other next step"></div>
-    <textarea id="q4-notes" data-q="q4-notes" placeholder="Notes"></textarea>
-  </section>
-
-  <section class="card" id="copyback">
-    <h2>Send your answers back</h2>
-    <p>Paste these into a Claude session to carry them out.</p>
-    <div class="buttons">
-      <button type="button" id="send" hidden>Send to Claude</button>
-      <button type="button" id="copy" class="secondary">Copy</button>
-      <span id="status" role="status"></span>
-    </div>
-    <textarea id="payload" readonly hidden aria-label="Answers to copy"></textarea>
+  <section class="card">
+    <h2>Nothing needs a decision</h2>
+    <p>Your three answers from the last run are done, and no reviewer raised anything that needs you. The PR is still a draft. When you have looked it over yourself, <code>pr-ready-for-human</code> hands it to a reviewer.</p>
   </section>
 </div>
 </div>
 </div>
-
-<script>
-const REPORT_URL = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-16722-shared-temp-folders.html";
-const QUESTIONS = ["q1", "q2", "q3", "q4"];
-
-function serialize() {
-  const lines = [
-    "Decisions from a decider form (preflight report)",
-    "Project: BloomDesktop, branch JohnThomson/BL-16722-shared-temp-folders, PR https://github.com/BloomBooks/BloomDesktop/pull/8538 (card BL-16722)",
-    "Worktree: C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-16722-shared-temp-folders",
-    "Date: 2026-11-05",
-    "Full report: " + REPORT_URL,
-    ""
-  ];
-  for (const q of QUESTIONS) {
-    const section = document.getElementById(q);
-    lines.push(section.querySelector("h2").textContent.trim());
-    const chosen = section.querySelector('input[type=radio]:checked');
-    if (chosen) {
-      if (chosen.dataset.instruction === "OTHER") {
-        lines.push("Other: " + (document.getElementById(q + "-other-text").value.trim() || "(no text given)"));
-      } else {
-        lines.push(chosen.dataset.instruction);
-      }
-    }
-    const comment = document.getElementById(q + "-comment");
-    if (comment && comment.checked) lines.push(comment.dataset.instruction);
-    const notes = document.getElementById(q + "-notes").value.trim();
-    if (notes) lines.push("Notes: " + notes);
-    lines.push("");
-  }
-  return lines.join("\n").trim() + "\n";
-}
-
-function setStatus(text, good) {
-  const s = document.getElementById("status");
-  s.textContent = text;
-  s.className = good ? "good" : "";
-}
-
-for (const q of QUESTIONS) {
-  const other = document.getElementById(q + "-other-text");
-  if (other) other.addEventListener("input", () => { document.getElementById(q + "-other").checked = true; });
-}
-
-document.getElementById("copy").addEventListener("click", async () => {
-  try {
-    const text = serialize();
-    const area = document.getElementById("payload");
-    area.value = text;
-    area.hidden = false;
-    area.focus();
-    area.select();
-    try {
-      await navigator.clipboard.writeText(text);
-      setStatus("Copied ✓", true);
-      return;
-    } catch (e) {
-      area.select();
-      let ok = false;
-      try { ok = document.execCommand("copy"); } catch (e2) { ok = false; }
-      if (ok) { setStatus("Copied ✓", true); return; }
-    }
-    setStatus("Couldn't copy automatically. The text is selected below; press Ctrl+C (⌘C on Mac).", false);
-  } catch (e) {
-    setStatus("Couldn't copy automatically. Select the text below and copy it.", false);
-  }
-});
-
-(async () => {
-  let comments = null;
-  try { comments = await window.claude?.use?.("comments"); } catch (e) { comments = null; }
-  if (!comments) return;
-  const send = document.getElementById("send");
-  send.hidden = false;
-  send.addEventListener("click", async () => {
-    const text = serialize();
-    send.disabled = true;
-    send.textContent = "Sending…";
-    setStatus("Sending your answers to Claude…", false);
-    try {
-      const bytes = new TextEncoder().encode(text).length;
-      if (bytes > 4096) { setStatus("Your answers are " + bytes + " bytes, over the 4096-byte limit. Shorten the notes or use Copy.", false); return; }
-      const state = await comments.canSendToClaude();
-      if (state !== "available") {
-        const why = { writers_only: "only editors of this page can send", no_session: "no Claude session is watching this page", off: "sending is turned off" }[state] || state;
-        setStatus("Can't send: " + why + ". Use Copy instead.", false);
-        return;
-      }
-      const anchor = await comments.anchorFor(document.getElementById("copyback"));
-      await comments.sendToClaude({ anchor, text });
-      setStatus("Sent to Claude ✓ Claude's reply will appear in the comment on this card.", true);
-    } catch (e) {
-      const msg = { consent_required: "allow this page to comment first", forbidden: "this page may not send", claude_unavailable: "Claude is unavailable; nothing was posted" }[e && e.code] || ((e && e.code) || "unknown error");
-      if (e && e.code === "forbidden") send.hidden = true;
-      setStatus("Couldn't send (" + msg + "). Use Copy instead.", false);
-    } finally {
-      send.disabled = false;
-      send.textContent = "Send to Claude";
-    }
-  });
-})();
-</script>
 </body>
 </html>
