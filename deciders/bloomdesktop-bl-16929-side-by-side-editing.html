@@ -59,17 +59,24 @@ th { font-weight: 600; color: var(--muted); }
 .na { color: var(--muted); }
 .muted { color: var(--muted); }
 </style>
+<style>
+.q { display: flex; flex-direction: column; gap: 8px; }
+.q label { display: flex; gap: 8px; align-items: flex-start; }
+.q textarea, .q input[type=text] { width: 100%; font: inherit; padding: 6px; border: 1px solid var(--rule); border-radius: 4px; }
+#payload { width: 100%; min-height: 110px; font: 0.85rem var(--mono); }
+button { font: inherit; padding: 6px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 4px; cursor: pointer; }
+</style>
 </head>
 <body>
 <div class="wrap">
   <header style="display:flex;flex-direction:column;gap:10px">
     <h1>Preflight: show the rest of the book around the page being edited</h1>
-    <p class="muted" style="margin:0">BL-16929 · branch <code>BL-16929-side-by-side-editing</code> · run of 2026-11-05 at <code>265d28f0f9</code>: merged master with BL-13502, fixed two e2e helpers it broke, answered Devin and Greptile.</p>
+    <p class="muted" style="margin:0">BL-16929 · branch <code>BL-16929-side-by-side-editing</code> · run of 2026-11-05 at <code>d19e497ac6</code>: committed the work that keeps the user out of a page until it is ready, merged master, and fixed what the local review, Devin and Greptile found in it.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
       <span class="chip good">Bots quiet</span>
-      <span class="chip good">0 items waiting on you</span>
+      <span class="chip warn">1 item waiting on you</span>
     </div>
     <div class="chips links">
       <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8415" target="_blank" rel="noopener">PR #8415</a>
@@ -85,15 +92,15 @@ th { font-weight: 600; color: var(--muted); }
       <section class="card lede">
         <h2>What this PR is about</h2>
         <h3>Purpose</h3>
-        <p>Bloom's Edit tab shows one page at a time. People laying out a children's book want to see the page they are editing beside its facing page, and the rest of the book around it, the way it will be read. This PR adds that view, and makes changing pages hold steady on screen in both views.</p>
+        <p>Bloom's Edit tab shows one page at a time. People laying out a children's book want to see the page they are editing beside its facing page, and the rest of the book around it, the way it will be read. This PR adds that view. It also keeps the user out of a page until it is ready to use, since text typed into a page that is still starting up is lost; on an old, slow machine that takes several seconds.</p>
         <h3>What the PR does</h3>
         <ul>
-          <li><strong>A page view chooser</strong> under the account avatar switches between one page and all pages, remembered across pages and sessions; choosing all pages zooms out if the spread would not fit.</li>
-          <li><strong>All pages</strong> lays the book out as it is read: cover alone, then facing pages, with a blank page before the back cover when the printed book needs one. Right-to-left books are mirrored, calendars stack, screen-sized books show single pages, and corner marks show the page being edited. The other pages are read-only, sandboxed, drawn only near the screen, and follow Format dialog changes. None of it is saved.</li>
+          <li><strong>A page view chooser</strong> under the account avatar switches between one page and all pages, remembered across pages and sessions. Each view keeps its own zoom; the first time, all pages zooms out if the spread would not fit.</li>
+          <li><strong>All pages</strong> lays the book out as it is read: cover alone, then facing pages, with a blank page before the back cover when the printed book needs one. Right-to-left books are mirrored, calendars stack, screen-sized books show single pages, and purple corner marks show the page being edited. The other pages are read-only, sandboxed, drawn only near the screen, and follow Format dialog changes. None of it is saved.</li>
           <li><strong>Clicking another page</strong> opens it in the same place on screen and replays the click (caret in text, picture selected).</li>
-          <li><strong>Page changes hold steady</strong> in both views: the new page loads under the old one and replaces it when laid out. This relies on BL-13502's saving without a reload, now on master.</li>
-          <li><strong>Remove Page</strong> marks the page being edited with a red X while the confirmation is up.</li>
-          <li><strong>The controls above the page</strong> (Change Layout, game tabs) sit in a bar fixed across the top of the page frame.</li>
+          <li><strong>Page changes:</strong> with one page, the new page shows in place as soon as it is drawn. With all pages, the corner marks move to the clicked page at once and the old page stays until the new one and its neighbours are drawn. This relies on BL-13502's saving without a reload, now on master.</li>
+          <li><strong>No input until the page is ready:</strong> until every CKEditor has started and the page's delayed setup is done, the page and the toolbox show a wait cursor and take no clicks or keys, because CKEditor, as it finishes starting, wipes out anything typed since. At five times slower CPU that is about 3 s per change with one page and 5 to 8 s with all pages.</li>
+          <li><strong>Remove Page</strong> marks the page being edited with a red X while the confirmation is up, and <strong>the controls above the page</strong> sit in a bar fixed across the top of the page frame.</li>
         </ul>
       </section>
 
@@ -101,44 +108,37 @@ th { font-weight: 600; color: var(--muted); }
         <h2>Quality gate</h2>
         <div class="tablewrap"><table>
           <tr><th>Check</th><th>Result</th></tr>
-          <tr><td>Typecheck (front end, and the full compiler over the branch's files)</td><td class="ok">pass</td></tr>
-          <tr><td>Lint</td><td class="ok">pass <span class="muted">(warnings only, none new)</span></td></tr>
-          <tr><td>E2E project typecheck</td><td class="ok">pass</td></tr>
+          <tr><td>Typecheck</td><td class="ok">pass</td></tr>
+          <tr><td>Lint (changed files)</td><td class="ok">pass <span class="muted">(warnings only, none new)</span></td></tr>
           <tr><td>Merge with master</td><td class="ok">merged, mergeable</td></tr>
-          <tr><td>Front-end unit tests (vitest)</td><td class="ok"><span class="numeral">1752 passed</span></td></tr>
+          <tr><td>Front-end unit tests (vitest, bookEdit)</td><td class="ok"><span class="numeral">1554 passed</span></td></tr>
           <tr><td>C# tests (dotnet test)</td><td class="na">not run: the PR changes no C# against master</td></tr>
-          <tr><td>Repo check: changed e2e specs at the nightly window size</td><td class="ok"><span class="numeral">11 passed</span> <span class="muted">(book-grid-view, remove-page-shows-which-page)</span></td></tr>
-          <tr><td>BL-13502's own e2e specs on this branch</td><td class="ok"><span class="numeral">21 passed</span> <span class="muted">(typing-survives-leaving-the-page, saved-book-stays-clean, change-layout-keeps-typing, duplicate-page-many-times, toolbox-tools)</span></td></tr>
+          <tr><td>Repo check: changed e2e specs at the nightly window size, with BL-13502's typing and toolbox specs</td><td class="ok"><span class="numeral">23 passed</span> <span class="muted">(book-grid-view, remove-page-shows-which-page, toolbox-tools, typing-survives-leaving-the-page)</span></td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-        <ul>
-          <li>Merged master, which now has BL-13502. The branch had carried an earlier draft of that commit; master's version replaces it everywhere.</li>
-          <li>Fixed two e2e things the merge exposed: <code>setChangeLayoutMode</code> held on to a page frame that this branch replaces on reload, and one grid test used pixel distances too large for the nightly window size.</li>
-          <li>Added comments that Devin and Greptile asked for, and logged a papercut about the C# formatting hook.</li>
-        </ul>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8415/commits" target="_blank" rel="noopener">Commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/9e9e715cc3" target="_blank" rel="noopener">9e9e715cc3</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/f4afa33f2d" target="_blank" rel="noopener">f4afa33f2d</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/b8ca244dcf" target="_blank" rel="noopener">b8ca244dcf</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/265d28f0f9" target="_blank" rel="noopener">265d28f0f9</a>.</p>
+        <p>Committed the input blocking, the immediate page change in One Page and the immediate corner marks in All Pages; merged master; then fixed what review found: a page could stay blocked if its setup failed or a page beside it was dropped while loading, a page being left could uncover the page replacing it in One Page, input-method typing got past the block, and two new e2e waits had their own deadlines.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8415/commits" target="_blank" rel="noopener">Commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/755963ebea" target="_blank" rel="noopener">755963ebea</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/1445a05858" target="_blank" rel="noopener">1445a05858</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/d19e497ac6" target="_blank" rel="noopener">d19e497ac6</a>.</p>
       </section>
 
       <section class="card">
         <h2>Reviewer outcomes</h2>
         <div class="tablewrap"><table>
           <tr><th>Reviewer</th><th>Outcome</th></tr>
-          <tr><td>Local review (light sub-agent pass)</td><td>Clean. It checked the merge for lost or duplicated code and the new page frames against BL-13502's snapshots.</td></tr>
-          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8415" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>265d28f0f9</code>. Its review of the merge raised four new findings, each with a recorded outcome: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4484744316" target="_blank" rel="noopener">focus in a canvas element</a> (not a change this PR makes), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4484745369" target="_blank" rel="noopener">shared text on the other pages</a> (catches up on the next page change), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4484746202" target="_blank" rel="noopener">comments on helpers</a> (fixed), <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#issuecomment-6666656063" target="_blank" rel="noopener">unreadable bubble data</a> (master's code). The final re-review found nothing new.</td></tr>
-          <tr><td>Greptile</td><td>Complete on <code>f4afa33f2d</code>, re-triggered this run. One finding, a missing comment, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#issuecomment-6666769632" target="_blank" rel="noopener">fixed</a>. The two later commits only add comments.</td></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>Three findings, all fixed in 755963ebea: a page whose setup fails stayed blocked for good; in One Page the page being left could lift the cover from the page replacing it; text from an input method got past the block.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8415" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>d19e497ac6</code>. One new finding this run, the e2e waits with their own deadline, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4487247251" target="_blank" rel="noopener">fixed</a>; its re-review found nothing new.</td></tr>
+          <tr><td>Greptile</td><td>Complete on <code>f62394001c</code>, re-triggered this run. Two findings, both <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#issuecomment-6672248545" target="_blank" rel="noopener">fixed</a>: switching to One Page while a page beside the edited one was loading left the page blocked, and the e2e deadline that Devin also found.</td></tr>
           <tr><td>CI</td><td>pr-automation passed; no other checks run on this PR.</td></tr>
-          <tr><td>Repo check (nightly window size)</td><td>Passed, as in the gate above.</td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
-          <li>The game tabs and Change Layout in the new controls bar have not been checked by hand, especially at narrow widths. Devin's <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4123445842" target="_blank" rel="noopener">thread about it</a> stays open for the reviewer.</li>
-          <li>The tracker could not be reached (the team tool server that YouTrack access now goes through is not deployed yet), so the QA test-ideas comment on BL-16929 was not refreshed and the Notion cards were not re-read.</li>
+          <li>Typing through an input method (IME, voice typing) during a page change is handled by taking the caret out of the text box until the page is ready. It has not been tried with a real input method.</li>
+          <li>Coming into the Edit tab, the toolbox during a change, and the top bar's page buttons during a change are blocked too, but no test or live check has exercised them.</li>
         </ul>
       </section>
     </main>
@@ -146,10 +146,46 @@ th { font-weight: 600; color: var(--muted); }
     <aside>
       <section class="card">
         <h2>Decisions</h2>
-        <p style="margin:0">Nothing is waiting on you. The PR is a draft, ready for your own review.</p>
+        <div class="q" data-q="Test of the input blocking">
+          <h3>Should this PR add a test that typing during a page change is kept out?</h3>
+          <p>The new blocking is checked only indirectly: every e2e test now waits for the page to say it is ready, and they all pass. No test types into a page before it is ready and checks that the text stays out and that typing afterwards is kept. On a fast machine that window is under a second, so such a test has to slow Bloom down (the DevTools CPU slowdown used in the experiment) to hit it reliably.</p>
+          <label><input type="radio" name="t" data-instruction="Add an e2e spec: slow Bloom 5x with DevTools CPU throttling, change pages through the page list and by a grid click, type at once and after the page is ready; assert the early text is not in the page and the later text is, also after leaving and coming back." checked><span><strong>Add a short e2e test</strong> (recommended): slow Bloom five times, change pages once through the page list and once by clicking the facing page, type straight away and again once ready; check that the early text never lands and the later text is kept. About 60 lines in one new spec.</span></label>
+          <label><input type="radio" name="t" data-instruction="No test needed: every e2e test waits for the ready state, and the developer tried it by hand on a slowed Bloom."><span><strong>No test needed:</strong> every e2e test already waits for the ready state, and you have tried it by hand on a slowed Bloom.</span></label>
+          <label><input type="radio" name="t" data-instruction="Leave as is (Test of the change stays awaiting)."><span>Leave as is</span></label>
+          <label><input type="radio" name="t" data-instruction="Other:"><span>Other: <input type="text" data-other></span></label>
+          <label><input type="checkbox" data-leave-comment> Leave comment</label>
+          <textarea data-notes placeholder="Notes"></textarea>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Copy back</h2>
+        <textarea id="payload" readonly></textarea>
+        <p style="margin:8px 0 0"><button type="button" id="copy">Copy</button></p>
       </section>
     </aside>
   </div>
 </div>
+<script>
+function build() {
+  const lines = ["Preflight decisions for PR 8415 (BL-16929), report https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16929-side-by-side-editing.html", ""];
+  document.querySelectorAll(".q").forEach((q) => {
+    const r = q.querySelector("input[type=radio]:checked");
+    let ins = r ? r.dataset.instruction : "(no choice)";
+    if (ins === "Other:") ins = "Other: " + q.querySelector("[data-other]").value;
+    lines.push(q.dataset.q + ": " + ins);
+    if (q.querySelector("[data-leave-comment]").checked) lines.push("  Leave comment: yes");
+    const n = q.querySelector("[data-notes]").value.trim();
+    if (n) lines.push("  Notes: " + n);
+  });
+  document.getElementById("payload").value = lines.join("\n");
+}
+document.addEventListener("input", build);
+document.addEventListener("change", build);
+build();
+document.getElementById("copy").addEventListener("click", () => {
+  const t = document.getElementById("payload");
+  navigator.clipboard.writeText(t.value).catch(() => { t.select(); });
+});
+</script>
 </body>
 </html>
