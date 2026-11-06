@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-16916 Preflight</title>
+<style>
+/* Layout: two columns (report left, decisions right), one column when narrow. */
+:root {
+  --ground: #f6f5f1;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636d;
+  --line: #dcdad3;
+  --accent: #2f5d8a;
+  --good: #2e7d4f;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --sans: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 26px; }
+h2 { font-size: 19px; margin-bottom: 10px; }
+h3 { font-size: 15px; font-family: var(--sans); font-weight: 650; margin: 14px 0 4px; }
+p { margin: 0 0 8px; }
+a { color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-block; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); font-size: 13px; color: var(--ink); text-decoration: none; }
+.chip.ok { border-color: #b9d8c4; color: var(--good); }
+a.chip:hover, a.chip:focus-visible { border-color: var(--accent); outline: none; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px; }
+.card ul { margin: 4px 0 8px; padding-left: 20px; }
+.card li { margin-bottom: 4px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 600; color: var(--muted); font-size: 13px; }
+.pass { color: var(--good); font-weight: 600; }
+.na { color: var(--muted); }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 13px; }
+code { font-family: var(--mono); font-size: 13px; }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header style="display:flex;flex-direction:column;gap:10px">
+    <h1>BL-16916: the caret jumping with a reader tool open</h1>
+    <p class="muted">Preflight run on 2026-11-06 at <a href="https://github.com/BloomBooks/BloomDesktop/commit/0a2fec52184d654c97829653b4ed815d15a12eee" target="_blank" rel="noopener"><code>0a2fec5</code></a>: every gate green, every reviewer clean, nothing waiting on you.</p>
+    <div class="chips">
+      <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+      <span class="chip ok">Mergeable</span>
+      <span class="chip ok">Bots quiet</span>
+      <span class="chip ok">0 decisions waiting</span>
+    </div>
+    <div class="chips">
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8550" target="_blank" rel="noopener">PR #8550</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8550/files" target="_blank" rel="noopener">Files changed</a>
+      <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8550/commits" target="_blank" rel="noopener">Commits</a>
+      <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16916" target="_blank" rel="noopener">BL-16916</a>
+      <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8550" target="_blank" rel="noopener">Devin review</a>
+    </div>
+  </header>
+
+  <div class="grid">
+    <main>
+      <section class="card">
+        <h2>What this PR is about</h2>
+        <h3>Problem</h3>
+        <p>With the Leveled (or Decodable) Reader open, a user types some text, clicks the dark area around the page, then clicks into the middle of the text and types. The first character lands where they clicked, but half a second later the caret jumps back to where it was before the click away, and everything after that goes in the wrong place.</p>
+        <h3>Cause</h3>
+        <p>When a text box loses the focus, the reader tool's focus-out handler marks up the text inside a CKEditor bookmark save-and-restore. When the click lands on nothing, restoring the bookmarks puts the focus straight back into the box, after CKEditor has locked its selection. The box never loses the focus again, so nothing unlocks it, and every later markup pass puts the caret back where the lock says it is.</p>
+        <h3>What the PR does</h3>
+        <ul>
+          <li>The handler (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0a2fec52184d654c97829653b4ed815d15a12eee/src/BloomBrowserUI/bookEdit/toolbox/readers/decodableReader/decodableReaderTool.tsx#L156" target="_blank" rel="noopener"><code>decodableReaderTool.tsx:156</code></a>, shared by both reader tools) keeps the bookmarks only when the focus leaves Bloom's window, e.g. for another program. Any click inside the window, the toolbox included, now skips them; before, only a move to another text box did.</li>
+          <li>A new e2e test reproduces the bug, plus a second one for clicking in the toolbox. The Leveled Reader's "words on this page" count gets a test id, so the test can tell when the markup pass has run.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Quality gate</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Check</th><th>Result</th></tr>
+          <tr><td>Typecheck (front end, and the e2e project)</td><td class="pass">passed</td></tr>
+          <tr><td>Lint (changed files)</td><td class="pass">passed <span class="muted">(only warnings that were already there)</span></td></tr>
+          <tr><td>Merge with master</td><td class="pass">clean, no conflicts</td></tr>
+          <tr><td>TypeScript tests (vitest, full suite)</td><td class="pass">passed <span class="numeral">1741 tests · 127 files</span></td></tr>
+          <tr><td>C# tests (dotnet test)</td><td class="na">not run: there is no C# in the diff</td></tr>
+          <tr><td>Repo check: changed e2e specs at the nightly window size</td><td class="pass">passed <span class="numeral">2 of 2</span> at HEAD, after <span class="numeral">16 of 16</span> repeats earlier at that size and <span class="numeral">10 of 10</span> at the default size</td></tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>What changed this run</h2>
+        <p>The fix and its test were committed, master was merged in, and one follow-up commit corrected the code comment and the spec header: the local review showed that a click in the toolbox also skips the bookmarks. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8550/commits" target="_blank" rel="noopener">commit list</a>.</p>
+      </section>
+
+      <section class="card">
+        <h2>Reviewers</h2>
+        <div class="tablewrap">
+        <table>
+          <tr><th>Reviewer</th><th>Outcome</th></tr>
+          <tr><td>Local review</td><td>A light pass by a read-only sub-agent. It raised one point, and I confirmed it in a running Bloom: the comment wrongly said the toolbox case still kept the bookmarks. Fixed in <a href="https://github.com/BloomBooks/BloomDesktop/commit/0a2fec52184d654c97829653b4ed815d15a12eee" target="_blank" rel="noopener"><code>0a2fec5</code></a>. No behaviour problems.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8550" target="_blank" rel="noopener">Devin</a></td><td>Complete for HEAD: no bugs and no flags.</td></tr>
+          <tr><td>Greptile</td><td>Complete for HEAD: "appears safe to merge", no inline comments.</td></tr>
+          <tr><td>CI</td><td>Complete: pr-automation and Greptile passed; the dependency check skipped because no dependencies changed.</td></tr>
+        </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Worth knowing</h2>
+        <ul>
+          <li>Leaving Bloom for another program and coming back without a click is the one case that still uses the bookmarks. No test covers it, since an e2e test may not take the foreground, so it is in the test ideas for a person to try.</li>
+          <li>The test drives the Leveled Reader only. The Decodable Reader uses the same handler and is in the test ideas.</li>
+        </ul>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card">
+        <h2>Decisions</h2>
+        <p>None. The PR comes with a test of the change, every reviewer is clean, and nothing needs your judgment.</p>
+        <p class="muted">Next step, when you have reviewed it yourself: run <code>pr-ready-for-human</code> to hand it to a colleague.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+</body>
+</html>
