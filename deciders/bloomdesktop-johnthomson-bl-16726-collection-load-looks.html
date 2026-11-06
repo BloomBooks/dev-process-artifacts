@@ -27,6 +27,7 @@ td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-alig
 th{font-weight:600;font-size:.9rem;color:#5b5548}
 .numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.9em}
 .pass{color:#2e7d32;font-weight:600}
+.fail{color:#c62828;font-weight:600}
 .q{border-top:1px solid #eee7da;padding-top:12px;margin-top:12px}
 .q:first-of-type{border-top:0;margin-top:0;padding-top:0}
 .opt{display:block;margin:6px 0;padding:6px 8px;border:1px solid #eee7da;border-radius:6px}
@@ -41,12 +42,13 @@ button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #2f5d8a;
 <body>
 <div class="wrap">
 <header>
-<h1>Preflight: Build the Bloom Library URL only when needed (BL-16726)</h1>
-<div>Clean run. All reviewers finished, three findings fixed, two answered as not problems. Two questions for you.</div>
+<h1>Preflight: Bloom Library badges without startup URL lookups or repeated queries (BL-16726)</h1>
+<div>Second run. All reviewers finished on the final commit; their findings were fixed or answered. One unrelated front-end test failed, and one behavior trade-off needs your OK.</div>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip good">Mergeable</span>
 <span class="chip good">Bots quiet</span>
+<span class="chip warn">1 unrelated test failure</span>
 <span class="chip warn">2 items waiting on you</span>
 </div>
 <div class="chips links">
@@ -63,52 +65,53 @@ button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #2f5d8a;
 <section class="card">
 <h2>What this PR is about</h2>
 <h3>Problem</h3>
-<p>Debug builds of Bloom sometimes die during startup with <code>Assertion Failed: If at all possible, you should provide an appropriate acceptFinalUrl param when looking up a url during startup.</code> Release builds don't crash, but on a slow connection they make a blocking server request for each book while the collection loads.</p>
+<p>Debug builds of Bloom sometimes die during startup with <code>Assertion Failed: If at all possible, you should provide an appropriate acceptFinalUrl param when looking up a url during startup.</code> Release builds don't crash, but on a slow connection they make a blocking server request for each book while the collection loads. A review of the surrounding code (requested on the card) also found that the badges cost far more than they need: the status query ran two or three times per collection open, each badge then made its own request, and each of those rescanned every book folder.</p>
 <h3>Cause</h3>
-<p>Loading a collection built a Bloom Library page URL for every uploaded book, at two points. The background status fetch built one per book, and the badge on every book button asked for it as soon as the button appeared. Building the URL needs the Bloom Library address, which comes from a server lookup. When that lookup hasn't finished yet, which is usual on a cold start, each request either trips the assertion or blocks until the lookup is done.</p>
+<p>Loading a collection built a Bloom Library page URL for every uploaded book. Building it needs the Bloom Library address, which comes from a server lookup that usually hasn't finished on a cold start, so each request either tripped the assertion or blocked.</p>
 <h3>What the PR does</h3>
 <ul>
-<li>The status Bloom keeps for each uploaded book holds the book's ids instead of a URL, and builds the URL only when asked (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/Book/BloomLibraryStatus.cs#L74" target="_blank" rel="noopener"><code>GetBloomLibraryBookUrl</code></a>).</li>
-<li>The badge-info API reports only whether the book is on Bloom Library and what state it is in there (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/web/controllers/CollectionApi.cs#L951" target="_blank" rel="noopener">CollectionApi.cs:951</a>).</li>
-<li>A new <code>collections/openBookOnBloomLibrary</code> endpoint builds the URL and opens the browser when the user clicks "View on BloomLibrary.org" (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/web/controllers/CollectionApi.cs#L975" target="_blank" rel="noopener">CollectionApi.cs:975</a>). It runs off the UI thread. Clicking the link doesn't select the book.</li>
+<li>A book's status holds its ids, not a URL. The URL is built only when the user clicks "View on BloomLibrary.org", through a new <code>collections/openBookOnBloomLibrary</code> endpoint (<a href="https://github.com/BloomBooks/BloomDesktop/blob/9c846c4f46e014b8a98b23f4c69a91719e1504ac/src/BloomExe/Book/BloomLibraryStatus.cs" target="_blank" rel="noopener">BloomLibraryStatus.cs</a>).</li>
+<li>The collection keeps its books' statuses, so list rebuilds don't lose them, and queries Bloom Library in the background only for books it has never asked about: normally once per collection open (<a href="https://github.com/BloomBooks/BloomDesktop/blob/9c846c4f46e014b8a98b23f4c69a91719e1504ac/src/BloomExe/Collection/BookCollection.cs" target="_blank" rel="noopener">BookCollection.cs</a>).</li>
+<li>Each query ends in one websocket message with the whole collection's badge state. The book list holds it and hands it to each button, so buttons rendered later get it too; it re-reads the state when it appears and whenever its websocket (re)opens (<a href="https://github.com/BloomBooks/BloomDesktop/blob/9c846c4f46e014b8a98b23f4c69a91719e1504ac/src/BloomBrowserUI/collectionsTab/BooksOfCollection.tsx" target="_blank" rel="noopener">BooksOfCollection.tsx</a>). Badges make no requests of their own.</li>
+<li>No more example.com probe before the badge query or the language book count. A failed query leaves the badges alone and is retried at the next list rebuild. Offline, Open Collection cards show no "unpublished" count instead of counting every book.</li>
 </ul>
-<p>Nothing on the collection-load path looks up a URL any more. Users see the same badges, and the link opens the same pages.</p>
 </section>
 
 <section class="card">
 <h2>Quality gate</h2>
 <table>
 <tr><th>Check</th><th>Result</th></tr>
-<tr><td>Typecheck (front end)</td><td class="pass">pass</td></tr>
-<tr><td>Lint (eslint on the changed file)</td><td class="pass">pass</td></tr>
-<tr><td>C# tests (<code>dotnet test</code>, BloomTests)</td><td><span class="pass">pass</span> <span class="numeral">3950 passed · 1 skipped</span> (the opt-in Reading App Builder build test)</td></tr>
-<tr><td>Front-end tests (vitest)</td><td><span class="pass">pass</span> <span class="numeral">1729 passed · 125 files</span></td></tr>
+<tr><td>Typecheck (front end)</td><td class="pass">pass at <code>9c846c4</code></td></tr>
+<tr><td>Lint (eslint on the changed files)</td><td class="pass">pass (only warnings that were already there)</td></tr>
+<tr><td>C# tests (<code>dotnet test</code>, BloomTests)</td><td><span class="pass">pass</span> <span class="numeral">3955 passed Â· 1 skipped</span> at <code>596b174</code> (the opt-in Reading App Builder test skipped). Later commits change only comments in C#.</td></tr>
+<tr><td>Front-end tests (vitest)</td><td><span class="fail">1 failure</span> <span class="numeral">1730 passed Â· 1 failed</span> at <code>9c846c4</code>: <code>watchLess.test.ts</code>, unrelated to this PR (see Decisions). The whole suite passed at <code>596b174</code>, and nothing since touches the LESS watcher.</td></tr>
 <tr><td>E2E specs at the nightly window size (repo check)</td><td>did not apply: no e2e specs in the diff</td></tr>
-<tr><td>Merge with master</td><td class="pass">up to date, mergeable</td></tr>
+<tr><td>Merge with master</td><td class="pass">merged cleanly, mergeable</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>This was the first run. It committed the fix and a new unit test and opened the draft PR. It then fixed one Devin finding (the duplicate-upload search URL was double-encoded) and two Greptile findings (a click on the link also selected the book, and a click while the book list was being rebuilt would throw). See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545/commits" target="_blank" rel="noopener">commits</a>.</p>
+<p>A live check of the first fix, then a survey of the Bloom Library code, then a rework you asked for: the badges are now queried once per collection open, broadcast in a single message, and the example.com probe is gone. Reviewers then added a catch around the query, a re-read when the websocket reopens, and a style fix. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545/commits" target="_blank" rel="noopener">commits</a>.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review</td><td>Light sub-agent pass, clean. It noted that the badges still asked for the URL during load, which led to the click-time endpoint.</td></tr>
-<tr><td>Devin</td><td>Complete at <code>d8ce191</code>: re-review clean. Of its two bugs, one was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618260" target="_blank" rel="noopener">fixed</a> and one was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618482" target="_blank" rel="noopener">answered as not a problem</a>; Devin now marks both resolved. Its one flag was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618606" target="_blank" rel="noopener">answered and resolved</a>.</td></tr>
-<tr><td>Greptile</td><td>Complete on the first commit. Its three findings were <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621649" target="_blank" rel="noopener">fixed</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621659" target="_blank" rel="noopener">and</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621668" target="_blank" rel="noopener">resolved</a>. It hasn't reviewed the two small fix-up commits.</td></tr>
-<tr><td>CI</td><td>Complete: <code>pr-automation</code> passed. <code>no-dependency-changes</code> was skipped.</td></tr>
+<tr><td>Local review</td><td>Light sub-agent pass. One finding: a query that threw would leave its books marked as asked about forever. Fixed with a catch before the commit.</td></tr>
+<tr><td>Devin</td><td>Complete at <code>9c846c4</code>, no new findings. The earlier ones: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4494225419" target="_blank" rel="noopener">badges not refreshing after a Team Collection sync</a> was answered as deliberate (see Decisions); <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4494226239" target="_blank" rel="noopener">the arrow-function helper</a> and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4494255074" target="_blank" rel="noopener">a misleading comment</a> were fixed. All threads resolved.</td></tr>
+<tr><td>Greptile</td><td>Complete at <code>596b174</code> (re-triggered for the rework). <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4494213224" target="_blank" rel="noopener">Badges could stay missing if the query finished before the websocket opened</a>: fixed in <code>9c846c4</code>. Its style point was the same as Devin's, also fixed. It hasn't reviewed the two small fix-up commits.</td></tr>
+<tr><td>CI</td><td>Complete at <code>9c846c4</code>: <code>pr-automation</code> passed. <code>no-dependency-changes</code> was skipped.</td></tr>
+<tr><td>E2E window-size check</td><td>Did not apply: no e2e specs in the diff.</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Nobody has tried this in a running Bloom yet. The badge link now opens through a Bloom API call instead of an ordinary web link, so clicking it once is the check that matters.</li>
-<li>The new unit tests check how the URL is built. No test checks that loading a collection makes no URL lookup.</li>
+<li>Live check at <code>9c846c4</code>: in a Debug build, the one uploaded book in a 37-book collection showed its Published badge, and no other book did. The link itself hasn't been clicked; that's still yours to try.</li>
+<li>No automated test checks that a collection is queried once or that the broadcast reaches the book list. <code>BloomLibraryStatusTests</code> covers the deferred URL and the badge info.</li>
 </ul>
 </section>
 </main>
@@ -117,29 +120,28 @@ button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #2f5d8a;
 <section class="card" id="decisions">
 <h2>Decisions</h2>
 
-<div class="q" data-q="Live check">
-<h3>Check the badge link in a running Bloom?</h3>
-<p>The badge link used to be an ordinary web link. Now it calls a new Bloom endpoint that builds the address and opens your browser. Unit tests cover building the address, and nothing has exercised the click. An agent can check over the automation connection that the badges still appear with the right states. It can't click the link without opening a browser window in front of you.</p>
-<label class="opt"><input type="radio" name="q1" data-instruction="In C:\Users\JohnThomson\orca\workspaces\BloomDesktop\BL-16726-Collection-load-looks (branch JohnThomson/BL-16726-Collection-load-looks, PR #8545), start Bloom with --nowatch via the run-bloom skill, open a collection with books on Bloom Library, and confirm the badges appear with correct states and collections/getBookOnBloomBadgeInfo returns onBloomLibrary/draft/inCirculation/harvestState. Do not click the link (it opens a browser). Record the result as a live check in the PR's E2E Coverage section. John will click 'View on BloomLibrary.org' himself during his own review."> Agent checks the badges; I'll click the link myself during my review <span class="rec">Recommended</span><small>Recommended because it covers everything that doesn't need a browser to open, and you're about to review it anyway. Effort: ~10 min of agent time, no code.</small></label>
-<label class="opt"><input type="radio" name="q1" data-instruction="John will check the badge link himself in a running Bloom during his own review of PR #8545; no agent live check."> I'll check it all myself<small>No agent time.</small></label>
-<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is: no live check of the Bloom Library badge link before review of PR #8545."> Leave as is<small>No live check before review.</small></label>
+<div class="q" data-q="Badge refresh after a Team Collection sync">
+<h3>Badges no longer refresh after a Team Collection sync</h3>
+<p>Before this PR, every rebuild of the book list (a Team Collection sync, for example) happened to re-query Bloom Library for every book. Now only books never asked about are queried. So if a teammate uploads one of the books, or the harvester finishes with it, the badge changes the next time Bloom loads the collection. Your own uploads still update straight away. Devin flagged this, and I <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4494225419" target="_blank" rel="noopener">answered it as deliberate</a>. It's a change users could notice, though, so it's your call.</p>
+<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is: badges on PR #8545 refresh when Bloom loads the collection, not after a Team Collection sync. Record the decision on Devin's thread."> Leave as is <span class="rec">Recommended</span><small>Recommended because statuses change on Bloom Library at any time with no sync involved, and Bloom never polled for those; re-querying on rebuilds is the duplicate work you asked to remove. Already in the test ideas as known and deliberate.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="On PR #8545, re-query the Bloom Library status of all books after a Team Collection sync that actually received changes (not the startup sync), in the background, then re-run preflight."> Re-query after a sync that brings in changes<small>Small: one extra background query per such sync; needs a hook in the Team Collection sync code.</small></label>
 <label class="opt"><input type="radio" name="q1" data-other> Other: <input type="text" data-other-text></label>
 <textarea placeholder="Notes" data-notes></textarea>
 </div>
 
-<div class="q" data-q="Broader Bloom Library review">
-<h3>John Hatton's request for a broader review</h3>
-<p>On the card, John Hatton asked for an AI review of "everything around this Bloom Library URL stuff plus the count of books", recalling inefficiencies that were noticed but never worked on. This PR fixes only the per-book URL lookup. It doesn't look at book counts or the other Bloom Library queries.</p>
-<label class="opt"><input type="radio" name="q2" data-instruction="Create a new YouTrack card (youtrack-create-issue) for a review of the Bloom Library status, URL and book-count code in BloomDesktop (BookCollection.UpdateBloomLibraryStatusOfBooks, BloomLibraryBookApiClient, UrlLookup, and wherever book counts on Bloom Library are fetched), citing John Hatton's comment on BL-16726, and reply on BL-16726 linking it."> File a separate card for the review <span class="rec">Recommended</span><small>Recommended because it's a separate investigation, and this PR is small and ready for review. Effort: no code, just a card.</small></label>
-<label class="opt"><input type="radio" name="q2" data-instruction="On branch JohnThomson/BL-16726-Collection-load-looks, run a read-only survey of the Bloom Library status, URL and book-count code in BloomDesktop for inefficiencies (per John Hatton's comment on BL-16726) and report findings before changing anything."> Do the review now, on this branch<small>Moderate: an investigation first. Any fixes would grow this PR.</small></label>
-<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is: take no action now on John Hatton's request for a broader Bloom Library review on BL-16726."> Leave as is<small>The request stays as a comment on the card.</small></label>
+<div class="q" data-q="watchLess test failure">
+<h3>Unrelated test failure: <code>watchLess.test.ts</code></h3>
+<p>"adds new dependencies and rebuilds when partial changes" failed once at <code>9c846c4</code> with <code>EPERM: operation not permitted, rename 'â€¦\watch-less-â€¦\out\.state.json.tmp' -&gt; 'â€¦\.state.json'</code>. The folder is the test's own, and its steps don't overlap, so the likely cause is another process (antivirus or the search indexer) holding the just-written file open. Windows then refuses the rename over it. <code>writeJsonAtomic</code> in <code>watchLessManager.js</code> does that rename in the real LESS watcher too. This PR doesn't touch it, and the suite passed on the previous commit. I haven't re-run it, since passing on a re-run wouldn't explain it.</p>
+<label class="opt"><input type="radio" name="q2" data-instruction="Create a new YouTrack card (youtrack-create-issue) for watchLess.test.ts failing with EPERM on the rename in writeJsonAtomic (src/BloomBrowserUI/scripts/watchLessManager.js), with the error text from PR #8545's preflight report, proposing that writeJsonAtomic retry the rename briefly on EPERM/EBUSY as Windows tools commonly do; leave PR #8545 as is."> File a separate card <span class="rec">Recommended</span><small>Recommended because it isn't this PR's code, and the likely fix (a brief retry on the rename, a common Windows practice) is a change to the dev tooling that should be decided on its own.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="On a separate branch from master, make writeJsonAtomic in src/BloomBrowserUI/scripts/watchLessManager.js retry the rename briefly on EPERM/EBUSY, with a comment explaining the Windows cause, and run the watchLess tests; open a draft PR."> Fix it now, on its own branch<small>Small: a few lines plus a PR.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is: no action on the watchLess.test.ts EPERM failure seen during PR #8545's preflight."> Leave as is<small>It will fail again sometimes.</small></label>
 <label class="opt"><input type="radio" name="q2" data-other> Other: <input type="text" data-other-text></label>
 <textarea placeholder="Notes" data-notes></textarea>
 </div>
 
 <div class="q" data-q="Next step">
 <h3>Next step</h3>
-<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the choices above now, then re-run preflight on PR #8545 if any code changed."> Do the above now <span class="rec">Recommended</span><small>Neither choice above changes any code.</small></label>
+<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the choices above now, then re-run preflight on PR #8545 if any code on it changed."> Do the above now <span class="rec">Recommended</span><small>With the recommended picks, PR #8545's code doesn't change.</small></label>
 <label class="opt"><input type="radio" name="q3" data-instruction="Discuss the decisions on PR #8545 before acting."> Discuss first</label>
 <label class="opt"><input type="radio" name="q3" data-other> Other: <input type="text" data-other-text></label>
 <textarea placeholder="Notes" data-notes></textarea>
