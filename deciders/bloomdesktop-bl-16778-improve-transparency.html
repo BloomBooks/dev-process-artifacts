@@ -35,6 +35,9 @@ button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--ac
 button.secondary{background:var(--card);color:var(--accent-strong)}
 button.primary{background:var(--accent-strong);color:#fff}
 button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
 #out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
 
 main.report{max-width:1400px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
@@ -59,14 +62,14 @@ td.pass{color:#2E6B32}
 .numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:13px}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-06","about":"BloomDesktop PR 8551, branch BL-16778-Improve-transparency (base Version6.5), worktree D:\\bloom\\BL-16778-Improve-transparency","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16778-improve-transparency.html","questions":[{"title":"Should the four Niger scans go into the public repo?","context":["The comparison uses 29 pictures. Four of them are scans from the BloomBridge work on Niger books, taken from the original PDFs because they show what a real scanner does to paper: the white is never quite white. Each of those PDFs carries the notice <b>TOUS DROITS RÉSERVÉS<\/b> (all rights reserved).","The repo's list of pictures, <code>docs/transparency-report/images.json<\/code>, has the other 25 only. The four scans live on this machine and are added by hand, so the private comparison page shows 29 and anyone else who runs the report gets 25, none of them a scan of off-white paper."],"options":[{"label":"Commit the four scans to the public repo.","why":"Anyone running the report then sees the scanned-paper case.","effort":"4 small PNGs and 4 lines in images.json; the risk is the copyright notice, not the code","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), add the four Niger scans held in the session scratchpad (scans-held/ and images-with-scans.json) to docs/transparency-report/ and their entries to docs/transparency-report/images.json, as repo-path sources, then commit and push."},{"label":"Find a scan with an open licence to stand in for them.","why":"Keeps the scanned-paper case in the public comparison without the copyright question.","effort":"a search of Bloom Library for a CC-licensed scanned book, then one images.json entry; no code","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), find a Bloom Library book with a CC licence whose pictures are scans of off-white paper, add one or two of its pictures to docs/transparency-report/images.json, re-run the comparison, and commit and push."}],"leaveAsIs":"the four Niger scans stay out of the repo and only appear in the private comparison page.","leaveAsIsRecommended":"Recommended to leave them out: the notice on those books does not allow republishing their pictures, and the public comparison already shows the change on 25 pictures."},{"title":"Drawings scanned on off-white paper keep a faint tint of the paper","context":["The new rule treats every pixel as ink on pure white paper. Paper that scanned as a pale gray or cream (for example a darkest channel of 240 instead of 255) is therefore read as a very light ink: about 6% opaque. On a dark cover that shows as a faint wash of the paper colour where the paper was, with a visible edge at the picture's border.","Under 6.5's current rule, anything with brightness 220 or more became fully clear, so the paper vanished; that same rule is what made light gray shading turn into pastel blotches of the cover colour, the bug on this card.","A rule that treats near-white as white (say, a darkest channel of 245 or more counts as paper, and the rest is stretched to fit) would clear the paper, but the lightest pencil shading would also disappear. The four Niger scans in the private comparison page show the effect; nothing has checked it in a running Bloom."],"options":[{"label":"Treat near-white as paper.","why":"Clears the paper of a typical scan; costs the lightest shading in every drawing.","effort":"~10 lines in RemoveWhiteBackground plus a test case; changes every drawing slightly","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), change RemoveWhiteBackground in src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs so that a pixel whose darkest channel is 245 or more is fully transparent and the darkest channel of the rest is stretched from 0..245 to 0..255 before the ink-over-white calculation; add a case to MakePngBackgroundTransparent_TreatsPixelsAsInkOverWhite, re-run the comparison, then run preflight."}],"leaveAsIs":"drawings on off-white scanned paper keep a faint tint of the paper over a coloured background.","leaveAsIsRecommended":"Recommended to leave it: a cut-off for near-white brings back the problem on this card in a milder form, since light shading near the cut-off would vanish or jump, and the scans in the comparison did not draw an objection when you compared the methods.","codeComment":true},{"title":"A photo set to Background > Transparent now becomes mostly see-through","context":["When someone chooses <b>Background &gt; Transparent<\/b> on a picture, Bloom applies the transparency rule without checking whether the picture is a line drawing. Under 6.5's current rule, a photo kept every pixel darker than brightness 180 solid, so most of a photo stayed opaque and only its light areas faded.","Under the new rule, every pixel that is not pure black is partly transparent: a mid-tone pixel (darkest channel 128) is about half see-through. On a coloured page a forced photo therefore looks like a tinted, faded print. On white it still looks unchanged.","Pictures that Bloom makes transparent on its own are only the ones its line-art check accepts, so this only affects pictures a person forced. Nothing has checked it in a running Bloom."],"options":[{"label":"Keep 6.5's current rule for pictures that are not line art.","recommended":true,"why":"Recommended because a forced photo then looks as it does in 6.5 today, while every line drawing gets the fix.","effort":"~20 lines: pass whether the picture passed the line-art check down to RemoveWhiteBackground, plus a test; low risk","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), make MakePngBackgroundTransparent in src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs use the ink-over-white rule only when ImageUtils.ShouldMakeBackgroundTransparent accepts the picture, and otherwise use Version6.5's brightness ramp (220 clear, 180 solid, keeping the pixel's colour); add a test for each case, then run preflight."},{"label":"Keep the new rule for every picture, and say so in the docs.","why":"One rule everywhere; a forced photo shows the background through its mid-tones.","effort":"no code; a sentence for the Background > Transparent help","instruction":"Keep the ink-over-white rule for forced-transparent photos on PR 8551 (BL-16778), and add a line to the test ideas on BL-16778 saying that a photo set to Transparent becomes partly see-through by design."}],"leaveAsIs":"a photo set to Background > Transparent becomes mostly see-through on a coloured background.","codeComment":true},{"title":"Next step","context":["The PR is a draft. After these answers, the next step is either another preflight run with the chosen changes, or your own review of the PR before it goes to a colleague."],"options":[{"label":"Make the chosen changes, then run preflight again.","recommended":true,"why":"Recommended because any change above alters the pictures Bloom produces and needs the comparison and the reviewers again.","effort":"depends on the answers above","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), carry out the decisions above, regenerate the comparison page and republish the Claude artifact if the pictures changed, then run preflight."},{"label":"Discuss first.","why":"Talk through the answers before any code changes.","effort":"no code","instruction":"Do not change any code on PR 8551 yet; discuss the answers above with the developer first."}],"leaveAsIs":"PR 8551 stays a draft with no further changes for now."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-06","about":"BloomDesktop PR 8551, branch BL-16778-Improve-transparency (base Version6.5), worktree D:\\bloom\\BL-16778-Improve-transparency","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-16778-improve-transparency.html","questions":[{"title":"Should the paper have to cover a share of the picture?","context":["Bloom now takes a picture's paper to be the most common value of its darkest colour channel from 215 up, and brightens the picture when that value is below 250. Nothing requires many pixels to hold that value: it only has to outnumber pure white.","So a picture with no white at all, such as a full-page painting or a drawing coloured right to its edges, could have a few highlight pixels at, say, 230 taken for paper. The whole picture would then be brightened by about 1.16 times: everything at 220 or lighter becomes fully see-through, and every darker colour fades a little. This only matters for such a picture when Bloom's line-art check accepts it or someone sets it to Background &gt; Transparent.","In the four real scans and the synthetic pictures, the gray paper and its grain cover 40% to 75% of the picture, so a rule that the paper must cover at least a quarter of the picture changes none of the pictures in the comparison. It would not stop the gray-sky drawing (s1) from losing its sky, since that sky covers 65%."],"options":[{"label":"Require the paper to cover at least a quarter of the picture","recommended":true,"why":"Recommended because it removes a way a picture with no paper gets washed out, at no cost to any picture we have.","effort":"~5 lines in FindPaperBrightening plus a test; low risk","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), change FindPaperBrightening in src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs so that it only brightens when pixels whose darkest channel is within 10 of the paper level make up at least a quarter of the picture; add a unit test with a picture that has no white and a few pixels at 230; rerun the comparison to confirm no picture changes, then run preflight."}],"leaveAsIs":"a few light pixels in a picture with no white can be taken for paper and brighten the whole picture.","codeComment":true},{"title":"Scans saved as palette PNGs keep their gray paper","context":["Some PNG files store their colours as a palette of at most 256 entries (many older Art Of Reading pictures do). Bloom handles those separately: it makes near-white palette entries see-through and leaves every other entry solid. That path is unchanged by this PR, so a scanned drawing saved as a palette PNG keeps its gray paper as a solid gray rectangle on a coloured cover, as it does today.","None of the pictures we have is a scan stored this way, and changing the palette path would change how every Art Of Reading picture looks."],"options":[{"label":"Run the paper search on the palette too","why":"Clears gray paper in palette scans as well.","effort":"~30 lines in GivePaletteTransparentBackground plus tests; moderate risk, touches every palette picture","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), make GivePaletteTransparentBackground in src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs find the paper level from the palette entries weighted by how many pixels use each, and apply the same brightening and ink-over-white rule to every palette entry; add tests, rerun the comparison (the palette pictures among the 32), then run preflight."}],"leaveAsIs":"a scanned drawing saved as a palette PNG keeps its gray paper.","leaveAsIsRecommended":"Recommended to leave it: no such scan has turned up, and the change would alter every palette picture, which this PR otherwise leaves alone."},{"title":"Next step","context":["The PR is a draft. Bloom's code has the 215 paper rule you chose, the tests pass and Devin is clean."],"options":[{"label":"Make the chosen changes, then run preflight again","recommended":true,"why":"Recommended because any change above alters the pictures Bloom produces and needs the comparison and the reviewers again.","effort":"depends on the answers above","instruction":"In D:\\bloom\\BL-16778-Improve-transparency (branch BL-16778-Improve-transparency, PR 8551), carry out the decisions above, rerun the comparison and republish the Claude artifact if the pictures changed, then run preflight."},{"label":"Nothing more: I'll review the PR myself","why":"Leaves the PR as it is for your own review.","effort":"no code","instruction":"Make no further changes to PR 8551; the developer will review it."}],"leaveAsIs":"PR 8551 stays a draft with no further changes for now."}]}</script>
 </head>
 <body>
 <main class="report"><header class="hd">
 <h1>Preflight: line drawings on coloured backgrounds (BL-16778)</h1>
-<p class="sum">Run on <span class="numeral">2026-11-06</span> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/bd79223bf2a6aabad439a417fffc35c7bff8844f" target="_blank" rel="noopener"><span class="numeral">bd79223bf2</span></a>, base Version6.5. Gates and reviewers are clean; three questions and the next step wait on you.</p>
-<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --><span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip warn">4 waiting on you</span></div>
-<div class="links"><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">PR #8551</a><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551/files" target="_blank" rel="noopener">Files changed</a><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551/commits" target="_blank" rel="noopener">Commits</a><a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16778" target="_blank" rel="noopener">BL-16778</a><a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">Devin</a><a class="chip link" href="https://app.greptile.com/-/switch-tenant?tenant=bloom&amp;next=%2Fbloombooks%2Fbloomdesktop%2Fpull%2F8551" target="_blank" rel="noopener">Greptile</a></div>
+<p class="sum">Run on <span class="numeral">2026-11-06</span> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/a40fc6e8690c9124aacf16ec3198c77f7a5a8d37" target="_blank" rel="noopener"><span class="numeral">a40fc6e869</span></a>, base Version6.5. Tests and Devin are clean; Greptile did not review the two new commits. Two questions and the next step wait on you.</p>
+<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --><span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip warn">3 waiting on you</span></div>
+<div class="links"><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">PR #8551</a><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551/files" target="_blank" rel="noopener">Files changed</a><a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8551/commits" target="_blank" rel="noopener">Commits</a><a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16778" target="_blank" rel="noopener">BL-16778</a><a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">Devin</a><a class="chip link" href="https://claude.ai/artifact/LEri8DxEfZdKfnJw62Ckn4" target="_blank" rel="noopener">Comparison</a></div>
 </header><div class="col">
 
 <section class="card">
@@ -77,8 +80,9 @@ td.pass{color:#2E6B32}
 <p>Since June 2026, <code>RemoveWhiteBackground</code> has made pixels with brightness 220 or more fully clear, kept 180 or less solid, and given the ones in between partial opacity while keeping their gray colour. A half-transparent gray over a colour is a blend of the two, so light shading turned into a pastel of the background.</p>
 <h3>What the PR does</h3>
 <ul>
-<li><a href="https://github.com/BloomBooks/BloomDesktop/blob/bd79223bf2a6aabad439a417fffc35c7bff8844f/src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs#L532" target="_blank" rel="noopener"><code>RemoveWhiteBackground</code></a> now treats each pixel as ink laid over white paper, as briefly written in May 2026: its opacity comes from its darkest colour channel, and its colour becomes the ink that gives back the original pixel when laid over white. On white a picture is unchanged; on a coloured background a light gray becomes a lighter shade of that colour.</li>
-<li>Adds the comparison used to choose this: an explicit test that runs <code>original-6.5</code> (the rule 6.5 uses today), <code>proposed-6.5</code> (this PR), earlier rules from git history and ideas from the card over 25 pictures, and <code>docs/transparency-report/</code>, which builds a page showing every result over many background colours, with a timeline of which Bloom version used which rule.</li>
+<li><a href="https://github.com/BloomBooks/BloomDesktop/blob/a40fc6e8690c9124aacf16ec3198c77f7a5a8d37/src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs#L536" target="_blank" rel="noopener"><code>RemoveWhiteBackground</code></a> now treats each pixel as ink over the picture's paper: its opacity comes from its darkest colour channel, and its colour becomes the ink that gives back the original pixel over white. On white a picture is unchanged; on a coloured background a light gray becomes a lighter shade of that colour.</li>
+<li>A scanned drawing's paper is gray with grain. <a href="https://github.com/BloomBooks/BloomDesktop/blob/a40fc6e8690c9124aacf16ec3198c77f7a5a8d37/src/BloomExe/ImageProcessing/RuntimeImageProcessor.cs#L614" target="_blank" rel="noopener"><code>FindPaperBrightening</code></a> takes the most common darkest-channel value from 215 up as the paper; when it is below 250, every channel is brightened by the same factor until the paper and grain within 10 of it are white.</li>
+<li>Adds the comparison used to choose this: "Before 6.5", "6.5 beta initial", "6.5 Final" (this PR) and earlier rules, over 32 pictures including a BloomBridge scan and six synthetic pictures drawn to trip up the paper search, shown over many background colours with a timeline.</li>
 </ul>
 </section>
 
@@ -86,28 +90,28 @@ td.pass{color:#2E6B32}
 <h2>Quality gate</h2>
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
-<tr><td>C# tests (<code>dotnet test</code>, full suite)</td><td class="pass"><span class="numeral">3716 passed · 13 skipped</span> at <span class="numeral">1f2cc4e1b5</span>. Later commits changed only the comparison harness and its scripts, not the app's code.</td></tr>
+<tr><td>C# tests (<code>dotnet test</code>, full suite)</td><td class="pass"><span class="numeral">3718 passed · 13 skipped</span> with the paper rule in place. The later fix commit changed one comment in app code and one test, and the image-processing tests passed again at <span class="numeral">a40fc6e869</span> (<span class="numeral">4 passed</span>).</td></tr>
 <tr><td>C# formatting (csharpier)</td><td class="pass">Clean</td></tr>
 <tr><td>TypeScript tests (vitest)</td><td>Not run: the diff has no front-end code</td></tr>
 <tr><td>Typecheck and lint (front end)</td><td>Not run: the diff has no front-end code</td></tr>
-<tr><td>Comparison scripts (Node)</td><td class="pass">Ran end to end at <span class="numeral">bd79223bf2</span>; no tests exist for them</td></tr>
+<tr><td>Comparison harness and scripts</td><td class="pass">Ran end to end; Bloom's new code gives exactly the "paper-level-215" pictures you chose, on all 35</td></tr>
 <tr><td>Merge with Version6.5</td><td class="pass">Clean</td></tr>
 </table></div>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Moved the branch onto Version6.5 with the ink-over-white rule as the fix, added the unit test, and fixed the five bugs Devin and the three that Greptile found in the rule and the comparison scripts. Named the comparison's rows <code>original-6.5</code> and <code>proposed-6.5</code> and added the timeline. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551/commits" target="_blank" rel="noopener">Commits</a></p>
+<p>Added the search for a scan's paper with the 215 floor you chose, two unit tests for it, the x80 scan and six synthetic pictures, and the method names you asked for; then fixed the three points the local review and Devin raised. <a href="https://github.com/BloomBooks/BloomDesktop/commit/159bbc98d1a2c91be2eda405bb837acc7326f453" target="_blank" rel="noopener"><span class="numeral">159bbc98d1</span></a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/a40fc6e8690c9124aacf16ec3198c77f7a5a8d37" target="_blank" rel="noopener"><span class="numeral">a40fc6e869</span></a></p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Three points: one dismissed (the JPEG line-art test passes), two escalated as the off-white paper and forced-photo questions.</td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">Devin</a></td><td>Complete at <span class="numeral">bd79223bf2</span>. Five bugs (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496620743" target="_blank" rel="noopener">memory</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496620916" target="_blank" rel="noopener">rounding</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496620563" target="_blank" rel="noopener">report folder</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496776687" target="_blank" rel="noopener">method list</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496777261" target="_blank" rel="noopener">escaped keys</a>) and one <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496777616" target="_blank" rel="noopener">flag on the timeline</a>; all fixed and resolved.</td></tr>
-<tr><td><a href="https://app.greptile.com/-/switch-tenant?tenant=bloom&amp;next=%2Fbloombooks%2Fbloomdesktop%2Fpull%2F8551" target="_blank" rel="noopener">Greptile</a></td><td>Complete; clean on <span class="numeral">bd79223bf2</span>. Its three earlier findings (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496620995" target="_blank" rel="noopener">1</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496621005" target="_blank" rel="noopener">2</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4496621012" target="_blank" rel="noopener">3</a>) are fixed and resolved.</td></tr>
-<tr><td>CI</td><td><code>pr-automation</code> and Greptile pass. No build or test CI runs for Version6.5 PRs.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Five points: two fixed (a comment that overstated colour keeping, a test that checked less than its name), two escalated as the questions here, one dismissed (the page keeps hidden methods even when the default list changes, which is what you asked for).</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8551" target="_blank" rel="noopener">Devin</a></td><td>Complete at <span class="numeral">a40fc6e869</span>. New this run: one bug (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4498407634" target="_blank" rel="noopener">picture links</a>, fixed) and one flag (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8551#discussion_r4498408105" target="_blank" rel="noopener">out-of-date description</a>, answered). Every earlier finding stays resolved.</td></tr>
+<tr><td>Greptile</td><td>Did not review <span class="numeral">159bbc98d1</span> or <span class="numeral">a40fc6e869</span>; its last review, of <span class="numeral">bd79223bf2</span>, was clean. Re-running preflight folds in a late review.</td></tr>
+<tr><td>CI</td><td><code>pr-automation</code> passes. No build or test CI runs for Version6.5 PRs.</td></tr>
 </table></div>
 </section>
 
@@ -115,7 +119,7 @@ td.pass{color:#2E6B32}
 <h2>Worth knowing</h2>
 <ul>
 <li>Nothing has been checked in a running Bloom: the comparison ran Bloom's own <code>MakePngBackgroundTransparent</code> on the pictures, but no cover, thumbnail or published book was looked at.</li>
-<li>The private comparison page with 29 pictures and four colours is <a href="https://claude.ai/artifact/LEri8DxEfZdKfnJw62Ckn4" target="_blank" rel="noopener">on claude.ai</a> (Claude subscribers only, until you share it); the card links to it.</li>
+<li>A drawing whose largest area is a light gray wash from 215 up has that wash cleared as paper (synthetic picture s1); you accepted this.</li>
 </ul>
 </section>
 </div><div class="col">
@@ -124,7 +128,7 @@ td.pass{color:#2E6B32}
 <div class="count" id="count"></div>
 <div class="bar">
 <div class="status" id="status"></div>
-<button class="secondary" id="copy" type="button">Copy answers</button>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
 <button class="primary" id="send" type="button" disabled>Send to Claude</button>
 </div>
 <textarea id="out" readonly hidden></textarea>
@@ -135,6 +139,9 @@ td.pass{color:#2E6B32}
 const FORM = JSON.parse(document.getElementById("decider-form").textContent);
 const Q = FORM.questions;
 let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
 const host = document.getElementById("questions");
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
@@ -199,10 +206,28 @@ const sendBtn = document.getElementById("send");
 function refresh() {
   const left = Q.filter((_, qi) => !answered(qi)).length;
   countEl.textContent = left ? `${left} unanswered` : "";
-  sendBtn.disabled = sending || Q.every((_, qi) => chosen(qi) === null);
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
   document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
 }
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
 document.addEventListener("change", e => {
+  answersChanged();
   const t = e.target;
   if (t.type !== "radio") { refresh(); return; }
   const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
@@ -210,7 +235,7 @@ document.addEventListener("change", e => {
   if (t.value === "other") ta.focus();
   refresh();
 });
-document.addEventListener("input", refresh);
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
 
 document.getElementById("copy").addEventListener("click", async () => {
   try {
@@ -218,9 +243,9 @@ document.getElementById("copy").addEventListener("click", async () => {
     out.value = serialize();
     out.hidden = false;
     out.select();
-    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = "Copied ✓"; return; } catch {}
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
     out.select();
-    if (document.execCommand("copy")) { statusEl.textContent = "Copied ✓"; return; }
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
     statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
   } catch {
     statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
@@ -245,6 +270,7 @@ const UNAVAILABLE = {
 };
 
 sendBtn.addEventListener("click", async () => {
+  if (sent) return;
   const text = serialize();
   sending = true;
   sendBtn.disabled = true;
@@ -254,22 +280,24 @@ sendBtn.addEventListener("click", async () => {
     if (endpoint) {
       const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      statusEl.textContent = "Sent to Claude ✓";
+      statusEl.textContent = "";
+      showSent(true);
     } else {
       const bytes = new TextEncoder().encode(text).length;
-      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use Copy answers.`; return; }
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
       const state = await comments.canSendToClaude();
-      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use Copy answers.`; return; }
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
       const anchor = await comments.anchorFor(document.getElementById("copyback"));
       await comments.sendToClaude({ anchor, text });
-      statusEl.textContent = "Sent to Claude ✓ Claude's reply will appear in the comment on this section.";
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
     }
   } catch (e) {
     if (e && e.code === "forbidden") sendBtn.hidden = true;
-    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use Copy answers.`;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
   } finally {
     sending = false;
-    sendBtn.textContent = "Send to Claude";
+    if (!sent) showSent(false);
     refresh();
   }
 });
