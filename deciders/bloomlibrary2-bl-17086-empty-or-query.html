@@ -32,7 +32,7 @@
 <div class="wrap">
 <header>
   <h1>Preflight: stop sending Parse an empty $or, and report server errors to Sentry (BL-17086)</h1>
-  <p>Second preflight run on branch <code>BL-17086-empty-or-query</code>, at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a" target="_blank" rel="noopener"><code>539cfe5a</code></a>. Everything is green and nothing is waiting on you.</p>
+  <p>Second preflight run on branch <code>BL-17086-empty-or-query</code>, at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16" target="_blank" rel="noopener"><code>9b99d7ed</code></a>. Everything is green and nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
@@ -58,12 +58,12 @@
     <h3>Cause</h3>
     <p>A collection with no filter of its own gets one built from its child collections' filters (BL-10187, 2021). When none of those children has a filter either, the website still built an empty "any of these" filter, and Parse got an empty <code>$or</code>. The earlier fixes that skip the query for a collection with no filter (BL-9742 for the book count, BL-10126 for stats) relied on getting no filter at all, which this code had stopped returning.</p>
     <h3>What the PR does</h3>
-    <p>The first commit is the fix; the others add the error reporting. They're kept as separate commits on purpose.</p>
+    <p>The PR has two commits, kept separate on purpose: the first is the fix, the second adds the error reporting.</p>
     <ul>
-      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/model/Collections.tsx#L581" target="_blank" rel="noopener"><code>getFilterForCollectionAndChildren</code></a> returns no filter when nothing in the collection's tree has one, so the book count, stats and moderator widget skip the query again.</li>
-      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/components/ByLanguageCards.tsx#L89" target="_blank" rel="noopener">The <code>:language:</code> subset page</a> uses a filter that matches no books in that case. Otherwise it would list every book in that language.</li>
-      <li>As a backstop, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/connection/LibraryQueryHooks.ts#L1572" target="_blank" rel="noopener"><code>constructParseBookQuery</code></a> turns an empty "any of these" into "match no books" (<code>objectId $in []</code>), not an empty <code>$or</code>.</li>
-      <li>Every server error (5xx) a request from the site gets is now reported to Sentry, once per distinct failure per page load. The report carries the method, path, server message and query, but never the headers (session token) or any request body that isn't a Parse query (such as login's, which holds the Firebase token). This is <a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/connection/ReportServerErrors.ts" target="_blank" rel="noopener">one axios interceptor</a>, installed in <code>src/index.tsx</code>.</li>
+      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16/src/model/Collections.tsx#L581" target="_blank" rel="noopener"><code>getFilterForCollectionAndChildren</code></a> returns no filter when nothing in the collection's tree has one, so the book count, stats and moderator widget skip the query again.</li>
+      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16/src/components/ByLanguageCards.tsx#L89" target="_blank" rel="noopener">The <code>:language:</code> subset page</a> uses a filter that matches no books in that case. Otherwise it would list every book in that language.</li>
+      <li>As a backstop, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16/src/connection/LibraryQueryHooks.ts#L1572" target="_blank" rel="noopener"><code>constructParseBookQuery</code></a> turns an empty "any of these" into "match no books" (<code>objectId $in []</code>), not an empty <code>$or</code>.</li>
+      <li>Every server error (5xx) a request from the site gets is now reported to Sentry, once per distinct failure per page load. The report carries the method, path, server message and query, but never the headers (session token) or any request body that isn't a Parse query (such as login's, which holds the Firebase token). This is <a href="https://github.com/BloomBooks/BloomLibrary2/blob/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16/src/connection/ReportServerErrors.ts" target="_blank" rel="noopener">one axios interceptor</a>, installed in <code>src/index.tsx</code>.</li>
     </ul>
   </section>
 
@@ -83,15 +83,15 @@
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Added the Sentry reporting of server errors, and fixed three findings in it: the local review caught that login's request body (with its Firebase token) would have been sent, Devin that a url's own query string was dropped, and Greptile that the Parse query bodies (where book queries carry their filter) were missing. Also ran the site locally against production, and closed BL-13026 as a duplicate. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627/commits" target="_blank" rel="noopener">Commits</a>.</p>
+    <p>Added the Sentry reporting of server errors, and fixed three findings in it: the local review caught that login's request body (with its Firebase token) would have been sent, Devin that a url's own query string was dropped, and Greptile that the Parse query bodies (where book queries carry their filter) were missing. Also ran the site locally against production, closed BL-13026 as a duplicate, and squashed the reporting work into one commit (the code is unchanged). <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627/commits" target="_blank" rel="noopener">Commits</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <table>
-      <tr><th>Local review (light sub-agent pass)</th><td>One finding, fixed in <a href="https://github.com/BloomBooks/BloomLibrary2/commit/0f1e869c17c2776e886d0dbc95203f5a36fb586c" target="_blank" rel="noopener"><code>0f1e869c</code></a>: a 5xx on login would have sent the user's Firebase token to Sentry.</td></tr>
+      <tr><th>Local review (light sub-agent pass)</th><td>One finding, fixed: a 5xx on login would have sent the user's Firebase token to Sentry.</td></tr>
       <tr><th>Devin</th><td>Complete for HEAD. Its one bug (url query string dropped) is fixed and marked resolved by Devin (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4497949403" target="_blank" rel="noopener">thread</a>). Its Investigate flag about stats is the same one <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4495971770" target="_blank" rel="noopener">answered last run</a>.</td></tr>
-      <tr><th>Greptile</th><td>Complete for <code>0f1e869c</code>. One finding, fixed in <a href="https://github.com/BloomBooks/BloomLibrary2/commit/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a" target="_blank" rel="noopener"><code>539cfe5a</code></a> (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4497932941" target="_blank" rel="noopener">thread</a>). It has not seen the last two small commits, which only answer findings.</td></tr>
+      <tr><th>Greptile</th><td>Complete for <code>0f1e869c</code>. One finding, fixed in <a href="https://github.com/BloomBooks/BloomLibrary2/commit/9b99d7ed91a5abbbddc7cd41e86521cae5a97b16" target="_blank" rel="noopener"><code>539cfe5a</code></a> (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4497932941" target="_blank" rel="noopener">thread</a>). It has not seen the last two fixes, which only answer findings.</td></tr>
       <tr><th>CI</th><td>No build checks on PRs in this repo.</td></tr>
     </table>
   </section>
@@ -109,7 +109,7 @@
 <aside>
   <section class="card">
     <h2>Decisions</h2>
-    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. After that, run <code>/pr-ready-for-human</code>. It should leave the commits unsquashed, as the PR description says.</p>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. After that, run <code>/pr-ready-for-human</code>. It should keep the two commits as they are.</p>
   </section>
 </aside>
 </div>
