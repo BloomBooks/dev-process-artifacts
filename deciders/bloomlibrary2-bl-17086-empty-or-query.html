@@ -31,8 +31,8 @@
 <body>
 <div class="wrap">
 <header>
-  <h1>Preflight: stop sending Parse an empty $or (BL-17086)</h1>
-  <p>Preflight run on branch <code>BL-17086-empty-or-query</code> at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/186a01c904f6156ff143b9905998ba6b322e3e75" target="_blank" rel="noopener"><code>186a01c9</code></a>. Everything is green and nothing is waiting on you.</p>
+  <h1>Preflight: stop sending Parse an empty $or, and report server errors to Sentry (BL-17086)</h1>
+  <p>Second preflight run on branch <code>BL-17086-empty-or-query</code>, at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a" target="_blank" rel="noopener"><code>539cfe5a</code></a>. Everything is green and nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
@@ -54,42 +54,44 @@
   <section class="card">
     <h2>What this PR is about</h2>
     <h3>Problem</h3>
-    <p>The production Parse server logs a steady stream of 500 errors, about 750 a day: <code>$or argument must be a non-empty array</code>. They come from the website. Some collection pages ask Parse for a book count, or for stats, with a query MongoDB rejects. Their count is then blank, or their stats fail.</p>
+    <p>The production Parse server logs about 750 errors a day: <code>$or argument must be a non-empty array</code>. They come from the website. The cards on the Resources page, and any other collection with no filter anywhere, ask Parse for a book count or for stats with a query MongoDB rejects. The count is then blank, or the stats fail. This went unnoticed for years (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-13026" target="_blank" rel="noopener">BL-13026</a>, now closed as a duplicate, saw it in 2024), because the website hides a failed query and nothing reported it.</p>
     <h3>Cause</h3>
-    <p>A collection with no filter of its own gets one built from its child collections' filters (BL-10187, 2021). When none of those children has a filter either, the website still built an "any of these" filter with nothing in it, and Parse got an empty <code>$or</code>. Two earlier fixes, BL-9742 (book count) and BL-10126 (stats), had made the website skip the query for a collection with no filter. They relied on getting no filter at all, which this code had stopped returning.</p>
+    <p>A collection with no filter of its own gets one built from its child collections' filters (BL-10187, 2021). When none of those children has a filter either, the website still built an empty "any of these" filter, and Parse got an empty <code>$or</code>. The earlier fixes that skip the query for a collection with no filter (BL-9742 for the book count, BL-10126 for stats) relied on getting no filter at all, which this code had stopped returning.</p>
     <h3>What the PR does</h3>
+    <p>The first commit is the fix; the others add the error reporting. They're kept as separate commits on purpose.</p>
     <ul>
-      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/model/Collections.tsx#L581" target="_blank" rel="noopener"><code>getFilterForCollectionAndChildren</code></a> now returns no filter when neither the collection nor any of its children has one. The book count, stats and moderator info widget already treat that as "don't query", so BL-9742's and BL-10126's handling works again.</li>
-      <li>The one caller that combines the result with more conditions, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/components/ByLanguageCards.tsx#L89" target="_blank" rel="noopener">the <code>:language:</code> subset page</a>, uses a filter that matches no books instead. Otherwise it would list every book in the library in that language.</li>
-      <li>As a backstop, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/connection/LibraryQueryHooks.ts#L1572" target="_blank" rel="noopener"><code>constructParseBookQuery</code></a> turns an empty "any of these" into a condition that matches no books (<code>objectId $in []</code>), rather than an empty <code>$or</code>.</li>
+      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/model/Collections.tsx#L581" target="_blank" rel="noopener"><code>getFilterForCollectionAndChildren</code></a> returns no filter when nothing in the collection's tree has one, so the book count, stats and moderator widget skip the query again.</li>
+      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/components/ByLanguageCards.tsx#L89" target="_blank" rel="noopener">The <code>:language:</code> subset page</a> uses a filter that matches no books in that case. Otherwise it would list every book in that language.</li>
+      <li>As a backstop, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/connection/LibraryQueryHooks.ts#L1572" target="_blank" rel="noopener"><code>constructParseBookQuery</code></a> turns an empty "any of these" into "match no books" (<code>objectId $in []</code>), not an empty <code>$or</code>.</li>
+      <li>Every server error (5xx) a request from the site gets is now reported to Sentry, once per distinct failure per page load. The report carries the method, path, server message and query, but never the headers (session token) or any request body that isn't a Parse query (such as login's, which holds the Firebase token). This is <a href="https://github.com/BloomBooks/BloomLibrary2/blob/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a/src/connection/ReportServerErrors.ts" target="_blank" rel="noopener">one axios interceptor</a>, installed in <code>src/index.tsx</code>.</li>
     </ul>
   </section>
 
   <section class="card">
     <h2>Quality gate</h2>
     <table>
-      <tr><th>Typecheck (tsc)</th><td><span class="pass">No new errors.</span> tsc reports 22 errors (axios and Contentful typings, missing <code>history</code> types and so on), and none of them are in files this PR changes.</td></tr>
+      <tr><th>Typecheck (tsc)</th><td><span class="pass">No new errors.</span> The 22 errors tsc reports were all there before this PR, and none is in a file it changes.</td></tr>
       <tr><th>Lint (eslint) and prettier</th><td><span class="pass">Pass</span>, including the pre-commit hook.</td></tr>
-      <tr><th>TypeScript tests (vitest)</th><td><span class="pass">Pass</span>: <span class="numeral">15 files · 192 tests</span>, the full suite at HEAD.</td></tr>
+      <tr><th>TypeScript tests (vitest)</th><td><span class="pass">Pass</span>: <span class="numeral">16 files · 199 tests</span>, the full suite at HEAD.</td></tr>
+      <tr><th>Run locally</th><td><span class="pass">Same as production</span> on 10 pages, except that the /resources 500s are gone. See "Worth knowing".</td></tr>
       <tr><th>C# / other stacks</th><td>N/A: this repo has none.</td></tr>
       <tr><th>End-to-end tests</th><td>N/A: this repo has none.</td></tr>
-      <tr><th>CI</th><td>No PR build workflow on this repo. The Greptile check passed.</td></tr>
+      <tr><th>CI</th><td>No PR build workflow on this repo.</td></tr>
       <tr><th>Merge with master</th><td><span class="pass">Up to date</span>, and mergeable.</td></tr>
-      <tr><th>Repo checks</th><td>None declared in <code>AGENTS.md</code>.</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>This is the first run. It committed the fix with its unit tests, plus a guard for the language subset page that the local review asked for, then opened <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">draft PR #627</a>. It's <a href="https://github.com/BloomBooks/BloomLibrary2/commit/186a01c904f6156ff143b9905998ba6b322e3e75" target="_blank" rel="noopener">one commit</a>.</p>
+    <p>Added the Sentry reporting of server errors, and fixed three findings in it: the local review caught that login's request body (with its Firebase token) would have been sent, Devin that a url's own query string was dropped, and Greptile that the Parse query bodies (where book queries carry their filter) were missing. Also ran the site locally against production, and closed BL-13026 as a duplicate. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627/commits" target="_blank" rel="noopener">Commits</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <table>
-      <tr><th>Local review (light sub-agent pass)</th><td>One finding, fixed. Without the guard, a language subset of a collection with no filters would have listed every book in the library in that language.</td></tr>
-      <tr><th>Devin</th><td>Complete. No bugs. It raised one Investigate flag, "unfiltered stats still reach the API". That's not an issue: the API returns no stats for that placeholder query, as BL-10126 intended. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4495971770" target="_blank" rel="noopener">The thread</a> has a reply and is resolved.</td></tr>
-      <tr><th>Greptile</th><td>Complete for HEAD. No actionable issues.</td></tr>
+      <tr><th>Local review (light sub-agent pass)</th><td>One finding, fixed in <a href="https://github.com/BloomBooks/BloomLibrary2/commit/0f1e869c17c2776e886d0dbc95203f5a36fb586c" target="_blank" rel="noopener"><code>0f1e869c</code></a>: a 5xx on login would have sent the user's Firebase token to Sentry.</td></tr>
+      <tr><th>Devin</th><td>Complete for HEAD. Its one bug (url query string dropped) is fixed and marked resolved by Devin (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4497949403" target="_blank" rel="noopener">thread</a>). Its Investigate flag about stats is the same one <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4495971770" target="_blank" rel="noopener">answered last run</a>.</td></tr>
+      <tr><th>Greptile</th><td>Complete for <code>0f1e869c</code>. One finding, fixed in <a href="https://github.com/BloomBooks/BloomLibrary2/commit/539cfe5ac7a3b8ded69a06791af06c6948c3ff1a" target="_blank" rel="noopener"><code>539cfe5a</code></a> (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4497932941" target="_blank" rel="noopener">thread</a>). It has not seen the last two small commits, which only answer findings.</td></tr>
       <tr><th>CI</th><td>No build checks on PRs in this repo.</td></tr>
     </table>
   </section>
@@ -97,8 +99,9 @@
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>Nobody has run this against a live site. The real confirmation is the empty-<code>$or</code> errors disappearing from the Parse server's error log in Kudu after deploy.</li>
-      <li>I haven't checked whether every one of the ~750 daily errors comes from this path. The card also listed the API and the cloud functions as possible senders. If errors remain after deploy, look there.</li>
+      <li>Locally, against production data: production's /resources sends 6 count queries with <code>"$or":[]</code> per load, all 500. The local build sends none. Counts, the language subset page and stats match production on <code>/enabling-writers</code>, <code>/bible/Bible-for-Children</code> (and its <code>:language:en</code>), <code>/language:fr</code>, <code>/read</code>, <code>/</code> and two stats pages.</li>
+      <li>Not tried live: the Sentry reporting itself (it only starts on <code>*.bloomlibrary.org</code>), and logging in, which the interceptor also watches. Logging in is in the test ideas on the card.</li>
+      <li>Expect new Sentry issues after deploy: any other 5xx that has been failing silently will now show up.</li>
     </ul>
   </section>
 </main>
@@ -106,7 +109,7 @@
 <aside>
   <section class="card">
     <h2>Decisions</h2>
-    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. After that, run <code>/pr-ready-for-human</code>.</p>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. After that, run <code>/pr-ready-for-human</code>. It should leave the commits unsquashed, as the PR description says.</p>
   </section>
 </aside>
 </div>
