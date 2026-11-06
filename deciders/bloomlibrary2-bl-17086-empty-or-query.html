@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-17086 Preflight Report</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2723; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; margin: 0 0 .5em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; margin-top: 1em; }
+  a { color: #1d5f8a; }
+  code, .numeral { font-family: ui-monospace, Consolas, monospace; font-size: .9em; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .chips, .links { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .chip { display: inline-block; padding: 2px 10px; border: 1px solid #d8d2c6; border-radius: 999px; background: #fff; font-size: .85rem; }
+  .chip.ok { border-color: #9cc7a4; background: #eef7ef; }
+  .links a { padding: 2px 10px; border: 1px solid #c9d8e4; border-radius: 999px; background: #fff; text-decoration: none; font-size: .85rem; }
+  .grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd2; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid #eee8de; }
+  th { font-weight: 600; width: 32%; }
+  .pass { color: #2b7a3a; font-weight: 600; }
+  ul { padding-left: 1.2em; margin: .4em 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: stop sending Parse an empty $or (BL-17086)</h1>
+  <p>Preflight run on branch <code>BL-17086-empty-or-query</code> at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/186a01c904f6156ff143b9905998ba6b322e3e75" target="_blank" rel="noopener"><code>186a01c9</code></a>. Everything is green and nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 items waiting on you</span>
+    <span class="chip">Board: ready for your review</span>
+  </div>
+  <div class="links">
+    <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">PR #627</a>
+    <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627/files" target="_blank" rel="noopener">Files changed</a>
+    <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627/commits" target="_blank" rel="noopener">Commits</a>
+    <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17086" target="_blank" rel="noopener">BL-17086</a>
+    <a href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>The production Parse server logs a steady stream of 500 errors, about 750 a day: <code>$or argument must be a non-empty array</code>. They come from the website. Some collection pages ask Parse for a book count, or for stats, with a query MongoDB rejects. Their count is then blank, or their stats fail.</p>
+    <h3>Cause</h3>
+    <p>A collection with no filter of its own gets one built from its child collections' filters (BL-10187, 2021). When none of those children has a filter either, the website still built an "any of these" filter with nothing in it, and Parse got an empty <code>$or</code>. Two earlier fixes, BL-9742 (book count) and BL-10126 (stats), had made the website skip the query for a collection with no filter. They relied on getting no filter at all, which this code had stopped returning.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li><a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/model/Collections.tsx#L581" target="_blank" rel="noopener"><code>getFilterForCollectionAndChildren</code></a> now returns no filter when neither the collection nor any of its children has one. The book count, stats and moderator info widget already treat that as "don't query", so BL-9742's and BL-10126's handling works again.</li>
+      <li>The one caller that combines the result with more conditions, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/components/ByLanguageCards.tsx#L89" target="_blank" rel="noopener">the <code>:language:</code> subset page</a>, uses a filter that matches no books instead. Otherwise it would list every book in the library in that language.</li>
+      <li>As a backstop, <a href="https://github.com/BloomBooks/BloomLibrary2/blob/186a01c904f6156ff143b9905998ba6b322e3e75/src/connection/LibraryQueryHooks.ts#L1572" target="_blank" rel="noopener"><code>constructParseBookQuery</code></a> turns an empty "any of these" into a condition that matches no books (<code>objectId $in []</code>), rather than an empty <code>$or</code>.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <table>
+      <tr><th>Typecheck (tsc)</th><td><span class="pass">No new errors.</span> tsc reports 22 errors (axios and Contentful typings, missing <code>history</code> types and so on), and none of them are in files this PR changes.</td></tr>
+      <tr><th>Lint (eslint) and prettier</th><td><span class="pass">Pass</span>, including the pre-commit hook.</td></tr>
+      <tr><th>TypeScript tests (vitest)</th><td><span class="pass">Pass</span>: <span class="numeral">15 files · 192 tests</span>, the full suite at HEAD.</td></tr>
+      <tr><th>C# / other stacks</th><td>N/A: this repo has none.</td></tr>
+      <tr><th>End-to-end tests</th><td>N/A: this repo has none.</td></tr>
+      <tr><th>CI</th><td>No PR build workflow on this repo. The Greptile check passed.</td></tr>
+      <tr><th>Merge with master</th><td><span class="pass">Up to date</span>, and mergeable.</td></tr>
+      <tr><th>Repo checks</th><td>None declared in <code>AGENTS.md</code>.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>This is the first run. It committed the fix with its unit tests, plus a guard for the language subset page that the local review asked for, then opened <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627" target="_blank" rel="noopener">draft PR #627</a>. It's <a href="https://github.com/BloomBooks/BloomLibrary2/commit/186a01c904f6156ff143b9905998ba6b322e3e75" target="_blank" rel="noopener">one commit</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <table>
+      <tr><th>Local review (light sub-agent pass)</th><td>One finding, fixed. Without the guard, a language subset of a collection with no filters would have listed every book in the library in that language.</td></tr>
+      <tr><th>Devin</th><td>Complete. No bugs. It raised one Investigate flag, "unfiltered stats still reach the API". That's not an issue: the API returns no stats for that placeholder query, as BL-10126 intended. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/627#discussion_r4495971770" target="_blank" rel="noopener">The thread</a> has a reply and is resolved.</td></tr>
+      <tr><th>Greptile</th><td>Complete for HEAD. No actionable issues.</td></tr>
+      <tr><th>CI</th><td>No build checks on PRs in this repo.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Nobody has run this against a live site. The real confirmation is the empty-<code>$or</code> errors disappearing from the Parse server's error log in Kudu after deploy.</li>
+      <li>I haven't checked whether every one of the ~750 daily errors comes from this path. The card also listed the API and the cloud functions as possible senders. If errors remain after deploy, look there.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. After that, run <code>/pr-ready-for-human</code>.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
