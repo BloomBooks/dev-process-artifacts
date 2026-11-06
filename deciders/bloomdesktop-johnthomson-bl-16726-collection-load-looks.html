@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-16726</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf8f4;color:#2a2722;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#2f5d8a}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.9em;background:#f1ede5;padding:0 .25em;border-radius:3px}
+.wrap{max-width:1300px;margin:0 auto;padding:24px 16px 48px}
+header{margin-bottom:20px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d9d2c3;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem}
+.chip.good{border-color:#9cc3a0;background:#eef7ef}
+.chip.warn{border-color:#e0c27a;background:#fdf6e3}
+.links a.chip{text-decoration:none}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;align-items:start}
+.grid>*{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd0;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;font-size:.9rem;color:#5b5548}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.9em}
+.pass{color:#2e7d32;font-weight:600}
+.q{border-top:1px solid #eee7da;padding-top:12px;margin-top:12px}
+.q:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.opt{display:block;margin:6px 0;padding:6px 8px;border:1px solid #eee7da;border-radius:6px}
+.opt small{display:block;color:#6b6457}
+.rec{color:#2e7d32;font-weight:600;font-size:.8rem}
+textarea,input[type=text]{width:100%;font:inherit;border:1px solid #d9d2c3;border-radius:6px;padding:6px}
+textarea{min-height:48px}
+pre#payload{white-space:pre-wrap;background:#f6f3ec;border:1px solid #e3ddd0;border-radius:6px;padding:10px;font-size:.85rem;font-family:ui-monospace,Consolas,monospace}
+button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #2f5d8a;background:#2f5d8a;color:#fff;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Preflight: Build the Bloom Library URL only when needed (BL-16726)</h1>
+<div>Clean run. All reviewers finished, three findings fixed, two answered as not problems. Two questions for you.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip good">Mergeable</span>
+<span class="chip good">Bots quiet</span>
+<span class="chip warn">2 items waiting on you</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8545" target="_blank" rel="noopener">PR #8545</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8545/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8545/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16726" target="_blank" rel="noopener">BL-16726</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8545" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+
+<div class="grid">
+<main>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Debug builds of Bloom sometimes die during startup with <code>Assertion Failed: If at all possible, you should provide an appropriate acceptFinalUrl param when looking up a url during startup.</code> Release builds don't crash, but on a slow connection they make a blocking server request for each book while the collection loads.</p>
+<h3>Cause</h3>
+<p>Loading a collection built a Bloom Library page URL for every uploaded book, at two points. The background status fetch built one per book, and the badge on every book button asked for it as soon as the button appeared. Building the URL needs the Bloom Library address, which comes from a server lookup. When that lookup hasn't finished yet, which is usual on a cold start, each request either trips the assertion or blocks until the lookup is done.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>The status Bloom keeps for each uploaded book holds the book's ids instead of a URL, and builds the URL only when asked (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/Book/BloomLibraryStatus.cs#L74" target="_blank" rel="noopener"><code>GetBloomLibraryBookUrl</code></a>).</li>
+<li>The badge-info API reports only whether the book is on Bloom Library and what state it is in there (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/web/controllers/CollectionApi.cs#L951" target="_blank" rel="noopener">CollectionApi.cs:951</a>).</li>
+<li>A new <code>collections/openBookOnBloomLibrary</code> endpoint builds the URL and opens the browser when the user clicks "View on BloomLibrary.org" (<a href="https://github.com/BloomBooks/BloomDesktop/blob/d8ce19138278b0090f3918a0058df38bc72b8fcd/src/BloomExe/web/controllers/CollectionApi.cs#L975" target="_blank" rel="noopener">CollectionApi.cs:975</a>). It runs off the UI thread. Clicking the link doesn't select the book.</li>
+</ul>
+<p>Nothing on the collection-load path looks up a URL any more. Users see the same badges, and the link opens the same pages.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (front end)</td><td class="pass">pass</td></tr>
+<tr><td>Lint (eslint on the changed file)</td><td class="pass">pass</td></tr>
+<tr><td>C# tests (<code>dotnet test</code>, BloomTests)</td><td><span class="pass">pass</span> <span class="numeral">3950 passed · 1 skipped</span> (the opt-in Reading App Builder build test)</td></tr>
+<tr><td>Front-end tests (vitest)</td><td><span class="pass">pass</span> <span class="numeral">1729 passed · 125 files</span></td></tr>
+<tr><td>E2E specs at the nightly window size (repo check)</td><td>did not apply: no e2e specs in the diff</td></tr>
+<tr><td>Merge with master</td><td class="pass">up to date, mergeable</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>This was the first run. It committed the fix and a new unit test and opened the draft PR. It then fixed one Devin finding (the duplicate-upload search URL was double-encoded) and two Greptile findings (a click on the link also selected the book, and a click while the book list was being rebuilt would throw). See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545/commits" target="_blank" rel="noopener">commits</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review</td><td>Light sub-agent pass, clean. It noted that the badges still asked for the URL during load, which led to the click-time endpoint.</td></tr>
+<tr><td>Devin</td><td>Complete at <code>d8ce191</code>: re-review clean. Of its two bugs, one was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618260" target="_blank" rel="noopener">fixed</a> and one was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618482" target="_blank" rel="noopener">answered as not a problem</a>; Devin now marks both resolved. Its one flag was <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487618606" target="_blank" rel="noopener">answered and resolved</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete on the first commit. Its three findings were <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621649" target="_blank" rel="noopener">fixed</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621659" target="_blank" rel="noopener">and</a> <a href="https://github.com/BloomBooks/BloomDesktop/pull/8545#discussion_r4487621668" target="_blank" rel="noopener">resolved</a>. It hasn't reviewed the two small fix-up commits.</td></tr>
+<tr><td>CI</td><td>Complete: <code>pr-automation</code> passed. <code>no-dependency-changes</code> was skipped.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Nobody has tried this in a running Bloom yet. The badge link now opens through a Bloom API call instead of an ordinary web link, so clicking it once is the check that matters.</li>
+<li>The new unit tests check how the URL is built. No test checks that loading a collection makes no URL lookup.</li>
+</ul>
+</section>
+</main>
+
+<aside>
+<section class="card" id="decisions">
+<h2>Decisions</h2>
+
+<div class="q" data-q="Live check">
+<h3>Check the badge link in a running Bloom?</h3>
+<p>The badge link used to be an ordinary web link. Now it calls a new Bloom endpoint that builds the address and opens your browser. Unit tests cover building the address, and nothing has exercised the click. An agent can check over the automation connection that the badges still appear with the right states. It can't click the link without opening a browser window in front of you.</p>
+<label class="opt"><input type="radio" name="q1" data-instruction="In C:\Users\JohnThomson\orca\workspaces\BloomDesktop\BL-16726-Collection-load-looks (branch JohnThomson/BL-16726-Collection-load-looks, PR #8545), start Bloom with --nowatch via the run-bloom skill, open a collection with books on Bloom Library, and confirm the badges appear with correct states and collections/getBookOnBloomBadgeInfo returns onBloomLibrary/draft/inCirculation/harvestState. Do not click the link (it opens a browser). Record the result as a live check in the PR's E2E Coverage section. John will click 'View on BloomLibrary.org' himself during his own review."> Agent checks the badges; I'll click the link myself during my review <span class="rec">Recommended</span><small>Recommended because it covers everything that doesn't need a browser to open, and you're about to review it anyway. Effort: ~10 min of agent time, no code.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="John will check the badge link himself in a running Bloom during his own review of PR #8545; no agent live check."> I'll check it all myself<small>No agent time.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is: no live check of the Bloom Library badge link before review of PR #8545."> Leave as is<small>No live check before review.</small></label>
+<label class="opt"><input type="radio" name="q1" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes" data-notes></textarea>
+</div>
+
+<div class="q" data-q="Broader Bloom Library review">
+<h3>John Hatton's request for a broader review</h3>
+<p>On the card, John Hatton asked for an AI review of "everything around this Bloom Library URL stuff plus the count of books", recalling inefficiencies that were noticed but never worked on. This PR fixes only the per-book URL lookup. It doesn't look at book counts or the other Bloom Library queries.</p>
+<label class="opt"><input type="radio" name="q2" data-instruction="Create a new YouTrack card (youtrack-create-issue) for a review of the Bloom Library status, URL and book-count code in BloomDesktop (BookCollection.UpdateBloomLibraryStatusOfBooks, BloomLibraryBookApiClient, UrlLookup, and wherever book counts on Bloom Library are fetched), citing John Hatton's comment on BL-16726, and reply on BL-16726 linking it."> File a separate card for the review <span class="rec">Recommended</span><small>Recommended because it's a separate investigation, and this PR is small and ready for review. Effort: no code, just a card.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="On branch JohnThomson/BL-16726-Collection-load-looks, run a read-only survey of the Bloom Library status, URL and book-count code in BloomDesktop for inefficiencies (per John Hatton's comment on BL-16726) and report findings before changing anything."> Do the review now, on this branch<small>Moderate: an investigation first. Any fixes would grow this PR.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is: take no action now on John Hatton's request for a broader Bloom Library review on BL-16726."> Leave as is<small>The request stays as a comment on the card.</small></label>
+<label class="opt"><input type="radio" name="q2" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes" data-notes></textarea>
+</div>
+
+<div class="q" data-q="Next step">
+<h3>Next step</h3>
+<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the choices above now, then re-run preflight on PR #8545 if any code changed."> Do the above now <span class="rec">Recommended</span><small>Neither choice above changes any code.</small></label>
+<label class="opt"><input type="radio" name="q3" data-instruction="Discuss the decisions on PR #8545 before acting."> Discuss first</label>
+<label class="opt"><input type="radio" name="q3" data-other> Other: <input type="text" data-other-text></label>
+<textarea placeholder="Notes" data-notes></textarea>
+</div>
+</section>
+
+<section class="card">
+<h2>Copy back</h2>
+<pre id="payload"></pre>
+<button id="copy">Copy answers</button> <span id="copied"></span>
+</section>
+</aside>
+</div>
+</div>
+<script>
+function build(){
+  var lines=["Decisions from preflight report: BloomDesktop branch JohnThomson/BL-16726-Collection-load-looks, PR #8545","Report: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-16726-collection-load-looks.html",""];
+  document.querySelectorAll(".q").forEach(function(q){
+    var title=q.getAttribute("data-q"), sel=q.querySelector("input[type=radio]:checked"), line;
+    if(!sel) line="No decision yet. Ask again later about: "+title;
+    else if(sel.hasAttribute("data-other")) line="Other: "+(q.querySelector("[data-other-text]").value||"");
+    else line=sel.getAttribute("data-instruction");
+    lines.push(title+": "+line);
+    var n=q.querySelector("[data-notes]").value.trim(); if(n) lines.push("Notes: "+n);
+  });
+  document.getElementById("payload").textContent=lines.join("\n");
+}
+document.addEventListener("input",build); document.addEventListener("change",build); build();
+document.getElementById("copy").onclick=function(){
+  var t=document.getElementById("payload").textContent, ok=function(){document.getElementById("copied").textContent="Copied";};
+  try{navigator.clipboard.writeText(t).then(ok,fallback);}catch(e){fallback();}
+  function fallback(){var r=document.createRange();r.selectNodeContents(document.getElementById("payload"));var s=getSelection();s.removeAllRanges();s.addRange(r);try{document.execCommand("copy");ok();}catch(e){}}
+};
+</script>
+</body>
+</html>
