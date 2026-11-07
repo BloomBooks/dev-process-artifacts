@@ -26,22 +26,18 @@
   th { font-weight: 600; }
   .numeral { font-variant-numeric: tabular-nums; font-family: ui-monospace, Consolas, monospace; font-size: .9em; }
   ul { margin: .3rem 0; padding-left: 1.2rem; }
-  label { display: block; margin: 4px 0; }
-  textarea, input[type=text] { width: 100%; font: inherit; padding: 6px; border: 1px solid #d8d0c3; border-radius: 6px; }
-  pre { white-space: pre-wrap; background: #faf8f4; border: 1px solid #eee7dc; border-radius: 6px; padding: 8px; font-size: .85rem; }
-  button { font: inherit; padding: 6px 14px; border-radius: 6px; border: 1px solid #8a3b12; background: #8a3b12; color: #fff; cursor: pointer; }
   .muted { color: #6b645b; font-size: .9rem; }
 </style>
 </head>
 <body>
 <header>
   <h1>Preflight: fixes for the inline-image bugs found in testing (BL-16822)</h1>
-  <div class="muted">Branch BL-16822-Inline-Fixes at <span class="numeral">1f5779df52</span>, 2026-11-02</div>
+  <div class="muted">Branch BL-16822-Inline-Fixes at <span class="numeral">0a1e472791</span>, 2026-11-07</div>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8530" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
     <span class="chip ok">Bots quiet</span>
-    <span class="chip">1 item waiting on you</span>
+    <span class="chip ok">Nothing waiting on you</span>
   </div>
   <div class="chips links">
     <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8530" target="_blank" rel="noopener">PR #8530</a>
@@ -60,14 +56,14 @@
     <h3>Cause</h3>
     <ul>
       <li>BloomField's Backspace guard looked for embedded images only when the page was set up, and ran after CKEditor, whose first Backspace selects the picture.</li>
-      <li>The reader tools rebuild each block from CKEditor's data when the text loses focus, which detached the picture element the menu held.</li>
+      <li>The reader tools rebuild each block from CKEditor's data when the text loses focus, which detached the picture element that the menu held. Their own Ctrl+Z restores a saved copy of the block in the same way.</li>
       <li>A CSS float cannot start higher than any float before it in the page, so a pushed picture pulled down whatever came after it, on either side.</li>
       <li>CKEditor saves its own copy of each image's file name from when the page loaded (<code>data-cke-saved-src</code>).</li>
     </ul>
     <h3>What the PR does</h3>
     <ul>
       <li>Backspace and Delete guards that work out at each keystroke whether only protected pictures come before or after the paragraph, run before CKEditor, and block both keys while CKEditor has a picture selected.</li>
-      <li>The rebuild from CKEditor's data keeps the live picture elements, minus CKEditor's own attributes.</li>
+      <li>The rebuild from CKEditor's data, and the reader tools' own undo and redo, keep the live picture elements, minus CKEditor's own attributes. The reader tools' history starts again after every picture change, so it cannot put an old picture back in one language.</li>
       <li>Floating pictures are ordered in the page by the highest point each can reach, counting pushes; a drag or a resize then puts the others back where they were.</li>
       <li>Changing a picture updates CKEditor's saved copy of its file name.</li>
       <li>Unit tests for each, and four e2e specs (Test Case ID 815).</li>
@@ -78,88 +74,47 @@
     <h2>Quality gate</h2>
     <table>
       <tr><th>Check</th><th>Result</th></tr>
-      <tr><td>Typecheck (front end and e2e)</td><td>passed</td></tr>
-      <tr><td>Lint (changed files)</td><td>passed: <span class="numeral">0 errors</span>; the warnings are in lines not touched</td></tr>
-      <tr><td>Vitest (front end, full suite)</td><td id="vitest-row">passed: <span class="numeral">1639 tests in 113 files</span></td></tr>
-      <tr><td>Playwright e2e, the four new specs (repo check: nightly window size)</td><td>passed: <span class="numeral">7 of 7</span> at the nightly size and at the default size</td></tr>
-      <tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
-      <tr><td>Merge with master</td><td>clean</td></tr>
+      <tr><td>Typecheck (front end)</td><td>passed</td></tr>
+      <tr><td>Lint (changed files)</td><td>passed: <span class="numeral">0 errors</span></td></tr>
+      <tr><td>Vitest (tests related to the change, on the merged code)</td><td>passed: <span class="numeral">1076 tests in 56 files</span></td></tr>
+      <tr><td>Playwright e2e: the four new specs and the keyboard undo spec (repo check: nightly window size)</td><td>passed: <span class="numeral">14 of 14</span></td></tr>
+      <tr><td>C# tests</td><td>not run: no C# in the PR's diff</td></tr>
+      <tr><td>Merge with master</td><td>merged; one test-file conflict where both sides added tests, kept both</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Wrote and committed the four fixes and their tests, merged master, fixed the trailing-line-break case Devin found and the resized-picture jump Greptile found, and made the new e2e specs work at the nightly window size. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8530/commits" target="_blank" rel="noopener">Commits</a>.</p>
+    <p>Fixed the reader tools' Ctrl+Z (commit <a href="https://github.com/BloomBooks/BloomDesktop/commit/00455e5a85" target="_blank" rel="noopener">00455e5a85</a>, as you decided last run), merged 66 commits from master (<a href="https://github.com/BloomBooks/BloomDesktop/commit/0a1e472791" target="_blank" rel="noopener">0a1e472791</a>), and updated the test ideas on the card.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>One finding, fixed: keeping the live wrapper would have saved CKEditor's <code>data-cke-saved-src</code> into the book.</td></tr>
-      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8530" target="_blank" rel="noopener">Devin</a></td><td>Complete at <span class="numeral">1f5779df52</span>. Two bugs and one item to investigate: one fixed, two answered as not issues, each on a resolved thread. Its later reviews repeated the same three.</td></tr>
-      <tr><td>Greptile</td><td>Reviewed <span class="numeral">f23567df8d</span>: one finding (a resized picture could jump), fixed in <span class="numeral">1f5779df52</span> and resolved. It has not reviewed the two later commits, which are that fix and the line-break fix.</td></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings on the reader-undo commit.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8530" target="_blank" rel="noopener">Devin</a></td><td>Complete at <span class="numeral">0a1e472791</span>. Nothing new; it repeats the two bugs and one item to investigate from earlier, each already on a resolved thread.</td></tr>
+      <tr><td>Greptile</td><td>Complete at <span class="numeral">0a1e472791</span> (re-triggered): "no new actionable issue was found".</td></tr>
       <tr><td>CI (pr-automation)</td><td>passed</td></tr>
-      <tr><td>Repo check: changed e2e specs at the nightly window size</td><td>passed, 7 of 7</td></tr>
+      <tr><td>Repo check: changed e2e specs at the nightly window size</td><td>passed, 14 of 14</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li>The Leveled Reader goes through the same rebuild as the Decodable Reader, but no test covers it.</li>
-      <li>No one has tried these fixes by hand in Bloom; the evidence is the unit tests and the e2e specs.</li>
-      <li>The e2e spec for the saved picture checks what a person sees; Bloom's normal save reads <code>src</code>, so it cannot fail on the <code>changeImageInfo</code> change alone.</li>
+      <li>No one has tried these fixes by hand in Bloom; the evidence is the unit tests and the e2e specs. No e2e spec covers the reader tools' Ctrl+Z after a picture change, and none covers the Leveled Reader.</li>
+      <li>With a reader markup tool open, Ctrl+Z straight after a picture change does nothing; the Undo button undoes it. That is left for BL-17020, and the card's test ideas say so.</li>
     </ul>
   </section>
 </div>
 
 <div>
-  <section class="card" data-q="reader-undo">
-    <h2>The reader tools' own Ctrl+Z, with a picture in the block</h2>
-    <p>While the Decodable or Leveled Reader has a markup tool selected, its Ctrl+Z and Ctrl+Y restore one text block's HTML from a snapshot the tool took when the block got focus (<code>decodableReaderTool.tsx</code>, <code>readerToolsModel.undo</code>). That skips Bloom's picture undo, so if the snapshot predates a picture change, Ctrl+Z might put back the old picture in one language only and leave the menu holding a detached element. This was found while diagnosing the Decodable Reader bug. Steve's test of typing and Ctrl+Z with the reader open passed, and nobody has tried Ctrl+Z after a picture change with the reader open.</p>
-    <label><input type="radio" name="reader-undo" value="check" data-instruction="Check whether the reader tools' Ctrl+Z after a picture change restores one language's old picture, and fix it on this branch if so" checked> Check it now, and fix it on this branch if it is real (Recommended)</label>
-    <label><input type="radio" name="reader-undo" value="card" data-instruction="File a YouTrack card for the reader tools' Ctrl+Z after a picture change, and leave this PR as it is"> File a card for later</label>
-    <label><input type="radio" name="reader-undo" value="leave" data-instruction="Leave as is"> Leave as is</label>
-    <label><input type="radio" name="reader-undo" value="other" data-instruction="Other"> Other: <input type="text" id="reader-undo-other"></label>
-    <label><input type="checkbox" id="reader-undo-comment"> Leave comment (record the decision as a code comment)</label>
-    <textarea id="reader-undo-notes" rows="2" placeholder="Notes"></textarea>
-  </section>
-
   <section class="card">
-    <h2>Copy back</h2>
-    <pre id="payload"></pre>
-    <button id="copy">Copy</button> <span id="copied" class="muted"></span>
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The PR is ready for your own review.</p>
   </section>
 </div>
 </main>
-<script>
-  function serialize() {
-    const lines = ["Preflight decisions for https://github.com/BloomBooks/BloomDesktop/pull/8530 (BL-16822-Inline-Fixes):"];
-    document.querySelectorAll("[data-q]").forEach((item) => {
-      const q = item.getAttribute("data-q");
-      const chosen = item.querySelector("input[type=radio]:checked");
-      let instruction = chosen ? chosen.getAttribute("data-instruction") : "(no choice)";
-      if (chosen && chosen.value === "other") instruction = "Other: " + document.getElementById(q + "-other").value;
-      lines.push("- " + item.querySelector("h2").textContent + ": " + instruction);
-      if (document.getElementById(q + "-comment").checked) lines.push("  Leave comment: yes");
-      const notes = document.getElementById(q + "-notes").value.trim();
-      if (notes) lines.push("  Notes: " + notes);
-    });
-    document.getElementById("payload").textContent = lines.join("\n");
-  }
-  document.addEventListener("input", serialize);
-  document.addEventListener("change", serialize);
-  serialize();
-  document.getElementById("copy").addEventListener("click", async () => {
-    const text = document.getElementById("payload").textContent;
-    try { await navigator.clipboard.writeText(text); document.getElementById("copied").textContent = "Copied"; }
-    catch (e) {
-      const range = document.createRange(); range.selectNodeContents(document.getElementById("payload"));
-      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
-      document.getElementById("copied").textContent = "Selected; press Ctrl+C";
-    }
-  });
-</script>
 </body>
 </html>
