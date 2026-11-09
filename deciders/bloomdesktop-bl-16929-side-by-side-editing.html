@@ -62,7 +62,7 @@ th { font-weight: 600; color: var(--muted); }
 <div class="wrap">
   <header style="display:flex;flex-direction:column;gap:10px">
     <h1>Preflight: show the rest of the book around the page being edited</h1>
-    <p class="muted" style="margin:0">BL-16929 · branch <code>BL-16929-side-by-side-editing</code> · run of 2026-11-09 at <code>1403dacdf7</code>: the view choice and zooms now last after Bloom is closed, and every check is green.</p>
+    <p class="muted" style="margin:0">BL-16929 · branch <code>BL-16929-side-by-side-editing</code> · run of 2026-11-09 at <code>08e1e64442</code>: All Pages now brings the book's page layout up to date at once, and every check is green.</p>
     <div class="chips">
       <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
       <span class="chip good">Mergeable</span>
@@ -90,6 +90,7 @@ th { font-weight: 600; color: var(--muted); }
           <li><strong>All pages</strong> lays the book out as it is read: cover alone, then facing pages, with a blank page before the back cover when the printed book needs one. Right-to-left books are mirrored, calendars stack, screen-sized books show single pages, and purple corner marks show the page being edited. The other pages are read-only, sandboxed, drawn only near the screen, and follow Format dialog changes. None of it is saved.</li>
           <li><strong>Clicking another page</strong> opens it in the same place on screen and replays the click (caret in text, picture selected).</li>
           <li><strong>Page changes:</strong> with one page, the new page shows in place as soon as it is drawn. With all pages, the corner marks move to the clicked page at once, and the old page stays, under a wait cursor, until the new one and its neighbours are drawn. The user can type into the new page as soon as a text box has the focus: master's BL-17022 keeps text typed while CKEditor loads.</li>
+          <li><strong>The book's page layout is brought up to date at once.</strong> BL-16893 runs its page layout update only when the AI image editor or a Publish tool needs it, but All Pages shows every other page as last saved. So choosing All Pages, or showing a page with it on (after a page size or Appearance change, or on opening such a book), runs the update if the book needs it and comes back to the page. A book whose update fails is not tried again from All Pages until its layout changes again.</li>
           <li><strong>Remove Page</strong> marks the page being edited with a red X while the confirmation is up, and <strong>the controls above the page</strong> sit in a bar fixed across the top of the page frame.</li>
         </ul>
       </section>
@@ -100,32 +101,33 @@ th { font-weight: 600; color: var(--muted); }
           <tr><th>Check</th><th>Result</th></tr>
           <tr><td>Merge with master</td><td class="ok">up to date with today's master, mergeable</td></tr>
           <tr><td>Typecheck, lint</td><td class="ok">pass <span class="muted">(warnings only)</span></td></tr>
-          <tr><td>Front-end unit tests (vitest, related to the change)</td><td class="ok"><span class="numeral">979 passed</span></td></tr>
-          <tr><td>C# tests (dotnet test, <code>EditingViewApiTests</code>)</td><td class="ok"><span class="numeral">3 passed</span> <span class="muted">(the new setting has no C# test of its own; the e2e restart test covers it)</span></td></tr>
-          <tr><td>Repo check: changed e2e specs at the nightly window size</td><td class="ok"><span class="numeral">11 passed</span> at <code>1403dacdf7</code> <span class="muted">(book-grid-view, remove-page-shows-which-page)</span></td></tr>
+          <tr><td>Front-end unit tests (vitest, related to the change)</td><td class="ok"><span class="numeral">804 passed</span></td></tr>
+          <tr><td>C# tests (dotnet test: BookProcessor, EditingModel, EditingViewApi)</td><td class="ok"><span class="numeral">25 passed</span> <span class="muted">(the new code has no C# test of its own; the e2e tests cover it)</span></td></tr>
+          <tr><td>Repo check: changed e2e specs at the nightly window size</td><td class="ok">book-grid-view <span class="numeral">11 passed</span> at <code>08e1e64442</code>; with remove-page-shows-which-page, <span class="numeral">12 passed</span> at <code>4bdd8b65fc</code> <span class="muted">(the last commit only removes a test's own time limits)</span></td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>What changed this run</h2>
-        <p>Since the last report, the view choice and the two zooms moved from WebView2's storage, which starts empty on every launch, to a Bloom user setting, and all pages now fits a spread each time it is chosen, with one e2e test covering both views across a restart. The page frame code moved out of <code>workspaceRoot.ts</code>, the zoom endpoint became <code>workspace/zoom</code>, the PR's changes to <code>AGENTS.md</code> and to test deadlines were taken back out, and master was merged. This preflight made no code changes.</p>
-        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8415/commits" target="_blank" rel="noopener">Commits</a></p>
+        <p>The branch was squashed to one commit for peer review. Then, as you chose, All Pages got BL-16893's page layout update, run at once, with an e2e test. The light review found two races in it, both fixed before the push: a click on a page could load that page while the update rewrote the book, and a second request could read the book mid-update.</p>
+        <p><a href="https://github.com/BloomBooks/BloomDesktop/pull/8415/commits" target="_blank" rel="noopener">Commits</a>: <a href="https://github.com/BloomBooks/BloomDesktop/commit/c5cbc9a557" target="_blank" rel="noopener">c5cbc9a557</a> (the squash), <a href="https://github.com/BloomBooks/BloomDesktop/commit/4bdd8b65fc" target="_blank" rel="noopener">4bdd8b65fc</a>, <a href="https://github.com/BloomBooks/BloomDesktop/commit/08e1e64442" target="_blank" rel="noopener">08e1e64442</a>.</p>
       </section>
 
       <section class="card">
         <h2>Reviewer outcomes</h2>
         <div class="tablewrap"><table>
           <tr><th>Reviewer</th><th>Outcome</th></tr>
-          <tr><td>Local review (light sub-agent pass)</td><td>Clean: nothing lost in the code move, the setting is read before the page frame loads and saved at once, and zooms are stored under the right view.</td></tr>
-          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8415" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>1403dacdf7</code>. One new question, about the deadlines on the grid waits that the last commit restored, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4516227194" target="_blank" rel="noopener">answered and resolved</a>. Devin marks every bug it found earlier as fixed.</td></tr>
-          <tr><td>Greptile</td><td>Complete at <code>2bc7c9f354</code>, no findings. Not re-triggered for the three commits after it: a code move, a rename, and restored test deadlines.</td></tr>
-          <tr><td>CI</td><td>pr-automation passed at <code>1403dacdf7</code>.</td></tr>
+          <tr><td>Local review (light sub-agent pass)</td><td>Two findings on the page layout update, both fixed before the push: the races described above.</td></tr>
+          <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8415" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>08e1e64442</code>, clean. On the update it raised a failed update getting one more try after another book's layout changes (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4516949218" target="_blank" rel="noopener">intended, resolved</a>) and the new test's own time limits (removed, resolved). Earlier this run: the restored grid deadlines (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4516227194" target="_blank" rel="noopener">answered, resolved</a>).</td></tr>
+          <tr><td>Greptile</td><td>Complete at <code>08e1e64442</code> (re-triggered for the update), no findings.</td></tr>
+          <tr><td>CI</td><td>pr-automation passed at <code>08e1e64442</code>.</td></tr>
         </table></div>
       </section>
 
       <section class="card">
         <h2>Worth knowing</h2>
         <ul>
+          <li>A page layout update that fails, and a click racing the start of one, have no automated test; the e2e test covers the update running and coming back to the page.</li>
           <li>One Devin thread stays open for the reviewer, as before: the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8415#discussion_r4123445842" target="_blank" rel="noopener">game tabs and Change Layout in the controls bar at narrow widths</a> have not been checked by hand.</li>
           <li>An empty, untracked file named <code>{}</code> (dated 28 September) sits in the worktree. It was not committed.</li>
         </ul>
@@ -135,7 +137,7 @@ th { font-weight: 600; color: var(--muted); }
     <aside>
       <section class="card">
         <h2>Decisions</h2>
-        <p style="margin:0">Nothing is waiting on you. The PR is a draft, ready for your own review.</p>
+        <p style="margin:0">Nothing to decide. Six files changed by the page layout update are not yet marked reviewed by you; once they are, the PR can go to peer review. It is still a draft.</p>
       </section>
     </aside>
   </div>
