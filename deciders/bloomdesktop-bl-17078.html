@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-17078 Preflight Report</title>
+<style>
+/* Two columns: the report on the left, the decisions on the right; one column when narrow. */
+:root {
+  --ground: #f7f6f2;
+  --card: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636d;
+  --line: #dcdad2;
+  --accent: #1f5f8b;
+  --good: #2e7d4f;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --mono: Consolas, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--ground); color: var(--ink); font: 15px/1.55 var(--sans);
+  padding-block: 24px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 1280px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; margin: 0; }
+h1 { font-size: 1.6rem; }
+h2 { font-size: 1.2rem; }
+h3 { font-size: 1rem; margin-top: 4px; }
+p { margin: 0; }
+a { color: var(--accent); }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.header { display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--card); border-radius: 999px; padding: 2px 12px; font-size: 0.85rem; color: var(--ink); text-decoration: none; }
+.chip.good { border-color: var(--good); color: var(--good); }
+a.chip { color: var(--accent); }
+.grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.grid > * { min-width: 0; }
+.col { display: flex; flex-direction: column; gap: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+table { border-collapse: collapse; width: 100%; }
+.tablewrap { overflow-x: auto; }
+th, td { text-align: left; vertical-align: top; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--muted); font-size: 0.85rem; }
+.numeral { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 0.9em; }
+.pass { color: var(--good); font-weight: 600; }
+.muted { color: var(--muted); }
+code { font-family: var(--mono); font-size: 0.9em; }
+@media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="header">
+  <h1>BL-17078: Keep a resized inline image inside its text block</h1>
+  <p class="muted">Preflight on branch <code>BL-17078</code> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/37eb077d62c169dc732d2458962e4c8fe34ff812" target="_blank" rel="noopener"><span class="numeral">37eb077d62</span></a>. Every check is green, and nothing is waiting on you.</p>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8559" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8559" target="_blank" rel="noopener">PR #8559</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8559/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8559/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17078" target="_blank" rel="noopener">BL-17078</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8559" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</div>
+
+<div class="grid">
+<div class="col">
+
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>Dragging a corner handle to enlarge an inline image behaved differently by page orientation. In a portrait book the image stopped a little short of the edge of the text. In a landscape book it could be stretched past the bottom of the page.</p>
+    <h3>Cause</h3>
+    <p>A corner resize was limited only by the image's width (95% of the text block's width), and the height just followed from the picture's shape. A tall, narrow portrait block reaches that width limit first. A wide, short landscape block lets the image get taller than the block long before it gets that wide.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>A corner resize now also stops where the bottom of the picture, plus its bottom margin, reaches the lowest point it can go without pushing text out of the block (<a href="https://github.com/BloomBooks/BloomDesktop/blob/37eb077d62c169dc732d2458962e4c8fe34ff812/src/BloomBrowserUI/bookEdit/js/inlineImageInteractions.ts#L2270" target="_blank" rel="noopener">getImageBottomLimitViewportPx</a>, <a href="https://github.com/BloomBooks/BloomDesktop/blob/37eb077d62c169dc732d2458962e4c8fe34ff812/src/BloomBrowserUI/bookEdit/js/inlineImageInteractions.ts#L448" target="_blank" rel="noopener">computeInlineImageMaxWidthPercentForBlockHeight</a>).</li>
+      <li>In a block that shows one language, that point is the bottom of the text box. In a block that shows two or three, only the first shows the picture and the languages share the spare room; the picture may take all of it but leaves the other languages room for their text.</li>
+      <li>The picture also stops before it pushes the text that follows it out of the block, below a middle-docked picture or beside a floating one. This is the rule a drag already follows (<a href="https://github.com/BloomBooks/BloomDesktop/blob/37eb077d62c169dc732d2458962e4c8fe34ff812/src/BloomBrowserUI/bookEdit/js/inlineImageInteractions.ts#L2183" target="_blank" rel="noopener">continueResize</a>).</li>
+      <li>An image that already reaches lower than that can be made smaller, but not bigger. Portrait pages behave as before.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Typecheck (<code>pnpm typecheck</code>)</td><td class="pass">passed</td></tr>
+      <tr><td>Lint (eslint on the changed files)</td><td class="pass">passed</td></tr>
+      <tr><td>TypeScript unit tests (vitest, related to the change)</td><td><span class="pass">passed</span> <span class="numeral">757 tests in 39 files</span></td></tr>
+      <tr><td>TypeScript browser tests (vitest, headless Edge)</td><td><span class="pass">passed</span> <span class="numeral">4 tests</span>, the new <code>inlineImageResize.browser.spec.ts</code></td></tr>
+      <tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
+      <tr><td>E2E specs at the nightly window size (repo check)</td><td>did not apply: no <code>src/BloomE2E/tests</code> spec changed</td></tr>
+      <tr><td>Merge with master</td><td class="pass">clean, one commit ahead of the PR's base</td></tr>
+    </table>
+    </div>
+    <p class="muted">On this machine the browser tests only run from a config on port 63360, because Windows reserves the port vitest uses by default (an existing papercut in bloom-team-skills).</p>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Wrote the fix and its tests, moved the branch off an old BL-13502 commit onto current master, and added the overflow check after Devin and Greptile both found that text after a picture could still be pushed out. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8559/commits" target="_blank" rel="noopener">two commits</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <div class="tablewrap">
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>One finding: in a block with several languages the picture stopped at its own language's share of the spare room. Fixed by also counting the other languages' spare room, with a two-language browser test.</td></tr>
+      <tr><td>Devin</td><td>Complete for <span class="numeral">37eb077d62</span>. No bugs; one Investigate flag about text after a middle-docked picture, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8559#discussion_r4531781463" target="_blank" rel="noopener">fixed and resolved</a>. Its second round repeated the flag against the commit that fixes it.</td></tr>
+      <tr><td>Greptile</td><td><!-- greptile-row -->Complete for <span class="numeral">37eb077d62</span> (2 reviews). Its first review raised the same text-pushed-out problem as Devin, as a P1, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8559#discussion_r4531782742" target="_blank" rel="noopener">fixed and resolved</a>. Its re-review found nothing new.</td></tr>
+      <tr><td>CI</td><td><span class="pass">passed</span> (pr-automation)</td></tr>
+      <tr><td>Repo check: e2e specs at the nightly window size</td><td>did not apply: no e2e spec changed</td></tr>
+    </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>Nobody has tried this in a running Bloom yet. The browser tests drive the real resize gesture against real layout, but with a stand-in for the book's stylesheet rather than a real page.</li>
+      <li>When a width would push text out, each pointer move measures the layout up to eight more times to find the largest width that fits. Worth a glance for sluggishness on a slow machine.</li>
+    </ul>
+  </section>
+
+</div>
+<div class="col">
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The test decision is settled: <code>inlineImageResize.browser.spec.ts</code> and the new unit tests in <code>inlineImageInteractions.test.ts</code> test the change.</p>
+    <p>Test ideas for a tester are on <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17078" target="_blank" rel="noopener">the card</a>.</p>
+  </section>
+</div>
+</div>
+
+</div>
+</body>
+</html>
