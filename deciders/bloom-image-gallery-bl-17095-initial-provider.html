@@ -1,51 +1,4 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Preflight BL-17095</title>
-<style>
-:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
-*{box-sizing:border-box}
-body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
-::selection{background:var(--accent-tint)}
-main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
-h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
-.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
-.ctx p,.q p{margin:0 0 10px}
-.ctx p:last-child{margin:0}
-a{color:var(--accent-strong)}
-code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
-label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
-label.opt.rec{background:var(--accent-tint)}
-label.opt.chosen{outline:1px solid var(--accent)}
-label.opt input{margin-top:4px}
-.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
-.eff{color:var(--muted);font-size:13.5px}
-.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
-.row label.opt{margin:0}
-.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
-input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
-input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
-.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
-.bar{display:flex;align-items:center;gap:10px}
-.status{flex:1;color:var(--muted);font-size:13.5px}
-button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
-button.secondary{background:var(--card);color:var(--accent-strong)}
-button.primary{background:var(--accent-strong);color:#fff}
-button:disabled{opacity:.5;cursor:default}
-button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
-button.done svg{margin-right:6px}
-#copy:not(.done){padding:8px 10px}
-#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
-</style>
-<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-12","about":"bloom-image-gallery PR #26 (branch BL-17095-initial-provider, base master), used by BloomDesktop PR #8565","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-image-gallery-bl-17095-initial-provider.html","questions":[{"title":"What should the gallery do if the host never answers the collections request?","context":["When the remembered source is a local collection (Art of Reading), the gallery picks it once the host has listed its collections. Devin raised two cases, both only when the host <b>never<\/b> answers that request (<a href=\"https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4556476916\" target=\"_blank\" rel=\"noopener\">thread 1<\/a>, <a href=\"https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4556479878\" target=\"_blank\" rel=\"noopener\">thread 2<\/a>): the gallery opens with no source selected (Openverse and Pixabay are still listed and clickable), and closing the gallery does not cancel the request.","The earlier version handled both with a 10-second fallback and an abort; you asked for it to be simplified, and those went. In Bloom the host is Bloom's own local server, which answers in milliseconds unless Bloom itself is hung. In those milliseconds, using Open File can also still be followed by the remembered collection being selected."],"options":[{"label":"Bring back a bounded wait and the abort","why":"Covers a host that hangs, at the cost of a timer, an abort controller and a check for a superseded run.","effort":"~12 lines in src/App.tsx, low risk","instruction":"In C:/dev/_worktrees/bloom-image-gallery/BL-17095-initial-provider (bloom-image-gallery PR #26, branch BL-17095-initial-provider), in src/App.tsx initProviders: pass an AbortController signal to the collections axios.get and abort it in the effect's cleanup; when waitForCollections, select openOn() (keeping a user's pick) after 10 seconds if the request has not answered. Then reply on and resolve threads discussion_r4556476916 and discussion_r4556479878, re-pin BloomDesktop PR #8565 to the new head, and re-run preflight on both."}],"leaveAsIs":"a host that never answers the collections request leaves the gallery with no source selected, and the request is not cancelled on close.","leaveAsIsRecommended":"Recommended because Bloom's own local server answers this at once, and a Bloom hung badly enough not to would be broken in far more visible ways. This keeps the simplification.","codeComment":true},{"title":"Does the gallery need an automated test of the change?","context":["The decision helper and its unit tests went with the simplification. What's left is in <code>App.tsx<\/code>: pick the remembered source at once, or after the collections request for a local collection, Bloom remembers the source. This repo has no component tests of <code>App<\/code>. The behaviour is checked live in Bloom (see E2E Coverage in the PR)."],"options":[{"label":"No test: the live checks cover it","recommended":true,"why":"Recommended because a test would need a component-test setup this repo doesn't have, for about 10 lines already checked live.","effort":"no code; records the decision in the PR description","instruction":"In bloom-image-gallery PR #26, set the PR description's test line to \"Test of the change: none — developer's decision: the selection is ~10 lines in App.tsx, checked live in Bloom; the repo has no component tests of App.\""},{"label":"Add a component test of App","why":"Guards the opening choice against later changes.","effort":"moderate: a render test with mocked axios and providers","instruction":"In C:/dev/_worktrees/bloom-image-gallery/BL-17095-initial-provider (branch BL-17095-initial-provider), add a vitest component test of App that mocks the collections request and checks the opening source for: no initialProviderId, pixabay with and without a key, a local collection, and an unknown id. Then re-run preflight on PR #26."}],"leaveAsIs":"the gallery PR has no automated test of the change."},{"title":"Next step","context":["Both PRs are otherwise clean: Devin has nothing new on either head, and the live checks pass on gallery 3421997 with BloomDesktop 90c672efe5."],"options":[{"label":"Apply my answers, then re-run preflight on each PR whose code changed","recommended":true,"why":"Recommended because both answers are small.","effort":"small","instruction":"Apply the answers above to bloom-image-gallery PR #26; if its code changed, re-pin BloomDesktop PR #8565 to the new head and re-run preflight on both."},{"label":"Discuss first","why":"If anything here needs talking through.","effort":"none","instruction":"Don't change anything yet; discuss these answers with the developer first."}],"leaveAsIs":"nothing happens next."}]}</script>
-</head>
-<body>
-<main>
-<style>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preflight BL-17095</title><style>:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent-strong:#B4532F}body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,sans-serif}main{margin:0 auto;padding:24px 16px 64px}h2{font:600 19px/1.3 Georgia,serif;margin:0 0 8px}code{font:13px Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}</style></head><body><main><style>
 main{max-width:1320px}
 .rp-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
 .rp-grid>section{min-width:0}
@@ -65,10 +18,10 @@ table.gate td{border-top:1px solid var(--line);padding:6px 8px;text-align:left;v
 .ok{color:#2E7D32;font-weight:600}
 </style>
 <h1 class="rp">Preflight: the gallery opens on a host-named source</h1>
-<p>Simplified at your request, then re-architected after a Fable review: the gallery only takes the source to open on, and Bloom remembers it. Two decisions are left.</p>
+<p>Simplified at your request, then re-architected after a Fable review: the gallery only takes the source to open on, and Bloom remembers it. Your two decisions are applied: leave a host that never answers as is, and no automated test. Nothing is waiting.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/bloom-image-gallery/pull/26" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
-<span class="chip">Mergeable</span><span class="chip">2 decisions waiting</span>
+<span class="chip">Mergeable</span><span class="chip">0 decisions waiting</span>
 </div>
 <div class="chips">
 <a class="chip" href="https://github.com/BloomBooks/bloom-image-gallery/pull/26" target="_blank" rel="noopener">PR #26</a>
@@ -108,7 +61,7 @@ table.gate td{border-top:1px solid var(--line);padding:6px 8px;text-align:left;v
 <h2>Reviewers</h2>
 <ul>
 <li><b>Fable</b>: two simplification passes and an architecture review; all agreed changes applied.</li>
-<li><b>Devin</b>: complete on 3421997. Two bugs are open for decision 1; every other finding is fixed, not an issue now, or already decided, each with a thread.</li>
+<li><b>Devin</b>: complete on 3421997. Every finding, including the two you decided to leave, is fixed, not an issue now, or already decided, each with a resolved thread.</li>
 <li><b>Greptile</b>: reviewed up to 5625bb7; it has not seen the simplification.</li>
 </ul>
 </div>
@@ -118,188 +71,4 @@ table.gate td{border-top:1px solid var(--line);padding:6px 8px;text-align:left;v
 <li>After this merges, BloomDesktop PR #8565's pin moves to the merge commit.</li>
 </ul>
 </div>
-</section><section>
-<div id="questions"></div>
-<div id="copyback">
-<div class="count" id="count"></div>
-<div class="bar">
-<div class="status" id="status"></div>
-<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
-<button class="primary" id="send" type="button" disabled>Send to Claude</button>
-</div>
-<textarea id="out" readonly hidden></textarea>
-</div>
-</section></div>
-</main>
-<script>
-(async () => {
-const FORM = JSON.parse(document.getElementById("decider-form").textContent);
-const Q = FORM.questions;
-let sending = false;
-let sent = false;   // the answers as they stand went to Claude; any change to them clears it
-const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
-const host = document.getElementById("questions");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-
-if (FORM.context && FORM.context.length) {
-  const block = document.createElement("section");
-  block.className = "ctx";
-  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
-  host.appendChild(block);
-}
-
-// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
-Q.forEach((q, qi) => {
-  const card = document.createElement("section");
-  card.className = "q";
-  const name = "q" + qi;
-  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
-  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
-  (q.options || []).forEach((o, i) => {
-    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
-      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
-      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
-  });
-  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
-    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
-    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
-  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
-  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
-  card.innerHTML = h;
-  host.appendChild(card);
-});
-
-const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
-const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
-const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
-
-function serialize() {
-  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
-  if (FORM.url) lines.push(`Form: ${FORM.url}`);
-  lines.push("");
-  Q.forEach((q, qi) => {
-    lines.push(q.title);
-    const c = chosen(qi), n = notes(qi);
-    if (!answered(qi)) {
-      lines.push(`No decision yet — ask again later about: ${q.title}`);
-      if (n) lines.push(`Notes: ${n}`);
-    } else if (c === "other") {
-      lines.push(`Other: ${n}`);
-    } else {
-      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
-      if (n) lines.push(`Notes: ${n}`);
-    }
-    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
-    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
-    lines.push("");
-  });
-  return lines.join("\n").trim();
-}
-
-const statusEl = document.getElementById("status");
-const countEl = document.getElementById("count");
-const sendBtn = document.getElementById("send");
-function refresh() {
-  const left = Q.filter((_, qi) => !answered(qi)).length;
-  countEl.textContent = left ? `${left} unanswered` : "";
-  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
-  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
-}
-// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
-// change, when they go back to copying and sending the new answers.
-const copyBtn = document.getElementById("copy");
-function showCopy(done) {
-  copyBtn.classList.toggle("done", done);
-  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
-}
-function showSent(done) {
-  sent = done;
-  sendBtn.className = done ? "secondary done" : "primary";
-  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
-}
-function answersChanged() {
-  showCopy(false);
-  if (sent) showSent(false);
-}
-showCopy(false);
-document.addEventListener("change", e => {
-  answersChanged();
-  const t = e.target;
-  if (t.type !== "radio") { refresh(); return; }
-  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
-  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
-  if (t.value === "other") ta.focus();
-  refresh();
-});
-document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
-
-document.getElementById("copy").addEventListener("click", async () => {
-  try {
-    const out = document.getElementById("out");
-    out.value = serialize();
-    out.hidden = false;
-    out.select();
-    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
-    out.select();
-    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
-    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
-  } catch {
-    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
-  }
-});
-
-// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
-// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
-const endpoint = window.DECIDER_ENDPOINT;
-let comments = null;
-if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
-if (!endpoint && !comments) sendBtn.hidden = true;
-const COMMENT_ERRORS = {
-  consent_required: "This page hasn't been allowed to comment yet.",
-  forbidden: "This page may not post comments.",
-  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
-};
-const UNAVAILABLE = {
-  writers_only: "Only an editor of this page can send to Claude.",
-  no_session: "No Claude session is watching this page.",
-  off: "Sending to Claude is turned off for this page.",
-};
-
-sendBtn.addEventListener("click", async () => {
-  if (sent) return;
-  const text = serialize();
-  sending = true;
-  sendBtn.disabled = true;
-  sendBtn.textContent = "Sending…";
-  statusEl.textContent = "Sending your answers to Claude…";
-  try {
-    if (endpoint) {
-      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      statusEl.textContent = "";
-      showSent(true);
-    } else {
-      const bytes = new TextEncoder().encode(text).length;
-      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
-      const state = await comments.canSendToClaude();
-      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
-      const anchor = await comments.anchorFor(document.getElementById("copyback"));
-      await comments.sendToClaude({ anchor, text });
-      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
-      showSent(true);
-    }
-  } catch (e) {
-    if (e && e.code === "forbidden") sendBtn.hidden = true;
-    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
-  } finally {
-    sending = false;
-    if (!sent) showSent(false);
-    refresh();
-  }
-});
-refresh();
-})();
-</script>
-</body>
-</html>
+</section></div></main></body></html>
