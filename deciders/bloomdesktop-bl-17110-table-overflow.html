@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BL-17110 Preflight Report</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+main.report{max-width:1440px}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+.grid>div{min-width:0}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.rhead{margin-bottom:18px}
+.rhead h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.sum{margin:0 0 10px;color:var(--muted)}
+.chips,.links{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px}
+.chip.ok{border-color:#9DC3A4;background:#EEF6EF}
+.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
+a.chip.link{text-decoration:none;color:var(--accent-strong)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card h3{font:600 15px/1.3 system-ui,sans-serif;margin:12px 0 4px}
+.card ul{margin:0;padding-left:20px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px;font-size:14px}
+td.pass{color:#2F6B3A}
+.numeral{font-variant-numeric:tabular-nums}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-12","about":"BloomDesktop PR 8570 (branch BL-17110-table-overflow, worktree D:\\bloom\\BL-17110-table-overflow): table overflow marks follow row and column resizing","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17110-table-overflow.html","context":["These four came from the walkaround's review of the whole PR. None is a bug: each would restructure shared overflow code. The PR works and its tests pass without any of them."],"questions":[{"title":"Decide what overflows by the cell's clipping, not by naming table parts?","context":["To let text in a table fit its own cell, <code>OverflowChecker.overflowingAncestor<\/code> now knows about tables: when it reaches a <code>.bloom-cell<\/code>, it skips the table's box and the canvas element holding the table, one table at a time. A more general rule would need no table names: <i>text is checked against the nearest box that clips it (<code>overflow: clip<\/code> or <code>hidden<\/code>), and that box is then checked against the boxes outside it.<\/i> A text cell already clips (<code>basePage.less<\/code>).","The general rule would apply to every page, not just tables: split panes and any other clipping box would start being judged this way, so it changes overflow marks outside tables and needs its own testing there. The table-specific skip affects nothing outside a table."],"options":[{"label":"Switch to the clipping rule in this PR","why":"Easier to reason about in the long run: one rule, and tables need no special case.","effort":"~40 lines in OverflowChecker.ts, but changes marks on every page that has a clipping box; moderate risk","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), replace the table-specific skip in OverflowChecker.overflowingAncestor (src/BloomBrowserUI/bookEdit/OverflowChecker/OverflowChecker.ts) with a general rule: text is checked against its nearest ancestor with overflow clip or hidden, and that box against the boxes outside it, up to the marginBox. Remove lastBoxOfTableHolding. Add browser specs for a split-pane page and keep the table-cell specs passing."},{"label":"File a card to try the clipping rule later","why":"Keeps this PR's effect inside tables, and records the idea.","effort":"no code now","instruction":"Create a YouTrack card (youtrack-create-issue) proposing that OverflowChecker.overflowingAncestor judge text against its nearest clipping ancestor (overflow clip/hidden) instead of naming table parts; link BL-17110 and PR https://github.com/BloomBooks/BloomDesktop/pull/8570."}],"leaveAsIs":"overflowingAncestor keeps its table-specific skip of the table's box and canvas element.","leaveAsIsRecommended":"Recommended: the table-specific skip changes nothing outside tables, while the clipping rule would change overflow marks on every page with a clipping box and needs testing there. It is better as its own change if you want it.","codeComment":true},{"title":"One batched overflow check for everyone, with the measurement cache always on?","context":["This PR adds <code>OverflowChecker.AdjustSizeOrMarkOverflowOfAll<\/code>, which checks a set of text boxes at once: heights measured with one layout of the page, the page-wide check run once, and descent measurements (the canvas drawing that finds how far letters hang below the line) reused for text whose font and width haven't changed. Only tables use it. The existing one-second check (<code>AdjustSizeOrMarkOverflowSoon<\/code>, used when typing, dragging a split pane, or resizing a canvas element) already shares the page-wide part between boxes but measures each box on its own and redraws its descent every time.","Merging the two would leave one batching path, give typing and split-pane drags the same speed-up, and make the measurement cache part of <code>MeasureText<\/code> itself rather than something switched on during one call."],"options":[{"label":"File a card to merge the two batched paths","recommended":true,"why":"Recommended because it would leave one path to maintain and speed up every page, but it changes the check every text box goes through, which deserves its own PR and testing.","effort":"no code now; the change itself is ~80 lines in OverflowChecker.ts and measureText.ts, moderate risk","instruction":"Create a YouTrack card (youtrack-create-issue) proposing to merge OverflowChecker.AdjustSizeOrMarkOverflowSoon's batching with AdjustSizeOrMarkOverflowOfAll (measure content heights together for every batch; move the descent-measurement cache into MeasureText.getDescentMeasurementsOfBox, cleared on document.fonts loadingdone). Link BL-17110 and PR https://github.com/BloomBooks/BloomDesktop/pull/8570."},{"label":"Merge them in this PR","why":"One path now, at the cost of a bigger PR that touches every text box's check.","effort":"~80 lines, moderate risk, needs a full overflow test pass","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), make AdjustSizeOrMarkOverflowSoon's batch use measureContentHeightsTogether and the descent cache, with timing (now or after a second) as the only difference from AdjustSizeOrMarkOverflowOfAll; move the descent cache into MeasureText.getDescentMeasurementsOfBox, cleared on document.fonts loadingdone. Keep all OverflowChecker specs passing."}],"leaveAsIs":"AdjustSizeOrMarkOverflowOfAll stays a table-only fast path beside AdjustSizeOrMarkOverflowSoon.","codeComment":true},{"title":"One resize watcher in the overflow checker instead of one per kind of box?","context":["Overflow is re-checked when a box changes size, and each kind of box has its own trigger: split panes send <code>_splitpaneparentresize<\/code>, canvas buttons send <code>buttonCanvasElementResized<\/code>, and this PR adds a <code>ResizeObserver<\/code> on table cells in <code>tableEditing.ts<\/code>. One <code>ResizeObserver<\/code> inside the overflow checker, watching every text box that can overflow, would cover all three. The table code would then need to know nothing about overflow, and the two table unit-test files would not need to stub the check."],"options":[{"label":"File a card for one resize watcher in OverflowChecker","why":"Removes three triggers for one job, but it changes when split panes and canvas buttons get checked, so it belongs in its own PR.","effort":"no code now; the change is ~60 lines across OverflowChecker.ts, tableEditing.ts and the split-pane code, moderate risk","instruction":"Create a YouTrack card (youtrack-create-issue) proposing one ResizeObserver in OverflowChecker.AddOverflowHandlers on every element getElementsThatCanOverflowOrNeedToBeResized returns, batched per frame, replacing the _splitpaneparentresize and buttonCanvasElementResized handlers and the table cell observer in tableEditing.ts. Link BL-17110 and PR https://github.com/BloomBooks/BloomDesktop/pull/8570."},{"label":"Do it in this PR","why":"Cleaner now; widens the PR to split panes and canvas buttons.","effort":"~60 lines, moderate risk","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), move the cell ResizeObserver out of tableEditing.ts into OverflowChecker.AddOverflowHandlers, observing every element getElementsThatCanOverflowOrNeedToBeResized returns and batching per animation frame; remove the _splitpaneparentresize and buttonCanvasElementResized handlers and the OverflowChecker stubs in tableEditing.test.ts and tableEditing.gating.test.ts. Run the OverflowChecker, tableEditing and split-pane tests."}],"leaveAsIs":"table cells keep their own ResizeObserver in tableEditing.ts beside the split-pane and canvas-button triggers.","leaveAsIsRecommended":"Recommended for this PR: it works, and the cleanup reaches split panes and canvas buttons, which this PR otherwise doesn't touch. Pick the card option if you want it recorded.","codeComment":true},{"title":"Measure the drag on a slow computer before trimming the per-frame work?","context":["A 12-block table's check takes about 16 ms per frame on this machine. The efficiency review found three things still done on every frame of a drag: the red-mark tooltips are taken down and rebuilt even when nothing changed; every text box on the page, not just the table's, is cloned and measured; and the check reads and writes the page alternately, box by box, which can force a layout per box when marks change. On a slow computer with a big table, these could make a drag stutter. Nobody has measured that yet."],"options":[{"label":"Measure first, at 4x CPU slowdown with a 5 by 6 table","recommended":true,"why":"Recommended because the cost is a guess until it's measured; I'd time a drag with Chrome's CPU throttling in the running Bloom and fix only what shows up.","effort":"measurement only, no code; fixes afterwards would be ~20-60 lines each","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), start Bloom with the run-bloom skill, make a 5x6 two-language table on a Canvas page, and over CDP time OverflowChecker.AdjustSizeOrMarkOverflowOfAll per frame during a row drag with 4x CPU throttling. Report the per-frame times, and which of tooltip rebuilding, measuring the whole page, and interleaved reads and writes costs the most, before changing code."},{"label":"Fix all three now","why":"Removes the work without measuring; more code to review.","effort":"~100 lines in OverflowChecker.ts, moderate risk to the marks on every page","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), in OverflowChecker.AdjustSizeOrMarkOverflowOfAll: touch tooltips only when a box's overflow state changes, measure only the given text boxes plus any whose width changed, and read every box's measurements before writing any marks. Keep all OverflowChecker specs and tables-cell-overflow.spec.ts passing."}],"leaveAsIs":"the per-frame check stays as it is, at about 16 ms for a 12-block table on a fast machine."},{"title":"Next step","context":["The PR is a draft, every reviewer has finished, and CI is green."],"options":[{"label":"Carry out my answers above, then re-run preflight","recommended":true,"why":"Recommended so that any code change goes through the reviewers again.","effort":"depends on the answers","instruction":"In D:\\bloom\\BL-17110-table-overflow (branch BL-17110-table-overflow, PR 8570), carry out the answers above, then run /preflight again."},{"label":"Talk it over first","why":"For when an answer needs discussion before anything changes.","effort":"none","instruction":"Before changing anything on BL-17110-table-overflow (PR 8570), discuss the answers above with me."}],"leaveAsIs":"nothing further happens on PR 8570 until I come back to it."}]}</script>
+</head>
+<body>
+<main class="report">
+<header class="rhead">
+<h1>Preflight: table overflow marks follow resizing</h1>
+<p class="sum">Draft PR, every reviewer finished, CI green. Four restructuring proposals from the walkaround wait on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip warn">5 waiting on you</span>
+</div>
+<div class="links">
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8570" target="_blank" rel="noopener">PR #8570</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8570/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8570/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17110" target="_blank" rel="noopener">BL-17110</a>
+<a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8570" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<div class="grid"><div class="leftcol">
+
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Purpose</h3>
+<p>When a table's row or column was resized, the red overflow marks on its text changed about a second after the mouse was released, and they could be wrong in between. Text that did not fit a cell whose row had been dragged short hung over the row below. And text that fit its cell was marked anyway once a row was dragged taller than the table's own box. This PR makes the marks follow a table as it changes, and makes overflow in a table cell behave like overflow in a split-pane text box.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>The overflow marks of a table's text update on every frame while a row or column boundary is dragged, and right after every table operation (Grow, Hug, adding or removing rows and columns, undo).</li>
+<li>Text in a table only has to fit its own cell. Neither the table's box nor the canvas element it fills counts, since a row dragged taller runs past both; the boxes above them still do, up to the margin box, including the outer table's cell that holds a nested table.</li>
+<li>Text that does not fit its cell is cut off at the cell's content edge instead of hanging over the row below, and the cell is marked red.</li>
+<li>The overflow check of a table is fast enough to run on every frame: about 16 ms for a 12-block table, down from about 265 ms. It runs the page-wide part once for all the table's text boxes, measures their heights with one layout of the page, and reuses descent measurements of text whose font and width have not changed.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (front end, e2e)</td><td class="pass">passed</td></tr>
+<tr><td>Lint</td><td class="pass">no errors (warnings are in lines this PR didn't touch)</td></tr>
+<tr><td>TypeScript unit and browser tests related to the change (vitest)</td><td class="pass"><span class="numeral">816 passed</span> in 43 files, at HEAD</td></tr>
+<tr><td>Repo check: new e2e spec at the nightly window size, headless</td><td class="pass"><code>tables-cell-overflow.spec.ts</code>: <span class="numeral">5 of 5 passed</span> at <a href="https://github.com/BloomBooks/BloomDesktop/commit/632357ef2beb7ced1ddd708c10ba7f643f2efdce" target="_blank" rel="noopener">632357ef2b</a></td></tr>
+<tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
+<tr><td>Merge with master</td><td class="pass">clean, up to date</td></tr>
+<tr><td>Test of the change</td><td class="pass"><code>OverflowChecker.browser.spec.ts</code> and <code>tables-cell-overflow.spec.ts</code></td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Committed the branch's work and merged master. Fixed the light review's finding (text that ran past the page margin was no longer marked once it was in a table), Devin's nested-table bug, and Greptile's two findings (mouse handlers piling up on an overflowed box; removed cells kept alive by the resize watcher), each with a browser test where one could show it. The walkaround also made a table operation and the cell resizes it causes share one check per frame.</p>
+<p><a href="https://github.com/BloomBooks/BloomDesktop/commit/eda7c20284" target="_blank" rel="noopener">eda7c20284</a> · <a href="https://github.com/BloomBooks/BloomDesktop/commit/632357ef2b" target="_blank" rel="noopener">632357ef2b</a></p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: text in a cell that ran past the margin box went unmarked. Now <a href="https://github.com/BloomBooks/BloomDesktop/blob/632357ef2beb7ced1ddd708c10ba7f643f2efdce/src/BloomBrowserUI/bookEdit/OverflowChecker/OverflowChecker.ts#L483" target="_blank" rel="noopener">only the table's own boxes are skipped</a>.</td></tr>
+<tr><td>Walkaround</td><td>6 behavior-preserving changes kept (one flag instead of two, shared measuring code, one check per frame for all waiting tables, one list of mark names in the e2e helpers, simpler test stubs, two stale helper comments). 4 proposals, on the right.</td></tr>
+<tr><td>Devin</td><td>Complete for 632357ef2b. 1 bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8570#discussion_r4557864260" target="_blank" rel="noopener">fixed and confirmed by Devin</a>; 1 flag, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8570#discussion_r4557864439" target="_blank" rel="noopener">not an issue</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete for f7dc15f14b, the commit before the fixes. 2 findings, both fixed (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8570#discussion_r4557530366" target="_blank" rel="noopener">handlers</a>, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8570#discussion_r4557530377" target="_blank" rel="noopener">removed cells</a>). It has not reviewed the fix commit.</td></tr>
+<tr><td>CI</td><td>Complete, green at HEAD.</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>No one has watched the marks move during a drag in a running Bloom: the e2e spec checks after each drag ends. Column drags, undo, adding rows and nested tables are covered only by the test ideas on the card.</li>
+<li>Harvester: until <code>harvester-production</code> carries this change, BloomPUBs and ePUBs made by Bloom Library still draw text that is too big for a cell over the row below.</li>
+</ul>
+</section>
+</div><div class="rightcol">
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</div></div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
