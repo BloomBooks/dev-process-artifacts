@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Preflight gallery BL-17095</title>
+<title>Preflight BL-17095</title>
 <style>
 :root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
 *{box-sizing:border-box}
@@ -41,7 +41,7 @@ button.done svg{margin-right:6px}
 #out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-12","about":"bloom-image-gallery PR #26 (branch BL-17095-initial-provider, base master), used by BloomDesktop PR #8565","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-image-gallery-bl-17095-initial-provider.html","questions":[{"title":"Should Pixabay be listed before the local collections finish loading?","context":["Devin (<a href=\"https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4554509250\" target=\"_blank\" rel=\"noopener\">thread<\/a>): <i>\"When collection discovery stalls, <code>addToImageProviders(pixabay)<\/code> cannot run until its request finishes. The ten-second fallback picks OpenVerse instead of ready Pixabay, and a hung request hides Pixabay indefinitely.\"<\/i>","So if Bloom were slow to list its local collections (it answers from this computer, so normally instantly), Pixabay would not appear until it answered. And a user whose remembered source is Pixabay would get Openverse after the 10-second wait. The order is the same as on master; this PR did not cause it. Listing Pixabay first fixes it, but then a local collection literally named \"Pixabay\" would be hidden, because the two would share an id. No installed collection is named that."],"options":[{"label":"List Pixabay before asking for the local collections, and accept the name clash","recommended":true,"why":"Recommended because it removes a real (if unlikely) stall for a two-line change, and the clash needs a collection nobody has.","effort":"~2 lines in src/App.tsx, low risk","instruction":"In C:/dev/_worktrees/bloom-image-gallery/BL-17095-initial-provider (bloom-image-gallery PR #26, branch BL-17095-initial-provider), move addToImageProviders(pixabay) in initProviders to before the local-collections request (after OpenVerse), reply on thread https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4554509250 and resolve it, re-run preflight, then re-pin BloomDesktop PR #8565 to the new head."},{"label":"Give local collections ids that cannot clash with built-in sources","effort":"moderate: changes the ids Bloom remembers, so Bloom needs a migration for saved values","instruction":"In bloom-image-gallery PR #26 (branch BL-17095-initial-provider), give local-collection providers an id namespace (e.g. 'collection:<slug>') distinct from built-in providers, list Pixabay before the collections request, and in BloomDesktop PR #8565 map an old remembered collection slug to the new id when reading ImageGallerySource; reply on the Devin thread, resolve it, and re-run preflight on both."}],"leaveAsIs":"Pixabay keeps waiting for the local collections, as on master.","codeComment":true},{"title":"Next step","options":[{"label":"Apply my answer, then re-run preflight here and re-pin BloomDesktop","recommended":true,"why":"Recommended because BloomDesktop's pin has to follow any gallery change.","effort":"depends on the answer","instruction":"Apply the answer above to bloom-image-gallery PR #26, re-run preflight on it, then re-pin BloomDesktop PR #8565 to the new gallery head and re-run its preflight."},{"label":"Discuss first","effort":"none","instruction":"Do not change anything yet; discuss this with me in chat first."}],"leaveAsIs":"nothing is done until I say."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-12","about":"bloom-image-gallery PR #26 (branch BL-17095-initial-provider, base master), used by BloomDesktop PR #8565","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-image-gallery-bl-17095-initial-provider.html","questions":[{"title":"What should the gallery do if the host never answers the collections request?","context":["When the remembered source is a local collection (Art of Reading), the gallery picks it once the host has listed its collections. Devin raised two cases, both only when the host <b>never<\/b> answers that request (<a href=\"https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4556476916\" target=\"_blank\" rel=\"noopener\">thread 1<\/a>, <a href=\"https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4556479878\" target=\"_blank\" rel=\"noopener\">thread 2<\/a>): the gallery opens with no source selected (Openverse and Pixabay are still listed and clickable), and closing the gallery does not cancel the request.","The earlier version handled both with a 10-second fallback and an abort; you asked for it to be simplified, and those went. In Bloom the host is Bloom's own local server, which answers in milliseconds unless Bloom itself is hung. In those milliseconds, using Open File can also still be followed by the remembered collection being selected."],"options":[{"label":"Bring back a bounded wait and the abort","why":"Covers a host that hangs, at the cost of a timer, an abort controller and a check for a superseded run.","effort":"~12 lines in src/App.tsx, low risk","instruction":"In C:/dev/_worktrees/bloom-image-gallery/BL-17095-initial-provider (bloom-image-gallery PR #26, branch BL-17095-initial-provider), in src/App.tsx initProviders: pass an AbortController signal to the collections axios.get and abort it in the effect's cleanup; when waitForCollections, select openOn() (keeping a user's pick) after 10 seconds if the request has not answered. Then reply on and resolve threads discussion_r4556476916 and discussion_r4556479878, re-pin BloomDesktop PR #8565 to the new head, and re-run preflight on both."}],"leaveAsIs":"a host that never answers the collections request leaves the gallery with no source selected, and the request is not cancelled on close.","leaveAsIsRecommended":"Recommended because Bloom's own local server answers this at once, and a Bloom hung badly enough not to would be broken in far more visible ways. This keeps the simplification.","codeComment":true},{"title":"Does the gallery need an automated test of the change?","context":["The decision helper and its unit tests went with the simplification. What's left is in <code>App.tsx<\/code>: pick the remembered source at once, or after the collections request for a local collection, Bloom remembers the source. This repo has no component tests of <code>App<\/code>. The behaviour is checked live in Bloom (see E2E Coverage in the PR)."],"options":[{"label":"No test: the live checks cover it","recommended":true,"why":"Recommended because a test would need a component-test setup this repo doesn't have, for about 10 lines already checked live.","effort":"no code; records the decision in the PR description","instruction":"In bloom-image-gallery PR #26, set the PR description's test line to \"Test of the change: none — developer's decision: the selection is ~10 lines in App.tsx, checked live in Bloom; the repo has no component tests of App.\""},{"label":"Add a component test of App","why":"Guards the opening choice against later changes.","effort":"moderate: a render test with mocked axios and providers","instruction":"In C:/dev/_worktrees/bloom-image-gallery/BL-17095-initial-provider (branch BL-17095-initial-provider), add a vitest component test of App that mocks the collections request and checks the opening source for: no initialProviderId, pixabay with and without a key, a local collection, and an unknown id. Then re-run preflight on PR #26."}],"leaveAsIs":"the gallery PR has no automated test of the change."},{"title":"Next step","context":["Both PRs are otherwise clean: Devin has nothing new on either head, and the live checks pass on gallery 3421997 with BloomDesktop 90c672efe5."],"options":[{"label":"Apply my answers, then re-run preflight on each PR whose code changed","recommended":true,"why":"Recommended because both answers are small.","effort":"small","instruction":"Apply the answers above to bloom-image-gallery PR #26; if its code changed, re-pin BloomDesktop PR #8565 to the new head and re-run preflight on both."},{"label":"Discuss first","why":"If anything here needs talking through.","effort":"none","instruction":"Don't change anything yet; discuss these answers with the developer first."}],"leaveAsIs":"nothing happens next."}]}</script>
 </head>
 <body>
 <main>
@@ -64,16 +64,15 @@ table.gate td{border-top:1px solid var(--line);padding:6px 8px;text-align:left;v
 .numeral{font-variant-numeric:tabular-nums}
 .ok{color:#2E7D32;font-weight:600}
 </style>
-<h1 class="rp">Preflight: the gallery opens on a host-named source, and reports changes to it</h1>
-<p>Every reviewer has finished on the current head, and one decision is left: Devin's finding about Pixabay's place in the source list.</p>
+<h1 class="rp">Preflight: the gallery opens on a host-named source</h1>
+<p>Simplified at your request, then re-architected after a Fable review: the gallery only takes the source to open on, and Bloom remembers it. Two decisions are left.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/bloom-image-gallery/pull/26" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
-<span class="chip">Mergeable</span><span class="chip">1 decision waiting</span>
+<span class="chip">Mergeable</span><span class="chip">2 decisions waiting</span>
 </div>
 <div class="chips">
 <a class="chip" href="https://github.com/BloomBooks/bloom-image-gallery/pull/26" target="_blank" rel="noopener">PR #26</a>
 <a class="chip" href="https://github.com/BloomBooks/bloom-image-gallery/pull/26/files" target="_blank" rel="noopener">Files changed</a>
-<a class="chip" href="https://github.com/BloomBooks/bloom-image-gallery/pull/26/commits" target="_blank" rel="noopener">Commits</a>
 <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17095" target="_blank" rel="noopener">BL-17095</a>
 <a class="chip" href="https://devinreview.com/BloomBooks/bloom-image-gallery/pull/26" target="_blank" rel="noopener">Devin review</a>
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8565" target="_blank" rel="noopener">BloomDesktop PR #8565</a>
@@ -82,44 +81,41 @@ table.gate td{border-top:1px solid var(--line);padding:6px 8px;text-align:left;v
 <div class="rp-card">
 <h2>What this PR is about</h2>
 <h3>Purpose</h3>
-<p>The image gallery always opened on Openverse, so someone who normally takes pictures from Art of Reading or Pixabay had to switch sources every time. Bloom now wants to open the gallery on the source the user last accepted a picture from (BL-17095). The gallery needs to be told which source that is, and to report when it changes.</p>
+<p>The image gallery always opened on Openverse, so someone who normally takes pictures from Art of Reading or Pixabay had to switch sources every time. Bloom now wants to open the gallery on the source the user last added a picture from (BL-17095).</p>
 <h3>What the PR does</h3>
 <ul>
-<li>Adds an optional <code>initialProviderId</code> prop. When the gallery opens, it selects that source.</li>
-<li>Adds its counterpart, an optional <code>onPreferredProviderChange(providerId)</code> callback, the way <code>lang</code> pairs with <code>onLanguageChange</code>. It fires when the user confirms an image from a source other than the one the gallery would now open on, and never for a file opened from disk. So the gallery decides which sources count, and the host just stores the id.</li>
-<li>Waits for the named source, which may arrive late (local collections and Pixabay come after the host lists its collections). It falls back to the first source if the named one never arrives or can't be used yet (Pixabay with no key). The wait ends after 10 seconds, and closing the gallery aborts the collections request.</li>
-<li>Makes the opening choice only once, so a file picked from disk is never replaced by a late source.</li>
-<li>Both rules are small pure functions, <code>chooseInitialProvider</code> and <code>newPreferredProviderId</code>, with unit tests.</li>
+<li>Adds an optional <code>initialProviderId</code> prop: the source to open on. If it isn't there or can't be used yet (Pixabay with no key), the gallery opens on Openverse, as before. Remembering it is the host's job; the host already gets each confirmed image's source in <code>onConfirmSelection</code>.</li>
+<li>Adds Pixabay along with Openverse, before asking the host for local collections. So the opening source is picked at once, unless it's a local collection; then it's picked when the host's list comes back, unless the user has already picked one.</li>
+<li>Compares sidebar sources by id, so React's development double mount can't leave the open source unhighlighted.</li>
 </ul>
+<p>One file, <code>src/App.tsx</code>, +24/−12.</p>
 </div>
 <div class="rp-card">
 <h2>Quality gate</h2>
 <table class="gate">
-<tr><td>TypeScript tests (vitest)</td><td><span class="ok">pass</span> <span class="numeral">43 / 43</span> at 94aa718; 5625bb7 changed one line that no test reaches</td></tr>
-<tr><td>Typecheck (tsc)</td><td class="ok">no errors in the changed files (the repo's other tsc errors are already on master)</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td><span class="ok">pass</span> <span class="numeral">33 / 33</span> at 3421997</td></tr>
+<tr><td>Typecheck (tsc)</td><td class="ok">no errors in App.tsx (the repo's other tsc errors are already on master)</td></tr>
 <tr><td>Lint (eslint)</td><td class="ok">0 errors</td></tr>
-<tr><td>Merge with master</td><td class="ok">up to date; mergeable</td></tr>
+<tr><td>Live checks in Bloom</td><td class="ok">all five pass at 3421997 (see the PR's E2E Coverage)</td></tr>
 <tr><td>CI</td><td>none in this repo</td></tr>
 </table>
 </div>
 <div class="rp-card">
 <h2>What changed this run</h2>
-<p>Added the <code>onPreferredProviderChange</code> callback, as Andrew decided, so the gallery owns which sources count (<a href="https://github.com/BloomBooks/bloom-image-gallery/commit/94aa7189e2cc2dbe32e97b3cc596c73fca4dc25c" target="_blank" rel="noopener">94aa718</a>). Then fixed Devin's finding that a disk file carrying a host's source id could change the preferred source (<a href="https://github.com/BloomBooks/bloom-image-gallery/commit/5625bb714a9b0ec16bf259959658fd2c897b0861" target="_blank" rel="noopener">5625bb7</a>).</p>
+<p>Listed Pixabay first, as you decided. Then, at your request, simplified: the 10-second fallback, the abort, the selection ref and the decision helper with its tests went, and the source is picked where the sources are added. A Fable architecture review then argued the <code>onPreferredProviderChange</code> callback only repeated an id Bloom already gets, and fired even when the insert failed; I agreed after debating it, so it's gone and Bloom saves the source itself (<a href="https://github.com/BloomBooks/bloom-image-gallery/commit/3421997df40170cab6b62922a317ffeb6b5d9697" target="_blank" rel="noopener">3421997</a>). A second Fable pass found nothing more to simplify here.</p>
 </div>
 <div class="rp-card">
 <h2>Reviewers</h2>
 <ul>
-<li><b>Local review</b> (light, inline): clean. <b>Walkaround</b>: nothing to change.</li>
-<li><b>Devin</b>: complete on 5625bb7. Across the PR it found four bugs: three are fixed and resolved, and one (<a href="https://github.com/BloomBooks/bloom-image-gallery/pull/26#discussion_r4554509250" target="_blank" rel="noopener">Pixabay during a stalled collection request</a>) is the open decision. It also repeats a stale finding about a local collection named Pixabay, which only applies if Pixabay is listed first (option 1 of the decision).</li>
-<li><b>Greptile</b>: re-triggered for the callback; complete on 5625bb7, "safe to merge", no findings.</li>
-<li><b>CI</b>: none in this repo.</li>
+<li><b>Fable</b>: two simplification passes and an architecture review; all agreed changes applied.</li>
+<li><b>Devin</b>: complete on 3421997. Two bugs are open for decision 1; every other finding is fixed, not an issue now, or already decided, each with a thread.</li>
+<li><b>Greptile</b>: reviewed up to 5625bb7; it has not seen the simplification.</li>
 </ul>
 </div>
 <div class="rp-card">
 <h2>Worth knowing</h2>
 <ul>
-<li>The callback fires when the user clicks "Use this image", even if the host then fails to insert the picture (e.g. offline). The user did choose that source, so it is remembered.</li>
-<li>BloomDesktop PR #8565 pins this branch; after any change here it needs re-pinning, and after merge, pinning to the merge commit.</li>
+<li>After this merges, BloomDesktop PR #8565's pin moves to the merge commit.</li>
 </ul>
 </div>
 </section><section>
