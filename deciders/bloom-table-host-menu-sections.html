@@ -40,16 +40,12 @@ button.done svg{margin-right:6px}
 #copy:not(.done){padding:8px 10px}
 #out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
 
-.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;max-width:1360px;margin:0 auto;padding:24px 16px 64px}
-.layout>*{min-width:0}
-.layout main{max-width:none;margin:0;padding:0}
-@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+main{max-width:860px}
 .head h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
 .head .sum{margin:0 0 10px;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
 .chip,.links a{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;text-decoration:none}
 .chip.ok{border-color:#9BC59D;background:#EEF6EE}
-.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:16px 0}
 .card h3{font:600 15px/1.3 system-ui,sans-serif;margin:12px 0 4px}
 .card ul{margin:6px 0;padding-left:20px}
@@ -61,19 +57,17 @@ th{border-top:none;color:var(--muted);font-weight:600}
 td.pass{color:#2E6B33}
 .numeral{font-variant-numeric:tabular-nums}
 </style>
-<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-12","about":"bloom-table, branch host-menu-sections, PR #9 (BloomBooks/bloom-table)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-table-host-menu-sections.html","questions":[{"title":"React logs two dev-mode warnings when a React host draws its section in the Cell menu","context":["The Cell menu is a React tree, and it draws the host's section from inside its own React commit. A React host that follows the advice in <code>setHostMenuSectionProvider<\/code>'s doc comment (draw with <code>createRoot<\/code> and <code>flushSync<\/code>, tear down with <code>root.unmount()<\/code>) works: its section is in place before the menu measures itself, and since this run its teardown no longer throws.","But in a development build React logs <i>“flushSync was called from inside a lifecycle method”<\/i> when the section is drawn, and <i>“Attempted to synchronously unmount a root while React was already rendering”<\/i> when the menu closes. A production build logs nothing. The Row, Column and Table menus are plain DOM, so they log nothing. Drawing from <code>useEffect<\/code> instead of <code>useLayoutEffect<\/code> was tried and still warns.","Bloom will be the first host, and it is a React app, so it will see these warnings in development. Code: <a href=\"https://github.com/BloomBooks/bloom-table/blob/86fae3a313e22c94b9b78c071bd07ec8c08ed979/src/cell-menu-host.ts#L183\" target=\"_blank\" rel=\"noopener\"><code>src/cell-menu-host.ts:183<\/code><\/a> and <a href=\"https://github.com/BloomBooks/bloom-table/blob/86fae3a313e22c94b9b78c071bd07ec8c08ed979/src/components/CellMenuItems.tsx#L240\" target=\"_blank\" rel=\"noopener\"><code>src/components/CellMenuItems.tsx:240<\/code><\/a>."],"options":[{"label":"Let the provider answer with a React element instead of a DOM renderer","recommended":true,"why":"Recommended because the Cell menu would render the element as its own children and the other three menus would mount it in a root from plain DOM, so no host ever runs React inside another root's commit. The renderer and teardown functions go away, which leaves less for a host to get wrong. Nobody uses the API yet, so changing it now costs nothing downstream. Against it: the section renders in bloom-table's React root, so Bloom must wrap it in any React context it needs, such as its theme.","effort":"~80 lines plus test updates; changes the API that this PR adds, before any host uses it","instruction":"In D:\\bloom-table.worktrees\\host-menu-sections (BloomBooks/bloom-table, branch host-menu-sections, PR #9): change HostMenuSectionProvider in src/cell-menu-host.ts to answer with a React.ReactNode (or undefined) instead of a HostMenuSectionRenderer. In src/components/CellMenuItems.tsx render that node directly as the host section's children; in src/table-size-buttons.ts buildHostSection, mount it with createRoot + flushSync from plain DOM and unmount it in the teardown. Remove HostMenuSectionRenderer and drawHostMenuSection, update the model type in src/cell-menu-model.ts and the exports in src/index.tsx, update the doc comment, and update the host-section tests in src/table-size-buttons.test.ts (the React-host test should then assert no console warnings). Then re-run /preflight."},{"label":"Keep the DOM renderer and document the warnings","why":"(the doc comment on setHostMenuSectionProvider would say that a React host sees these two warnings in the Cell menu in development, and that they are harmless)","effort":"a few lines of doc comment, no code change","instruction":"In D:\\bloom-table.worktrees\\host-menu-sections (BloomBooks/bloom-table, branch host-menu-sections, PR #9): extend the doc comment on setHostMenuSectionProvider in src/cell-menu-host.ts to say that in the Cell menu the renderer and its teardown run inside React's commit, so a React host that uses flushSync and root.unmount() gets two dev-mode warnings there, which are harmless. Then re-run /preflight."}],"leaveAsIs":"React hosts get two dev-mode warnings in the Cell menu, and the doc comment does not mention them.","codeComment":true},{"title":"Next step","context":["What should happen once you have answered the question above?"],"options":[{"label":"Implement my answer now and re-run preflight","recommended":true,"why":"Recommended because the change is contained in this PR and the gauntlet re-checks it.","effort":"one more preflight round","instruction":"Implement the answer above in this session, then re-run /preflight on PR #9."},{"label":"Discuss it with me first","effort":"no code yet","instruction":"Do not change code yet; discuss the answer above with me in this session first."}],"leaveAsIs":"nothing happens until I say so."}]}</script>
 </head>
 <body>
-<div class="layout"><div class="report">
+<main>
 <header class="head">
   <h1>Preflight report: host sections in the table menus</h1>
-  <p class="sum">bloom-table PR #9 at <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/86fae3a313e22c94b9b78c071bd07ec8c08ed979" target="_blank" rel="noopener"><code>86fae3a</code></a>. The gate is green, Devin's second review is clean, and every review finding is fixed. One question is waiting on you.</p>
+  <p class="sum">bloom-table PR #9 at <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/8c81940" target="_blank" rel="noopener"><code>8c81940</code></a>. The gate is green, every review finding is fixed, and nothing is waiting on you.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable</span>
     <span class="chip ok">Bots quiet</span>
-    <span class="chip warn">1 decision waiting</span>
+    <span class="chip ok">No decisions waiting</span>
   </div>
   <div class="chips links">
     <a href="https://github.com/BloomBooks/bloom-table/pull/9" target="_blank" rel="noopener">PR #9</a>
@@ -89,7 +83,7 @@ td.pass{color:#2E6B33}
   <p>Bloom needs to show the languages of a text cell beside Content Type in all four table menus (Cell, Row, Column, Table), and needs that setting to follow a cell wherever the library copies cell settings. bloom-table knows nothing about languages, so this PR gives a host two general hooks for it.</p>
   <h3>What the PR does</h3>
   <ul>
-    <li><code>setHostMenuSectionProvider</code> lets a host draw a section of its own directly after Content Type in each of the four menus. The section is drawn again after every content-type choice and torn down when the menu closes. In the Cell menu it is an item in the menu model, so a host that renders <code>CellMenuItems</code> in its own menu gets it too.</li>
+    <li><code>setHostMenuSectionProvider</code> lets a host add a section of its own directly after Content Type in each of the four menus. The host answers with a React element, which the library renders: as a child of the Cell menu's React tree, and in a React root of its own in the Row, Column and Table menus. After every content-type choice the library asks again and mounts the new element afresh, so the host's controls start from the cells as they now are.</li>
     <li>An open menu moves itself back inside the window whenever its size changes, so a section that grows cannot push the menu's last commands below the window.</li>
     <li><code>setHostCellSettings</code> lets a host's own per-cell setting travel with the library's: into new rows and columns, through Paint format, and through Copy / Paste properties. A source cell with no setting clears the target's.</li>
     <li>The Cell menu's rows use the other menus' type size, padding and label indent, so every label in the four menus starts the same distance in.</li>
@@ -103,7 +97,7 @@ td.pass{color:#2E6B33}
     <tr><td>Typecheck (<code>tsc --noEmit</code>)</td><td class="pass">passed</td></tr>
     <tr><td>Lint</td><td>none: this project has no lint step</td></tr>
     <tr><td>Merge with <code>origin/master</code></td><td class="pass">up to date, mergeable</td></tr>
-    <tr><td>TypeScript unit tests (Vitest)</td><td class="pass"><span class="numeral">618 passed</span>, the whole suite, at <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/86fae3a313e22c94b9b78c071bd07ec8c08ed979" target="_blank" rel="noopener"><code>86fae3a</code></a></td></tr>
+    <tr><td>TypeScript unit tests (Vitest)</td><td class="pass"><span class="numeral">620 passed</span>, the whole suite, at <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/8c81940" target="_blank" rel="noopener"><code>8c81940</code></a></td></tr>
     <tr><td>End-to-end tests (Playwright)</td><td>not run: the project names no e2e specs for preflight, and the nightly runs the suite</td></tr>
     <tr><td>CI</td><td>none: this repo runs no checks on pull requests</td></tr>
   </table></div>
@@ -111,17 +105,17 @@ td.pass{color:#2E6B33}
 
 <section class="card">
   <h2>What changed this run</h2>
-  <p>Committed the work, rebased it onto master's localization changes, fixed a teardown crash that the local review found, and fixed the three bugs Devin and Greptile raised. Commits: <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/ee756f3" target="_blank" rel="noopener"><code>ee756f3</code></a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/d3d9731" target="_blank" rel="noopener"><code>d3d9731</code></a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/86fae3a313e22c94b9b78c071bd07ec8c08ed979" target="_blank" rel="noopener"><code>86fae3a</code></a>.</p>
+  <p>As you chose, the host now answers with a React element instead of a DOM renderer, so a React host no longer gets dev-mode warnings in the Cell menu. Devin then found that the host's controls kept stale state after a content-type choice, and the section now mounts afresh after each one. Commits: <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/4b40ad3" target="_blank" rel="noopener"><code>4b40ad3</code></a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/8c81940" target="_blank" rel="noopener"><code>8c81940</code></a>.</p>
 </section>
 
 <section class="card">
   <h2>Reviewer outcomes</h2>
   <div class="tw"><table>
     <tr><th>Reviewer</th><th>Outcome</th></tr>
-    <tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: a React host's <code>root.unmount()</code> threw <code>removeChild</code> errors when the Cell menu closed. A test reproduced it before the fix. Its other half, the dev-mode warnings, is the decision on the right.</td></tr>
-    <tr><td>Walkaround</td><td>4 changes: one <code>drawHostMenuSection</code> for both menu kinds, the host section joined the content type's group (no divider exception), the provider type got a name, and <code>kLabelIndentPx</code> replaced three copies of the label indent. 1 proposal, the decision on the right.</td></tr>
-    <tr><td>Devin</td><td>Complete. The first review raised 2 bugs, both fixed (<a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554174998" target="_blank" rel="noopener">host setting not cleared</a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554175238" target="_blank" rel="noopener">menu grows past the window</a>). The second review, of <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/86fae3a313e22c94b9b78c071bd07ec8c08ed979" target="_blank" rel="noopener"><code>86fae3a</code></a>, marks both resolved and found nothing new.</td></tr>
-    <tr><td>Greptile</td><td>Reviewed <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/d3d9731" target="_blank" rel="noopener"><code>d3d9731</code></a>: 1 finding, fixed (<a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554167819" target="_blank" rel="noopener">Cell menu did not redraw for a reused renderer</a>). It has not reviewed the current code; the later commit only answers the findings.</td></tr>
+    <tr><td>Local review</td><td>Not run this round: the change was the one you chose on the last report. Devin and Greptile reviewed it.</td></tr>
+    <tr><td>Walkaround</td><td>Not run this round, for the same reason.</td></tr>
+    <tr><td>Devin</td><td>Complete. Over four reviews it raised 3 bugs and 1 flag on this PR, all fixed: <a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554174998" target="_blank" rel="noopener">host setting not cleared</a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554175238" target="_blank" rel="noopener">menu grows past the window</a>, <a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554483806" target="_blank" rel="noopener">host controls keep stale state</a>, and <a href="https://github.com/BloomBooks/bloom-table/pull/9#discussion_r4554484009" target="_blank" rel="noopener">React-context wording</a>. Its review of <code>8c81940</code> marks every bug resolved.</td></tr>
+    <tr><td>Greptile</td><td>Re-reviewed <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/4b40ad3" target="_blank" rel="noopener"><code>4b40ad3</code></a>, the element-based API: no new findings, and it confirms that its earlier finding is fixed. It has not reviewed <a href="https://github.com/BloomBooks/bloom-table/pull/9/commits/8c81940" target="_blank" rel="noopener"><code>8c81940</code></a>, a small fix that answers Devin.</td></tr>
     <tr><td>CI</td><td>No checks are configured for pull requests in this repo.</td></tr>
   </table></div>
 </section>
@@ -130,189 +124,9 @@ td.pass{color:#2E6B33}
   <h2>Worth knowing</h2>
   <ul>
     <li>No real host has drawn a section yet. The hooks are checked by unit tests with stand-in hosts; the demo harness installs none, so nothing exercises them in a browser until Bloom does.</li>
+    <li>In the menus that bloom-table opens, the host's section sees none of the host's React context. Bloom will need to wrap its element in whatever providers it relies on, such as its theme.</li>
   </ul>
 </section>
-</div><main>
-<div id="questions"></div>
-<div id="copyback">
-<div class="count" id="count"></div>
-<div class="bar">
-<div class="status" id="status"></div>
-<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
-<button class="primary" id="send" type="button" disabled>Send to Claude</button>
-</div>
-<textarea id="out" readonly hidden></textarea>
-</div>
-</main></div>
-<script>
-(async () => {
-const FORM = JSON.parse(document.getElementById("decider-form").textContent);
-const Q = FORM.questions;
-let sending = false;
-let sent = false;   // the answers as they stand went to Claude; any change to them clears it
-const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
-const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
-const host = document.getElementById("questions");
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-
-if (FORM.context && FORM.context.length) {
-  const block = document.createElement("section");
-  block.className = "ctx";
-  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
-  host.appendChild(block);
-}
-
-// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
-Q.forEach((q, qi) => {
-  const card = document.createElement("section");
-  card.className = "q";
-  const name = "q" + qi;
-  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
-  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
-  (q.options || []).forEach((o, i) => {
-    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
-      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
-      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
-  });
-  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
-    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
-    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
-  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
-  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
-  card.innerHTML = h;
-  host.appendChild(card);
-});
-
-const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
-const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
-const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
-
-function serialize() {
-  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
-  if (FORM.url) lines.push(`Form: ${FORM.url}`);
-  lines.push("");
-  Q.forEach((q, qi) => {
-    lines.push(q.title);
-    const c = chosen(qi), n = notes(qi);
-    if (!answered(qi)) {
-      lines.push(`No decision yet — ask again later about: ${q.title}`);
-      if (n) lines.push(`Notes: ${n}`);
-    } else if (c === "other") {
-      lines.push(`Other: ${n}`);
-    } else {
-      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
-      if (n) lines.push(`Notes: ${n}`);
-    }
-    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
-    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
-    lines.push("");
-  });
-  return lines.join("\n").trim();
-}
-
-const statusEl = document.getElementById("status");
-const countEl = document.getElementById("count");
-const sendBtn = document.getElementById("send");
-function refresh() {
-  const left = Q.filter((_, qi) => !answered(qi)).length;
-  countEl.textContent = left ? `${left} unanswered` : "";
-  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
-  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
-}
-// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
-// change, when they go back to copying and sending the new answers.
-const copyBtn = document.getElementById("copy");
-function showCopy(done) {
-  copyBtn.classList.toggle("done", done);
-  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
-}
-function showSent(done) {
-  sent = done;
-  sendBtn.className = done ? "secondary done" : "primary";
-  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
-}
-function answersChanged() {
-  showCopy(false);
-  if (sent) showSent(false);
-}
-showCopy(false);
-document.addEventListener("change", e => {
-  answersChanged();
-  const t = e.target;
-  if (t.type !== "radio") { refresh(); return; }
-  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
-  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
-  if (t.value === "other") ta.focus();
-  refresh();
-});
-document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
-
-document.getElementById("copy").addEventListener("click", async () => {
-  try {
-    const out = document.getElementById("out");
-    out.value = serialize();
-    out.hidden = false;
-    out.select();
-    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
-    out.select();
-    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
-    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
-  } catch {
-    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
-  }
-});
-
-// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
-// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
-const endpoint = window.DECIDER_ENDPOINT;
-let comments = null;
-if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
-if (!endpoint && !comments) sendBtn.hidden = true;
-const COMMENT_ERRORS = {
-  consent_required: "This page hasn't been allowed to comment yet.",
-  forbidden: "This page may not post comments.",
-  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
-};
-const UNAVAILABLE = {
-  writers_only: "Only an editor of this page can send to Claude.",
-  no_session: "No Claude session is watching this page.",
-  off: "Sending to Claude is turned off for this page.",
-};
-
-sendBtn.addEventListener("click", async () => {
-  if (sent) return;
-  const text = serialize();
-  sending = true;
-  sendBtn.disabled = true;
-  sendBtn.textContent = "Sending…";
-  statusEl.textContent = "Sending your answers to Claude…";
-  try {
-    if (endpoint) {
-      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      statusEl.textContent = "";
-      showSent(true);
-    } else {
-      const bytes = new TextEncoder().encode(text).length;
-      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
-      const state = await comments.canSendToClaude();
-      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
-      const anchor = await comments.anchorFor(document.getElementById("copyback"));
-      await comments.sendToClaude({ anchor, text });
-      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
-      showSent(true);
-    }
-  } catch (e) {
-    if (e && e.code === "forbidden") sendBtn.hidden = true;
-    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
-  } finally {
-    sending = false;
-    if (!sent) showSent(false);
-    refresh();
-  }
-});
-refresh();
-})();
-</script>
+</main>
 </body>
 </html>
