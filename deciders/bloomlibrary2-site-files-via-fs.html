@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preflight PR 628</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:22px;max-width:1440px;margin:0 auto;padding:24px 16px 64px;align-items:start}
+.layout>*{min-width:0}
+.layout main{max-width:none;margin:0;padding:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.rhead h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.rhead .sum{margin:0 0 10px;color:var(--muted)}
+.chips,.links{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px}
+.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
+.chip.link{text-decoration:none;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:16px 0}
+.card h3{font:600 15px/1.3 system-ui,sans-serif;margin:12px 0 4px}
+.card ul{margin:6px 0;padding-left:20px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px}
+th{color:var(--muted);font-weight:600}
+.numeral{font-variant-numeric:tabular-nums}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-13","about":"BloomBooks/BloomLibrary2, branch site-files-via-fs, PR #628 (fetch book files through versioned /v1/fs URLs, flags off)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomlibrary2-site-files-via-fs.html","questions":[{"title":"Downloads of titles containing a literal \"+\" or \"%\" would get an encoded file name once the flag is on","context":["When a visitor clicks a download button, the site uses an <code>&lt;a download&gt;<\/code> link. The download server is a different site from bloomlibrary.org, so browsers ignore the file name in the link and name the file from the last part of the URL, decoded once. That is true of S3 today too.","The fs function on api.bloomlibrary.org decodes each path segment <b>twice<\/b>, so to reach the right S3 file the site must encode a literal <code>+<\/code> as <code>%252B<\/code> and <code>%<\/code> as <code>%2525<\/code>. Decoded once by the browser, that leaves <code>%2B<\/code> in the name: the book \"А+А\" would download as <code>А%2BА.pdf<\/code> instead of <code>А+А.pdf<\/code>. Every other name (spaces, accents, any script) comes out right. This only matters once <code>kServeDownloadsThroughFs<\/code> is on, which is already blocked on the API work."],"options":[{"label":"Ask for a Content-Disposition header in the API's step 0","recommended":true,"why":"Recommended because the API work that must happen before the flag goes on is the natural place: the worker already shapes fs responses, and a header with the real file name fixes every client, not just this site.","effort":"no code in this PR; a small addition to the bloom-core-supabase worker","instruction":"Add to the bloom-core-supabase 'step 0' work (cloudflare/worker.js, fs handling): for versioned /v1/fs downloads, send Content-Disposition: attachment; filename*=UTF-8''<the S3 key's file name>, so titles with a literal + or % download under their real name. Note this on PR BloomBooks/BloomLibrary2#628 and do not turn kServeDownloadsThroughFs on until it ships."},{"label":"Make versioned fs URLs decode once on the server, then simplify the client","why":"Removes the double-encoding quirk for new URLs; old unversioned URLs keep today's behavior.","effort":"moderate: a server change in bloom-core-supabase plus changing toFsPathSegment and its tests here","instruction":"In bloom-core-supabase, make the fs function decode path segments only once for versioned ({id}@{version}) URLs. Then in BloomLibrary2 (branch site-files-via-fs, src/model/FsUrl.ts) drop the %2525/%252B double encoding in toFsPathSegment and update FsUrl.test.ts to model a single decode."}],"leaveAsIs":"titles with a literal + or % will download as e.g. \"А%2BА.pdf\" once the downloads flag is on.","codeComment":true},{"title":"The freeLearningIO CSV export would also switch to versioned fs links","context":["The staff export in <code>src/export/freeLearningIO.ts<\/code> calls the same <code>getArtifactUrl<\/code> as the download buttons for each book's ePUB link. So when <code>kServeDownloadsThroughFs<\/code> goes on, the exported CSV will carry <code>https://api.bloomlibrary.org/v1/fs/harvest/{id}@{version}/epub/…<\/code> instead of an S3 URL.","Those links keep working after a re-harvest, because the worker serves the current file whatever version a URL names. The difference is only that the partner's traffic would also go through Cloudflare."],"leaveAsIsRecommended":"Leaving it is recommended: moving the partner's downloads onto Cloudflare is the goal of this work too, and the versioned links stay valid.","options":[{"label":"Keep the export on S3 URLs","effort":"~5 lines in freeLearningIO.ts / ArtifactHelper.ts, low risk","instruction":"In BloomLibrary2 (branch site-files-via-fs), make src/export/freeLearningIO.ts keep exporting S3 ePUB URLs even when kServeDownloadsThroughFs is on (e.g. give getArtifactUrl an option to skip fs), with a test."}],"leaveAsIs":"the CSV export will use versioned fs ePUB links once the downloads flag is on.","codeComment":true},{"title":"Next step","context":["The PR is a draft with both flags off. Nothing here can be turned on until bloom-core-supabase's worker handles <code>@version<\/code> fs URLs (today both api. and staging-api. return 404 for them)."],"options":[{"label":"Record the decisions above, then I review the PR myself","recommended":true,"why":"Recommended because the PR is otherwise clean and safe to merge with the flags off.","effort":"a PR comment or two","instruction":"Apply the decisions above to PR BloomBooks/BloomLibrary2#628 (branch site-files-via-fs) and leave it as a draft for the developer's own review. Do not turn either flag on."},{"label":"Hand off the API step 0 to an agent in bloom-core-supabase","effort":"a separate worktree and PR in bloom-core-supabase","instruction":"Start an Orca hand-off in bloom-core-supabase for 'step 0': make cloudflare/worker.js accept /v1/fs/{bucket}/{bookId}@{version}/... (strip @version before calling the fs function, cache versioned responses long-term, keep unversioned behavior), plus any Content-Disposition decision above; reference BloomBooks/BloomLibrary2#628."}],"leaveAsIs":"PR #628 stays a draft and nothing else is started."}]}</script>
+</head>
+<body>
+<div class="layout"><div class="report"><header class="rhead">
+<h1>Preflight: fetch book files through versioned /v1/fs URLs</h1>
+<p class="sum">One run: downloads and reading online can now go through Cloudflare behind two flags that stay off. Clean locally and from Devin; 2 decisions open.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip">Mergeable</span>
+<span class="chip">Bots: quiet</span>
+<span class="chip warn">2 decisions waiting</span>
+<span class="chip warn">Flags blocked on API step 0</span>
+</div>
+<div class="links">
+<a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">PR #628</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip link" href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin review</a>
+<a class="chip link" href="https://app.greptile.com/-/switch-tenant?tenant=bloom&amp;next=%2Fbloombooks%2Fbloomlibrary2%2Fpull%2F628" target="_blank" rel="noopener">Greptile</a>
+</div>
+</header>
+
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Purpose</h3>
+<p>bloomlibrary.org fetches book files straight from S3: the PDF, ePUB, BloomPUB and .bloomSource downloads, and every file of a book read online. Each of those fetches is billed AWS egress and is invisible to our Cloudflare rate limits and bot rules. This PR lets the site fetch them through <code>api.bloomlibrary.org/v1/fs</code> at versioned URLs, so Cloudflare can cache them without purging. <b>Both parts are behind flags that are off</b>, so the site behaves exactly as today.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>Builds <code>/v1/fs/{bucket}/{bookId}@{version}/{path}</code> (<code>upload</code>/<code>harvest</code>, or the <code>dev-</code> buckets for sandbox books). The version is in the path so Bloom Player's relative links inherit it. With no version, the S3 URL is used, as before.</li>
+<li><b>Downloads</b> (<code>kServeDownloadsThroughFs</code>): the uploaded PDF is versioned by the last upload. Harvested files are versioned by <code>harvestStartedAt</code>, only when the harvest is Done. Each download's bucket and path are worked out once, and either URL is built from that.</li>
+<li><b>Reading online</b> (<code>kReadOnlineThroughFs</code>): Bloom Player gets <code>…/harvest/{id}@{harvestStartedAt}/bloomdigital/index.htm</code>, so all the book's files come through fs.</li>
+<li>Names are encoded for the fs function's double decode: a literal <code>+</code> or <code>%</code> is double-encoded.</li>
+</ul>
+<h3>Blocker for turning the flags on</h3>
+<p>On 2026-11-13, both <code>api.bloomlibrary.org</code> and <code>staging-api.bloomlibrary.org</code> returned <b>404</b> for any <code>{bookId}@{version}</code> fs URL, while the same URL without <code>@version</code> returned 200. The bloom-core-supabase worker must strip and cache <code>@version</code> ("step 0") first.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (tsc)</td><td>No errors in the changed files. The repo has pre-existing errors elsewhere (UseContentful, ContentfulContext, index.tsx), unchanged by this PR.</td></tr>
+<tr><td>Lint (eslint, pre-commit hook)</td><td>Pass</td></tr>
+<tr><td>Prettier</td><td>Pass on the changed files</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td>Pass: <span class="numeral">157</span> related tests in src/model and src/components at HEAD; the full suite (<span class="numeral">218</span>) passed before the base merge</td></tr>
+<tr><td>Flags-off parity</td><td>Old vs new <code>getArtifactUrl</code>: identical URLs in all <span class="numeral">3024</span> combinations (a temporary test, not committed)</td></tr>
+<tr><td>Build (vite build)</td><td>Pass</td></tr>
+<tr><td>C# / other stacks</td><td>N/A: none in this repo</td></tr>
+<tr><td>End-to-end</td><td>N/A: no e2e suite in this repo; live checks are listed in the PR</td></tr>
+<tr><td>Merge with master</td><td>Clean (merged 3 commits, no overlap)</td></tr>
+<tr><td>Repo checks</td><td>None declared</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>This is the first run. It copied over and reviewed the earlier unfinished work, made the fallback to S3 strict when there is no version, added reading online and the tests, merged master, and simplified <code>getArtifactUrl</code> so each download's file is looked up once (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/628/commits" target="_blank" rel="noopener">commits</a>).</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Complete. It found no bugs with the flags off. It raised 2 flags-on concerns: the encoded download name, which became decision 1, and a missing file size on the app-hosted buttons, which was dismissed because fs answers HEAD with <code>Content-Length</code>, a header readable cross-origin.</td></tr>
+<tr><td>Walkaround (+ /simplify, 4 reviewers)</td><td>Complete. One change: <code>getArtifactUrl</code> now looks up each download's bucket and path once, which removes the second artifact-type mapping and a log on every render. Flags-off output is unchanged. No proposals. It also raised the CSV export, which became decision 2.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin</a></td><td>Complete on 229ff5ac: no bugs, no flags.</td></tr>
+<tr><td>Greptile</td><td>Complete on 229ff5ac: low impact, “safe to merge with both flags disabled”; no inline findings.</td></tr>
+<tr><td>CI</td><td>No CI workflow on this repo; Greptile is the only check.</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Not run against a versioned URL end to end: the APIs don't accept one yet. The encoding and Bloom Player were checked with the version left out (see the PR's live checks).</li>
+<li>Out of scope: thumbnails, and <code>book-navigation-interceptor-sw.js</code>, which still sends book-to-book links to S3. That is a natural follow-up behind <code>kReadOnlineThroughFs</code>.</li>
+<li>There is no YouTrack card for this work, so no card was linked and no test ideas were posted.</li>
+</ul>
+</section>
+</div><main><h2 style="margin:16px 0 12px">Decisions</h2>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main></div>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
