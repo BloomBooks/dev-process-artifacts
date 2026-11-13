@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Freeze Doctor preflight</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+main.report{max-width:1400px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;align-items:start}
+main.report>.col{min-width:0}
+@media (max-width:900px){main.report{grid-template-columns:minmax(0,1fr)}}
+.rhead h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.rhead .sum{margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;text-decoration:none;color:var(--ink)}
+.chip a{color:inherit;text-decoration:none}
+.chip.warn{border-color:var(--accent);background:var(--accent-tint);color:var(--accent-strong)}
+.links .chip{color:var(--accent-strong)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card h3{font:600 16px/1.3 Georgia,"Times New Roman",serif;margin:14px 0 6px}
+.card p{margin:0 0 10px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px}
+th{color:var(--muted);font-weight:600}
+td.ok{color:#2E6B3A}
+.numeral{font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+.decisions-h{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:4px 0 12px}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-13","about":"BloomDesktop PR #8571 (branch BL-17115-doctor-early-dump), card BL-17115: Freeze Doctor early dump","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17115-doctor-early-dump.html","questions":[{"title":"A hung fresh dump never reaches the live read","context":["Raised by Devin on its last pass (<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8571#discussion_r4564775828\" target=\"_blank\" rel=\"noopener\">thread, left open<\/a>). When the Doctor reports a Bloom that is still running, it asks Bloom's runtime for a fresh dump. If none comes, it falls back to reading the stacks from the live process. The managed-stacks step has 45 s in all.","This PR gives the fresh dump a 20 s deadline when an early dump is there to use instead. If the early dump <i>failed<\/i> to be written, there is nothing to fall back on, so the code keeps waiting for the fresh dump. If that fresh dump hangs too, the 45 s run out before the live read is tried, and the report says the stacks timed out.","Master behaves exactly the same whenever a fresh dump hangs, so this isn't a regression. It needs a runtime whose dump pipe stops answering, which we have not seen in practice. Devin has now made three rounds of fixes in this area, which is why I'm asking rather than doing a fourth."],"options":[{"label":"Bound every fresh dump, then try the live read","recommended":true,"why":"Recommended because one rule (a fresh dump gets at most ~30 s) covers this case and master's identical one, and leaves time for the live read inside the 45 s budget.","effort":"~10 lines in TryFreshDumpAsync, low risk; no unit test can stall a real dump pipe","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17092-frozen-bloom-crash (BloomBooks/BloomDesktop, branch BL-17115-doctor-early-dump, PR #8571), change ManagedStacksCollector.TryFreshDumpAsync (src/BloomFreezeDoctor.Core/Gathering/ManagedStacksCollector.cs) so a fresh dump never takes more than about 30 s in any case: past that, return null so CollectAsync can try the early dump and then TryLiveWalk inside the collector's 45 s budget. Keep the 20 s deadline when there is a usable early dump. Then reply on Devin's thread https://github.com/BloomBooks/BloomDesktop/pull/8571#discussion_r4564775828 with the fix, resolve it, and re-run preflight."},{"label":"Bound it only when the early dump failed","why":"Devin's own suggestion: fixes just the case this PR touches and leaves master's behavior for a hung fresh dump without an early one alone.","effort":"~8 lines in TryFreshDumpAsync, low risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17092-frozen-bloom-crash (BloomBooks/BloomDesktop, branch BL-17115-doctor-early-dump, PR #8571), in ManagedStacksCollector.TryFreshDumpAsync, when the fresh dump has missed its 20 s deadline and the early dump turns out to have failed, wait for the fresh dump only up to about 30 s in all, then return null so CollectAsync tries TryLiveWalk. Reply on https://github.com/BloomBooks/BloomDesktop/pull/8571#discussion_r4564775828, resolve it, and re-run preflight."}],"leaveAsIs":"a hung fresh dump after a failed early dump uses up the 45 s and the live read is not tried, as on master whenever a fresh dump hangs.","codeComment":true},{"title":"A Bloom that is often briefly unresponsive gets an early dump each time","context":["From the walkaround's efficiency review. Each time a watched Bloom goes 20 s without responding, the Doctor now dumps it once: Bloom pauses for a second or two while its runtime writes a 2–17 MB file to the temp folder. If Bloom then recovers, the file is deleted. A user whose Bloom is legitimately busy for 20–60 s at a time (a big publish or import) pays this on every such episode.","The alternative is a cooldown: after an early dump has been thrown away because Bloom recovered, take no new one for that Bloom for, say, 10 minutes."],"options":[{"label":"Add a 10-minute cooldown after a discarded early dump","why":"Saves the pause and the disk write for a Bloom that keeps recovering, at the price of having no early dump for a real freeze that starts within 10 minutes of a recovered one.","effort":"~10 lines in EarlyFreezeDump plus a test, low risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17092-frozen-bloom-crash (BloomBooks/BloomDesktop, branch BL-17115-doctor-early-dump, PR #8571), in src/BloomFreezeDoctor.Core/EarlyFreezeDump.cs, after Observe(Healthy) discards a dump that was written, start no new early dump for that Bloom for 10 minutes (use the injected clock), and add a test in EarlyFreezeDumpTests. Then re-run preflight."}],"leaveAsIs":"every unresponsive episode of 20 s or more costs Bloom one early dump, even when it recovers by itself.","leaveAsIsRecommended":"Recommended: a Bloom that has not answered for 20 s is already stuck from the user's point of view, so another second or two goes unnoticed, and the file is deleted at once. A cooldown would cost the very evidence this PR exists for whenever a real freeze follows a recovered one.","codeComment":true},{"title":"Next step","context":["What should happen once these are answered?"],"options":[{"label":"Implement my answers and re-run preflight","recommended":true,"why":"Recommended: both items are small, and preflight then re-checks them with Devin.","effort":"one more preflight round","instruction":"Implement the answers above on BloomBooks/BloomDesktop branch BL-17115-doctor-early-dump (PR #8571), record each decision on its thread where there is one, then re-run preflight."},{"label":"Discuss first","why":"If either answer needs talking through before any code changes.","effort":"no code","instruction":"Before changing anything on BL-17115-doctor-early-dump (PR #8571), discuss the answers above with me."}],"leaveAsIs":"nothing more is done on PR #8571 for now."}]}</script>
+</head>
+<body>
+<main class="report"><div class="col"><header class="rhead">
+<h1>Preflight: Freeze Doctor early dump (BL-17115)</h1>
+<p class="sum">Preflight finished on <span class="numeral">0668ca1f3d</span>. The PR is open as a draft, it merges cleanly, and the related tests pass. Two decisions are waiting on you.</p>
+<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8571" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end --><span class="chip">Mergeable</span><span class="chip">Devin: 1 thread open</span><span class="chip warn">2 decisions waiting</span></div>
+<div class="chips links"><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8571" target="_blank" rel="noopener">PR #8571</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8571/files" target="_blank" rel="noopener">Files changed</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8571/commits" target="_blank" rel="noopener">Commits</a><a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17115" target="_blank" rel="noopener">BL-17115</a><a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8571" target="_blank" rel="noopener">Devin review</a></div>
+</header>
+
+<section class="card">
+<h2>What this PR is about</h2>
+<p>Looking into <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17092" target="_blank" rel="noopener">BL-17092</a>, a real minute-long freeze that the Freeze Doctor filed with no crash dump, turned up three problems in the Doctor.</p>
+<h3>1. A freeze ended before 60 s is filed with no dump</h3>
+<p><b>Problem.</b> The Doctor dumps Bloom only when it reports a freeze, at 60 s. People end Bloom sooner than that, and then there is nothing left to dump, so nobody can tell what Bloom was stuck in.</p>
+<p><b>What the PR does.</b> At 20 s without a response (Suspect), the Doctor dumps Bloom at once and keeps the file. A later report still prefers a fresh dump. If it can't take one (Bloom has gone, or its runtime doesn't answer within 20 s), it attaches the early dump as <code>bloom-&lt;pid&gt;-early.dmp</code> and says when it was taken. If Bloom recovers, the early dump is thrown away. The early dumps of the last few Blooms are kept, so restarting Bloom straight away doesn't lose the one just killed. Each freeze gets one early dump, and deletes happen off the watcher's timer. The Doctor also now opens dump files itself, because ClrMD left a dump it failed to read locked open.</p>
+<h3>2. One freeze was posted as "This happened again"</h3>
+<p><b>Problem.</b> A Bloom that froze and then died produced two reports. When the second couldn't be merged into the first, it was posted as a recurrence.</p>
+<p><b>What the PR does.</b> A same-Bloom follow-on now reads "The same Bloom then had a further problem", and says it isn't a second occurrence.</p>
+<h3>3. A comment claimed a dump that didn't exist</h3>
+<p><b>Problem.</b> Recurrence comments always said the user's folder held "the crash dump".</p>
+<p><b>What the PR does.</b> The comment now checks the report's own files, and says "No crash dump was taken for this report" when there is none.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Freeze Doctor C# tests (<code>BloomFreezeDoctor.Tests</code>, via agent-dotnet)</td><td class="ok"><span class="numeral">291 passed · 0 failed</span> at HEAD</td></tr>
+<tr><td>C# formatting (CSharpier) and the pre-commit hooks</td><td class="ok">clean</td></tr>
+<tr><td>Bloom C# tests (<code>BloomTests</code>)</td><td>not run: the diff touches only the Freeze Doctor projects, which Bloom doesn't reference</td></tr>
+<tr><td>Front-end tests, typecheck and lint</td><td>not run: no TypeScript in the diff</td></tr>
+<tr><td>E2E at the nightly window size (repo check)</td><td>did not apply: no <code>src/BloomE2E</code> spec changed</td></tr>
+<tr><td>Merge with master</td><td class="ok">up to date, mergeable</td></tr>
+<tr><td>Live runs (FreezeStub, developer channel, never files)</td><td class="ok">killed at 36 s: the early dump was attached and the stuck call named. Left frozen: the fresh dump was used and the early one deleted.</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>This run created the PR. The local review, the walkaround and the bots led to three fix commits:
+<a href="https://github.com/BloomBooks/BloomDesktop/commit/53fad2ab77" target="_blank" rel="noopener">53fad2ab77</a>,
+<a href="https://github.com/BloomBooks/BloomDesktop/commit/7d448b4c90" target="_blank" rel="noopener">7d448b4c90</a> and
+<a href="https://github.com/BloomBooks/BloomDesktop/commit/0668ca1f3d" target="_blank" rel="noopener">0668ca1f3d</a>. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8571/commits" target="_blank" rel="noopener">commit list</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>2 findings, both fixed. A quick restart of Bloom could throw away the killed Bloom's early dump, and a dump that couldn't be read left a copy behind in temp.</td></tr>
+<tr><td>Walkaround (with /simplify)</td><td>Restructured how the early dumps are kept and claimed, and deduplicated the comment text and dump paths. 1 proposal went to the decisions (the cooldown).</td></tr>
+<tr><td>Devin</td><td>Complete at <span class="numeral">0668ca1f3d</span>. Over four rounds it found 4 bugs: 3 fixed and resolved, 1 <a href="https://github.com/BloomBooks/BloomDesktop/pull/8571#discussion_r4564775828" target="_blank" rel="noopener">left open for you</a>. It also made 1 informational note.</td></tr>
+<tr><td>Greptile</td><td>Reviewed <span class="numeral">c700dceac6</span>: 3 findings, all fixed, with replies on their threads. It has not reviewed the current code; the later commits answer its findings and Devin's.</td></tr>
+<tr><td>CI</td><td><code>pr-automation</code> passed. BloomDesktop runs no build or test CI on PRs.</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Two branches have been run neither by a unit test nor by hand. The 20 s deadline on a fresh dump (<a href="https://github.com/BloomBooks/BloomDesktop/blob/0668ca1f3d6e3746ae0861a74e1cab5146261c7d/src/BloomFreezeDoctor.Core/Gathering/ManagedStacksCollector.cs#L117" target="_blank" rel="noopener">TryFreshDumpAsync</a>) and a failed early dump both need a runtime whose dump pipe stalls, which we cannot arrange.</li>
+<li>The new comment wording is checked by unit tests only. No follow-on or no-dump comment has actually been posted to a card.</li>
+</ul>
+</section>
+</div><div class="col"><h2 class="decisions-h">Decisions</h2>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</div></main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
