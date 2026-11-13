@@ -64,7 +64,7 @@ th{font-weight:600}
 </head>
 <body>
 <div class="wrap" style="grid-template-columns:minmax(0,1fr);max-width:900px"><section class="report"><h1>Preflight: ConfigrSelect number values</h1>
-<p class="sub">sillsdev/config-r · branch <code>BL-16739-select-number-values</code> · HEAD <a href="https://github.com/sillsdev/config-r/commit/c2a4cffbe1f52761969d9f48f3c7224da3c89367" target="_blank" rel="noopener"><code>c2a4cff</code></a> · 2026-11-13</p>
+<p class="sub">sillsdev/config-r · branch <code>BL-16739-select-number-values</code> · HEAD <a href="https://github.com/sillsdev/config-r/commit/94a6cc2a27c902faed379d1d49965c119f8cb8be" target="_blank" rel="noopener"><code>94a6cc2</code></a> · 2026-11-13</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip">Mergeable</span>
@@ -83,13 +83,13 @@ th{font-weight:600}
 <div class="card">
 <h2>What this PR is about</h2>
 <h3>Purpose</h3>
-<p>Bloom's new Collection Settings dialog (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16739" target="_blank" rel="noopener">BL-16739</a>, BloomDesktop <a href="https://github.com/BloomBooks/BloomDesktop/pull/8502" target="_blank" rel="noopener">#8502</a>) has two dropdowns whose settings are numbers with one named choice: <b>Line spacing</b> (<code>0</code> means "Auto", otherwise 1.0 … 3.0) and <b>Font size in tools</b> (<code>0</code> means "Auto", otherwise 9 … 26). A <code>ConfigrSelect</code> could not express that. An option with a label had to have a string value, and a picked bare number came back as a string. So a client had to translate <code>"0"</code>/<code>"1.5"</code> back and forth, and a stored <code>0</code> never showed as selected.</p>
+<p>Bloom's new Collection Settings dialog (<a href="https://issues.bloomlibrary.org/youtrack/issue/BL-16739" target="_blank" rel="noopener">BL-16739</a>, BloomDesktop <a href="https://github.com/BloomBooks/BloomDesktop/pull/8502" target="_blank" rel="noopener">#8502</a>) has two dropdowns whose settings are numbers with one named choice: <b>Line spacing</b> and <b>Font size in tools</b>, where <code>0</code> means "Auto". A <code>ConfigrSelect</code> could not express that. A labelled option had to have a string value, and any number picked came back as a string, because formik-mui's Select re-set the field from the menu item's text <code>data-value</code>. So a stored <code>0</code> never showed as selected.</p>
 <h3>What the PR does</h3>
 <ul>
-<li><b>Choosing an option stores its value exactly as written.</b> An option may be <code>{ value: &lt;number&gt;, label?, description? }</code>, and picking it (or a bare number such as <code>12</code>) stores the number, not its string form. A stored number shows its option and label as selected, and <code>0</code> is an ordinary value. The option type is exported as <code>ConfigrSelectOption</code>.</li>
-<li><b>How:</b> MUI's Select already hands Formik the chosen item's own value. The string came from formik-mui's default close handler, which set the field again from the item's <code>data-value</code> attribute. <code>ConfigrSelect</code>'s close handler now only marks the field touched.</li>
-<li><b>A select's <code>validation</code> is typed <code>string | number</code></b>, since that is what it now receives.</li>
-<li><b>The Bloom story</b> uses the new form for Line Spacing and Font Size ("Auto" = <code>0</code>), and the README documents the rule.</li>
+<li><b><code>ConfigrSelect</code> binds MUI's <code>Select</code> to the field directly</b>, in place of formik-mui's. Choosing an option stores its <code>value</code> exactly as written, so <code>{ value: 0, label: 'Auto' }</code> stores the number <code>0</code>, and a stored number shows as selected. The <code>''</code> default, dividers, tooltips, override, <code>enableWhen</code> and validation messages behave as before.</li>
+<li><b>It is typed by its options.</b> The value type is inferred from the options' values: <code>string</code>, <code>number</code>, or <code>string | number</code> when they mix. <code>validation</code> and <code>overrideValue</code> take that type.</li>
+<li><b>Bare numbers are no longer options</b>; write <code>{ value: 12 }</code>. Menu items are keyed by value.</li>
+<li><b>The Bloom story</b> uses number options with "Auto" = <code>0</code>, and the README documents it all.</li>
 </ul>
 </div>
 
@@ -99,36 +99,37 @@ th{font-weight:600}
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>Typecheck (<code>tsc</code>)</td><td class="ok">pass</td></tr>
 <tr><td>Lint (eslint) and Prettier</td><td class="ok">pass</td></tr>
-<tr><td>TypeScript tests (vitest, related: the one test file)</td><td><span class="ok">pass</span> · <span class="numeral">30 / 30</span></td></tr>
+<tr><td>TypeScript tests (vitest, related: the one test file)</td><td><span class="ok">pass</span> · <span class="numeral">32 / 32</span></td></tr>
 <tr><td>C# / other stacks</td><td>N/A: none in this repo</td></tr>
 <tr><td>Merge with master</td><td class="ok">already up to date</td></tr>
 <tr><td>Repo checks</td><td>none declared in AGENTS.md</td></tr>
 <tr><td>Test of the change</td><td>the <code>ConfigrSelect options</code> tests in <code>lib/ConfigrPane.test.tsx</code></td></tr>
+<tr><td>Live check (Storybook)</td><td>picking 14 for Font size stored the number <code>14</code>; overridden and <code>enableWhen</code>-disabled selects look right</td></tr>
 </table>
 </div>
 
 <div class="card">
 <h2>What changed this run</h2>
-<p>This run opened draft PR #34 and linked it on the card. After your decisions it changed how every option is saved: a select's close handler now only marks the field touched, and <code>validation</code> takes <code>string | number</code> (<a href="https://github.com/sillsdev/config-r/commit/c2a4cffbe1f52761969d9f48f3c7224da3c89367" target="_blank" rel="noopener">c2a4cff</a>). That fixed both of Devin's findings. <a href="https://github.com/sillsdev/config-r/pull/34/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>This run made <code>ConfigrSelect</code> generic on plain MUI per the approved brief (<a href="https://github.com/sillsdev/config-r/commit/7afe2e6" target="_blank" rel="noopener">7afe2e6</a>). The light review then found that a value-type parameter, inferred from the first option alone, broke mixed options: a <code>''</code> default beside numbers, or an enum beside a <code>--</code> divider. So the select is now generic on its option type, and the value type is widened from all the options (<a href="https://github.com/sillsdev/config-r/commit/94a6cc2a27c902faed379d1d49965c119f8cb8be" target="_blank" rel="noopener">94a6cc2</a>).</p>
 </div>
 
 <div class="card">
 <h2>Reviewer outcomes</h2>
 <table>
-<tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings.</td></tr>
-<tr><td>Walkaround</td><td>Four type and structure cleanups applied with no behavior change. Its close-handler proposal was accepted and is in <code>c2a4cff</code>.</td></tr>
-<tr><td><a href="https://devinreview.com/sillsdev/config-r/pull/34" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>c2a4cff</code>, with no open findings. Its two bugs (<a href="https://github.com/sillsdev/config-r/pull/34#discussion_r4566729689" target="_blank" rel="noopener">validation type</a>, <a href="https://github.com/sillsdev/config-r/pull/34#discussion_r4566729867" target="_blank" rel="noopener">bare numbers</a>) are fixed and resolved, and Devin marks them resolved. A new flag about a stale PR-description line was fixed and resolved.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>1 finding (mixed option types failed to compile), fixed in <code>94a6cc2</code>. One dismissed: two options with the same value collide as keys, but MUI cannot tell such options apart either.</td></tr>
+<tr><td>Walkaround</td><td>Inline pass over the rewrite: nothing to change.</td></tr>
+<tr><td><a href="https://devinreview.com/sillsdev/config-r/pull/34" target="_blank" rel="noopener">Devin</a></td><td>Complete at <code>94a6cc2</code> (about 1 min). No new findings; its earlier two bugs stay resolved.</td></tr>
 <tr><td>Other review bots</td><td>None on this repo.</td></tr>
-<tr><td>CI</td><td>None runs on PRs here; the only workflow (Release) runs on pushes to master.</td></tr>
+<tr><td>CI</td><td>None runs on PRs here; Release runs on pushes to master.</td></tr>
 </table>
 </div>
 
 <div class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Merging to <code>master</code> runs the Release workflow, which publishes an alpha prerelease through semantic-release (<code>feat:</code> gives a minor bump). This PR does not publish anything itself.</li>
-<li>Two deliberate changes for clients: a bare number option now stores a number, and a string-only select <code>validation</code> no longer compiles. BloomDesktop uses neither.</li>
-<li>Nobody tried this in a running Bloom. BloomDesktop gets it only after a new config-r version is published and its dependency is bumped.</li>
+<li>BloomDesktop compatibility was checked by compiling its select shapes (the page-number list with its <code>--</code> divider and string override, the theme list) against the new signature. BloomDesktop itself was not built against this branch.</li>
+<li>Every dropdown in every client now goes through the new binding.</li>
+<li>Merging publishes the next alpha through semantic-release; the latest is <code>v1.0.0-alpha.34</code>. Since there is no stable release yet, the <code>BREAKING CHANGE</code> footer on <code>7afe2e6</code> should only lead to <code>1.0.0-alpha.35</code>, not a new major. That is from reading the tags, not from a dry run.</li>
 </ul>
 </div>
 </section></div>
