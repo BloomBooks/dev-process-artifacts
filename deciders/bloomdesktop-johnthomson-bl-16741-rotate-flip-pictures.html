@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-16741 hover cursors</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf8f4;color:#2a2723;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25;margin:0 0 .5em}
+h1{font-size:1.55rem}h2{font-size:1.15rem}h3{font-size:.98rem;margin-top:1em}
+a{color:#8a3f63}
+.wrap{max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+header p{margin:.2em 0 .7em}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-block;border:1px solid #d9d2c7;background:#fff;border-radius:999px;padding:2px 10px;font-size:.85rem;text-decoration:none;color:#2a2723}
+a.chip{color:#8a3f63}
+.chip.ok{border-color:#9bc4a3;background:#eef7f0}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:18px;margin-top:16px}
+.grid>*{min-width:0}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:#fff;border:1px solid #e3ddd3;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;vertical-align:top;padding:6px 8px;border-top:1px solid #eee8de}
+th{font-weight:600;width:28%}
+.numeral{font-variant-numeric:tabular-nums}
+.pass{color:#2f7a45;font-weight:600}
+code{font-size:.9em;background:#f3efe8;padding:0 3px;border-radius:3px}
+ul{padding-left:1.2em;margin:.3em 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Keep rotated handle cursors while hovering (BL-16741)</h1>
+<p>Preflight run complete on <code>416e6598ff</code>. Every reviewer finished clean, and nothing is waiting on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8578" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 decisions waiting</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8578" target="_blank" rel="noopener">PR #8578</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8578/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8578/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-16741" target="_blank" rel="noopener">BL-16741</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8578" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+
+<div class="grid">
+<main>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>On a picture or text box turned with Rotate right or the rotation knob, hovering over a resize or crop handle showed the cursor for an upright item: at 90°, ↔ on the handles at the top and bottom and ↕ on the ones at the sides. Pressing the handle switched the cursor to the right direction. Cropping and resizing worked; only the hover cursor was wrong. This was the last unticked test idea on BL-16741.</p>
+<h3>Cause</h3>
+<p>The handles' rotation-aware cursors were inline styles. The code that shows a row/column resize cursor over a table's borders cleared any inline <code>*-resize</code> cursor from whatever was under the mouse. So hovering a handle wiped its cursor, and the stylesheet's upright cursor showed. A drag re-aligns the control frame, which put the right cursor back.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>The control frame now carries each handle's cursor as a <code>--handle-cursor-&lt;handle&gt;</code> CSS property, still worked out by the existing <code>getHandleCursorForRotation</code>. Each handle's stylesheet rule reads that property, with the upright cursor as fallback (inline images, which don't rotate, use the fallback). One rule now decides the cursor for hovering and dragging, and nothing that edits inline cursors can wipe it.</li>
+<li>The table-border hover code now clears only the cursor it set itself. It shows no table cursor where a press would not start a table resize, using the same check as the mouse-down code, so a handle over a table's outer edge keeps its own cursor.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Typecheck</th><td class="pass">Passed</td></tr>
+<tr><th>Lint (eslint, prettier)</th><td class="pass">Passed on the changed files</td></tr>
+<tr><th>TypeScript tests (vitest)</th><td><span class="pass">Passed</span>: tests related to the changed files, <span class="numeral">44 files · 823 tests</span></td></tr>
+<tr><th>C# tests</th><td>Not run: no C# in the diff</td></tr>
+<tr><th>E2E (Playwright)</th><td>Not run: no spec in the diff, so the repo's e2e check does not apply. No e2e test can read the OS cursor.</td></tr>
+<tr><th>Merge with master</th><td class="pass">Already up to date</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>First run: committed the fix, its unit tests and the stylesheet changes as <a href="https://github.com/BloomBooks/BloomDesktop/commit/416e6598ff7bf6b34fc5945b148008ecbc39fe03" target="_blank" rel="noopener">416e6598ff</a>, and opened the draft PR. Before the commit, the local review and the walkaround reshaped the fix: the cursors moved into CSS properties on the frame, and a handle over a table's edge keeps its own cursor.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review (light sub-agent pass)</th><td>1 finding, fixed: a handle over a table's outer edge could take the table's cursor and then be left with none.</td></tr>
+<tr><th>Walkaround + /simplify</th><td>3 changes, no proposals. The handle cursors moved into CSS properties, the table-cursor bookkeeping got simpler, and the tests were reworked.</td></tr>
+<tr><th>Devin</th><td>Complete: no bugs, no flags. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8578#issuecomment-6925446540" target="_blank" rel="noopener">Consultation log</a></td></tr>
+<tr><th>Greptile</th><td>Complete: no actionable issues.</td></tr>
+<tr><th>CI</th><td>Complete: <code>pr-automation</code> passed. Reviewable shows pending, which means human review hasn't started.</td></tr>
+<tr><th>Repo check: e2e specs at nightly size</th><td>Did not apply: the diff adds or changes no e2e spec.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>No automated test can see the cursor Windows actually shows. You checked the 90° hover by eye on the first version of the fix. The final version, with the cursors in CSS properties, was checked only by reading the computed cursors at 60° in a running Bloom. The round-2 test ideas on the card ask a tester to look.</li>
+</ul>
+</section>
+</main>
+
+<aside>
+<section class="card">
+<h2>Decisions</h2>
+<p>None. The PR is a draft, ready for your own review, and then <code>request-peer-review</code> or <code>merge-without-peer-review</code>.</p>
+</section>
+</aside>
+</div>
+</div>
+</body>
+</html>
