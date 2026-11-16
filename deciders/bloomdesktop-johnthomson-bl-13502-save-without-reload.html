@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preflight PR 8582</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;max-width:1440px;margin:0 auto;padding:24px 16px 64px}
+.layout>*{min-width:0}
+.layout main{max-width:none;margin:0;padding:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.rpt .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.rpt h3{font:600 15px/1.3 Georgia,"Times New Roman",serif;margin:12px 0 4px}
+.rpt p{margin:0 0 10px}.rpt ul{margin:0;padding-left:20px}
+.summary{font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;text-decoration:none;color:var(--ink)}
+.chip.ok{border-color:#9DC59B;background:#EEF6EC}.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
+.links .chip{color:var(--accent-strong)}
+.tw{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}
+td.ok{color:#2E6B2C}.numeral{font-variant-numeric:tabular-nums}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-16","about":"BloomDesktop PR #8582 (branch JohnThomson/BL-13502-save-without-reload), card BL-13502","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-13502-save-without-reload.html","questions":[{"title":"Should Bloom Player's undoPrepareActivity() clean up all of its own play markup?","context":["Bloom Player's <code>undoPrepareActivity()<\/code> takes a game page out of play mode, but it leaves some of what play adds behind: the <code>bloom-ui-dragging<\/code> class on an item being dragged, the <code>touch-action: none<\/code> it puts on every draggable, the audio highlighting classes (<code>ui-audioCurrent<\/code> and friends), <code>autoplayBlocked<\/code>, and the video error message. This PR strips those in Bloom, from a list in <a href=\"https://github.com/BloomBooks/BloomDesktop/blob/ea40de8f2e/src/BloomBrowserUI/bookEdit/toolbox/games/gamePlayMode.ts#L87\" target=\"_blank\" rel=\"noopener\">gamePlayMode.ts<\/a>. That list copies Bloom Player's internals: any new play markup Bloom Player adds will be saved into books until someone extends it.","Neither side removes one more thing. When audio plays during Play, Bloom Player splits any text that has three or more spaces in a row into extra highlight <code>&lt;span&gt;<\/code>s. A save while that is showing can store the split spans. Bloom can't tell them apart from a book's own highlighting, so it doesn't try. Only recorded text with long runs of spaces, saved while being played, is affected.","A reviewer also suggested making <code>prepareActivity()<\/code> itself do nothing on a page that is already prepared. Bloom's guard already covers every Bloom caller, so that would be a second layer."],"options":[{"label":"Make a Bloom Player card to move this cleanup into undoPrepareActivity(); keep Bloom's list until it ships","recommended":true,"why":"Recommended because Bloom Player owns this markup and knows what it adds, including the span splitting, which only it can undo. This PR stays as it is meanwhile.","effort":"no code here; a moderate Bloom Player change, then a later Bloom PR to drop the list","instruction":"Create a YouTrack card (via the youtrack-create-issue skill) for Bloom Player: make undoPrepareActivity() remove all the markup play mode adds (bloom-ui-dragging, touch-action on draggables, ui-audioCurrent/ui-audioCurrentImg/ui-suppressHighlight, autoplayBlocked, video-error-message, and the ui-enableHighlight span splitting done by narration's fixHighlighting), and consider making prepareActivity() a no-op on an already-prepared page. Reference BloomDesktop PR #8582 and src/BloomBrowserUI/bookEdit/toolbox/games/gamePlayMode.ts, whose removePlayMarkupUndoPrepareActivityMisses list can be deleted once that ships. Leave PR #8582 unchanged."},{"label":"Do the Bloom Player change now and make this PR depend on it","why":"The cleanest result, but this PR waits on a Bloom Player release.","effort":"moderate; cross-repo, delays this PR","instruction":"In C:\\github\\bloom-player, change undoPrepareActivity() to remove all the markup play mode adds (as listed in BloomDesktop's src/BloomBrowserUI/bookEdit/toolbox/games/gamePlayMode.ts removePlayMarkupUndoPrepareActivityMisses, plus narration's ui-enableHighlight span splitting), publish a bloom-player alpha, then in the BloomDesktop worktree for PR #8582 bump bloom-player and delete Bloom's list."}],"leaveAsIs":"Bloom keeps its own list of Bloom Player's leftover play markup, and the narration span splitting stays unhandled.","codeComment":true},{"title":"Should comic-editing suspension track every reason separately, not just Play?","context":["Canvas (comic) editing is switched off for several reasons: Change Layout mode, image descriptions shown by Talking Book, dragging a splitter, and a game's Play tab. It used to remember only one reason at a time, so one reason ending could switch editing back on while another still applied. This PR keeps Play as a separate flag, which fixes every case that involves a game (<a href=\"https://github.com/BloomBooks/BloomDesktop/blob/ea40de8f2e/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementEditingSuspension.ts#L44\" target=\"_blank\" rel=\"noopener\">CanvasElementEditingSuspension.ts<\/a>).","A reviewer suggested going further: keep a set of reasons, each with its own setup and tear-down, and turn editing on only when the set is empty. That would also cover Change Layout overlapping image descriptions. That overlap doesn't seem reachable, because Change Layout disables the toolbox."],"options":[{"label":"Rework the suspension into a set of reasons in this PR","why":"More general, and the next overlap would need no special case. It touches origami, image description and splitter code that this PR otherwise leaves alone.","effort":"~60 lines plus tests; moderate risk to Change Layout and splitter dragging","instruction":"In the BloomDesktop worktree for PR #8582 (branch JohnThomson/BL-13502-save-without-reload), rework src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementEditingSuspension.ts so it keeps a set of suspension reasons (forDrag, forTool, forJqueryResize, forGamePlayMode), each doing its own setup and tear-down, with comic editing on only when the set is empty. Give resumeComicEditing a reason argument, update its callers (origami.ts, imageDescriptionUtils.ts, talkingBookTool.tsx, bloomImages.ts, GameTool.tsx), and extend CanvasElementEditingSuspension.spec.ts."}],"leaveAsIs":"Play is tracked as its own flag; the other reasons still share one slot.","leaveAsIsRecommended":"Leaving it is recommended. Every overlap that involves a game is handled, and the only other overlap (Change Layout with image descriptions) does not appear reachable, because Change Layout disables the toolbox. The general rework would touch code this PR doesn't otherwise change, for no case a user can hit today.","codeComment":true},{"title":"Next step","context":["Every reviewer is quiet and the related tests pass. Nothing here has been tried by hand in a running Bloom; the round-2 test ideas on the card cover what to try."],"options":[{"label":"Carry out the choices above, then stop for my own review","recommended":true,"why":"Recommended because neither question above blocks the PR.","effort":"a card, at most","instruction":"Carry out the decisions above for BloomDesktop PR #8582, then stop so John can review the PR himself before running request-peer-review."},{"label":"Discuss first","effort":"none","instruction":"Don't change anything yet; discuss the decisions above with John first."}],"leaveAsIs":"nothing further happens until John says so."}]}</script>
+</head>
+<body>
+<div class="layout"><div class="rpt">
+<p class="summary">Preflight of <b>PR #8582</b>: every reviewer is quiet and the related tests pass. Two questions remain for you.</p>
+<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --><span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip warn">2 decisions waiting</span></div>
+<div class="chips links"><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">PR #8582</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582/files" target="_blank" rel="noopener">Files changed</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582/commits" target="_blank" rel="noopener">Commits</a><a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">BL-13502</a><a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">Devin review</a></div>
+
+<section class="card">
+<h2>What this PR is about</h2>
+<p>A follow-up to <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">#8209</a> (saving a page without reloading it), from testing of the game pages' Play tab.</p>
+<h3>Problem</h3>
+<p>On a game page, a save made while the tester had items dragged around in <b>Play</b> could write the tester's positions into the book over the author's. Clicking the Play tab while it was already selected did it reliably, and leaving the page then left the items where they had been dragged. A save made mid-drag, or while Play was in use with another tool (Talking Book, say) open, could also store play-only markup in the book.</p>
+<h3>Cause</h3>
+<p>Bloom Player's <code>prepareActivity()</code> records where each draggable is as the author's position. Nothing stopped Bloom calling it again while the page was already in Play: a second Play click, the page load, and the toolbox's repeated <code>newPageReady()</code> all did. The save only cleaned Play mode off its copy of the page when the Game tool was the open tool, though the Play tab works with any tool. And <code>undoPrepareActivity()</code> leaves some play markup behind.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>A page is prepared for Play only once per time it enters Play. That also stops duplicate order-sentence words, a replay of the opening audio, and doubled image-link handlers.</li>
+<li>Play mode belongs to the game page's tabs, not the Game tool. Every save cleans it off its copy whatever tool is open, and leaving the page ends it.</li>
+<li>The save also strips what <code>undoPrepareActivity()</code> misses, including the <code>touch-action: none</code> on draggables.</li>
+<li>Comic-editing suspension tracks Play separately, so another tool resuming editing can't make canvas text editable mid-Play.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck</td><td class="ok">pass</td></tr>
+<tr><td>Lint</td><td class="ok">pass, with no warnings in the changed files</td></tr>
+<tr><td>TypeScript tests (vitest, related)</td><td class="ok"><span class="numeral">424 passed</span> across 25 files, unit and browser</td></tr>
+<tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
+<tr><td>E2E specs at nightly size (repo check)</td><td>did not apply: no e2e specs changed</td></tr>
+<tr><td>Merge with master</td><td class="ok">clean</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Committed the fix, which the walkaround simplified (Play kept as its own flag in the editing suspension, and one pass over the page for play markup). Merged master and opened the draft PR. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8582/commits" target="_blank" rel="noopener">Commits</a></p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings.</td></tr>
+<tr><td>Walkaround (with /simplify)</td><td>5 changes kept, behavior unchanged. 2 proposals: the two questions on the right.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">Devin</a></td><td>Complete: no bugs, no flags.</td></tr>
+<tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8582#issuecomment-6928644896" target="_blank" rel="noopener">Greptile</a></td><td>Complete: no actionable issues.</td></tr>
+<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+<tr><td>Reviewable</td><td>Waiting for human review (not a bot).</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Nothing has been tried by hand in a running Bloom. The <a href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">card</a> has a new round-2 test-ideas comment; the earlier one is unchanged.</li>
+<li>Books that already picked up <code>touch-action: none</code> keep it until that page is next saved while in Play.</li>
+</ul>
+</section>
+</div>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main></div>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
