@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Preflight PR 8582</title>
+<title>Preflight bloom-player 446</title>
 <style>
 :root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
 *{box-sizing:border-box}
@@ -56,27 +56,23 @@ button.done svg{margin-right:6px}
 td.ok{color:#2E6B2C}.numeral{font-variant-numeric:tabular-nums}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-16","about":"BloomDesktop PR #8582 (branch JohnThomson/BL-13502-save-without-reload), card BL-13502; depends on bloom-player PR #446","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-13502-save-without-reload.html","questions":[{"title":"Should comic-editing suspension track every reason separately, not just Play?","context":["Canvas (comic) editing is switched off for several reasons: Change Layout mode, image descriptions shown by Talking Book, dragging a splitter, and a game's Play tab. It used to remember only one reason at a time, so one reason ending could switch editing back on while another still applied. This PR keeps Play as a separate flag, which fixes every case that involves a game (<a href=\"https://github.com/BloomBooks/BloomDesktop/blob/7d906bc51e/src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementEditingSuspension.ts#L44\" target=\"_blank\" rel=\"noopener\">CanvasElementEditingSuspension.ts<\/a>).","A reviewer suggested going further: keep a set of reasons, each with its own setup and tear-down, and turn editing on only when the set is empty. That would also cover Change Layout overlapping image descriptions. That overlap doesn't seem reachable, because Change Layout disables the toolbox."],"options":[{"label":"Rework the suspension into a set of reasons in this PR","why":"More general, and the next overlap would need no special case. It touches origami, image description and splitter code that this PR otherwise leaves alone.","effort":"~60 lines plus tests; moderate risk to Change Layout and splitter dragging","instruction":"In the BloomDesktop worktree for PR #8582 (branch JohnThomson/BL-13502-save-without-reload), rework src/BloomBrowserUI/bookEdit/js/canvasElementManager/CanvasElementEditingSuspension.ts so it keeps a set of suspension reasons (forDrag, forTool, forJqueryResize, forGamePlayMode), each doing its own setup and tear-down, with comic editing on only when the set is empty. Give resumeComicEditing a reason argument, update its callers (origami.ts, imageDescriptionUtils.ts, talkingBookTool.tsx, bloomImages.ts, GameTool.tsx), and extend CanvasElementEditingSuspension.spec.ts."}],"leaveAsIs":"Play is tracked as its own flag; the other reasons still share one slot.","leaveAsIsRecommended":"Leaving it is recommended. Every overlap that involves a game is handled, and the only other overlap (Change Layout with image descriptions) does not appear reachable, because Change Layout disables the toolbox. The general rework would touch code this PR doesn't otherwise change, for no case a user can hit today.","codeComment":true},{"title":"Next step","context":["Every reviewer has finished. Devin's one finding is the bloom-player#446 dependency, and its thread stays open until the lockfile update. This PR stays in draft until #446 merges."],"options":[{"label":"Carry out the choice above, then stop for my own review","recommended":true,"why":"Recommended because nothing else is needed until bloom-player#446 merges.","effort":"none, or the rework above","instruction":"Carry out the decision above for BloomDesktop PR #8582, then stop so John can review. After bloom-player#446 merges, run pnpm --dir src/BloomBrowserUI update bloom-player in the worktree, rerun the game tests, push, and resolve the Devin dependency thread."},{"label":"Discuss first","effort":"none","instruction":"Don't change anything yet; discuss with John first."}],"leaveAsIs":"nothing further happens until John says so."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-16","about":"bloom-player PR #446 (branch BL-13502-undo-play-markup → alpha), card BL-13502; needed by BloomDesktop PR #8582","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-player-bl-13502-undo-play-markup.html","questions":[{"title":"Should undoPrepareActivity() restore a snapshot of the whole page instead of removing play markup piece by piece?","context":["This PR makes <code>undoPrepareActivity()<\/code> remove each kind of markup playing adds, one by one, and undo narration's span splitting sentence by sentence. A reviewer pointed out that this is a list: if play mode later adds something new, someone has to remember to add it here, or it will be saved into books again.","The alternative is to record the whole page's markup when <code>prepareActivity()<\/code> runs and put that back on the copy Bloom saves. That catches anything play does. But in Bloom the page isn't frozen during Play: pictures can still be resized to fit, other tools' markup can change, and some of what Bloom adds is legitimately saved. A snapshot taken when Play starts would quietly undo those too. It would also need the same id-matching this PR already does to put a snapshot onto a copy."],"options":[{"label":"Switch to restoring a whole-page snapshot","why":"Catches any future play markup automatically, but risks losing legitimate changes Bloom makes to the page during Play.","effort":"moderate rework of dragActivityRuntime.ts and its tests, plus Bloom-side checks; moderate risk","instruction":"In C:\\github\\bloom-player on branch BL-13502-undo-play-markup (PR #446), change prepareActivity() to record the page's markup and undoPrepareActivity(pageOrClone) to restore it onto the element given (matching by element ids), replacing the per-item cleanup; keep the existing tests passing and add one showing a legitimate non-play change made during play survives. Then retest BloomDesktop PR #8582's game tests against it via the node_modules/bloom-player junction."}],"leaveAsIs":"undoPrepareActivity() removes each kind of play markup explicitly.","leaveAsIsRecommended":"Leaving it is recommended. The explicit list is short, each item is covered by a test, and it only removes what play adds, whereas a snapshot would also roll back legitimate changes Bloom makes to the page while it is being played.","codeComment":true},{"title":"Next step","context":["Devin is clean and all 174 Bloom Player tests pass. Merging this PR publishes a bloom-player alpha; BloomDesktop #8582 then needs <code>pnpm update bloom-player<\/code> before it leaves draft."],"options":[{"label":"Stop here; I'll review #446 myself","recommended":true,"why":"Recommended because merging publishes a release, which is your call.","effort":"none","instruction":"Stop; John will review bloom-player PR #446 himself."},{"label":"Discuss first","effort":"none","instruction":"Don't change anything yet; discuss bloom-player PR #446 with John first."}],"leaveAsIs":"nothing further happens until John says so."}]}</script>
 </head>
 <body>
 <div class="layout"><div class="rpt">
-<p class="summary">Preflight of <b>PR #8582</b>, second run: every reviewer has finished. It stays in draft until <a href="https://github.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">bloom-player #446</a> merges. One question for you.</p>
-<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --><span class="chip ok">Mergeable</span><span class="chip warn">Waits on bloom-player #446</span><span class="chip warn">1 decision waiting</span></div>
-<div class="chips links"><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">PR #8582</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582/files" target="_blank" rel="noopener">Files changed</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582/commits" target="_blank" rel="noopener">Commits</a><a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">BL-13502</a><a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">Devin review</a><a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">bloom-player #446</a></div>
+<p class="summary">Preflight of <b>bloom-player PR #446</b>: Devin is clean and the tests pass. One question for you.</p>
+<div class="chips"><!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end --><span class="chip ok">Mergeable</span><span class="chip ok">Bots quiet</span><span class="chip warn">1 decision waiting</span></div>
+<div class="chips links"><a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">PR #446</a><a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/446/files" target="_blank" rel="noopener">Files changed</a><a class="chip" href="https://github.com/BloomBooks/bloom-player/pull/446/commits" target="_blank" rel="noopener">Commits</a><a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-13502" target="_blank" rel="noopener">BL-13502</a><a class="chip" href="https://devinreview.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">Devin review</a><a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">BloomDesktop #8582</a></div>
 
 <section class="card">
 <h2>What this PR is about</h2>
-<p>A follow-up to <a href="https://github.com/BloomBooks/BloomDesktop/pull/8209" target="_blank" rel="noopener">#8209</a> (saving a page without reloading it), from testing of the game pages' Play tab.</p>
 <h3>Problem</h3>
-<p>On a game page, a save made while the tester had items dragged around in <b>Play</b> could write the tester's positions into the book over the author's. Clicking the Play tab while it was already selected did it reliably, and leaving the page then left the items where they had been dragged. A save made mid-drag, or while Play was in use with another tool (Talking Book, say) open, could also store play-only markup in the book.</p>
-<h3>Cause</h3>
-<p>Bloom Player's <code>prepareActivity()</code> records where each draggable is as the author's position. Nothing stopped Bloom calling it again while the page was already in Play: a second Play click, the page load, and the toolbox's repeated <code>newPageReady()</code> all did. The save only cleaned Play mode off its copy of the page when the Game tool was the open tool, though the Play tab works with any tool. And <code>undoPrepareActivity()</code> left some play markup behind.</p>
+<p>Bloom Desktop saves a copy of a game page while an author plays it in the Play tab, and calls <code>undoPrepareActivity()</code> on that copy so the book records the page as the author made it. <code>undoPrepareActivity()</code> left some of what playing adds behind, so it got saved into books: the mark on an item being dragged, the <code>touch-action: none</code> on draggables, narration highlight classes, the "video wouldn't autoplay" mark and video error messages. And narration's <code>fixHighlighting</code> splits sentences with long runs of spaces into extra spans, stripping the book's own highlighting, with nothing to put it back.</p>
 <h3>What the PR does</h3>
 <ul>
-<li>A page is prepared for Play only once per time it enters Play. That also stops duplicate order-sentence words, a replay of the opening audio, and doubled image-link handlers.</li>
-<li>Play mode belongs to the game page's tabs, not the Game tool. Every save cleans it off its copy whatever tool is open, and leaving the page ends it.</li>
-<li>The cleanup itself is bloom-player's <code>undoPrepareActivity()</code>, which <a href="https://github.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">#446</a> makes remove everything playing adds, including the <code>touch-action: none</code> and the narration's split sentence spans.</li>
-<li>Comic-editing suspension tracks Play separately, so another tool resuming editing can't make canvas text editable mid-Play.</li>
+<li><code>undoPrepareActivity()</code> removes all of that markup from whatever element it is given, the live page or a detached copy.</li>
+<li><code>prepareActivity()</code> asks narration to record each sentence's markup, by id, before <code>fixHighlighting</code> first changes it; <code>undoPrepareActivity()</code> puts those sentences back. Sentences with a shared or empty id are left alone rather than risk swapping text.</li>
+<li>Bloom Player's own reader gets the same cleanup when it leaves a game page.</li>
 </ul>
 </section>
 
@@ -84,40 +80,37 @@ td.ok{color:#2E6B2C}.numeral{font-variant-numeric:tabular-nums}
 <h2>Quality gate</h2>
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
-<tr><td>Typecheck</td><td class="ok">pass</td></tr>
-<tr><td>Lint</td><td class="ok">pass, with no warnings in the changed files</td></tr>
-<tr><td>TypeScript tests (vitest, related)</td><td class="ok"><span class="numeral">21 passed</span> game and suspension tests, unit and browser, against a local build of bloom-player #446 (424 related tests passed on the first run)</td></tr>
-<tr><td>Against the locked bloom-player 2.22.0-alpha.2</td><td>the play-markup tests fail, as expected until #446 is released</td></tr>
-<tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
-<tr><td>E2E specs at nightly size (repo check)</td><td>did not apply: no e2e specs changed</td></tr>
-<tr><td>Merge with master</td><td class="ok">up to date</td></tr>
+<tr><td>Typecheck (tsc)</td><td class="ok">pass</td></tr>
+<tr><td>Lint</td><td>none: the repo has no ESLint config</td></tr>
+<tr><td>Tests (vitest, whole suite)</td><td class="ok"><span class="numeral">174 passed</span> in 18 files</td></tr>
+<tr><td>Playwright e2e</td><td>not run: needs a build, and the change is covered by unit tests</td></tr>
+<tr><td>BloomDesktop's game tests against this branch</td><td class="ok"><span class="numeral">21 passed</span>, unit and browser</td></tr>
+<tr><td>Merge with alpha</td><td class="ok">already up to date</td></tr>
 </table></div>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Moved the play-markup cleanup into bloom-player (<a href="https://github.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">#446</a>, with its own preflight) and removed Bloom's copy of it; the PR description now opens with the draft warning. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8582/commits" target="_blank" rel="noopener">Commits</a></p>
+<p>Opened the PR. The local review found that sentences sharing an id could have one's text written into the other; fixed, with a test. The walkaround kept the change minimal (undo skipped when nothing was recorded, comments brought up to date). <a href="https://github.com/BloomBooks/bloom-player/pull/446/commits" target="_blank" rel="noopener">Commits</a></p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Clean: nothing Bloom's removed list handled goes unhandled by #446.</td></tr>
-<tr><td>Walkaround</td><td>Nothing to change; /simplify not needed, since the only change since the last walkaround is a deletion.</td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">Devin</a></td><td>Complete: 1 bug, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8582#discussion_r4591880398" target="_blank" rel="noopener">play markup saved against the locked bloom-player</a>. That is the #446 dependency; the thread stays open until the lockfile update.</td></tr>
-<tr><td><a href="https://github.com/BloomBooks/BloomDesktop/pull/8582#issuecomment-6928644896" target="_blank" rel="noopener">Greptile</a></td><td>Reviewed the first commit only (it does not review draft pushes); no actionable issues. Not re-triggered for a deletion.</td></tr>
-<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
-<tr><td>Reviewable</td><td>Waiting for human review (not a bot).</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>1 finding (shared sentence ids), fixed.</td></tr>
+<tr><td>Walkaround (with /simplify)</td><td>4 changes kept, behavior unchanged; 1 proposal, the question on the right.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/bloom-player/pull/446" target="_blank" rel="noopener">Devin</a></td><td>Complete: no bugs, no flags.</td></tr>
+<tr><td>CI</td><td>None on this repo's PRs; merging to alpha runs the release.</td></tr>
+<tr><td>Other bots</td><td>None active on this repo.</td></tr>
 </table></div>
 </section>
 
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Do not take this out of draft before bloom-player #446 merges and <code>pnpm update bloom-player</code> picks up its release.</li>
-<li>This worktree's <code>node_modules/bloom-player</code> points at <code>C:\github\bloom-player</code> for testing; <code>pnpm install</code> restores the real package.</li>
-<li>Nothing has been tried by hand in a running Bloom. The card's round-2 test ideas now cover the Bloom Player part too.</li>
+<li>Merging this publishes a bloom-player alpha. BloomDesktop <a href="https://github.com/BloomBooks/BloomDesktop/pull/8582" target="_blank" rel="noopener">#8582</a> then needs <code>pnpm update bloom-player</code> before it can leave draft.</li>
+<li>Nothing has been tried by hand in Bloom Player's reader.</li>
 </ul>
 </section>
 </div>
