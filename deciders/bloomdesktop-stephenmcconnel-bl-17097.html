@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17097</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2b2a28; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
+  h1 { font-size: 1.6rem; margin: 0 0 .4rem; }
+  h2 { font-size: 1.2rem; margin: 0 0 .8rem; }
+  h3 { font-size: 1rem; margin: 1rem 0 .3rem; }
+  a { color: #2f5d8a; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: .6rem 0; }
+  .chip { display: inline-block; padding: 3px 10px; border: 1px solid #d9d4ca; border-radius: 999px; background: #fff; font-size: .85rem; }
+  .chip.good { border-color: #9cc5a1; background: #eef7ef; }
+  .links a.chip { text-decoration: none; }
+  .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .grid > * { min-width: 0; }
+  .card { background: #fff; border: 1px solid #e3ded4; border-radius: 8px; padding: 18px 20px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-top: 1px solid #eee8de; }
+  th { font-weight: 600; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  ul { padding-left: 1.2rem; margin: .3rem 0; }
+  li { margin: .2rem 0; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: .9em; background: #f3efe7; padding: 0 3px; border-radius: 3px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="page">
+<header>
+  <h1>Apps size estimates survive files vanishing or locked mid-request (BL-17097)</h1>
+  <div>Preflight complete: every reviewer finished, related tests pass, nothing is waiting on you.</div>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip good">Mergeable</span>
+    <span class="chip good">Bots quiet</span>
+    <span class="chip good">0 decisions waiting</span>
+  </div>
+  <div class="chips links">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8587" target="_blank" rel="noopener">PR #8587</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8587/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8587/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17097" target="_blank" rel="noopener">BL-17097</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8587" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>On Publish &gt; Apps, Bloom works out how big each book will be in the app. If anything went wrong reading one book's files, the whole size request failed: no book showed a size, and the user got an error report. The reported case was a BloomPUB deleted between Bloom finding it and reading its size. Sentry has the same error 5 times from 3 users.</p>
+    <h3>Cause</h3>
+    <p>BL-17062 on master already copes with that file disappearing. Three gaps remained:</p>
+    <ul>
+      <li>Bloom keeps the BloomPUBs in a folder in <code>%TEMP%</code>, which Windows and users clear. If that whole folder vanished at the wrong moment, the error wasn't caught.</li>
+      <li>When a book has no usable BloomPUB, Bloom estimates its size from the book's own files. Nothing guarded that estimate, so a book file being saved, renamed or deleted part way through broke the request.</li>
+      <li>A book folder deleted part way through reached the book-file lookup. That lookup told the user "Bloom can't save this book" and threw an exception that wasn't an IO error.</li>
+    </ul>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Checking a kept BloomPUB against its book and reading its size are now one guarded step. Any IO or access error means the book gets an estimate instead.</li>
+      <li>If the estimate from the book's own files fails the same way, the book shows its last estimate, or 0 if it has none. Nothing from the failed attempt is cached, so the next request works it out properly.</li>
+      <li>The book-file lookup has a read-only form that reports a missing folder as an ordinary IO error, without the "can't save" message. The size estimate and the BloomPUB cache use it.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>C# tests (dotnet test)</td><td>Pass: <span class="numeral">407 passed</span> across the related fixtures (size estimator, Apps project, BloomPUB cache and maker, BookStorage, page templates)</td></tr>
+      <tr><td>TypeScript typecheck, lint, tests</td><td>Not run: no TypeScript in the diff (the commit hook's typecheck passed)</td></tr>
+      <tr><td>E2E specs at the nightly's window size</td><td>Did not apply: the diff adds or changes no e2e spec</td></tr>
+      <tr><td>Merge with master</td><td>Merged; one conflict with BL-17062's change to the same code, resolved by combining both</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Committed the fix, merged master, opened the draft PR, then fixed the vanished-folder gap Greptile found and simplified where the fallback lives. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8587/commits" target="_blank" rel="noopener">Commits</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Complete. No bugs; one note that a test could pass on the old code, which is now said in the test.</td></tr>
+      <tr><td>Walkaround (with /simplify)</td><td>Complete, two passes. Merged duplicate guards into one helper per job, moved the fallback into the estimator that owns the cache, and narrowed a return value. Nothing left as a proposal.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8587" target="_blank" rel="noopener">Devin</a></td><td>Complete, on both commits: no bugs and no flags.</td></tr>
+      <tr><td>Greptile</td><td>Complete, two reviews. Found that a deleted book folder still failed the request (<a href="https://github.com/BloomBooks/BloomDesktop/pull/8587#discussion_r4606814375" target="_blank" rel="noopener">thread</a>, fixed and resolved); its re-review of the fix found nothing.</td></tr>
+      <tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Worth knowing</h2>
+    <ul>
+      <li>The exact race in the bug report can't be reproduced on demand, so no one has seen the fix work in a running Bloom. The locked-file unit test is the evidence.</li>
+    </ul>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>None. Every finding was fixed, and the PR has a test of the change.</p>
+    <p>Next step: your own review of the draft PR, then <code>request-peer-review</code>.</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
