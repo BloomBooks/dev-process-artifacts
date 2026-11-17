@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17134</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:#faf8f4;color:#2a2622;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:#2f5d8a}
+.wrap{max-width:1280px;margin:0 auto;padding:24px 16px}
+header{margin-bottom:20px}
+.summary{margin:.25em 0 .75em}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.chip{display:inline-block;padding:2px 10px;border:1px solid #d9d2c7;border-radius:999px;background:#fff;font-size:.85rem;text-decoration:none;color:inherit}
+.chip.ok{border-color:#9cc3a4;background:#eef7f0}
+a.chip{color:#2f5d8a}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px}
+.grid>*{min-width:0}
+.card{background:#fff;border:1px solid #e3ddd3;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid #eee7dc;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;width:28%}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:#f3efe8;padding:0 3px;border-radius:3px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>Preflight: BL-17134</h1>
+<p class="summary">Preflight ran clean: the fix is committed, every reviewer finished with no findings, and nothing is waiting on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 items waiting on you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8585" target="_blank" rel="noopener">PR #8585</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8585/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8585/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17134" target="_blank" rel="noopener">BL-17134</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8585" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+
+<div class="grid">
+<main>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>Since 2026-11-17 the nightly fails all 8 color-picker component tests (<code>colorPicker.uitest.ts</code>, <code>colorDisplayButton.uitest.ts</code>). Their harnesses never load: MUI's <code>createSvgIcon</code> throws "Cannot read properties of undefined (reading 'muiName')". It fails every time, locally too, from a cold Vite cache.</p>
+<h3>Cause</h3>
+<p>The component tester pre-bundles every dependency it finds under <code>react_components</code> in one esbuild pass. Since the Collection Settings Languages page (BL-16739), that graph reaches <code>@ethnolib/language-chooser-react-mui</code>, whose <code>exports</code> points only at its CommonJS <code>index.js</code>. That file <code>require</code>s <code>@mui/material</code>, so esbuild wraps all of MUI in lazy initializers. The ESM icons (which the tester already aliases to, for an earlier version of the same problem) call <code>createSvgIcon</code> at import time without running those initializers, so the color picker's <code>Colorize</code> icon reads <code>SvgIcon</code> before it exists.</p>
+<h3>What the PR does</h3>
+<p>The tester's <a href="https://github.com/BloomBooks/BloomDesktop/blob/59cc0ad5bd739f42e74071854e75ec325da8ab6b/src/BloomBrowserUI/react_components/component-tester/vite.config.ts#L435" target="_blank" rel="noopener"><code>vite.config.ts</code></a> now aliases the language chooser to the <code>index.mjs</code> ESM build that the package also ships. Nothing in the pre-bundle <code>require</code>s MUI any more, so MUI is no longer wrapped lazily at all.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Typecheck</th><td>Passed (<code>pnpm typecheck</code>)</td></tr>
+<tr><th>Lint</th><td>Passed: Prettier clean, eslint no new warnings</td></tr>
+<tr><th>Merge</th><td>Up to date with master; mergeable</td></tr>
+<tr><th>Component tests (Playwright)</th><td><span class="numeral">146 passed</span> from a cold Vite cache, including the 8 color-picking tests (all 8 failed before the fix)</td></tr>
+<tr><th>Vitest unit tests</th><td>Not run: no test reaches the component tester's Vite config</td></tr>
+<tr><th>C# tests</th><td>Not run: no C# in the diff</td></tr>
+<tr><th>E2E at nightly window size (repo check)</th><td>Did not apply: no <code>src/BloomE2E/tests/*.spec.ts</code> in the diff</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Committed the fix as <a href="https://github.com/BloomBooks/BloomDesktop/commit/59cc0ad5bd739f42e74071854e75ec325da8ab6b" target="_blank" rel="noopener">59cc0ad5bd</a> and opened the draft PR. The walkaround replaced the first version of the fix (forcing MUI to initialize first in the harness) with the ESM alias, which removes the cause.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review</th><td>Light sub-agent pass: clean, no findings.</td></tr>
+<tr><th>Walkaround</th><td>/simplify ran; one change: the fix moved to its root cause (the alias), dropping the harness workaround. No proposals.</td></tr>
+<tr><th>Devin</th><td>Complete on 59cc0ad5bd: no bugs, no flags.</td></tr>
+<tr><th>Greptile</th><td>Complete on 59cc0ad5bd: "no actionable issues were found."</td></tr>
+<tr><th>CI</th><td>All checks finished: <code>pr-automation</code> passed, <code>no-dependency-changes</code> skipped.</td></tr>
+<tr><th>E2E repo check</th><td>Did not apply: no e2e spec changed.</td></tr>
+</table>
+</section>
+</main>
+
+<aside>
+<section class="card">
+<h2>Decisions</h2>
+<p>Nothing is waiting on you. The PR is a draft and ready for your own review.</p>
+</section>
+</aside>
+</div>
+</div>
+</body>
+</html>
