@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decisions</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-18","about":"BloomBooks/BloomDesktop PR #8547, branch bot/bl-16728-report-an-unwritable-collection-folder-an (BL-16728), preflight at f062191080","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bot-bl-16728-report-an-unwritable-collection-folder-an.html","context":["<b>Preflight report: BL-16728, report an unwritable collection folder and offer the chooser instead of exiting.<\/b> Clean on every gate; four decisions wait on you. <!-- pr-state:begin --><span class=\"chip\" data-pr-state=\"draft\">Draft PR<\/span><!-- pr-state:end --> · mergeable · bots: quiet (one flag left for you)","<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547\" target=\"_blank\" rel=\"noopener\">PR #8547<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547/files\" target=\"_blank\" rel=\"noopener\">Files changed<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547/commits\" target=\"_blank\" rel=\"noopener\">Commits<\/a> · <a href=\"https://issues.bloomlibrary.org/youtrack/issue/BL-16728\" target=\"_blank\" rel=\"noopener\">BL-16728<\/a> · <a href=\"https://devinreview.com/BloomBooks/BloomDesktop/pull/8547\" target=\"_blank\" rel=\"noopener\">Devin review<\/a>","<b>Problem.<\/b> When Bloom couldn't write in a collection's folder, it showed a message blaming Windows Defender and quit, both while opening the collection and at startup when that collection was the last one open, so the user never got to pick another collection. It blamed Defender for every cause, including a read-only folder or a share without write permission.","<b>Cause.<\/b> The check ran inside the <code>CollectionSettings<\/code> constructor and called <code>Environment.Exit<\/code>, skipping the cleanup and recovery that opening a collection normally does when it fails.","<b>What the PR does.<\/b> Opening a collection whose folder can't be written now reports the problem and offers the collection chooser instead of quitting; the check runs before a Team Collection syncs, so the user sees the folder message rather than a Team Collection error. Creating a collection there (the New Collection wizard) reports it and leaves the user where they were. The message now follows the evidence from BL-17056's diagnostics: when antivirus (Controlled Folder Access, Avast's Ransomware Shield) is suspected the user gets the virus-protection message, the likely cause, and the troubleshooting-file-access help page; access denied with no antivirus suspected gets a new permission / read-only message; any other likely cause (such as OneDrive) is added to either. The evidence is logged. At startup Bloom checks only Documents, and only when there is no recent collection.","<b>Quality gate.<\/b> C# build: passes. C# tests: <span class=\"numeral\">154 passed, 0 failed<\/span> (<code>DefenderFolderProtectionCheckTests<\/code>, <code>CollectionSettingsTests<\/code>, <code>FileAccessDiagnostics<\/code>/<code>FileAccessStartupCheck<\/code>, <code>BookDownload<\/code>, <code>NewCollection<\/code>, <code>ProjectContext<\/code>, <code>TeamCollectionApiTests<\/code>, <code>TeamCollectionManagerTests<\/code>). TypeScript typecheck, lint and tests: not run, no front-end change. E2E repo check: did not apply, no spec changed. Merge with master: rebased, up to date.","<b>What changed this run.<\/b> Rebased on master; made the message choice use BL-17056's diagnostics so Avast and Controlled Folder Access users aren't told to ask for permission; fixed the review findings (creating a collection crashed instead of explaining; the Downloads-folder startup step crashed; a Team Collection error could come before the folder message; cloud-sync folders got the antivirus message); tidied the check. <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547/commits\" target=\"_blank\" rel=\"noopener\">Commits<\/a>.","<b>Reviewers.<\/b> Local review (light sub-agent pass): 2 found, 2 fixed. Walkaround with <code>/simplify<\/code> (two passes): tidied names, comments and a pass-through, fixed a check that would have misreported a missing folder, and sent 3 proposals to the decisions here. Devin: complete on <code>f062191080<\/code>; its <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547#discussion_r4619882916\" target=\"_blank\" rel=\"noopener\">Team Collection bug<\/a> and <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547#discussion_r4619883160\" target=\"_blank\" rel=\"noopener\">cloud-folder flag<\/a> are fixed and resolved; its localization flag is decision 1. Greptile: reviewed <code>aa4d90e7a8<\/code> after a re-trigger; its one finding (cloud folders still blamed antivirus) is <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547#discussion_r4619848134\" target=\"_blank\" rel=\"noopener\">fixed and resolved<\/a>; it has not reviewed the later fix commits. CI (Bot PR dependencies, PR Automation): passed on <code>f062191080<\/code>.","<b>Worth knowing.<\/b> Nobody has run this in a real Bloom against a denied or antivirus-protected folder; the unit tests cover how the failure is thrown and classified, not the dialogs. Opening a collection now writes a test file in its folder twice (once in ProjectContext, once in the CollectionSettings constructor); decision 3 would remove that."],"questions":[{"title":"Which XLF file should the new permission message go in?","context":["The new string <code>Errors.FolderNotWritable<\/code> (\"You may not have permission to change files there, or the folder may be read-only. Move the collection to a folder you can change…\") is in <code>BloomLowPriority.xlf<\/code> with <code>translate=\"no\"<\/code>, as the PR targets master. The bot that first wrote the PR picked the low-priority file without asking, and Devin flagged it (<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8547#discussion_r4619883393\" target=\"_blank\" rel=\"noopener\">thread<\/a>).","It is the second paragraph of a message whose first line, <code>Errors.DefenderFolderProtectionHeading<\/code>, and whose antivirus alternative, <code>Errors.DefenderFolderProtection<\/code>, are both in the high-priority <code>Bloom.xlf<\/code>. In a language that has the high-priority file translated but not the low-priority one, a user would get a translated heading over an English explanation."],"options":[{"label":"Move it to Bloom.xlf, next to the heading","recommended":true,"why":"Recommended because the two paragraphs of one message should be translated together.","effort":"move one trans-unit, no code change","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\bot-bl-16728-report-an-unwritable-collection-folder-an (BloomBooks/BloomDesktop, branch bot/bl-16728-report-an-unwritable-collection-folder-an, PR #8547), move the Errors.FolderNotWritable trans-unit from DistFiles/localization/en/BloomLowPriority.xlf to DistFiles/localization/en/Bloom.xlf beside Errors.DefenderFolderProtectionHeading, keeping translate=\"no\" and its notes, following .claude/skills/xlf-strings/SKILL.md. Then reply on the Devin 'Localization priority needs human approval' thread recording the decision and resolve it."}],"leaveAsIs":"Errors.FolderNotWritable stays in BloomLowPriority.xlf; reply on the Devin thread recording that decision and resolve it."},{"title":"Should the permission message open the file-permissions help page?","context":["When Bloom decides the folder is a permission or read-only problem, it shows the message and opens no help page. When antivirus is suspected it opens <a href=\"https://docs.bloomlibrary.org/troubleshooting-file-access\" target=\"_blank\" rel=\"noopener\">troubleshooting-file-access<\/a> (<a href=\"https://github.com/BloomBooks/BloomDesktop/blob/f062191080a01735fd0e4d4669894fe33af0ae2b/src/BloomExe/MiscUI/DefenderFolderProtectionCheck.cs#L149\" target=\"_blank\" rel=\"noopener\">DefenderFolderProtectionCheck.cs:149<\/a>).","Bloom already has a page for permission problems, <a href=\"https://docs.bloomlibrary.org/windows-file-permissions\" target=\"_blank\" rel=\"noopener\">windows-file-permissions<\/a> (<code>BookStorage.kFileAccessPermissionHelpUrl<\/code>), which access-denied errors on a book link to. A <code>/simplify<\/code> reviewer suggested opening it here too."],"options":[{"label":"Open windows-file-permissions for permission problems","recommended":true,"why":"Recommended because these users are told to ask an administrator, and that page tells the administrator what to change.","effort":"~3 lines, low risk; changes what the user sees","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\bot-bl-16728-report-an-unwritable-collection-folder-an (BloomBooks/BloomDesktop, branch bot/bl-16728-report-an-unwritable-collection-folder-an, PR #8547), in src/BloomExe/MiscUI/DefenderFolderProtectionCheck.cs ReportProblem, open BookStorage.kFileAccessPermissionHelpUrl when isPermissionProblem is true (keep FileAccessDiagnostics.kTroubleshootingUrl otherwise). Update the test ideas comment on BL-16728 to say a help page opens in both cases."}],"leaveAsIs":"a permission or read-only problem shows its message and opens no help page.","codeComment":true},{"title":"Move the folder check out of the CollectionSettings constructor?","context":["Every <code>new CollectionSettings(...)<\/code> for an existing or new collection test-writes a file in the folder (<a href=\"https://github.com/BloomBooks/BloomDesktop/blob/f062191080a01735fd0e4d4669894fe33af0ae2b/src/BloomExe/Collection/CollectionSettings.cs#L314\" target=\"_blank\" rel=\"noopener\">CollectionSettings.cs:314<\/a>, <a href=\"https://github.com/BloomBooks/BloomDesktop/blob/f062191080a01735fd0e4d4669894fe33af0ae2b/src/BloomExe/Collection/CollectionSettings.cs#L325\" target=\"_blank\" rel=\"noopener\">:325<\/a>) and now throws instead of quitting. Opening a collection and the two creation paths catch that and explain. Other code that reads a collection's settings doesn't: <code>BulkUploader<\/code>, download for editing, and the <code>changeLayout<\/code> and spreadsheet-export command-line commands now get a general error report (before, a message and Bloom quit). Opening a collection also checks twice, since ProjectContext checks before the Team Collection sync.","The alternative: check only where a collection is opened for editing (ProjectContext, already done) and where one is created, and drop the check from the constructor. Read-only users of the settings would then not check at all, which is what they need."],"options":[{"label":"Move it now, in this PR","why":"Removes the double check and the uncaught cases, but grows a bug-fix PR into a refactor of a constructor many callers use.","effort":"moderate: ~5 call sites plus checking each caller; moderate risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\bot-bl-16728-report-an-unwritable-collection-folder-an (BloomBooks/BloomDesktop, branch bot/bl-16728-report-an-unwritable-collection-folder-an, PR #8547), remove the ThrowIfFolderNotWritable calls from the CollectionSettings(string, bool) constructor and call CollectionSettings.ThrowIfFolderNotWritable only where a collection is opened for editing (ProjectContext constructor, already there) and where one is created (CollectionSettings.CreateNewCollection / the NewCollectionSettings constructor path, used by NewCollectionWizard and BookDownloadSupport). Check BulkUploader, BookDownload's download-for-edit, ChangeLayoutCommand and SpreadsheetExportCommand still behave, then run the related tests."},{"label":"Make a follow-up card","recommended":true,"why":"Recommended because the uncaught cases are rare, already no worse than before (they used to quit), and the refactor deserves its own review.","effort":"no code here; a YouTrack card","instruction":"Create a YouTrack card on the Bloom 6.6 board: 'Check that a collection folder is writable only where Bloom opens or creates a collection', describing that CollectionSettings' constructor test-writes the folder for every caller (CollectionSettings.cs ThrowIfFolderNotWritable calls), that BulkUploader, download-for-edit, ChangeLayoutCommand and SpreadsheetExportCommand get an uncaught CollectionFolderNotWritableException, and that opening a collection checks twice since BL-16728. Link it from BL-16728."}],"leaveAsIs":"the check stays in the CollectionSettings constructor, with the double check on open and a general error report for the read-only callers.","codeComment":true},{"title":"Unify this message with BL-17056's background warning?","context":["Bloom now has two ways of saying it can't change files in a collection: this PR's modal message when it can't write at all (<code>DefenderFolderProtectionCheck.ReportProblem<\/code>), and BL-17056's toast after a collection opens when antivirus blocks some operations (<code>FileAccessStartupCheck<\/code>). Each probes the folder, gathers the same diagnostics and words its own message with its own strings. They already differ: one shows the folder path and one hides it, and only this one has the permission wording. A <code>/simplify<\/code> reviewer suggested one place that picks the cause and the message, used by both."],"options":[{"label":"Make a follow-up card","recommended":true,"why":"Recommended because the two reports will drift, but merging them means reconciling strings, which is out of scope for this fix.","effort":"no code here; a YouTrack card","instruction":"Create a YouTrack card on the Bloom 6.6 board: 'One place to explain why Bloom can't change files in a collection', describing DefenderFolderProtectionCheck.ReportProblem (modal, BL-16728) and FileAccessStartupCheck.ReportBlocked (toast, BL-17056) each collecting FileAccessDiagnostics evidence and wording their own messages, and proposing one classifier and message source used by both. Link it from BL-16728 and BL-17056."}],"leaveAsIs":"the two reports stay separate."},{"title":"Next step","context":["What should happen once these are answered?"],"options":[{"label":"Do my choices, then re-run preflight","recommended":true,"why":"Recommended because any code change restarts the reviewers.","effort":"depends on the choices","instruction":"Carry out the decisions above on PR #8547 (branch bot/bl-16728-report-an-unwritable-collection-folder-an), then run /preflight again."},{"label":"Do my choices; I'll review before anything else","why":"For when you want to look at the code first.","effort":"depends on the choices","instruction":"Carry out the decisions above on PR #8547 (branch bot/bl-16728-report-an-unwritable-collection-folder-an), commit and push, and stop for my review without re-running preflight."}],"leaveAsIs":"nothing more happens until I say."}]}</script>
+</head>
+<body>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
