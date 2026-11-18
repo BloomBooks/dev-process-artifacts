@@ -38,12 +38,12 @@ button.secondary{background:#fff;color:var(--accent)}
 <body>
 <header>
 <h1>Preflight: BL-17067 Keyman check</h1>
-<div>Preflight run on 2026-11-18 at <span class="numeral">317d19f</span>. All gates passed and every reviewer is clean. Two questions are waiting for you.</div>
+<div>Preflight run on 2026-11-18 at <span class="numeral">317d19f</span>. Re-run after your answers. All gates passed, every reviewer is clean, and nothing is waiting on you.</div>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8592" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
 <span class="chip ok">Bots quiet</span>
-<span class="chip wait">2 items waiting on you</span>
+<span class="chip ok">Nothing waiting on you</span>
 </div>
 <div class="chips">
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8592" target="_blank" rel="noopener">PR #8592</a>
@@ -77,13 +77,13 @@ button.secondary{background:#fff;color:var(--accent)}
 </section>
 <section class="card">
 <h2>What changed this run</h2>
-<p>Committed the fix, merged master, opened the draft PR, linked it on the card, and posted test ideas there. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8592/commits" target="_blank" rel="noopener">commits</a>.</p>
+<p>No code changes. This run recorded your test decision in the PR description and re-checked the PR against the same HEAD. Master has since gained one unrelated test-only commit, and the PR still merges cleanly, so it was not merged in. The first run committed the fix, merged master, opened the draft PR, and posted test ideas on the card. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8592/commits" target="_blank" rel="noopener">commits</a>.</p>
 </section>
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <table>
 <tr><th>Local review</th><td>Light sub-agent pass: clean, no findings.</td></tr>
-<tr><th>Walkaround</th><td>One change: shortened the new comment so it gives the current reason rather than the history. One proposal, item 2 on the right.</td></tr>
+<tr><th>Walkaround</th><td>One change: shortened the new comment so it gives the current reason rather than the history. Its one proposal (convert other call sites, and check the .NET runtime) was left as is.</td></tr>
 <tr><th>Devin</th><td>Complete: no bugs and no flags.</td></tr>
 <tr><th>Greptile</th><td>Complete: "Low impact … safe to merge", no inline comments.</td></tr>
 <tr><th>CI</th><td>pr-automation passed. This PR runs no other checks.</td></tr>
@@ -100,73 +100,10 @@ button.secondary{background:#fff;color:var(--accent)}
 <div>
 <section class="card" id="decisions">
 <h2>Decisions</h2>
-<div class="q" data-q="Test of the change">
-<h3>1. Does this PR need an automated test?</h3>
-<p>The PR adds no test. The failure happened inside .NET's reflection stub on one ARM64 machine, and no test can make that stub misbehave. What a test could check is narrower: that the endpoint still answers "false" when an input processor is active and "true" when it is not. That would need a running WinForms form and a TSF input processor on the build machine, and <code>InputProcessorDetectorTests</code> already covers the detector itself.</p>
-<label class="opt"><input type="radio" name="q1" data-instruction="Record in PR #8592's Automated Tests section: 'Test of the change: none — developer's decision: the failure is a runtime fault in .NET's reflection stub on ARM64 that no test can reproduce, and InputProcessorDetectorTests already covers the check itself.'"> No test needed <span class="rec">(recommended)</span><small>Recommended because no test can reproduce the fault, and the detector already has its own test. Effort: no code, just the PR line.</small></label>
-<label class="opt"><input type="radio" name="q1" data-instruction="In BloomDesktop branch StephenMcConnel/BL-17067, add an STA NUnit test that registers KeyboardingConfigApi, opens a hidden Form, calls keyboarding/useLongpress from a background thread, and asserts the reply is 'true' with a keyboard layout active and 'false' with an input processor active (when one is installed)."> Write an endpoint test<small>Checks the reply from a background thread through to the form. Effort: about 60 lines; needs a form and an API test harness, so moderately fragile on build agents.</small></label>
-<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is: Test of the change stays 'awaiting the developer's decision'."> Leave as is<small>The PR can't be promoted while this is open.</small></label>
-<label class="opt"><input type="radio" name="q1" data-other> Other: <input type="text"></label>
-<textarea placeholder="Notes"></textarea>
-</div>
-<div class="q" data-q="Go deeper than this call site?">
-<h3>2. Should we go deeper than this one call site?</h3>
-<p>The walkaround's altitude reviewer judged this change to be a sound workaround but not a root-cause fix. The reflection stub ran code belonging to a different compiled method, which looks like a .NET runtime problem with emitted code on ARM64. The user had .NET 8.0.19. Bloom uses the installed .NET runtime rather than shipping its own.</p>
-<p>About nine other places send <code>Func&lt;T&gt;</code> or custom delegates through <code>Control.Invoke</code>. The busiest is <a href="https://github.com/BloomBooks/BloomDesktop/blob/317d19f9f487af242fb29e2afb5ccba589c4a951/src/BloomExe/web/controllers/ApiRequest.cs#L357" target="_blank" rel="noopener">ApiRequest.cs:357</a>, which every UI-thread API call goes through. That path did not fail for this user, so the fault seems specific to the keyboarding call's stub. The reviewer also checked the COM declaration of <code>GetActiveProfile</code> and found it correct on both x64 and ARM64.</p>
-<label class="opt"><input type="radio" name="q2" data-instruction="On YouTrack card BL-17067, ask the reporter (Colin Suggett) which .NET 8 runtime is installed and whether they run the ARM64 or x64 Bloom, and ask them to update the .NET 8 Desktop Runtime and say whether the error persists without this fix. Check the dotnet/runtime release notes after 8.0.19 for ARM64 DynamicMethod or reflection-invoke fixes."> Ask the reporter about their runtime, and check .NET's fixes <span class="rec">(recommended)</span><small>Recommended because it tells us whether the real fault is gone in a newer .NET, which would be the true fix. Effort: no code; one card comment and some reading.</small></label>
-<label class="opt"><input type="radio" name="q2" data-instruction="In BloomDesktop branch StephenMcConnel/BL-17067, change ApiRequest.cs:357 and HtmlThumbNailer.cs:405 to call Control.Invoke with a MethodInvoker closure that captures the result, the same way KeyboardingConfigApi now does."> Also convert the two busiest Func&lt;T&gt; call sites<small>Takes the hottest UI paths off the reflection stub in case the fault spreads. Effort: about 20 lines, low to moderate risk, since ApiRequest runs on every UI-thread API call.</small></label>
-<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is: take no action beyond the KeyboardingConfigApi workaround."> Leave as is<small>This PR fixes the one call site that failed.</small></label>
-<label class="opt"><input type="radio" name="q2" data-other> Other: <input type="text"></label>
-<textarea placeholder="Notes"></textarea>
-</div>
-<div class="q" data-q="Next step">
-<h3>3. Next step</h3>
-<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the recommended options above, then re-run preflight."> Do the recommendations, then re-run preflight <span class="rec">(recommended)</span></label>
-<label class="opt"><input type="radio" name="q3" data-instruction="Discuss these decisions before making any change."> Discuss first</label>
-<label class="opt"><input type="radio" name="q3" data-other> Other: <input type="text"></label>
-<textarea placeholder="Notes"></textarea>
-</div>
-</section>
-<section class="card">
-<h2>Copy-back</h2>
-<textarea id="payload" readonly></textarea>
-<p><button class="secondary" id="copy" type="button">Copy</button> <button id="send" type="button" hidden>Send to Claude</button> <span id="status"></span></p>
+<p>None open. The test decision is recorded in the PR description: no automated test, because the failure is a runtime fault on ARM64 that no test can reproduce, and the detector already has its own test.</p>
 </section>
 </div>
 </div>
-<script>
-const payload = document.getElementById("payload");
-function serialize() {
-  const lines = ["Decisions from the preflight report for BloomBooks/BloomDesktop PR #8592 (BL-17067), 2026-11-18", "url: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-stephenmcconnel-bl-17067.html", ""];
-  document.querySelectorAll(".q").forEach((q) => {
-    const picked = q.querySelector("input[type=radio]:checked");
-    let line;
-    if (!picked) line = "No decision yet — ask again later about: " + q.dataset.q;
-    else if (picked.hasAttribute("data-other")) line = "Other: " + picked.parentElement.querySelector("input[type=text]").value;
-    else line = picked.dataset.instruction;
-    lines.push(q.dataset.q + ": " + line);
-    const notes = q.querySelector("textarea").value.trim();
-    if (notes) lines.push("Notes: " + notes);
-  });
-  payload.value = lines.join("\n");
-}
-document.addEventListener("input", serialize);
-document.addEventListener("change", serialize);
-serialize();
-document.getElementById("copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(payload.value); document.getElementById("status").textContent = "Copied."; }
-  catch { payload.select(); document.execCommand("copy"); document.getElementById("status").textContent = "Copied (fallback)."; }
-};
-const send = document.getElementById("send");
-if (window.DECIDER_ENDPOINT) {
-  send.hidden = false;
-  send.onclick = async () => {
-    await fetch(window.DECIDER_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain" }, body: payload.value });
-    document.getElementById("status").textContent = "Sent to Claude.";
-    send.disabled = true;
-  };
-}
-document.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
-</script>
+
 </body>
 </html>
