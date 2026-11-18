@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17067</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f7f4ee;--card:#fff;--line:#e2ddd3;--ink:#2a2723;--muted:#6d665c;--accent:#2f6f5e;--warn:#9a5b12}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0 0 .5em}
+h1{font-size:1.5rem}h2{font-size:1.15rem}h3{font-size:1rem;margin-top:1em}
+a{color:var(--accent)}
+header{padding:20px 16px 8px;max-width:1300px;margin:0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;font-size:13px;text-decoration:none;color:var(--ink)}
+.chip.ok{border-color:#9cc7b8}.chip.wait{border-color:#e0b77c;color:var(--warn)}
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;max-width:1300px;margin:0 auto;padding:0 16px 32px}
+.grid>div{min-width:0}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%}
+td,th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600;width:32%}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.q{border-top:1px solid var(--line);padding-top:12px;margin-top:12px}
+.q:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.opt{display:block;margin:6px 0;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+.opt small{display:block;color:var(--muted)}
+.rec{color:var(--accent);font-weight:600}
+textarea{width:100%;min-height:52px;font:inherit;margin-top:6px}
+input[type=text]{width:70%;font:inherit}
+#payload{min-height:180px;font:13px ui-monospace,Consolas,monospace}
+button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+button.secondary{background:#fff;color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+<h1>Preflight: BL-17067 Keyman check</h1>
+<div>Preflight run on 2026-11-18 at <span class="numeral">317d19f</span>. All gates passed and every reviewer is clean. Two questions are waiting for you.</div>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8592" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip wait">2 items waiting on you</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8592" target="_blank" rel="noopener">PR #8592</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8592/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8592/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17067" target="_blank" rel="noopener">BL-17067</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8592" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<div class="grid">
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>A user running Keyman on an ARM64 Windows PC with Bloom 6.6 Alpha got "Error checking for keyman" on almost every page change in the Edit tab. Because the check failed, Bloom also missed that Keyman was active, so the long-press accent popup stayed on.</p>
+<h3>Cause</h3>
+<p>The <code>keyboarding/useLongpress</code> endpoint runs its check on the UI thread with <code>form.Invoke(Func&lt;bool&gt;)</code>. WinForms runs that kind of delegate through <code>Delegate.DynamicInvoke</code>. The stack trace shows the reflection stub (<code>InvokeStub_Func`1</code>) throwing <code>InvalidCastException</code>, and once <code>NullReferenceException</code>, before the check itself ever ran. The stub ended up running an unrelated DLR call site, which points to a .NET runtime problem with emitted code on ARM64 (the user had CLR 8.0.19), not to the Keyman check.</p>
+<h3>What the PR does</h3>
+<p>The endpoint now passes a <code>MethodInvoker</code> that sets a local, which WinForms calls directly, so this call no longer goes through the reflection stub (<a href="https://github.com/BloomBooks/BloomDesktop/blob/317d19f9f487af242fb29e2afb5ccba589c4a951/src/BloomExe/web/controllers/KeyboardingConfigApi.cs#L25" target="_blank" rel="noopener">KeyboardingConfigApi.cs:25</a>). This works around the problem at this one call site; it does not fix the runtime problem.</p>
+</section>
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>C# build (BloomExe)</th><td>Passed, after merging master</td></tr>
+<tr><th>C# format (CSharpier)</th><td>Passed</td></tr>
+<tr><th>C# tests</th><td><span class="numeral">1 passed</span>: <code>InputProcessorDetectorTests</code>, the only test that reaches the code this change calls</td></tr>
+<tr><th>TypeScript typecheck, lint, tests</th><td>Not run: no TypeScript in the diff</td></tr>
+<tr><th>E2E nightly-size check</th><td>Did not apply: no e2e specs in the diff</td></tr>
+<tr><th>Merge with master</th><td>Clean</td></tr>
+</table>
+</section>
+<section class="card">
+<h2>What changed this run</h2>
+<p>Committed the fix, merged master, opened the draft PR, linked it on the card, and posted test ideas there. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8592/commits" target="_blank" rel="noopener">commits</a>.</p>
+</section>
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Local review</th><td>Light sub-agent pass: clean, no findings.</td></tr>
+<tr><th>Walkaround</th><td>One change: shortened the new comment so it gives the current reason rather than the history. One proposal, item 2 on the right.</td></tr>
+<tr><th>Devin</th><td>Complete: no bugs and no flags.</td></tr>
+<tr><th>Greptile</th><td>Complete: "Low impact … safe to merge", no inline comments.</td></tr>
+<tr><th>CI</th><td>pr-automation passed. This PR runs no other checks.</td></tr>
+<tr><th>Repo check: e2e at nightly size</th><td>Did not apply: no e2e specs in the diff.</td></tr>
+</table>
+</section>
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Nobody has run the fix on an ARM64 PC with Keyman, the only setup where the error was seen. The test ideas on the card ask a tester to do that.</li>
+</ul>
+</section>
+</div>
+<div>
+<section class="card" id="decisions">
+<h2>Decisions</h2>
+<div class="q" data-q="Test of the change">
+<h3>1. Does this PR need an automated test?</h3>
+<p>The PR adds no test. The failure happened inside .NET's reflection stub on one ARM64 machine, and no test can make that stub misbehave. What a test could check is narrower: that the endpoint still answers "false" when an input processor is active and "true" when it is not. That would need a running WinForms form and a TSF input processor on the build machine, and <code>InputProcessorDetectorTests</code> already covers the detector itself.</p>
+<label class="opt"><input type="radio" name="q1" data-instruction="Record in PR #8592's Automated Tests section: 'Test of the change: none — developer's decision: the failure is a runtime fault in .NET's reflection stub on ARM64 that no test can reproduce, and InputProcessorDetectorTests already covers the check itself.'"> No test needed <span class="rec">(recommended)</span><small>Recommended because no test can reproduce the fault, and the detector already has its own test. Effort: no code, just the PR line.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="In BloomDesktop branch StephenMcConnel/BL-17067, add an STA NUnit test that registers KeyboardingConfigApi, opens a hidden Form, calls keyboarding/useLongpress from a background thread, and asserts the reply is 'true' with a keyboard layout active and 'false' with an input processor active (when one is installed)."> Write an endpoint test<small>Checks the reply from a background thread through to the form. Effort: about 60 lines; needs a form and an API test harness, so moderately fragile on build agents.</small></label>
+<label class="opt"><input type="radio" name="q1" data-instruction="Leave as is: Test of the change stays 'awaiting the developer's decision'."> Leave as is<small>The PR can't be promoted while this is open.</small></label>
+<label class="opt"><input type="radio" name="q1" data-other> Other: <input type="text"></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+<div class="q" data-q="Go deeper than this call site?">
+<h3>2. Should we go deeper than this one call site?</h3>
+<p>The walkaround's altitude reviewer judged this change to be a sound workaround but not a root-cause fix. The reflection stub ran code belonging to a different compiled method, which looks like a .NET runtime problem with emitted code on ARM64. The user had .NET 8.0.19. Bloom uses the installed .NET runtime rather than shipping its own.</p>
+<p>About nine other places send <code>Func&lt;T&gt;</code> or custom delegates through <code>Control.Invoke</code>. The busiest is <a href="https://github.com/BloomBooks/BloomDesktop/blob/317d19f9f487af242fb29e2afb5ccba589c4a951/src/BloomExe/web/controllers/ApiRequest.cs#L357" target="_blank" rel="noopener">ApiRequest.cs:357</a>, which every UI-thread API call goes through. That path did not fail for this user, so the fault seems specific to the keyboarding call's stub. The reviewer also checked the COM declaration of <code>GetActiveProfile</code> and found it correct on both x64 and ARM64.</p>
+<label class="opt"><input type="radio" name="q2" data-instruction="On YouTrack card BL-17067, ask the reporter (Colin Suggett) which .NET 8 runtime is installed and whether they run the ARM64 or x64 Bloom, and ask them to update the .NET 8 Desktop Runtime and say whether the error persists without this fix. Check the dotnet/runtime release notes after 8.0.19 for ARM64 DynamicMethod or reflection-invoke fixes."> Ask the reporter about their runtime, and check .NET's fixes <span class="rec">(recommended)</span><small>Recommended because it tells us whether the real fault is gone in a newer .NET, which would be the true fix. Effort: no code; one card comment and some reading.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="In BloomDesktop branch StephenMcConnel/BL-17067, change ApiRequest.cs:357 and HtmlThumbNailer.cs:405 to call Control.Invoke with a MethodInvoker closure that captures the result, the same way KeyboardingConfigApi now does."> Also convert the two busiest Func&lt;T&gt; call sites<small>Takes the hottest UI paths off the reflection stub in case the fault spreads. Effort: about 20 lines, low to moderate risk, since ApiRequest runs on every UI-thread API call.</small></label>
+<label class="opt"><input type="radio" name="q2" data-instruction="Leave as is: take no action beyond the KeyboardingConfigApi workaround."> Leave as is<small>This PR fixes the one call site that failed.</small></label>
+<label class="opt"><input type="radio" name="q2" data-other> Other: <input type="text"></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+<div class="q" data-q="Next step">
+<h3>3. Next step</h3>
+<label class="opt"><input type="radio" name="q3" data-instruction="Carry out the recommended options above, then re-run preflight."> Do the recommendations, then re-run preflight <span class="rec">(recommended)</span></label>
+<label class="opt"><input type="radio" name="q3" data-instruction="Discuss these decisions before making any change."> Discuss first</label>
+<label class="opt"><input type="radio" name="q3" data-other> Other: <input type="text"></label>
+<textarea placeholder="Notes"></textarea>
+</div>
+</section>
+<section class="card">
+<h2>Copy-back</h2>
+<textarea id="payload" readonly></textarea>
+<p><button class="secondary" id="copy" type="button">Copy</button> <button id="send" type="button" hidden>Send to Claude</button> <span id="status"></span></p>
+</section>
+</div>
+</div>
+<script>
+const payload = document.getElementById("payload");
+function serialize() {
+  const lines = ["Decisions from the preflight report for BloomBooks/BloomDesktop PR #8592 (BL-17067), 2026-11-18", "url: https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-stephenmcconnel-bl-17067.html", ""];
+  document.querySelectorAll(".q").forEach((q) => {
+    const picked = q.querySelector("input[type=radio]:checked");
+    let line;
+    if (!picked) line = "No decision yet — ask again later about: " + q.dataset.q;
+    else if (picked.hasAttribute("data-other")) line = "Other: " + picked.parentElement.querySelector("input[type=text]").value;
+    else line = picked.dataset.instruction;
+    lines.push(q.dataset.q + ": " + line);
+    const notes = q.querySelector("textarea").value.trim();
+    if (notes) lines.push("Notes: " + notes);
+  });
+  payload.value = lines.join("\n");
+}
+document.addEventListener("input", serialize);
+document.addEventListener("change", serialize);
+serialize();
+document.getElementById("copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(payload.value); document.getElementById("status").textContent = "Copied."; }
+  catch { payload.select(); document.execCommand("copy"); document.getElementById("status").textContent = "Copied (fallback)."; }
+};
+const send = document.getElementById("send");
+if (window.DECIDER_ENDPOINT) {
+  send.hidden = false;
+  send.onclick = async () => {
+    await fetch(window.DECIDER_ENDPOINT, { method: "POST", headers: { "Content-Type": "text/plain" }, body: payload.value });
+    document.getElementById("status").textContent = "Sent to Claude.";
+    send.disabled = true;
+  };
+}
+document.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener"; });
+</script>
+</body>
+</html>
