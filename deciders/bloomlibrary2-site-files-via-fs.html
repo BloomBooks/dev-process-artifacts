@@ -35,8 +35,8 @@ ul{padding-left:1.2rem;margin:.3rem 0}
 <body>
 <div class="wrap">
 <header>
-<h1>Serve book downloads through api.bloomlibrary.org/v1/fs</h1>
-<div class="muted">Preflight on <code>site-files-via-fs</code> at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/f66823caf8168f79384e871dfa1a22aa9f5b2a46" target="_blank" rel="noopener"><span class="numeral">f66823ca</span></a>: clean. Nothing is waiting on you.</div>
+<h1>Serve book downloads through api.bloomlibrary.org/v1/fs, versioned</h1>
+<div class="muted">Preflight on <code>site-files-via-fs</code> at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/ee51b322ccbfac7a8afa6546d91a3699a114e005" target="_blank" rel="noopener"><span class="numeral">ee51b322</span></a>: clean. Nothing is waiting on you.</div>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
@@ -47,6 +47,7 @@ ul{padding-left:1.2rem;margin:.3rem 0}
 <a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">PR #628</a>
 <a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/files" target="_blank" rel="noopener">Files changed</a>
 <a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Depends on bloom-core-supabase #15</a>
 <a class="chip" href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin</a>
 </div>
 </header>
@@ -55,54 +56,56 @@ ul{padding-left:1.2rem;margin:.3rem 0}
 <main>
 <section class="card">
 <h2>What this PR is about</h2>
+<p><b>Depends on <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">bloom-core-supabase #15</a></b> (the worker accepts <code>?v=</code> and caches versioned URLs for a year) being deployed to the production worker first. Until then <code>?v=</code> is ignored: the files are served, just not cached.</p>
 <h3>Purpose</h3>
-<p>The site's book downloads (PDF, ePUB, BloomPUB/.bloomd, .bloomSource) now come through <code>api.bloomlibrary.org/v1/fs</code> instead of straight from S3. This is always on. Direct S3 downloads are billed AWS egress, and Cloudflare's rate limits and bot rules never see them. S3 URLs also show the book's S3 folder, which can include the uploader's email.</p>
+<p>The site's book downloads (PDF, ePUB, BloomPUB/.bloomd, .bloomSource) now come through <code>api.bloomlibrary.org/v1/fs</code> instead of straight from S3, with a version in the URL. Direct S3 downloads are billed AWS egress and invisible to Cloudflare's rules, and S3 URLs can show the uploader's email. The version lets the worker cache every download for a year without ever serving a stale file.</p>
 <h3>What the PR does</h3>
 <ul>
-<li>A new <code>FsUrl.ts</code> builds <code>/v1/fs/{bucket}/{bookId}/{path}</code>: <code>upload</code> for the PDF, <code>harvest</code> for the rest, with a <code>dev-</code> prefix for sandbox books. The URL carries no version.</li>
-<li>Names are encoded for the fs function's double decode. A literal <code>+</code> or <code>%</code> is double-encoded; everything else is encoded once, so file names stay readable.</li>
-<li><code>getArtifactUrl</code> tries the fs URL first for those four downloads. When none can be built, it uses today's S3 URL. Reading online and everything else are unchanged.</li>
-<li>Known quirk: titles with a literal <code>+</code> or <code>%</code> download under an encoded name until the API sends <code>Content-Disposition</code>.</li>
+<li>A new <code>FsUrl.ts</code> builds <code>/v1/fs/{bucket}/{bookId}/{path}?v={epochMs}</code>: <code>upload</code> for the PDF, <code>harvest</code> for the rest, with a <code>dev-</code> prefix for sandbox books.</li>
+<li>The PDF is versioned by <code>lastUploaded</code>; harvested files by <code>harvestStartedAt</code>, offered only once the harvest is <code>Done</code>. No usable version gives the unversioned URL.</li>
+<li>Names are encoded for the fs function's double decode: a literal <code>+</code> or <code>%</code> is double-encoded, everything else once.</li>
+<li>No S3 fallback: a download whose fs URL can't be built isn't offered, and its button is disabled or hidden.</li>
+<li>Download buttons take the file name from the URL without its <code>?v=</code>. Reading online and shellbooks are unchanged.</li>
 </ul>
-<p class="muted">Earlier work on versioned URLs and reading online through fs is kept on <a href="https://github.com/BloomBooks/BloomLibrary2/tree/site-files-via-fs-versioned" target="_blank" rel="noopener"><code>site-files-via-fs-versioned</code></a>.</p>
+<p class="muted">Earlier work on reading online through fs is kept on <a href="https://github.com/BloomBooks/BloomLibrary2/tree/site-files-via-fs-versioned" target="_blank" rel="noopener"><code>site-files-via-fs-versioned</code></a>.</p>
 </section>
 
 <section class="card">
 <h2>Quality gate</h2>
 <table>
 <tr><th>Check</th><th>Result</th></tr>
-<tr><td>TypeScript tests (vitest)</td><td><span class="pass">pass</span>: <span class="numeral">150</span> related tests in <code>src/components</code> and <code>src/model</code> at HEAD; the full suite (<span class="numeral">223</span>) passed earlier on <span class="numeral">0dddf443</span></td></tr>
+<tr><td>TypeScript tests (vitest)</td><td><span class="pass">pass</span>: all <span class="numeral">226</span> at <span class="numeral">ee51b322</span> (after the master merge)</td></tr>
 <tr><td>Lint (eslint)</td><td><span class="pass">pass</span></td></tr>
-<tr><td>Typecheck (tsc)</td><td>No errors in the changed files. The <span class="numeral">22</span> errors elsewhere are already on master (Contentful types, <code>history</code>); the build does not typecheck.</td></tr>
-<tr><td>Build (<code>pnpm build</code>)</td><td><span class="pass">pass</span></td></tr>
+<tr><td>Typecheck (tsc)</td><td>No errors in the changed files. The <span class="numeral">22</span> errors elsewhere are already on master; the build does not typecheck.</td></tr>
+<tr><td>Build (<code>pnpm build</code>)</td><td><span class="pass">pass</span> with master's Vite 6.4.6</td></tr>
 <tr><td>C# / other stacks</td><td>N/A: none in this repo</td></tr>
-<tr><td>Merge with master</td><td>Already up to date; mergeable</td></tr>
-<tr><td>Live downloads</td><td>PDF, ePUB and <code>.bloompub</code> of two production books through fs: byte-identical to S3, with readable file names</td></tr>
+<tr><td>Merge with master</td><td>Merged the Vite security upgrade cleanly; mergeable</td></tr>
+<tr><td>Live downloads</td><td>All four download types with <code>?v=</code> against production, for 3 prod books and 2 dev special-character books: 200 and byte-identical to S3</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>The PR was cut down to the downloads change alone, with no flags, versions or read-online change (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/0dddf443" target="_blank" rel="noopener"><span class="numeral">0dddf443</span></a>). The walkaround then had each harvested download build its path once, for both fs and S3 (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/f66823caf8168f79384e871dfa1a22aa9f5b2a46" target="_blank" rel="noopener"><span class="numeral">f66823ca</span></a>). The PR title and description were rewritten to match.</p>
+<p>Downloads gained <code>?v=</code> versions and lost the S3 fallback (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/309915f5" target="_blank" rel="noopener"><span class="numeral">309915f5</span></a>). The local review found the version leaking into download file names and buttons left enabled with no URL; both fixed (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/ffad56aa" target="_blank" rel="noopener"><span class="numeral">ffad56aa</span></a>). The walkaround tidied the code without changing behavior (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/fc46ebe2" target="_blank" rel="noopener"><span class="numeral">fc46ebe2</span></a>), and master was merged in.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
-<tr><td>Walkaround + /simplify</td><td>2 changes: one path per harvested download with a single fs-or-S3 fallback, and removal of a harvest check that can never fire. 0 proposals.</td></tr>
-<tr><td>Devin</td><td>Complete at <span class="numeral">f66823ca</span>: no bugs. Its one Investigate flag is the old one about the removed version flag, <a href="https://github.com/BloomBooks/BloomLibrary2/pull/628#discussion_r4569992348" target="_blank" rel="noopener">already answered and resolved</a>.</td></tr>
-<tr><td>Greptile</td><td>Complete at <span class="numeral">f66823ca</span>: "safe to merge; no new actionable issues".</td></tr>
-<tr><td>CI</td><td>No CI runs on PRs in this repo. Reviewable is waiting for a human review, as expected.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>3 raised: 2 fixed (file names, empty-URL buttons); 1 is the known <code>+</code>/<code>%</code> file-name quirk, already in the description and fixed by bloom-core-supabase #15.</td></tr>
+<tr><td>Walkaround + /simplify</td><td>3 changes (the <code>+</code> re-encoding moved to the shellbook case, a flatter <code>getDownloadUrl</code>, one <code>enabled</code> flag in DownloadsGroup). 0 proposals.</td></tr>
+<tr><td>Devin</td><td>Complete at <span class="numeral">ee51b322</span>: no bugs. Its one Investigate flag repeats the old one about the removed version flag, <a href="https://github.com/BloomBooks/BloomLibrary2/pull/628#discussion_r4569992348" target="_blank" rel="noopener">already answered and resolved</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete at <span class="numeral">ee51b322</span>: "safe to merge with the worker deployment order stated in the description"; no comments.</td></tr>
+<tr><td>CI</td><td>No CI runs on PRs in this repo. Reviewable is waiting for a human review.</td></tr>
 </table>
 </section>
 
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Not part of this PR: <a href="https://github.com/BloomBooks/BloomLibrary2/blob/f66823caf8168f79384e871dfa1a22aa9f5b2a46/src/export/freeLearningIO.ts#L137" target="_blank" rel="noopener"><code>freeLearningIO.ts:137</code></a> already builds an fs thumbnail URL by hand. It always uses <code>harvest</code>, so sandbox books would point at the production bucket. It could use the new <code>getFsUrl</code> later.</li>
-<li>The app-hosted download button sends a HEAD request for the file size, and that now goes through fs too. It was checked: 200 with <code>Content-Length</code> for a browser.</li>
+<li>Deploy order: bloom-core-supabase #15 on the production worker first. Shipping this first is harmless (no caching yet), but the <code>+</code>/<code>%</code> file-name fix and the egress savings arrive only with #15.</li>
+<li>Supabase's own firewall blocks one known file name, the 2024 draft "one + one = two"; see <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/develop/supabase/functions/fs/README.md#known-limitation-supabases-firewall-blocks-some-file-names" target="_blank" rel="noopener">the fs README</a>.</li>
 </ul>
 </section>
 </main>
