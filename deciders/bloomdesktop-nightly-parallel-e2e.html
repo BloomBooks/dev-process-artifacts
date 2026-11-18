@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decisions</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-18","about":"Preflight report — BloomBooks/BloomDesktop PR #8590, branch nightly-parallel-e2e (worktree C:\\dev\\_worktrees\\BloomDesktop\\ask)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-nightly-parallel-e2e.html","context":["<b>Preflight report: run the nightly's BloomE2E suite in three parallel shards<\/b> — PR is clean; 4 decisions wait on you.","<!-- pr-state:begin --><span class=\"chip\" data-pr-state=\"draft\">Draft PR<\/span><!-- pr-state:end --> · mergeable · bots quiet · 4 decisions","<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590\" target=\"_blank\" rel=\"noopener\">PR #8590<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590/files\" target=\"_blank\" rel=\"noopener\">Files changed<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590/commits\" target=\"_blank\" rel=\"noopener\">Commits<\/a> · <a href=\"https://devinreview.com/BloomBooks/BloomDesktop/pull/8590\" target=\"_blank\" rel=\"noopener\">Devin review<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/actions/runs/44342294290\" target=\"_blank\" rel=\"noopener\">Nightly run on this branch<\/a> · no YouTrack card","<b>Purpose.<\/b> The BloomE2E suite has grown to 82 minutes. On 2026-11-18 it pushed the nightly past its 120-minute job timeout: visual regression was cut off and no Slack report was posted. BloomE2E runs one Bloom at a time, so the only way to run it in parallel is on separate machines. This PR runs it in three shards, each on its own runner, alongside the rest of the nightly. A night should drop from over two hours to about 45 minutes.","<b>What the PR does.<\/b> <code>build-and-test<\/code> keeps every suite except BloomE2E and passes each step's outcome to later jobs. A new <code>e2e<\/code> matrix job runs <code>playwright test --shard=N/3<\/code> on three runners, each doing its own setup and builds; one shard's failure doesn't cancel the others. A new <code>report<\/code> job publishes the BloomE2E check from all shards' results. It writes a failing stand-in result for any shard that left none (setup failure, killed at its timeout), and finds the shards across every attempt, so re-running only the report job still works. It then posts the Slack report, which shows BloomE2E's time as its slowest shard's, posts even when another job dies on its timeout, and says \"passed\" only when no suite line reports a failure. The nightly-triage skill and the BloomE2E README give the new artifact names.","<b>Quality gate.<\/b> TypeScript typecheck, lint and tests: not run — no TypeScript in the diff. C# build and tests: not run — no C# in the diff. Workflow YAML: parses, and the commit hook's formatter passed. The report and stand-in PowerShell scripts parse, and were replayed locally against a real run's results, the real jobs API and faked shard jobs, covering pass, a failing shard, a missing shard, a renamed shard job, a failed results download, all suites unticked, and a failed timings lookup. E2E repo check: did not apply — no spec files changed. Merge: up to date with master, mergeable. The workflow as a whole is being tested by <a href=\"https://github.com/BloomBooks/BloomDesktop/actions/runs/44342294290\" target=\"_blank\" rel=\"noopener\">the nightly dispatched on this branch<\/a>; its result is not in yet.","<b>What changed this run.<\/b> Opened the branch's first PR, then fixed what the reviewers found: the shards' results files overwrote each other, a shard that left no results let the check pass, a re-run of only the report job failed a passing night, and the report could say \"passed\" when it could not read results. See the <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590/commits\" target=\"_blank\" rel=\"noopener\">commits<\/a>.","<b>Reviewers.<\/b> Local review (light sub-agent pass): one bug, the shards' results files overwriting each other; fixed. Walkaround: three passes with <code>/simplify<\/code>, then two small fixes it judged did not need one. It made 13 behavior-preserving tidies and left three proposals, below. Devin: complete on <code>f49d738<\/code>. It raised two bugs across four reviews (<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590#discussion_r4616789331\" target=\"_blank\" rel=\"noopener\">missing shard<\/a>, <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8590#discussion_r4616884365\" target=\"_blank\" rel=\"noopener\">report-only re-run<\/a>); both are fixed, Devin marks them resolved, and nothing new was raised. Greptile: complete on <code>d0e7bbb<\/code>, four findings, all fixed and resolved; the two commits since only answer its findings. CI: <code>pr-automation<\/code> passed. No other bots.","<b>Worth knowing.<\/b> No YouTrack card, so no test-ideas comment was posted. Until the dispatched nightly finishes, nothing has run the new jobs on GitHub itself; the scripts were only replayed locally."],"questions":[{"title":"Is a test needed for this change?","context":["Every PR either comes with an automated test of what it changes, or the developer says why it needs none. This PR changes only the nightly CI workflow (<code>.github/workflows/nightly.yml<\/code>) and two docs. Workflows have no automated test harness in this repo. What tests this change is running it: the nightly was dispatched on this branch (<a href=\"https://github.com/BloomBooks/BloomDesktop/actions/runs/44342294290\" target=\"_blank\" rel=\"noopener\">run 44342294290<\/a>), and its PowerShell scripts were replayed locally against real data."],"options":[{"label":"No test needed: CI configuration, tested by running the nightly on the branch","recommended":true,"why":"Recommended because a workflow can only be checked by running it, and the dispatched run does that end to end.","effort":"no code","instruction":"On BloomBooks/BloomDesktop PR #8590 (branch nightly-parallel-e2e), record in the PR description's Automated Tests section: 'Test of the change: none — developer's decision: CI configuration; tested by running the nightly on the branch (run 44342294290)'."}],"leaveAsIs":"the PR's test decision stays 'awaiting', which blocks promotion."},{"title":"Move all five suites' publish steps into the report job?","context":["Each suite publishes its own GitHub check (\"Nightly run: …\"). After this PR, four suites still publish theirs at the end of <code>build-and-test<\/code>, and only BloomE2E publishes in the new <code>report<\/code> job. So there are two places where results become checks, and two ways a suite that reported nothing turns the night red. The report script carries BloomE2E-only special cases for this (the <code>PUBLISH_E2E<\/code> and <code>STAND_IN<\/code> overrides).","The alternative: <code>build-and-test<\/code> only uploads its results, and the report job publishes all five, each gated on its suite's outcome. Every suite then reaches its check, and the headline, the same way. Nothing a person sees changes."],"options":[{"label":"Move them, in this PR","recommended":true,"why":"Recommended because one place that publishes results is easier to reason about than two, and it removes the BloomE2E-only special cases.","effort":"~40 lines moved, no net growth; low risk, but needs another nightly run to prove","instruction":"In C:\\dev\\_worktrees\\BloomDesktop\\ask (BloomBooks/BloomDesktop, branch nightly-parallel-e2e), move the four 'Publish ... test results' steps from build-and-test into the report job of .github/workflows/nightly.yml, after its downloads, each gated on its suite's outcome from needs.build-and-test.outputs; drop now-unneeded special cases in the compose script; replay the report script; then run preflight again."},{"label":"Do it later, in a follow-up PR","effort":"same work, separately","instruction":"Note as a follow-up for BloomBooks/BloomDesktop nightly.yml: move all suites' publish steps into the report job. No change to PR #8590."}],"leaveAsIs":"build-and-test publishes four suites' checks and the report job publishes BloomE2E's."},{"title":"Cache NuGet packages in the nightly's jobs?","context":["Each of the three new shard runners, and <code>build-and-test<\/code>, restores every NuGet package from scratch. <code>bot-verify.yml<\/code> already caches <code>~/.nuget/packages<\/code> with an <code>actions/cache<\/code> restore/save pair. The estimate is 1–2 minutes saved per job, which comes straight off each shard's time. Copying the pair would also make bot-verify's comment \"The nightly does not cache NuGet packages\" untrue, so it would need updating."],"options":[{"label":"Add the cache to the shards and build-and-test, in this PR","recommended":true,"why":"Recommended because it is a copy of a pattern already proven in bot-verify, and it shortens every shard.","effort":"~20 lines, low risk","instruction":"In C:\\dev\\_worktrees\\BloomDesktop\\ask (BloomBooks/BloomDesktop, branch nightly-parallel-e2e), copy bot-verify.yml's 'Restore NuGet packages from cache' and 'Save NuGet packages to cache' steps (same key) into nightly.yml's e2e job and build-and-test, around their C# build; update bot-verify's comment that the nightly does not cache NuGet; then run preflight again."},{"label":"Do it later, in a follow-up PR","effort":"same work, separately","instruction":"Note as a follow-up for BloomBooks/BloomDesktop nightly.yml: add bot-verify's NuGet cache to the nightly's jobs. No change to PR #8590."}],"leaveAsIs":"every nightly job restores NuGet packages from scratch."},{"title":"Share the build steps through a composite action?","context":["The three build steps (front-end build, restore MSBuild tasks, C# build) now appear in five places: <code>nightly.yml<\/code>'s <code>build-and-test<\/code> and its new shards, <code>bot-verify.yml<\/code>, <code>culture-sweep.yml<\/code> and <code>harvester-artifacts.yml<\/code>. Comments ask whoever changes one to change the others. A <code>.github/actions/bloom-build<\/code> composite action, beside the existing <code>bloom-setup<\/code>, would hold them once.","The catch: the nightly report times <code>build-and-test<\/code>'s builds by step name, and a composite action shows up as one step. So <code>build-and-test<\/code> would either keep its own copy or lose its separate front-end and C# build timings."],"options":[{"label":"Do it in a follow-up PR, for every workflow but build-and-test","recommended":true,"why":"Recommended because it touches three other workflows, which is outside this PR's scope, and build-and-test needs its own copy to keep its build timings.","effort":"~20-line action, ~12 lines removed per caller; moderate, touches 4 workflows","instruction":"Note as a follow-up for BloomBooks/BloomDesktop: add .github/actions/bloom-build (front-end build, RestoreBuildTasks, msbuild Build with an optional SkipBloomTests input), use it in nightly.yml's e2e job, bot-verify.yml, culture-sweep.yml and harvester-artifacts.yml, and keep build-and-test's own steps for its timings. No change to PR #8590."},{"label":"Do it now, in this PR","effort":"as above, plus another nightly run","instruction":"In C:\\dev\\_worktrees\\BloomDesktop\\ask (branch nightly-parallel-e2e), add .github/actions/bloom-build and use it in nightly.yml's e2e job and in bot-verify.yml, culture-sweep.yml and harvester-artifacts.yml (keeping build-and-test's own steps); then run preflight again."}],"leaveAsIs":"the build steps stay copied, with comments asking that copies be changed together."},{"title":"Next step","context":["The nightly dispatched on this branch is running. Its result decides whether the workflow works on GitHub, whatever is decided above."],"options":[{"label":"Make the chosen changes, and watch the dispatched nightly and report its result","recommended":true,"why":"Recommended because the dispatched run is the real test of this PR.","effort":"—","instruction":"Carry out the decisions above on PR #8590, watch nightly run 44342294290 to the end, and report how each job and the Slack report text came out, fixing anything it shows."},{"label":"Just report the nightly's result; make no other change yet","effort":"—","instruction":"Watch nightly run 44342294290 on BloomBooks/BloomDesktop to the end and report its result; make no other change to PR #8590."}],"leaveAsIs":"nothing further is done until asked."}]}</script>
+</head>
+<body>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
