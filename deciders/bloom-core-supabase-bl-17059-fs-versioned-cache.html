@@ -2,55 +2,81 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Preflight: versioned fs cache</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  :root {
-    --ground: #faf7f2; --card: #ffffff; --line: #e4ddd2; --ink: #2a2622; --muted: #6b635a;
-    --accent: #9a4a1c; --ok: #2f6b3a; --warn: #8a5a00; --chip: #f2ece3;
-  }
-  body { background: var(--ground); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 24px 16px 48px; }
-  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; line-height: 1.25; }
-  h1 { font-size: 1.55rem; margin: 0 0 6px; }
-  h2 { font-size: 1.15rem; margin: 0 0 10px; }
-  h3 { font-size: 1rem; margin: 14px 0 4px; }
-  a { color: var(--accent); }
-  .wrap { max-width: 1320px; margin: 0 auto; }
-  header { margin-bottom: 18px; }
-  .summary { color: var(--muted); margin: 0 0 10px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
-  .chip { display: inline-block; background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; text-decoration: none; color: var(--ink); }
-  a.chip { color: var(--accent); }
-  .chip.ok { color: var(--ok); }
-  .grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-  .grid > * { min-width: 0; }
-  @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin-bottom: 16px; }
-  .card p { margin: 0 0 8px; }
-  ul, ol { margin: 4px 0 8px; padding-left: 20px; }
-  li { margin-bottom: 4px; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-weight: 600; color: var(--muted); }
-  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; font-size: 0.88rem; }
-  .pass { color: var(--ok); font-weight: 600; }
-  .na { color: var(--muted); }
-  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.88em; background: var(--chip); padding: 0 3px; border-radius: 3px; overflow-wrap: anywhere; }
-.rwrap{max-width:1320px;margin:0 auto}.rhead{margin-bottom:18px}.rgrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px;align-items:start}.rgrid>*{min-width:0}@media (max-width:900px){.rgrid{grid-template-columns:minmax(0,1fr)}}.chip.warn{color:var(--warn)}</style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+.rwrap{max-width:1320px;margin:0 auto;padding:24px 16px 48px}
+.rhead{margin-bottom:18px}
+.rhead h1{font:600 1.55rem/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.summary{color:var(--muted);margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{display:inline-block;background:#F3F0E8;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.85rem;text-decoration:none;color:var(--ink)}
+a.chip{color:var(--accent-strong)}
+.chip.ok{color:#2f6b3a}.chip.warn{color:#8a5a00}
+.rgrid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
+.rgrid>*{min-width:0}
+@media (max-width:900px){.rgrid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:16px}
+.card p{margin:0 0 8px}
+.card h3{font:600 1rem/1.25 Georgia,"Times New Roman",serif;margin:14px 0 4px}
+.card ul{margin:4px 0 8px;padding-left:20px}.card li{margin-bottom:4px}
+.card table{width:100%;border-collapse:collapse;font-size:.92rem}
+.card th,.card td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.card th{font-weight:600;color:var(--muted)}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums;font-size:.88rem}
+.pass{color:#2f6b3a;font-weight:600}
+code{overflow-wrap:anywhere}
+.rright main{max-width:none;padding:0}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-19","about":"bloom-core-supabase, branch BL-17059-fs-versioned-cache, PR #15 (cache fs files under the version fs reports)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-core-supabase-bl-17059-fs-versioned-cache.html","questions":[{"title":"Downloads are named by the ?v= form; should something else decide it?","context":["When a request uses the query form, <code>/v1/fs/{bucket}/{bookId}/{file}?v={epochMs}<\/code>, the worker adds <code>Content-Disposition: attachment<\/code> with the file's real name, so a title with <code>+<\/code>, <code>%<\/code> or accents saves under the right name. The read-online form (<code>{bookId}@{epochMs}<\/code>) never gets it, and neither does an unversioned URL.","The walkaround's altitude review pointed out that this ties two separate things to one switch: putting a version in the URL also turns the file into a download. A client that ever used <code>?v=<\/code> for something meant to show in the page (an image, a PDF opened in a tab) would get a download instead, and unversioned download links still get no real name.","Today nothing sends <code>?v=<\/code>; the site change that adds versions will use it only for download links, which is what the card describes."],"options":[{"label":"Use its own signal, e.g. ?download=1","why":"Separates \"cache this version\" from \"save this as a file\", and lets unversioned download links get the real name too.","effort":"~15 lines in worker.js plus tests and README; the BloomLibrary2 change must add the parameter","instruction":"In C:\\dev\\_worktrees\\bloom-core-supabase\\BL-17059-fs-versioned-cache (branch BL-17059-fs-versioned-cache), cloudflare/worker.js: add Content-Disposition (downloadDisposition) when the request carries download=1 (strip it before calling fs), instead of when it uses the ?v= form; drop isDownload from parseFsVersion. Update cloudflare-worker-test.ts and cloudflare/README.md, re-verify on staging, and note on card BL-17059 that the site's download links should add download=1."}],"leaveAsIsRecommended":"Recommended because ?v= is defined as the download form on the card, the site change will use it only for downloads, and read online has its own @ form. A second parameter adds a contract the site must remember for no current gain.","leaveAsIs":"the ?v= form also makes the response a download with the file's real name.","codeComment":true},{"title":"Zone browser cache setting vs. the worker's own Cache-Control","context":["The bloomlibrary.org zone's Browser Cache TTL is set to 4 hours rather than \"Respect Existing Headers\". When a file comes through Cloudflare's cache, Cloudflare may give it a 4-hour browser <code>Cache-Control<\/code> that S3 never sent. A browser or app would then keep an old copy for hours after a re-upload.","So the worker now sets <code>Cache-Control<\/code> itself on every cached file: <code>immutable<\/code> when the URL names the current version, the one-year thumbnail rule, otherwise <code>no-cache<\/code>. Bloom Desktop and the harvester upload files with <code>no-cache<\/code> anyway, so that is what clients already got.","The altitude review suggested fixing it at the zone instead (\"Respect Existing Headers\") so the worker needn't override S3's header. That setting covers the whole bloomlibrary.org zone, including the site's own assets, so it is an ops change with effects outside this PR."],"options":[{"label":"Ask ops to set the zone to Respect Existing Headers","why":"Fixes it where it arises; the worker could then stop overriding S3's header (a later, small change).","effort":"a dashboard setting for ops, then a review of what else on the zone relied on the 4-hour TTL","instruction":"Note on card BL-17059 for ops: consider setting the bloomlibrary.org zone's Browser Cache TTL to \"Respect Existing Headers\", after checking which site assets rely on the current 4-hour TTL. No change to PR #15 (bloom-core-supabase, branch BL-17059-fs-versioned-cache) until that is done."}],"leaveAsIsRecommended":"Recommended because the worker's header is correct either way and is what clients already got from S3, while the zone setting touches every bloomlibrary.org page and asset.","leaveAsIs":"the worker sets Cache-Control itself on every file that comes through Cloudflare's cache.","codeComment":false},{"title":"Next step","context":["The PR is a draft and everything is green: CI, Devin and Greptile clean at fc43110, staging runs this commit's fs and worker. Production has not been touched. The usual next step is your own review, then request-peer-review (or merge-without-peer-review if the card has an approved plan). On merge, fs deploys from GitHub Actions; the worker is deployed separately, in either order."],"options":[{"label":"I'll review it myself next","recommended":true,"why":"Recommended because nothing above needs a code change unless you choose so.","effort":"none now","instruction":"No action; the developer will review PR #15 (bloom-core-supabase) themselves."},{"label":"Apply my answers above, then re-run preflight","effort":"depends on the answers","instruction":"Apply the decisions above in bloom-core-supabase (branch BL-17059-fs-versioned-cache), then run /preflight again."}],"leaveAsIs":"nothing else happens until I say so."}]}</script>
 </head>
 <body>
 <div class="rwrap">
 <header class="rhead">
-  <h1>Worker: cache versioned fs URLs for a year (BL-17059)</h1>
-  <p class="summary">Second preflight run on <code>BL-17059-fs-versioned-cache</code>. Every gate is green, reviewers are clean, and nothing is waiting on you.</p>
+  <h1>Cache fs files under the version fs reports (BL-17059)</h1>
+  <p class="summary">Third preflight run on <code>BL-17059-fs-versioned-cache</code>, after the redesign that replaced the leaky lookup cache. Every gate is green, every reviewer is clean at <code>fc43110</code>, and staging runs this commit. Two walkaround proposals are below; leaving both as they are is recommended.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable (clean)</span>
     <span class="chip ok">Bots quiet</span>
-    <span class="chip ok">0 decisions waiting</span>
-    <span class="chip">Board: ready for your own review</span>
+    <span class="chip warn">2 proposals + next step</span>
+    <span class="chip">Board: needs your response</span>
   </div>
   <div class="chips">
     <a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">PR #15</a>
@@ -58,7 +84,7 @@
     <a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15/commits" target="_blank" rel="noopener">Commits</a>
     <a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17059" target="_blank" rel="noopener">BL-17059</a>
     <a class="chip link" href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Devin review</a>
-    <a class="chip link" href="https://app.greptile.com/-/switch-tenant?tenant=bloom&amp;next=%2Fbloombooks%2Fbloom-core-supabase%2Fpull%2F15" target="_blank" rel="noopener">Greptile</a>
+    <a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15#issuecomment-6962425821" target="_blank" rel="noopener">Greptile</a>
   </div>
 </header>
 <div class="rgrid">
@@ -66,14 +92,12 @@
   <section class="card">
     <h2>What this PR is about</h2>
     <h3>Purpose</h3>
-    <p>Bloom Library is about to link book downloads (and later read-online files) as <code>api.bloomlibrary.org/v1/fs/...</code> URLs. Today every such request costs a Supabase call, a Parse lookup and an S3 fetch. If the URL carries the time the file last changed, the URL always names the same bytes, and Cloudflare can serve repeat requests from its cache.</p>
+    <p>Every request for a book file on <code>api.bloomlibrary.org/v1/fs/...</code> goes to the fs function (a Parse lookup) and then to S3, so every download and read-online page pulls the file from S3 again. Most book files never change once uploaded or harvested. If we know which version of a file a request gets, Cloudflare can keep that version and serve repeat requests without S3, for old clients too.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><strong>Two versioned forms:</strong> <code>?v={epochMs}</code> for downloads, and <code>{bookId}@{epochMs}</code> in the path for read online, so a book's relative links carry it. The version is <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/23498f68bb2bada63fe7132a4a2027d3047165f4/cloudflare/worker.js#L190" target="_blank" rel="noopener">stripped</a> before calling fs (today the <code>@</code> form 404s).</li>
-      <li><strong>The fs lookup is cached</strong> (Cache API, keyed on path, version and <code>Origin</code>, since fs's CORS answer depends on it), so repeat requests make no Supabase call. Only GET/HEAD use it, and only lookups that found a file are stored.</li>
-      <li><strong>The file is cached a year</strong> through Cloudflare's normal cache (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/23498f68bb2bada63fe7132a4a2027d3047165f4/cloudflare/worker.js#L221" target="_blank" rel="noopener">2xx only</a>), with <code>?v=</code> on the S3 URL as the per-version cache key (S3 ignores it; a custom <code>cacheKey</code> needs Enterprise). Tiered Cache, Range and HEAD are handled by Cloudflare.</li>
-      <li><strong>Response headers:</strong> <code>Cache-Control: immutable</code>, <code>X-Bloom-Fs-Lookup: cached|fetched</code>, and for downloads a <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/23498f68bb2bada63fe7132a4a2027d3047165f4/cloudflare/worker.js#L274" target="_blank" rel="noopener"><code>Content-Disposition</code></a> naming the S3 object, so titles with <code>+</code>, <code>%</code> or non-ASCII characters download under their real names.</li>
-      <li><strong>Unversioned URLs are unchanged</strong> (OPDS, older links, Bloom Reader, the thumbnail rule).</li>
+      <li><strong>fs reports the file's version</strong> on its 302 (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/supabase/functions/fs/BookData.ts#L79" target="_blank" rel="noopener"><code>fileVersion</code></a>): <code>lastUploaded</code> for upload buckets, <code>harvestStartedAt</code> for harvest buckets, and nothing while a harvest isn't <code>Done</code>. The upload and harvester code was checked for write order. The 302 is <code>private, no-store</code>.</li>
+      <li><strong>The worker caches the S3 file under that version</strong> for a year, 2xx only (<code>?v=</code> on the S3 URL as the cache key), for every client. fs is still asked on every request, so new uploads, re-harvests and deleted books take effect at once. Cached responses get the worker's own <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/cloudflare/worker.js#L277" target="_blank" rel="noopener"><code>Cache-Control</code></a> and no <code>Age</code>.</li>
+      <li><strong>Clients may put the version in the URL</strong>: <code>?v=</code> for downloads, <code>{bookId}@{version}</code> for read online (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/cloudflare/worker.js#L195" target="_blank" rel="noopener">stripped before fs</a>). It only adds <code>immutable</code> when it matches fs's version, so a wrong one can't pin stale bytes. Downloads get the real file name.</li>
     </ul>
   </section>
 
@@ -81,47 +105,225 @@
     <h2>Quality gate</h2>
     <table>
       <tr><th>Check</th><th>Result</th></tr>
-      <tr><td>Typecheck (<code>deno check</code>)</td><td class="pass">pass</td></tr>
+      <tr><td>Typecheck (<code>deno check</code>, all functions)</td><td class="pass">pass</td></tr>
       <tr><td>Lint (<code>deno lint</code> on the changed files)</td><td class="pass">pass</td></tr>
-      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">125 passed · 0 failed</span></td></tr>
-      <tr><td>CI <code>test</code></td><td class="pass">pass at 9df6c2f</td></tr>
-      <tr><td>Merge with <code>develop</code></td><td class="pass">clean (already up to date)</td></tr>
-      <tr><td>Live run on staging (<code>bloom-api-router-staging</code>, worker at 23498f6)</td><td class="pass">all checks passed; see the PR's E2E Coverage</td></tr>
+      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">126 passed · 0 failed</span></td></tr>
+      <tr><td>CI <code>test</code></td><td class="pass">pass at fc43110</td></tr>
+      <tr><td>Merge with <code>develop</code></td><td class="pass">up to date</td></tr>
+      <tr><td>Staging (<code>staging-api</code>; fs via the Deploy to Staging workflow, worker 99df6ded, both at fc43110)</td><td class="pass">all live checks passed; see the PR's E2E Coverage</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>Applied your decisions: <code>cloudflare/README.md</code> now says clients add a version only to a book whose <code>harvestState</code> is <code>Done</code>, and the card records it, plus a note to check fs call counts once read online uses versions. No code changed. Commit <a href="https://github.com/BloomBooks/bloom-core-supabase/commit/9df6c2f758716474a112525171b4765a741ec308" target="_blank" rel="noopener">9df6c2f</a>; all <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/15/commits" target="_blank" rel="noopener">commits</a>.</p>
+    <p>The redesign (one squashed commit) replaced the lookup cache, which exposed S3 addresses through the CDN, with caching under the version fs reports. Two Fable audits came back clean after one round of fixes. The walkaround then tidied it: the bucket map now says which buckets are harvested, one <code>Cache-Control</code> function, one test stub helper, and duplicate tests removed. Commit <a href="https://github.com/BloomBooks/bloom-core-supabase/commit/fc43110c881f461240d8b3b11a790b8115eb7d15" target="_blank" rel="noopener">fc43110</a>.</p>
   </section>
 
   <section class="card">
     <h2>Reviewer outcomes</h2>
     <table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
-      <tr><td>Local review (light sub-agent pass)</td><td>Clean on this run's README change. The first run's review found one bug (other methods bypassed fs once the lookup was cached), fixed with a test.</td></tr>
-      <tr><td>Walkaround</td><td>Nothing to change; <code>/simplify</code> not needed for a one-sentence README edit. The first run's walkaround made 8 behavior-preserving cleanups.</td></tr>
-      <tr><td>Devin</td><td>Complete at 9df6c2f: no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Review</a></td></tr>
-      <tr><td>Greptile</td><td>Complete at 23498f6 (all the code): "No actionable issues found." It has not reviewed 9df6c2f, which only adds a README sentence.</td></tr>
-      <tr><td>CI</td><td>Passed at 9df6c2f.</td></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+      <tr><td>Walkaround + <code>/simplify</code></td><td>7 behavior-preserving changes; 2 proposals on the right (both recommended to leave as is).</td></tr>
+      <tr><td>Devin</td><td>Complete at fc43110: no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Review</a></td></tr>
+      <tr><td>Greptile</td><td>Complete at fc43110 (re-triggered for the redesign): "No actionable issues found." <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/15#issuecomment-6962425821" target="_blank" rel="noopener">Summary</a></td></tr>
+      <tr><td>CI</td><td>Passed at fc43110.</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>Worth knowing</h2>
     <ul>
-      <li><strong>Staging runs this branch's worker</strong> (version a031ff99). Roll back with <code>wrangler rollback 3935c7ca-a150-485f-b5fa-af5a0776f242 --name bloom-api-router-staging</code> if needed. Production is untouched.</li>
-      <li><strong>The 221 MB file wasn't found</strong>; the largest checked was a 71 MB <code>.bloompub</code> (cached fine). Business-plan caching goes up to 512 MB.</li>
-      <li><strong>"A 404 is not cached" was shown indirectly:</strong> a missing file stays 404 on repeat, and the worker asks Cloudflare not to cache non-2xx. Staging can't show S3's own cache status on a 404.</li>
-      <li><strong>Taking a versioned file down early</strong> (e.g. a book removed) needs a cache purge; the README says so.</li>
+      <li><strong>Staging runs this branch</strong> (fs and worker) until the next push to <code>develop</code> redeploys fs; the worker stays until redeployed. Production is untouched.</li>
+      <li><strong>Old lookup-cache entries</strong> from the earlier design are still readable on <code>staging-api</code> under <code>/__fs-lookup/...</code>, for three test books only, no emails. Nothing writes them any more; a hostname purge would clear them.</li>
+      <li><strong>The site must not send <code>@version</code> URLs</strong> before this worker is live in production: the old worker passes <code>id@version</code> to fs, which 404s.</li>
     </ul>
   </section>
 </div>
 <div class="rright">
-  <section class="card">
-    <h2>Decisions</h2>
-    <p>Nothing is waiting on you. Re-harvest risk: settled (version only fully harvested books; README and card). Lookup cost: left as is until read online uses versions; the card has the follow-up.</p>
-  </section>
+<h2 class="dh">Decisions</h2>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
 </div></div></div>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
 </body>
 </html>
