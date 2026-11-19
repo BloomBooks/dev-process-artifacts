@@ -20,6 +20,7 @@ header{margin-bottom:16px}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:.4rem 0}
 .chip{display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;font-size:13px;text-decoration:none;color:var(--ink)}
 .chip.ok{border-color:#b8d8bb;color:var(--ok)}
+.chip.warn{border-color:#e6c99a;color:var(--warn)}
 a.chip{color:var(--accent)}
 .grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
 .grid>*{min-width:0}
@@ -31,21 +32,22 @@ th{font-weight:600;color:var(--muted);font-size:13px}
 .tablewrap{overflow-x:auto}
 .numeral{font-variant-numeric:tabular-nums}
 .pass{color:var(--ok);font-weight:600}
-ul{padding-left:1.2rem;margin:.3rem 0}
-li{margin:.2rem 0}
+ul,ol{padding-left:1.2rem;margin:.3rem 0}
+li{margin:.3rem 0}
 .muted{color:var(--muted)}
+.button{display:inline-block;margin-top:.6rem;padding:6px 14px;border-radius:6px;background:var(--accent);color:#fff;text-decoration:none}
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
 <h1>BL-17105 (1/3 in stack) One setup for a text box added after page load</h1>
-<div class="muted">Preflight of branch <code>BL-17105-1of3-box-setup</code> at <code>f6c5a53158</code>, 2026-11-19.</div>
+<div class="muted">Preflight of branch <code>BL-17105-1of3-box-setup</code> at <code>87fe09c48c</code>, 2026-11-19.</div>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
 <span class="chip ok">Bots quiet</span>
-<span class="chip ok">0 decisions waiting</span>
+<span class="chip warn">2 decisions waiting</span>
 </div>
 <div class="chips">
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8597" target="_blank" rel="noopener">PR #8597</a>
@@ -67,7 +69,7 @@ li{margin:.2rem 0}
 <li>A new module, <code>translationGroupLanguages.ts</code>: <code>showLanguagesInTranslationGroup</code> shows exactly the languages asked for and adds a box for any that is missing, copied from the group's <code>z</code> box (else its first) without that box's language, editing state or Talking Book recording; <code>setUpBoxesBuiltAfterLoad</code> gives the added boxes what page load gives every box.</li>
 <li>The per-box steps of page load become shared helpers that page load calls at the same places, so page load does what it did, in the same order. The list of steps is written out in both places on purpose; the PR description explains why.</li>
 <li>The canvas text box's Language submenu uses the two functions.</li>
-<li>The toolbox now takes the boxes to set up and hands them to the tools, so boxes added later are set up without the boxes beside them getting the tools' handlers a second time.</li>
+<li>The toolbox now takes the boxes to set up and hands them to the tools. Page load passes every box and adjusts the tool list; boxes added later are passed alone, so the boxes beside them do not get the tools' handlers a second time.</li>
 <li>Less layout work when languages change, since the next PR does this for every cell of a table: language tags and group font sizes measure every box before changing any (page load gets this too), and a box's classes change only when they are wrong.</li>
 <li>A new e2e test, <code>canvas-text-language.spec.ts</code> (Notion Test Case ID 860), with helpers for a custom cover and a canvas element's languages.</li>
 </ul>
@@ -79,10 +81,8 @@ li{margin:.2rem 0}
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>Typecheck (front end, BloomE2E)</td><td class="pass">passed</td></tr>
 <tr><td>Lint (changed files)</td><td class="pass">passed <span class="muted">(existing warnings only)</span></td></tr>
-<tr><td>TypeScript tests (vitest, related to the change)</td><td class="pass"><span class="numeral">828 passed</span></td></tr>
-<tr><td>E2E: <code>canvas-text-language.spec.ts</code> at the nightly window size (repo check)</td><td class="pass">passed every run, the last at <code>f6c5a53158</code></td></tr>
-<tr><td>E2E: page-load specs, at <code>f6c5a53158</code></td><td class="pass"><span class="numeral">52 passed</span> <span class="muted">(typing-before-ckeditor-is-ready, saved-book-stays-clean, overflow-marks, decodable-reader-sample-texts, inline-images, tables-core, all-pages-right-to-left, with the new spec)</span></td></tr>
-<tr><td>E2E: other specs that use the changed helpers and fixture</td><td class="pass"><span class="numeral">69 passed</span> <span class="muted">(canvas-layer-order, rotate-and-flip-images, tables-*), before the last round</span></td></tr>
+<tr><td>TypeScript tests (vitest, related to the change)</td><td class="pass"><span class="numeral">851 passed</span></td></tr>
+<tr><td>E2E at the nightly window size (repo check): <code>canvas-text-language</code>, <code>all-pages-right-to-left</code></td><td class="pass"><span class="numeral">2 passed</span> at <code>87fe09c48c</code></td></tr>
 <tr><td>C# tests</td><td class="muted">not run — no C# in the diff</td></tr>
 <tr><td>Merge with master</td><td class="pass">clean</td></tr>
 </table></div>
@@ -90,17 +90,17 @@ li{margin:.2rem 0}
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Applied the code from the lead session's patch, added the e2e test John asked for, fixed two problems the reviews found (the toolbox's handlers were bound again on boxes that already had them; a new box copied a recorded box's Talking Book state), cut the layout work for the table PR, and merged master twice. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8597/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>The walkaround split page load's toolbox setup from that of added boxes (one function had done both, depending on what it was given), dropped an unused import, and gave the e2e fixture one way to mark right-to-left languages instead of two. Master was merged once. <a href="https://github.com/BloomBooks/BloomDesktop/commit/c87a1b52a4" target="_blank" rel="noopener">c87a1b52a4</a>.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tablewrap"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: setting up an added box re-bound the toolbox's key and focus handlers on the group's other boxes.</td></tr>
-<tr><td>Walkaround</td><td>Ran twice with <code>/simplify</code>: the tools take boxes rather than a container, language tags measure every box before writing, the e2e submenu helpers share one click-and-close step and find a row by its name, and the spec's expected boxes became one constant. No proposals.</td></tr>
-<tr><td>Devin</td><td>Complete at <code>f6c5a53158</code> (and at each earlier push): no bugs, no flags.</td></tr>
-<tr><td>Greptile</td><td>Complete at <code>f6c5a53158</code> (re-review asked for after the toolbox and layout changes): no issues.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+<tr><td>Walkaround</td><td>Ran with <code>/simplify</code>: 3 changes (above), 2 proposals (see Decisions). Skipped as low value or out of scope: deriving the e2e language name from its tag, a shared e2e helper for finding a box's CKEditor, a lookup table for the formatting keys, and dropping the <code>order</code> parameter, which PR #8598 uses.</td></tr>
+<tr><td>Devin</td><td>Complete at <code>7d1253e938</code>: no bugs, no flags. Its review of <code>87fe09c48c</code> errored and two re-triggers did not restart it; a substituted Claude Sonnet sub-agent review of the one newer commit (<code>c87a1b52a4</code>) was clean. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8597#issuecomment-7022632750" target="_blank" rel="noopener">Log</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete at <code>f6c5a53158</code>: no issues. It has not reviewed the current code; since then only a unit test and the small toolbox split were added.</td></tr>
 <tr><td>CI</td><td class="pass">pr-automation passed</td></tr>
 <tr><td>Repo check: e2e specs at the nightly window size</td><td class="pass">passed</td></tr>
 </table></div>
@@ -109,8 +109,8 @@ li{margin:.2rem 0}
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>The lead session owns BL-17105's card comments (the PR link and the test ideas), so this run posted neither.</li>
-<li>Not exercised: a box added in a group that has inline pictures, and the reader tools' markup in a box added after load.</li>
+<li>The test-ideas comment on BL-17105 covers the whole stack and was written from PR 3/3, so this run left it alone; nothing in this run changes what a tester does.</li>
+<li>Since <code>c87a1b52a4</code>, page load's toolbox call has run only in the two e2e specs above, not the wider page-load set that passed at <code>f6c5a53158</code>.</li>
 </ul>
 </section>
 </main>
@@ -118,7 +118,12 @@ li{margin:.2rem 0}
 <aside>
 <section class="card">
 <h2>Decisions</h2>
-<p>Nothing is waiting on you.</p>
+<ol>
+<li>One forced page layout per table cell when a language is ticked again: measure first, then fix if it shows?</li>
+<li>One list of box setup steps instead of two: file a card for it?</li>
+<li>Next step.</li>
+</ol>
+<a class="button" href="https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17105-1of3-box-setup-decisions.html" target="_blank" rel="noopener">Answer the decisions</a>
 </section>
 </aside>
 </div>
