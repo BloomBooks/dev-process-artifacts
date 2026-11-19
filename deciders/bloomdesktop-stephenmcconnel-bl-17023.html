@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17023</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; background: #faf8f4; color: #2a2724; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  h1, h2, h3 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; margin: 0 0 .5em; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.15rem; } h3 { font-size: 1rem; margin-top: 1em; }
+  a { color: #2f5d8a; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { margin-bottom: 20px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .chip { display: inline-block; border: 1px solid #d9d3c9; background: #fff; border-radius: 999px; padding: 2px 10px; font-size: 13px; text-decoration: none; color: inherit; }
+  .chip.ok { border-color: #9cc5a1; background: #eef7ef; }
+  a.chip { color: #2f5d8a; }
+  .grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+  .grid > * { min-width: 0; }
+  @media (max-width: 860px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: #fff; border: 1px solid #e3ddd3; border-radius: 8px; padding: 16px 18px; margin-bottom: 16px; }
+  blockquote { margin: .5em 0; padding: .3em .9em; border-left: 3px solid #d9d3c9; color: #4a4540; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee8de; vertical-align: top; }
+  th { font-weight: 600; }
+  .numeral { font-family: ui-monospace, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .pass { color: #2e7d3a; font-weight: 600; }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; background: #f3efe8; padding: 0 3px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Preflight: drop "Licensed under" for custom-license derivatives</h1>
+  <div>Run complete on <span class="numeral">7e19215</span>. Every gate and reviewer is clean, and nothing is waiting on you.</div>
+  <div class="chips">
+    <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+    <span class="chip ok">Mergeable</span>
+    <span class="chip ok">Bots quiet</span>
+    <span class="chip ok">0 decisions waiting</span>
+  </div>
+  <div class="chips">
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8604" target="_blank" rel="noopener">PR #8604</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8604/files" target="_blank" rel="noopener">Files changed</a>
+    <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8604/commits" target="_blank" rel="noopener">Commits</a>
+    <a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17023" target="_blank" rel="noopener">BL-17023</a>
+    <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8604" target="_blank" rel="noopener">Devin review</a>
+  </div>
+</header>
+
+<div class="grid">
+<main>
+  <section class="card">
+    <h2>What this PR is about</h2>
+    <h3>Problem</h3>
+    <p>When a book whose original has a <strong>custom license</strong> (the user's own free text) is used to make a derivative, the Credits page reads:</p>
+    <blockquote>This book is an adaptation of the original, <em>Title</em>, Copyright © 2007 Someone. Licensed under For permission to re-use this text, contact the copyright holder..</blockquote>
+    <p>"Licensed under" makes no sense before free text, and the custom text's own full stop gets a second one. SIL PNG has more than 100 such books.</p>
+    <h3>Cause</h3>
+    <p>Bloom already had a rule that shows custom license text on its own. But whenever the original has a title and a copyright, and the UI language has the full sentence translated (English always does), Bloom uses the one-sentence template <code>…, {0}, {1}. Licensed under {2}.</code> instead, which skips that rule.</p>
+    <h3>What the PR does</h3>
+    <ul>
+      <li>Custom licenses <a href="https://github.com/BloomBooks/BloomDesktop/blob/7e192155b992bee63ad6c5d0b19af0eeb85f3a8f/src/BloomExe/Book/BookCopyrightAndLicense.cs#L735" target="_blank" rel="noopener">skip the full-sentence template</a>, so the Credits page shows the copyright sentence followed by the user's text as typed. Creative Commons and "contact the copyright holder" originals are unchanged.</li>
+      <li>Existing derivatives pick up the new sentence the next time Bloom brings the book up to date (and so does the harvester), unless the user took over the sentence with the 6.6 override.</li>
+      <li><a href="https://github.com/BloomBooks/BloomDesktop/blob/7e192155b992bee63ad6c5d0b19af0eeb85f3a8f/src/BloomTests/Book/BookCopyrightAndLicenseTests.cs#L1386" target="_blank" rel="noopener">A new unit test</a> covers the fixed sentence. Without the fix, it fails with the sentence from the bug report.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>Quality gate</h2>
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>C# build</td><td class="pass">pass</td></tr>
+      <tr><td>C# tests (<code>dotnet test</code>, related classes: BookCopyrightAndLicense, BookStarter, XMatterHelper)</td><td><span class="pass">pass</span> <span class="numeral">153 / 153</span></td></tr>
+      <tr><td>TypeScript typecheck, lint, vitest</td><td>not run: no front-end code in the diff</td></tr>
+      <tr><td>Repo check: e2e specs at nightly window size</td><td>did not apply: no e2e spec in the diff</td></tr>
+      <tr><td>Merge with master</td><td class="pass">clean</td></tr>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>What changed this run</h2>
+    <p>Implemented the fix and its unit test, tidied the test after the walkaround, and merged master. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8604/commits" target="_blank" rel="noopener">commits</a>.</p>
+  </section>
+
+  <section class="card">
+    <h2>Reviewer outcomes</h2>
+    <table>
+      <tr><th>Reviewer</th><th>Outcome</th></tr>
+      <tr><td>Local review (light sub-agent pass)</td><td>Clean: no findings.</td></tr>
+      <tr><td>Walkaround (with /simplify)</td><td>2 test-only changes: the test now uses the file's shared helper, and unused derivative license data was dropped. 0 proposals.</td></tr>
+      <tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8604" target="_blank" rel="noopener">Devin</a></td><td>Complete on <span class="numeral">7e19215</span>: no bugs, no flags.</td></tr>
+      <tr><td>Greptile</td><td>Complete: "no actionable issues were found".</td></tr>
+      <tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+    </table>
+  </section>
+</main>
+
+<aside>
+  <section class="card">
+    <h2>Decisions</h2>
+    <p>Nothing is waiting on you. The PR is a draft, ready for your own review. Then run <code>request-peer-review</code> (or <code>merge-without-peer-review</code> if the card gets the "Approved Plan" tag).</p>
+  </section>
+</aside>
+</div>
+</div>
+</body>
+</html>
