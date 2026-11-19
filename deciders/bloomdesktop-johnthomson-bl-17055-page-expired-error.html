@@ -64,16 +64,16 @@ td.ok{color:#2E6B3A}
 @media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-18","about":"BloomDesktop PR #8595, branch JohnThomson/BL-17055-page-expired-error (BL-17055)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-17055-page-expired-error.html","questions":[{"title":"Saves that stay on the page can still leave it pointing at the book's old folder","context":["<p>This PR fixes the saves that redraw the page (closing an image's Copyright and License dialog, moving a page, changing orientation). Three other actions save the book but <b>stay on the page<\/b> without redrawing it: <b>Copy Page<\/b>, opening the <b>AI image editor<\/b>, and sending a <b>problem report<\/b>. If one of them is the first save after a new book gets its title, the folder is renamed while the page on screen still comes from the old folder.<\/p>","<p>What a user would see: nothing at first. But until they change pages, anything the page loads afterwards fails, e.g. a picture they choose next shows as \"missing or loading too slowly\", or a recording does not play. Changing pages fixes it. Nothing is lost: Bloom writes files to the book's real folder. It needs a rare sequence (title, then one of those three actions, then more work on the same page).<\/p>","<p>The general fix is in Bloom's local server: when a book is renamed, remember the old folder, and serve requests for it from the new one (in <code>BloomServer<\/code>, driven by the existing <code>BookRenamedEvent<\/code>). That would also cover every future path, and the earlier \"Page expired\" bug BL-16596 too.<\/p>"],"options":[{"label":"Make a separate card for the server-side fix","recommended":true,"why":"Recommended because the gap is rare and cosmetic, this PR is already tested and focused, and the alias is a new mechanism that deserves its own review and tests.","effort":"no code now; the later fix is ~30 lines in BloomServer plus a unit test, low-moderate risk","instruction":"Create a YouTrack card on the Bloom 6.6 board (Ready For Work, linked to BL-17055): after a new book's first rename, Copy Page / opening the AI image editor / a problem report save without redrawing the page, so the page keeps loading from the old Book-xxxxxxxx folder until the user changes pages (new pictures show as missing, recordings fail). Proposed fix: in src/BloomExe/web/BloomServer.cs, subscribe to BookRenamedEvent, remember the old folder prefix, and serve requests under it from the book's current folder while the old folder does not exist on disk; clear it when the book selection changes; add a unit test. Do not change PR #8595."},{"label":"Add the server-side fix to this PR","why":"Covers every path now, at the cost of more to review in this PR.","effort":"~30 lines in BloomServer.cs plus a unit test and an e2e case; low-moderate risk (a stale mapping if another book later takes the old name)","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17055-page-expired-error (branch JohnThomson/BL-17055-page-expired-error, PR #8595), add to src/BloomExe/web/BloomServer.cs a mapping from a renamed book's old folder to its new one: on BookRenamedEvent remember the old folder prefix; in request handling, rewrite a request path under that prefix to the current folder while the old folder does not exist on disk; clear it when the book selection changes. Add a unit test, and an e2e case in src/BloomE2E/tests/new-book-title-rename.spec.ts: new Big Book, type a title, Copy Page from the page list, choose a picture on the cover, and expect it to load with no failed request under the old folder. Then re-run preflight."}],"leaveAsIs":"after a first-title rename, Copy Page / AI image editor / problem report leave the page loading from the old folder until the user changes pages.","codeComment":true},{"title":"Next step for PR #8595","context":["<p>Everything else is green: the light review and the walkaround made their changes, Devin found nothing, CI passed, and the related C# and e2e tests pass. The PR is a draft.<\/p>"],"options":[{"label":"Act on my answer above, then I'll do my own final review","recommended":true,"why":"Recommended because nothing else is waiting on a decision.","effort":"a few minutes","instruction":"Act on the answer to the first question for PR #8595, then stop; John Thomson will review the PR himself before running request-peer-review or merge-without-peer-review."},{"label":"Discuss first","effort":"none","instruction":"Do not change anything on PR #8595 or BL-17055 yet; discuss the open question with John Thomson first."}],"leaveAsIs":"nothing further happens on PR #8595 until John Thomson says so."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-19","about":"BloomDesktop PR #8595, branch JohnThomson/BL-17055-page-expired-error (BL-17055)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-17055-page-expired-error.html","questions":[{"title":"Should the page list's stale requests be handled in the server, by the address they ask for?","context":["<p>After a rename, Bloom replaces the page list with one loaded from the new folder, but the old page list stays on screen for a moment. This PR stops it asking for thumbnails from the old folder: Bloom's server looks at which document made a page-content request (its <code>Referer<\/code>), and answers one from a page list in another folder with nothing to draw. The e2e test showed that was the leak in practice, and that the new page list still draws normally.<\/p>","<p>The walkaround's altitude review points out what that does not cover. In the same moment, the old page list's <b>stylesheets<\/b> could ask for a background picture or a font from the old folder. Those requests name the stylesheet, not the page list, so the check cannot recognise them, and Bloom would show a \"Cannot Find Image File\" notice. Nothing has been seen to do this. The suggested general rule would go in <code>BloomServer<\/code>: remember the old folder when the book is renamed, and serve any request under it from the new folder while the old folder no longer exists. Or, at least, don't report such a file missing. Bloom already has a narrow version of this: a \"last resort\" (BL-3345) that serves a missing image from the current book folder by file name.<\/p>","<p>That rule is the old-folder alias you called fragile earlier. It would also hide a page left on the old folder from the e2e test, which today fails on any request under the old folder.<\/p>"],"options":[{"label":"Add the server-side rule for requests under the old folder","why":"Covers stylesheet-loaded pictures and fonts too, and could replace the BL-3345 last resort.","effort":"~30 lines in BloomServer plus tests; the e2e test would need to check the page's own address instead of failed requests; moderate risk (a stale mapping if another book later takes the old name)","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\BL-17055-page-expired-error (branch JohnThomson/BL-17055-page-expired-error, PR #8595): in src/BloomExe/web/BloomServer.cs, on the current book's BookRenamedEvent remember the old folder; serve any request whose path starts with it from the current folder while the old folder does not exist on disk; fold the BL-3345 last-resort image lookup into it; remove BloomServer.IsPageListDocumentOutsideFolder, the PageListApi.HandlePageContentRequest branch that uses it, ApiRequest.Referer and PageListDocumentFolderTests; add unit tests; change src/BloomE2E/tests/new-book-title-rename.spec.ts to check the page frame's own address is in the new folder rather than counting failed requests. Then re-run preflight."}],"leaveAsIs":"the page list's page-content requests from an old-folder page list get nothing to draw; requests its stylesheets make are not covered.","leaveAsIsRecommended":"Recommended: it fixes the leak that was actually seen, the test shows the current page list still works, and it adds no path rewriting, which you preferred to avoid. A stylesheet asking for a book-folder picture in that brief moment is possible but hasn't been seen; a card could follow if it ever is.","codeComment":true},{"title":"Next step for PR #8595","context":["<p>All reviewers are done on the current code: the local review and the walkaround made their changes; Devin's and Greptile's one finding (the same one) is fixed and resolved; CI passed; the related C# and e2e tests pass. The PR is a draft.<\/p>"],"options":[{"label":"Act on my answer above, then I'll do my own final review","recommended":true,"why":"Recommended because nothing else is waiting on a decision.","effort":"a few minutes","instruction":"Act on the answer to the first question for PR #8595, then stop; John Thomson will review the PR himself before running request-peer-review or merge-without-peer-review."},{"label":"Discuss first","effort":"none","instruction":"Do not change anything on PR #8595 or BL-17055 yet; discuss the open question with John Thomson first."}],"leaveAsIs":"nothing further happens on PR #8595 until John Thomson says so."}]}</script>
 </head>
 <body>
 <header class="rhead">
-<h1>Preflight: BL-17055, a save that renames a new book's folder</h1>
-<p class="sum">Fix and tests are in; Devin is clean and CI is green. One question waits on you.</p>
+<h1>Preflight: BL-17055, pages left on a renamed book folder</h1>
+<p class="sum">All reviewers are done on the current code; their one finding is fixed. One question waits on you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip">Mergeable: yes</span>
-<span class="chip">Bots: quiet - Devin and Greptile clean</span>
+<span class="chip">Bots: quiet - findings fixed</span>
 <span class="chip warn">1 question waiting</span>
 </div>
 <div class="chips links">
@@ -90,14 +90,27 @@ td.ok{color:#2E6B3A}
 <div class="card">
 <h2>What this PR is about</h2>
 <h3>Problem</h3>
-<p>With a new book, typing a title on the cover and then closing a picture's Copyright and License dialog makes the cover picture disappear ("missing or loading too slowly") until you change pages. On a Wall Calendar it shows "Page expired" instead. The reporter (6.5) got "Page expired" doing the same thing on a Big Book cover. Moving a page in the page list right after typing a title can do the same. Nothing is lost; changing pages recovers.</p>
+<p>Typing a book's title (a new book, or retitling one) and then doing something that saves the book can leave the page on screen pointing at a folder that no longer exists. Until you change pages you get one of these:</p>
+<ul>
+<li>"Page expired" (what the reporter saw in 6.5);</li>
+<li>the cover picture shown as missing;</li>
+<li>a missing <code>configure.js</code> on a Wall Calendar;</li>
+<li>a "Cannot Find Image File" notice from the page list.</li>
+</ul>
+<p>Nothing is lost.</p>
 <h3>Cause</h3>
-<p>The first time the book is written after it gets a title, Bloom renames its folder from <code>Book-xxxxxxxx</code> to the title. The page being edited is served from a URL inside that folder, and its pictures and scripts are relative to it. Some saves reload the page <em>before</em> writing the book: closing the image Copyright and License dialog, its "copy to all images", and moving a page. When that save is the one that renames the folder, the page reloads under the old folder. The save's own navigation afterwards was skipped as "already going there", so the page, a picture or a script was not found.</p>
+<p>The next write after a title change renames the book's folder to the title. The page being edited and the page list are both served from addresses inside that folder. Three things went wrong:</p>
+<ul>
+<li>Some saves reloaded the page before writing (the image Copyright and License dialog, moving a page), so the reload used the old folder.</li>
+<li>Saves that stay on the page (opening the AI image editor) left it on the old folder.</li>
+<li>A thumbnail refresh could reach the old page list before Bloom replaced it.</li>
+</ul>
 <h3>What the PR does</h3>
 <ul>
-<li><code>EditingStateMachine</code> holds back any navigation requested while a save's action runs and the book is written. Afterwards it goes once to the page the action named, from the book's current folder. A save whose action navigated elsewhere now loads only the final page, not both.</li>
-<li>One <code>_saveInProgress</code> flag replaces the old flag for the action window.</li>
-<li>Tests: two new unit tests, and a new e2e spec that fails on any request under the old folder and checks the cover picture still shows after the dialog closes.</li>
+<li><code>EditingStateMachine</code> holds back navigation requested during a save until the book is written, then goes once to the page the action named.</li>
+<li><code>EditingModel</code> remembers which folder the page on screen came from. After any rename, once the save is done, if the page came from another folder, it saves and shows it again from the new one. This covers every reason to save, present or future. Opening the AI image editor waits for that reload, so it isn't closed by it.</li>
+<li>A page-content request from a page list loaded from another folder (judged by its <code>Referer</code>) gets nothing to draw.</li>
+<li>Tests: new unit tests for the state machine and the page-list check, and a new e2e spec with three cases. Each case failed before its part of the fix.</li>
 </ul>
 </div>
 
@@ -106,10 +119,10 @@ td.ok{color:#2E6B3A}
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>C# build</td><td class="ok">pass <span class="numeral">0 errors</span></td></tr>
-<tr><td>C# tests (dotnet test, related: <code>EditingStateMachineTests</code>, <code>EditingModel*</code>)</td><td class="ok">pass <span class="numeral">41 / 41</span></td></tr>
+<tr><td>C# tests (dotnet test, related: state machine, editing model, page list, server, AI editor)</td><td class="ok">pass <span class="numeral">261 / 261</span></td></tr>
 <tr><td>E2E typecheck (tsc) and prettier</td><td class="ok">pass</td></tr>
-<tr><td>Repo check: changed e2e specs at the nightly window size (<code>new-book-title-rename.spec.ts</code>)</td><td class="ok">pass <span class="numeral">2 / 2</span> at the merged HEAD</td></tr>
-<tr><td>E2E specs on the same save path (duplicate-page, inline-images-duplicate-page, typing-survives-leaving-the-page)</td><td class="ok">pass <span class="numeral">14 / 14</span> before the master merge</td></tr>
+<tr><td>Repo check: changed e2e spec at the nightly window size (<code>new-book-title-rename.spec.ts</code>)</td><td class="ok">pass <span class="numeral">3 / 3</span></td></tr>
+<tr><td>E2E specs on the same save path (duplicate-page, inline-images-duplicate-page, typing-survives-leaving-the-page), normal size</td><td class="ok">pass <span class="numeral">14 / 14</span></td></tr>
 <tr><td>TypeScript unit tests (vitest)</td><td>not run — no front-end source in the diff</td></tr>
 <tr><td>Merge with master</td><td class="ok">clean</td></tr>
 </table></div>
@@ -117,26 +130,31 @@ td.ok{color:#2E6B3A}
 
 <div class="card">
 <h2>What changed this run</h2>
-<p>The local review was clean. The walkaround and <code>/simplify</code> merged the two save flags into one, shortened the unit test onto the shared fixture with a new orientation-change case, and made the e2e spec reuse <code>getImagePlacement</code> and remove its listeners. Then master was merged and the draft PR opened. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>Added the reload after any rename and the stale-page-list check, with a third e2e case and new unit tests. The walkaround then reused <code>SavePageAndReloadIt</code> and gave in-memory file names one source. Devin's and Greptile's shared finding was fixed: the AI image editor now opens only after the reload. Master was merged. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595/commits" target="_blank" rel="noopener">Commits</a>.</p>
 </div>
 
 <div class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Complete, clean: no findings. It checked actions that read state after navigating, a null page, the NoPage state and exceptions.</td></tr>
-<tr><td>Walkaround (with <code>/simplify</code>)</td><td>5 changes kept (above). 1 proposal, the server-side alias for saves that stay on the page, is the first question on the right.</td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8595" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>45f75ef019</code>: no bugs, no flags.</td></tr>
-<tr><td>Greptile</td><td>Complete on <code>45f75ef019</code>: its <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#issuecomment-6994346233" target="_blank" rel="noopener">summary</a> found no issues and posted no inline comments.</td></tr>
-<tr><td>CI</td><td>Complete: <code>pr-automation</code> passed; <code>no-dependency-changes</code> skipped. Reviewable is the human review, not counted.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Complete, clean: no findings.</td></tr>
+<tr><td>Walkaround (with <code>/simplify</code>, twice)</td><td>
+<ul>
+<li>Changes kept: reuse <code>SavePageAndReloadIt</code>; one source for in-memory file names; a page-id-aware <code>RunAfterNextPageLoad</code>; the thumbnail check in the e2e case.</li>
+<li>Proposal: a server-side rule for the old folder. It's the first question on the right.</li>
+</ul></td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8595" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>71a9d648f7</code>. Its one finding (a low-memory reload could close the AI image editor) is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#discussion_r4633349798" target="_blank" rel="noopener">fixed and resolved</a>; Devin marks it resolved. No flags.</td></tr>
+<tr><td>Greptile</td><td>Complete on <code>5b4d1c2bdc</code>, with the same finding, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#discussion_r4633348234" target="_blank" rel="noopener">fixed and resolved</a>. It has not reviewed the fix commit (<code>71a9d648f7</code>); Greptile doesn't re-review pushes to a draft.</td></tr>
+<tr><td>CI</td><td>Complete: <code>pr-automation</code> passed; <code>no-dependency-changes</code> skipped.</td></tr>
 </table></div>
 </div>
 
 <div class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>Not exercised by any test: a Wall Calendar, "copy to all images", and moving a page or changing orientation as the first save after a title. All go through the same held-back navigation the tests check; they're in the test ideas on the card.</li>
-<li>6.5 has the same bug through a different save path. The card outlines a separate 6.5 fix and recommends not making it; that decision is John Hatton's, on the card.</li>
+<li>At the nightly window size, <code>inline-images-duplicate-page</code> fails in its own setup ("no spot on the text … clear of its inline images"). It passes at the normal size. That is the known nightly failure BL-17149, not this PR.</li>
+<li>Not exercised by any test: a Wall Calendar, "copy to all images", and a rename while a page is loading. They're in the test ideas on the card.</li>
+<li>6.5 has the same bug through a different save path. The card outlines a 6.5 fix and recommends not making it; that's John Hatton's call, on the card.</li>
 </ul>
 </div>
 
