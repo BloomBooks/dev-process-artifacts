@@ -64,19 +64,19 @@ code{overflow-wrap:anywhere}
 .rright main{max-width:none;padding:0}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-19","about":"bloom-core-supabase, branch BL-17059-fs-versioned-cache, PR #15 (cache fs files under the version fs reports)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-core-supabase-bl-17059-fs-versioned-cache.html","questions":[{"title":"Downloads are named by the ?v= form; should something else decide it?","context":["When a request uses the query form, <code>/v1/fs/{bucket}/{bookId}/{file}?v={epochMs}<\/code>, the worker adds <code>Content-Disposition: attachment<\/code> with the file's real name, so a title with <code>+<\/code>, <code>%<\/code> or accents saves under the right name. The read-online form (<code>{bookId}@{epochMs}<\/code>) never gets it, and neither does an unversioned URL.","The walkaround's altitude review pointed out that this ties two separate things to one switch: putting a version in the URL also turns the file into a download. A client that ever used <code>?v=<\/code> for something meant to show in the page (an image, a PDF opened in a tab) would get a download instead, and unversioned download links still get no real name.","Today nothing sends <code>?v=<\/code>; the site change that adds versions will use it only for download links, which is what the card describes."],"options":[{"label":"Use its own signal, e.g. ?download=1","why":"Separates \"cache this version\" from \"save this as a file\", and lets unversioned download links get the real name too.","effort":"~15 lines in worker.js plus tests and README; the BloomLibrary2 change must add the parameter","instruction":"In C:\\dev\\_worktrees\\bloom-core-supabase\\BL-17059-fs-versioned-cache (branch BL-17059-fs-versioned-cache), cloudflare/worker.js: add Content-Disposition (downloadDisposition) when the request carries download=1 (strip it before calling fs), instead of when it uses the ?v= form; drop isDownload from parseFsVersion. Update cloudflare-worker-test.ts and cloudflare/README.md, re-verify on staging, and note on card BL-17059 that the site's download links should add download=1."}],"leaveAsIsRecommended":"Recommended because ?v= is defined as the download form on the card, the site change will use it only for downloads, and read online has its own @ form. A second parameter adds a contract the site must remember for no current gain.","leaveAsIs":"the ?v= form also makes the response a download with the file's real name.","codeComment":true},{"title":"Zone browser cache setting vs. the worker's own Cache-Control","context":["The bloomlibrary.org zone's Browser Cache TTL is set to 4 hours rather than \"Respect Existing Headers\". When a file comes through Cloudflare's cache, Cloudflare may give it a 4-hour browser <code>Cache-Control<\/code> that S3 never sent. A browser or app would then keep an old copy for hours after a re-upload.","So the worker now sets <code>Cache-Control<\/code> itself on every cached file: <code>immutable<\/code> when the URL names the current version, the one-year thumbnail rule, otherwise <code>no-cache<\/code>. Bloom Desktop and the harvester upload files with <code>no-cache<\/code> anyway, so that is what clients already got.","The altitude review suggested fixing it at the zone instead (\"Respect Existing Headers\") so the worker needn't override S3's header. That setting covers the whole bloomlibrary.org zone, including the site's own assets, so it is an ops change with effects outside this PR."],"options":[{"label":"Ask ops to set the zone to Respect Existing Headers","why":"Fixes it where it arises; the worker could then stop overriding S3's header (a later, small change).","effort":"a dashboard setting for ops, then a review of what else on the zone relied on the 4-hour TTL","instruction":"Note on card BL-17059 for ops: consider setting the bloomlibrary.org zone's Browser Cache TTL to \"Respect Existing Headers\", after checking which site assets rely on the current 4-hour TTL. No change to PR #15 (bloom-core-supabase, branch BL-17059-fs-versioned-cache) until that is done."}],"leaveAsIsRecommended":"Recommended because the worker's header is correct either way and is what clients already got from S3, while the zone setting touches every bloomlibrary.org page and asset.","leaveAsIs":"the worker sets Cache-Control itself on every file that comes through Cloudflare's cache.","codeComment":false},{"title":"Next step","context":["The PR is a draft and everything is green: CI, Devin and Greptile clean at fc43110, staging runs this commit's fs and worker. Production has not been touched. The usual next step is your own review, then request-peer-review (or merge-without-peer-review if the card has an approved plan). On merge, fs deploys from GitHub Actions; the worker is deployed separately, in either order."],"options":[{"label":"I'll review it myself next","recommended":true,"why":"Recommended because nothing above needs a code change unless you choose so.","effort":"none now","instruction":"No action; the developer will review PR #15 (bloom-core-supabase) themselves."},{"label":"Apply my answers above, then re-run preflight","effort":"depends on the answers","instruction":"Apply the decisions above in bloom-core-supabase (branch BL-17059-fs-versioned-cache), then run /preflight again."}],"leaveAsIs":"nothing else happens until I say so."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-19","about":"bloom-core-supabase PR #15 (branch BL-17059-fs-versioned-cache) and BloomLibrary2 PR #628 (branch site-files-via-fs)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloom-core-supabase-bl-17059-fs-versioned-cache.html","questions":[{"title":"Next step","context":["PR #15 is a draft and everything is green at 4020a5d: CI, Devin and Greptile clean, staging runs its worker. Production is untouched. BloomLibrary2 #628 got the matching <code>download=1<\/code> commit (be8b6664) but has not been through preflight since."],"options":[{"label":"Run preflight on BloomLibrary2 #628, then I'll review both","recommended":true,"why":"Recommended because #628 changed after its last preflight, and the two PRs are reviewed together.","effort":"one preflight run","instruction":"In C:\\dev\\_worktrees\\BloomLibrary2\\site-files-via-fs (branch site-files-via-fs, BloomLibrary2 PR #628), run /preflight."},{"label":"I'll review PR #15 myself next","effort":"none now","instruction":"No action; the developer will review bloom-core-supabase PR #15 themselves."}],"leaveAsIs":"nothing else happens until I say so."}]}</script>
 </head>
 <body>
 <div class="rwrap">
 <header class="rhead">
   <h1>Cache fs files under the version fs reports (BL-17059)</h1>
-  <p class="summary">Third preflight run on <code>BL-17059-fs-versioned-cache</code>, after the redesign that replaced the leaky lookup cache. Every gate is green, every reviewer is clean at <code>fc43110</code>, and staging runs this commit. Two walkaround proposals are below; leaving both as they are is recommended.</p>
+  <p class="summary">Fourth preflight run on <code>BL-17059-fs-versioned-cache</code>, after your answers on downloads. Every gate is green, every reviewer is clean at <code>4020a5d</code>, and staging runs this commit's worker. Nothing is waiting on you except the next step.</p>
   <div class="chips">
     <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
     <span class="chip ok">Mergeable (clean)</span>
     <span class="chip ok">Bots quiet</span>
-    <span class="chip warn">2 proposals + next step</span>
-    <span class="chip">Board: needs your response</span>
+    <span class="chip ok">0 decisions waiting</span>
+    <span class="chip">Board: ready for your review</span>
   </div>
   <div class="chips">
     <a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">PR #15</a>
@@ -85,6 +85,7 @@ code{overflow-wrap:anywhere}
     <a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17059" target="_blank" rel="noopener">BL-17059</a>
     <a class="chip link" href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Devin review</a>
     <a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15#issuecomment-6962425821" target="_blank" rel="noopener">Greptile</a>
+    <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">BloomLibrary2 #628</a>
   </div>
 </header>
 <div class="rgrid">
@@ -95,9 +96,10 @@ code{overflow-wrap:anywhere}
     <p>Every request for a book file on <code>api.bloomlibrary.org/v1/fs/...</code> goes to the fs function (a Parse lookup) and then to S3, so every download and read-online page pulls the file from S3 again. Most book files never change once uploaded or harvested. If we know which version of a file a request gets, Cloudflare can keep that version and serve repeat requests without S3, for old clients too.</p>
     <h3>What the PR does</h3>
     <ul>
-      <li><strong>fs reports the file's version</strong> on its 302 (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/supabase/functions/fs/BookData.ts#L79" target="_blank" rel="noopener"><code>fileVersion</code></a>): <code>lastUploaded</code> for upload buckets, <code>harvestStartedAt</code> for harvest buckets, and nothing while a harvest isn't <code>Done</code>. The upload and harvester code was checked for write order. The 302 is <code>private, no-store</code>.</li>
-      <li><strong>The worker caches the S3 file under that version</strong> for a year, 2xx only (<code>?v=</code> on the S3 URL as the cache key), for every client. fs is still asked on every request, so new uploads, re-harvests and deleted books take effect at once. Cached responses get the worker's own <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/cloudflare/worker.js#L277" target="_blank" rel="noopener"><code>Cache-Control</code></a> and no <code>Age</code>.</li>
-      <li><strong>Clients may put the version in the URL</strong>: <code>?v=</code> for downloads, <code>{bookId}@{version}</code> for read online (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/fc43110c881f461240d8b3b11a790b8115eb7d15/cloudflare/worker.js#L195" target="_blank" rel="noopener">stripped before fs</a>). It only adds <code>immutable</code> when it matches fs's version, so a wrong one can't pin stale bytes. Downloads get the real file name.</li>
+      <li><strong>fs reports the file's version</strong> on its 302 (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/4020a5dddb3905447c6b33d01b9340d63d338a6a/supabase/functions/fs/BookData.ts#L79" target="_blank" rel="noopener"><code>fileVersion</code></a>): <code>lastUploaded</code> for upload buckets, <code>harvestStartedAt</code> for harvest buckets, and nothing while a harvest isn't <code>Done</code>. The upload and harvester code was checked for write order. The 302 is <code>private, no-store</code>.</li>
+      <li><strong>The worker caches the S3 file under that version</strong> for a year, 2xx only (<code>?v=</code> on the S3 URL as the cache key), for every client. fs is still asked on every request, so new uploads, re-harvests and deleted books take effect at once. Cached responses get the worker's own <a href="https://github.com/BloomBooks/bloom-core-supabase/blob/4020a5dddb3905447c6b33d01b9340d63d338a6a/cloudflare/worker.js#L287" target="_blank" rel="noopener"><code>Cache-Control</code></a> and no <code>Age</code>.</li>
+      <li><strong>Clients may put the version in the URL</strong>: <code>?v=</code> for downloads, <code>{bookId}@{version}</code> for read online (<a href="https://github.com/BloomBooks/bloom-core-supabase/blob/4020a5dddb3905447c6b33d01b9340d63d338a6a/cloudflare/worker.js#L199" target="_blank" rel="noopener">stripped before fs</a>). It only adds <code>immutable</code> when it matches fs's version, so a wrong one can't pin stale bytes.</li>
+      <li><strong>Download buttons ask for a download</strong> with <code>download=1</code>: the file then saves under its real name, the PDF included. Browsers ignore a link's <code>download</code> attribute for another host, so this header is what makes a download; without it S3's headers decide, as today. <a href="https://github.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">BloomLibrary2 #628</a> sends it from its download buttons.</li>
     </ul>
   </section>
 
@@ -107,16 +109,16 @@ code{overflow-wrap:anywhere}
       <tr><th>Check</th><th>Result</th></tr>
       <tr><td>Typecheck (<code>deno check</code>, all functions)</td><td class="pass">pass</td></tr>
       <tr><td>Lint (<code>deno lint</code> on the changed files)</td><td class="pass">pass</td></tr>
-      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">126 passed · 0 failed</span></td></tr>
-      <tr><td>CI <code>test</code></td><td class="pass">pass at fc43110</td></tr>
+      <tr><td>Deno tests (functions + worker), full suite</td><td><span class="pass">pass</span> <span class="numeral">127 passed · 0 failed</span></td></tr>
+      <tr><td>CI <code>test</code></td><td class="pass">pass at 4020a5d</td></tr>
       <tr><td>Merge with <code>develop</code></td><td class="pass">up to date</td></tr>
-      <tr><td>Staging (<code>staging-api</code>; fs via the Deploy to Staging workflow, worker 99df6ded, both at fc43110)</td><td class="pass">all live checks passed; see the PR's E2E Coverage</td></tr>
+      <tr><td>Staging (<code>staging-api</code>; worker 53384aec at 4020a5d; fs at fc43110, unchanged since)</td><td class="pass">all live checks passed; see the PR's E2E Coverage</td></tr>
     </table>
   </section>
 
   <section class="card">
     <h2>What changed this run</h2>
-    <p>The redesign (one squashed commit) replaced the lookup cache, which exposed S3 addresses through the CDN, with caching under the version fs reports. Two Fable audits came back clean after one round of fixes. The walkaround then tidied it: the bucket map now says which buckets are harvested, one <code>Cache-Control</code> function, one test stub helper, and duplicate tests removed. Commit <a href="https://github.com/BloomBooks/bloom-core-supabase/commit/fc43110c881f461240d8b3b11a790b8115eb7d15" target="_blank" rel="noopener">fc43110</a>.</p>
+    <p>Applied your answers: <code>Content-Disposition</code> with the real name now comes only with <code>download=1</code>, not with <code>?v=</code>, and BloomLibrary2 #628's download buttons send it (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/be8b6664" target="_blank" rel="noopener">be8b6664</a>). The zone's browser cache setting stays (it is Cloudflare's default). One commit: <a href="https://github.com/BloomBooks/bloom-core-supabase/commit/4020a5dddb3905447c6b33d01b9340d63d338a6a" target="_blank" rel="noopener">4020a5d</a>.</p>
   </section>
 
   <section class="card">
@@ -124,10 +126,10 @@ code{overflow-wrap:anywhere}
     <table>
       <tr><th>Reviewer</th><th>Outcome</th></tr>
       <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
-      <tr><td>Walkaround + <code>/simplify</code></td><td>7 behavior-preserving changes; 2 proposals on the right (both recommended to leave as is).</td></tr>
-      <tr><td>Devin</td><td>Complete at fc43110: no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Review</a></td></tr>
-      <tr><td>Greptile</td><td>Complete at fc43110 (re-triggered for the redesign): "No actionable issues found." <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/15#issuecomment-6962425821" target="_blank" rel="noopener">Summary</a></td></tr>
-      <tr><td>CI</td><td>Passed at fc43110.</td></tr>
+      <tr><td>Walkaround + <code>/simplify</code></td><td>3 changes: two duplicate tests folded into existing ones, and an unrelated <code>download=0</code> beside a version is now left alone. No proposals.</td></tr>
+      <tr><td>Devin</td><td>Complete at 4020a5d: no bugs, no flags. <a href="https://devinreview.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">Review</a></td></tr>
+      <tr><td>Greptile</td><td>Complete at 4020a5d: "No actionable issues found." <a href="https://github.com/BloomBooks/bloom-core-supabase/pull/15#issuecomment-6962425821" target="_blank" rel="noopener">Summary</a></td></tr>
+      <tr><td>CI</td><td>Passed at 4020a5d.</td></tr>
     </table>
   </section>
 
@@ -136,7 +138,8 @@ code{overflow-wrap:anywhere}
     <ul>
       <li><strong>Staging runs this branch</strong> (fs and worker) until the next push to <code>develop</code> redeploys fs; the worker stays until redeployed. Production is untouched.</li>
       <li><strong>Old lookup-cache entries</strong> from the earlier design are still readable on <code>staging-api</code> under <code>/__fs-lookup/...</code>, for three test books only, no emails. Nothing writes them any more; a hostname purge would clear them.</li>
-      <li><strong>The site must not send <code>@version</code> URLs</strong> before this worker is live in production: the old worker passes <code>id@version</code> to fs, which 404s.</li>
+      <li><strong>The site must not send <code>@version</code> URLs</strong> before this worker is live in production: the old worker passes <code>id@version</code> to fs, which 404s. <code>download=1</code> is safe either way (fs ignores it).</li>
+      <li><strong>BloomLibrary2 #628 has not had preflight</strong> since the <code>download=1</code> commit; its tests and lint pass on the changed files.</li>
     </ul>
   </section>
 </div>
