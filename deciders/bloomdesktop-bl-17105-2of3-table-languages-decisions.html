@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decisions</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-20","about":"BloomDesktop PR #8598, branch BL-17105-2of3-table-languages (2/3 of the BL-17105 table-languages stack; 1/3 is merged)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17105-2of3-table-languages-decisions.html","context":["<p>PR #8598 lets each text cell of a table choose which languages it shows, from the Cell, Row, Column and Table menus. The choice is stored as roles (<code>V<\/code>, <code>N1<\/code>, <code>N2<\/code>) in <code>data-default-languages<\/code> on the cell's translation group. PR #8599, which builds on it, makes a cell with no setting mean \"L1 only\" instead of \"the toolbar's languages\". The questions below came from this preflight's reviewers; none is a bug a tester would likely meet in ordinary use.<\/p>"],"questions":[{"title":"Undo of a language change finds its cells by their place on the page","context":["<p>Ticking or unticking a language makes one undo step (<code>toggleRole<\/code> in <a href=\"https://github.com/BloomBooks/BloomDesktop/blob/BL-17105-2of3-table-languages/src/BloomBrowserUI/bookEdit/js/tableCellLanguages.ts\" target=\"_blank\" rel=\"noopener\">tableCellLanguages.ts<\/a>). Because a table Undo rebuilds the table's cells, the step does not hold on to the cells; it remembers each one's position among all the page's translation groups, and on Undo or Redo it finds them again by that position, after checking each still has the setting it expects.<\/p>","<p>That is safe as long as nothing between the change and its Undo adds or removes a translation group before the table on the page. Table operations are on the same undo stack, so they are fine. But adding or deleting a canvas element (or a Change Layout split) is not on that stack. If one of those happens first and shifts the positions, the Undo either finds a cell without the expected setting, throws, clears the undo stack and shows Bloom's error report; or, if the cell that moved into that place happens to have the same setting, changes the wrong cell silently. Whether a user can actually reach this depends on which undo Bloom runs when several kinds are pending, which I have not checked in a running Bloom.<\/p>","<p>A reviewer suggested making the change one of bloom-table's own history entries (<code>tableHistoryManager.addHistoryEntry<\/code>), as every other table operation is. The library's snapshot restore would then handle rebuilt cells, and about 60 lines of position-finding and checking would go. The cost: like other table operations today, it would have no Redo until the undo work's Stage 3, and Undo would lose the cell's CKEditor typing history.<\/p>"],"options":[{"label":"Check it in a running Bloom first","recommended":true,"why":"Recommended because whether this can happen at all depends on how Bloom orders its undo kinds, which a short run settles; the rewrite has costs of its own (no Redo yet).","effort":"~30 min, no code unless it shows","instruction":"In BloomDesktop branch BL-17105-2of3-table-languages (PR #8598), in a running Bloom: on a Canvas page with a table, tick L2 in a cell's Languages menu, then add a canvas text element placed before the table in the page's markup, then press Undo twice. Report whether the language change undoes correctly, throws (error report), or changes another cell. If it misbehaves, propose moving toggleRole's undo onto bloom-table's tableHistoryManager.addHistoryEntry."},{"label":"Move the change onto the table's own undo history now","why":"Removes the position-finding entirely and makes a language change undo like every other table operation.","effort":"moderate, ~60 lines removed; no Redo for it until Stage 3; Undo loses the cell's typing history","instruction":"In BloomDesktop branch BL-17105-2of3-table-languages (PR #8598), make toggleRole (src/BloomBrowserUI/bookEdit/js/tableCellLanguages.ts) record its change through bloom-table's tableHistoryManager.addHistoryEntry(table, label, performOperation) instead of pushing its own entry on theOneUndoStack, removing placesOnPage, translationGroupsOf and the expected-setting check; update tableCellLanguages.test.ts and run the tables-cell-languages e2e specs."}],"leaveAsIs":"a language change's Undo finds its cells by their place on the page.","codeComment":true},{"title":"A cell with no setting, when the toolbar's first language is not the collection's L1","context":["<p>A cell of a table made before this PR has no setting, and shows the toolbar's languages. The menu maps those onto roles: <code>V<\/code> is the toolbar's first language, <code>N1<\/code> and <code>N2<\/code> the collection's second and third. If the toolbar's first language is the collection's L2 and the collection's L1 is ticked second, the collection's L1 has no role. C# still shows its box in such a cell, but the menu does not know it is shown: ticking any language in that cell writes a setting that hides the L1 text the user can see, and copying such a cell (new row, Paint format, Paste properties) does the same to the cells it is copied into.<\/p>","<p>The PR description already notes that in this situation \"the collection's L1 is not offered in a table cell\", and that #8599 removes it: there, a cell with no setting means L1 only, and the menu no longer depends on the toolbar. I have not checked that the toolbar can actually be put in this order.<\/p>"],"options":[{"label":"Fix it in #8598","why":"Makes #8598 correct on its own, in case it ships before #8599.","effort":"moderate: give the collection's L1 a role in the menu, or read a no-setting cell from its shown boxes","instruction":"In BloomDesktop branch BL-17105-2of3-table-languages (PR #8598), make rolesFromSetting/cellLanguagesOfCollection in src/BloomBrowserUI/bookEdit/js/tableCellLanguages.ts account for a cell with no setting whose shown boxes include the collection's L1 when the toolbar's first language is another language, so that ticking a language in such a cell does not hide the L1 box; add a unit test."}],"leaveAsIs":"a no-setting cell is read through the toolbar's roles until #8599 replaces that reading.","leaveAsIsRecommended":"Recommended because #8599 replaces this reading entirely, the two are meant to ship together, and the case needs an unusual toolbar order that may not be reachable.","codeComment":false},{"title":"Adding a row sets up each new cell separately","context":["<p>bloom-table announces each new cell of an added row or column on its own, and Bloom wires each one as it comes (<code>wireBloomContentOfNewCells(cell)<\/code>), before the whole table is wired again when the operation ends. Since this PR, wiring a cell runs <code>setUpBoxesBuiltAfterLoad<\/code>, which reads each box's direction and font size and measures it for its tag. Done cell by cell, each cell's measuring comes after the previous cell's changes, so the browser lays the page out once per new cell. A reviewer estimates an 8-column Add Row at 8 to 16 extra layouts, perhaps 100 to 300 ms on a slow computer; I have not measured it.<\/p>","<p>The cheaper shape is to collect the cells announced during one operation and wire them together in one call when it ends. That changes when a new cell becomes typeable: at the end of the operation rather than as soon as it is announced.<\/p>"],"options":[{"label":"Measure first, then batch if it shows","recommended":true,"why":"Recommended because the cost is an estimate, and batching changes the moment a new cell becomes typeable; BL-17084's slow-computer mode settles it in one run, as it did for the re-tick case.","effort":"~30 min to measure; batching is ~20 lines, low to moderate risk","instruction":"In BloomDesktop branch BL-17105-2of3-table-languages (PR #8598), with 'Simulate a slow computer' (or 5x CPU throttling over CDP), time Add Row on a table with 8 columns. If it is noticeably slower than on master, change onTableCellContentChanged in src/BloomBrowserUI/bookEdit/js/tableEditing.ts to collect the cells announced during an operation and wire them together, in one setUpBoxesBuiltAfterLoad call, and re-run the tables e2e specs."},{"label":"Batch it now","why":"Removes the per-cell layouts without waiting for a measurement.","effort":"~20 lines, low to moderate risk","instruction":"In BloomDesktop branch BL-17105-2of3-table-languages (PR #8598), change onTableCellContentChanged in src/BloomBrowserUI/bookEdit/js/tableEditing.ts to collect the cells announced during an operation and wire them together, in one setUpBoxesBuiltAfterLoad call, when the operation's history update arrives; re-run the tables e2e specs."}],"leaveAsIs":"each new cell of an added row or column is set up on its own.","codeComment":true},{"title":"Next step","context":["<p>Apart from these, #8598 is clean: the gate, its unit tests and its e2e specs pass, Devin's and Greptile's findings are fixed or answered, and no review thread is open.<\/p>"],"options":[{"label":"Carry out my answers, then rerun preflight on #8598 if code changed","recommended":true,"why":"Recommended because a code change restarts the reviewers.","effort":"depends on the answers above","instruction":"Carry out the answers above on PR #8598; if any code changed, run preflight on BL-17105-2of3-table-languages again."},{"label":"Discuss first","why":"Talk the questions through before acting.","effort":"none","instruction":"Do not change anything yet; discuss the answers above with me first."}],"leaveAsIs":"nothing further is done after these answers.","codeComment":false}]}</script>
+</head>
+<body>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
