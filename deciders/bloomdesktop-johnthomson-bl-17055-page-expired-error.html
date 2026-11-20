@@ -69,7 +69,7 @@ td.ok{color:#2E6B3A}
 <body>
 <header class="rhead">
 <h1>Preflight: BL-17055, pages left on a renamed book folder</h1>
-<p class="sum">All reviewers are done on the current code. Nothing waits on you.</p>
+<p class="sum">John Hatton's review point is fixed and answered; all reviewers are done on the current code. Nothing waits on you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
 <span class="chip">Mergeable: yes</span>
@@ -109,7 +109,7 @@ td.ok{color:#2E6B3A}
 <ul>
 <li><code>EditingStateMachine</code> prevents navigation while a save's action runs and the book is being written; a navigation asked for then is dropped, and once the book is written it goes to the page the action named.</li>
 <li><code>EditingModel</code> remembers which folder the page on screen came from. After any rename, once the save is done, if the page came from another folder, it saves and shows it again from the new one. This covers every reason to save, present or future. Opening the AI image editor waits for that reload, so it isn't closed by it.</li>
-<li>A page-content request from a page list loaded from another folder (judged by its <code>Referer</code>) gets nothing to draw.</li>
+<li>The server tells from a request's <code>Referer</code> whether it comes from a page list or page being edited loaded from a folder the book has since left. Such a page list gets nothing to draw, and a file any such document can't find is not reported: the document is about to be replaced. This closes the race John Hatton found in review, where a request slips past the rename on another thread.</li>
 <li>Tests: new unit tests for the state machine and the page-list check, and a new e2e spec with three cases. Each case failed before its part of the fix.</li>
 </ul>
 </div>
@@ -119,10 +119,10 @@ td.ok{color:#2E6B3A}
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>C# build</td><td class="ok">pass <span class="numeral">0 errors</span></td></tr>
-<tr><td>C# tests (dotnet test): <code>EditingStateMachineTests</code>, the only C# this run touched (comments and messages); the full related set passed 261 / 261 on <code>71a9d648f7</code></td><td class="ok">pass <span class="numeral">23 / 23</span></td></tr>
+<tr><td>C# tests (dotnet test, related: state machine, editing model, page list, server, AI editor, book-document folder check)</td><td class="ok">pass <span class="numeral">263 / 263</span></td></tr>
 <tr><td>E2E typecheck (tsc) and prettier</td><td class="ok">pass</td></tr>
-<tr><td>Repo check: changed e2e spec at the nightly window size (<code>new-book-title-rename.spec.ts</code>)</td><td class="ok">pass <span class="numeral">3 / 3</span></td></tr>
-<tr><td>E2E specs on the same save path (duplicate-page, inline-images-duplicate-page, typing-survives-leaving-the-page), normal size</td><td class="ok">pass <span class="numeral">14 / 14</span> on <code>71a9d648f7</code>; not re-run, as only wording changed since</td></tr>
+<tr><td>Repo check: changed e2e spec at the nightly window size (<code>new-book-title-rename.spec.ts</code>)</td><td class="ok">pass <span class="numeral">3 / 3</span> at the merged HEAD</td></tr>
+<tr><td>E2E specs on the same save path (duplicate-page, inline-images-duplicate-page, typing-survives-leaving-the-page), normal size</td><td class="ok">pass <span class="numeral">14 / 14</span> at the merged HEAD</td></tr>
 <tr><td>TypeScript unit tests (vitest)</td><td>not run — no front-end source in the diff</td></tr>
 <tr><td>Merge with master</td><td class="ok">clean</td></tr>
 </table></div>
@@ -130,22 +130,18 @@ td.ok{color:#2E6B3A}
 
 <div class="card">
 <h2>What changed this run</h2>
-<p>Wording only: comments, a log message, a unit test's name and an assertion message now say that navigation during a save is <em>prevented</em> (dropped in favour of the page the save names), not held back. No code changed. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>Answered John Hatton's review: a missing file asked for by a page list or page being edited that was loaded from the book's old folder is no longer reported, which closes the race he found. <code>/simplify</code> then shared the edited page's name prefix and clarified the page-list guard's comment. Master was merged. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595/commits" target="_blank" rel="noopener">Commits</a>.</p>
 </div>
 
 <div class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Complete, clean: no findings. It pointed out one more assertion message with the old wording, which was reworded.</td></tr>
-<tr><td>Walkaround (with <code>/simplify</code>, twice)</td><td>
-<ul>
-<li>This run: one assertion message reworded; <code>/simplify</code> not needed (only wording changed since the last walkaround).</li>
-<li>Earlier: reused <code>SavePageAndReloadIt</code>; one source for in-memory file names; a page-id-aware <code>RunAfterNextPageLoad</code>. Its proposal of a server-side rule for the old folder was declined by the developer.</li>
-</ul></td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8595" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>9886866f57</code>: no new bugs or flags. Its one finding on the branch (a low-memory reload could close the AI image editor) stays <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#discussion_r4633349798" target="_blank" rel="noopener">fixed and resolved</a>.</td></tr>
-<tr><td>Greptile</td><td>Last complete on <code>5b4d1c2bdc</code>: its one finding (the same as Devin's) is <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#discussion_r4633348234" target="_blank" rel="noopener">fixed and resolved</a>. It has not reviewed the later commits (the AI-editor fix and wording); Greptile doesn't re-review pushes to a draft, and will review again when the PR leaves draft.</td></tr>
-<tr><td>CI</td><td>Complete: <code>pr-automation</code> passed; <code>no-dependency-changes</code> skipped.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Complete, clean: no findings. It checked that the current page list and page can't be taken for stale ones.</td></tr>
+<tr><td>Walkaround (with <code>/simplify</code>)</td><td>3 changes kept: a shared name prefix for the edited page, a direct read of the current book's folder, and a clearer comment on the page-list guard. No proposals.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8595" target="_blank" rel="noopener">Devin</a></td><td>Complete on <code>abcdada65d</code>: no new bugs or flags. Its earlier finding stays <a href="https://github.com/BloomBooks/BloomDesktop/pull/8595#discussion_r4633349798" target="_blank" rel="noopener">fixed and resolved</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete on <code>abcdada65d</code> (asked to review after the fix): no new issues.</td></tr>
+<tr><td>CI</td><td>Complete: <code>pr-automation</code> and Greptile's check passed; <code>no-dependency-changes</code> skipped.</td></tr>
 </table></div>
 </div>
 
@@ -161,7 +157,7 @@ td.ok{color:#2E6B3A}
 </section>
 
 <main>
-<div class="ctx"><h2>Decisions</h2><p>None waiting. The question from the previous run (a server-side rule for the old folder) was answered: leave as is.</p></div>
+<div class="ctx"><h2>Decisions</h2><p>None waiting.</p></div>
 </main>
 </div>
 
