@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight: BL-17059 staging API switch</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#faf8f4;color:#2b2a28;font:15px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif;padding:24px 16px}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;line-height:1.25}
+h1{font-size:24px;margin-bottom:8px}
+h2{font-size:18px;margin-bottom:10px}
+h3{font-size:15px;margin:12px 0 4px}
+p{margin:6px 0}
+ul{margin:6px 0 6px 20px}
+li{margin:3px 0}
+a{color:#1a6f7b}
+code{font:13px ui-monospace,Consolas,monospace;background:#f0ece4;padding:1px 4px;border-radius:3px}
+.wrap{max-width:1200px;margin:0 auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d8d2c6;background:#fff;border-radius:999px;padding:2px 10px;font-size:13px;text-decoration:none;color:#2b2a28}
+a.chip{color:#1a6f7b}
+.chip.warn{border-color:#c98a2b;background:#fdf4e4}
+.grid{display:grid;grid-template-columns:1fr;gap:16px;margin-top:16px}
+@media(min-width:960px){.grid{grid-template-columns:3fr 2fr}}
+.grid>div{min-width:0}
+.card{background:#fff;border:1px solid #e3ddd2;border-radius:8px;padding:16px;margin-bottom:16px}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #eee7da;vertical-align:top}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+.ok{color:#2f7a2f}
+.tablewrap{overflow-x:auto}
+.opt{display:block;border:1px solid #e3ddd2;border-radius:6px;padding:8px 10px;margin:6px 0;cursor:pointer}
+.opt small{display:block;color:#6b665e}
+.rec{font-size:12px;color:#1a6f7b;font-weight:600}
+textarea,input[type=text]{width:100%;font:inherit;border:1px solid #d8d2c6;border-radius:6px;padding:6px;margin-top:6px}
+button{font:inherit;padding:6px 14px;border-radius:6px;border:1px solid #1a6f7b;background:#1a6f7b;color:#fff;cursor:pointer;margin-right:6px}
+button.secondary{background:#fff;color:#1a6f7b}
+pre{white-space:pre-wrap;font:12px ui-monospace,Consolas,monospace;background:#f6f3ed;border:1px solid #e3ddd2;border-radius:6px;padding:8px;margin-top:8px;max-height:220px;overflow:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Preflight: let testers point the site's API at staging</h1>
+<p>Run converged: gate green, every reviewer finished, one decision waiting on you.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip">Mergeable</span>
+<span class="chip">Bots finished</span>
+<span class="chip warn">1 decision waiting</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/629" target="_blank" rel="noopener">PR #629</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/629/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomLibrary2/pull/629/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17059" target="_blank" rel="noopener">BL-17059</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/629" target="_blank" rel="noopener">Devin review</a>
+</div>
+
+<div class="grid">
+<div>
+<div class="card">
+<h2>What this PR is about</h2>
+<h3>Purpose</h3>
+<p>Backend changes to the Bloom API (now: Cloudflare keeping copies of book files, bloom-core-supabase#15) reach <code>staging-api.bloomlibrary.org</code> well before production. Staging runs the backend's develop branch but forwards everything else to the same production services and data, so the real site, with real books, is the best place to try those changes. Until now the site could only call <code>api.bloomlibrary.org</code>. This PR lets a tester switch one browser to staging without a special build.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>Opening any page with <code>?api=staging</code> sends this browser's Bloom API calls to staging; <code>?api=prod</code> switches back. The choice is remembered in this browser and read once when the site loads. Only those two values are accepted.</li>
+<li>On localhost the staging calls go through a new <code>/staging-api</code> Vite proxy, so the switch works there too.</li>
+<li>While staging is on, a "Staging API" banner with no close button floats at the bottom of every page. Its "Switch back" link changes only <code>api</code> in the address, keeping filters and date ranges.</li>
+<li>The banner is a general <code>OverlayBanner</code> made from alpha's "Under Construction" message, which now uses it too: closable, raised above the staging banner when both show, and saying "alpha" instead of "next".</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Quality gate</h2>
+<div class="tablewrap"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (tsc)</td><td class="ok">No new errors. <span class="numeral">22</span> errors in files this PR doesn't touch, the same as before.</td></tr>
+<tr><td>Lint (eslint, prettier)</td><td class="ok">Clean on every changed file</td></tr>
+<tr><td>TypeScript tests (vitest, related)</td><td class="ok"><span class="numeral">107 passed</span> in 10 files</td></tr>
+<tr><td>C# tests</td><td>N/A: none in this repo</td></tr>
+<tr><td>Production build (vite)</td><td class="ok">Passed locally (this repo runs no CI on PRs)</td></tr>
+<tr><td>Merge with master</td><td class="ok">Up to date, mergeable</td></tr>
+</table></div>
+</div>
+
+<div class="card">
+<h2>What changed this run</h2>
+<p>Following your feedback, the banner became a general <code>OverlayBanner</code> built from alpha's Under Construction message, and Under Construction now uses it too. "Switch back" keeps the page's other parameters, which both bots found it was dropping. The switch now works on localhost. All of it is squashed into one commit, <a href="https://github.com/BloomBooks/BloomLibrary2/commit/3ead5f3ef2dd297262d95c15d1bef5aa9c2a66d8" target="_blank" rel="noopener">3ead5f3e</a>.</p>
+</div>
+
+<div class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tablewrap"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+<tr><td>Walkaround + /simplify</td><td>Three rounds. Kept changes: the API choice is read once per page load, the banner reuses the existing <code>addParamToUrl</code>, and Under Construction lost its leftover wrapper. Nothing proposed.</td></tr>
+<tr><td>Devin</td><td>Complete for 3ead5f3e. One bug, open for you (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/629#discussion_r4649166903" target="_blank" rel="noopener">thread</a>). One investigate item about the gap between the banners, resolved as your call (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/629#discussion_r4649167023" target="_blank" rel="noopener">thread</a>). The earlier "Switch back" finding is fixed, and Devin marks it resolved.</td></tr>
+<tr><td>Greptile</td><td>Complete for 3ead5f3e after a re-review request: "no actionable new issues". Its earlier finding is fixed and resolved (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/629#discussion_r4648975640" target="_blank" rel="noopener">thread</a>).</td></tr>
+<tr><td>CI</td><td>None runs on PRs in this repo; the production build ran locally instead.</td></tr>
+<tr><td>Repo checks</td><td>None declared.</td></tr>
+</table></div>
+</div>
+
+<div class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Not seen on a deployed host yet. You looked at both banners on a local dev server (with Under Construction temporarily turned on for localhost). The test ideas on the card ask a tester to check alpha, including at phone width.</li>
+<li>Staging only answers differently on <code>fs</code>, <code>social</code> and <code>subscriptionInfo</code>, so its effect on downloads shows up once #628 is in.</li>
+</ul>
+</div>
+</div>
+
+<div>
+<div class="card" id="decisions">
+<h2>On phones, the staging banner covers the book reader's page slider</h2>
+<p>Devin found this (<a href="https://github.com/BloomBooks/BloomLibrary2/pull/629#discussion_r4649166903" target="_blank" rel="noopener">thread</a>). The staging banner has no close button and sits at the bottom center of every page. The book reader fills the whole screen and has a page slider along the bottom. On a phone-width screen the banner covers the middle of that slider, so a tester can't tap there to jump to a page while staging is on. Only testers who turned staging on are affected. Wider screens and other pages are fine.</p>
+<label class="opt"><input type="radio" name="q0" value="Give the staging banner a close button that hides it until the next page load. In C:\dev\_worktrees\BloomLibrary2\BL-17059-staging-api-switch (branch BL-17059-staging-api-switch, PR #629), in src/components/StagingApiNotice.tsx keep an open state and pass onClose to OverlayBanner, as UnderConstruction.tsx does; staging stays on after closing. Re-run preflight."> Let testers close it until the next page load <span class="rec">Recommended</span>
+<small>Recommended because it's the smallest change and the banner still shows by default on every page load, so a tester can't lose track for long. Closing it hides the message only, not staging. Effort: about 3 lines in StagingApiNotice.tsx, low risk.</small></label>
+<label class="opt"><input type="radio" name="q0" value="Hide the staging banner on the book reader page. In C:\dev\_worktrees\BloomLibrary2\BL-17059-staging-api-switch (branch BL-17059-staging-api-switch, PR #629), move StagingApiNotice inside the Router in src/App.tsx and have it return null on the reader route (see src/model/RouterContent.tsx). Re-run preflight."> Hide it on the book reader page only
+<small>Keeps it uncloseable everywhere else. The banner sits outside the router today, so it would need to move inside it to see the route. Effort: about 10 to 15 lines across App.tsx and StagingApiNotice.tsx, low risk.</small></label>
+<label class="opt"><input type="radio" name="q0" value="Leave as is: take no action on the staging banner covering the middle of the book reader's page slider on phones. Reply on the Devin thread recording the decision and resolve it."> Leave as is
+<small>Testers on staging use the slider's ends, or switch back to read.</small></label>
+<label class="opt"><input type="radio" name="q0" value="OTHER"> Other: <input type="text" id="q0other"></label>
+<label><input type="checkbox" id="q0comment"> Leave comment (record the decision as a code comment)</label>
+<textarea id="q0notes" rows="2" placeholder="Notes"></textarea>
+</div>
+
+<div class="card">
+<h2>Next step</h2>
+<label class="opt"><input type="radio" name="q1" value="Implement my choice above now, then re-run preflight."> Implement my choice now and re-run preflight <span class="rec">Recommended</span>
+<small>Recommended because the change is small and the run is otherwise done.</small></label>
+<label class="opt"><input type="radio" name="q1" value="Discuss first before changing anything."> Discuss first</label>
+<label class="opt"><input type="radio" name="q1" value="OTHER"> Other: <input type="text" id="q1other"></label>
+<textarea id="q1notes" rows="2" placeholder="Notes"></textarea>
+</div>
+
+<div class="card">
+<h2>Answers</h2>
+<button id="copy" type="button">Copy answers</button><button id="send" class="secondary" type="button">Send to Claude</button>
+<span id="status"></span>
+<pre id="out"></pre>
+</div>
+</div>
+</div>
+</div>
+<script>
+(function(){
+  var URL_ = "https://bloombooks.github.io/dev-process-artifacts/deciders/bloomlibrary2-bl-17059-staging-api-switch.html";
+  var titles = ["On phones, the staging banner covers the book reader's page slider","Next step"];
+  function answer(i){
+    var r = document.querySelector('input[name=q'+i+']:checked');
+    var lines = [(i+1)+". "+titles[i]];
+    if(!r) lines.push("No decision yet, ask again later about: "+titles[i]);
+    else if(r.value==="OTHER") lines.push("Other: "+(document.getElementById('q'+i+'other').value||""));
+    else lines.push(r.value);
+    var c = document.getElementById('q'+i+'comment');
+    if(c && c.checked) lines.push("Leave comment: yes, record this decision as a code comment near the relevant code.");
+    var n = document.getElementById('q'+i+'notes').value.trim();
+    if(n) lines.push("Notes: "+n);
+    return lines.join("\n");
+  }
+  function text(){
+    return ["Decisions from a decider form","About: BloomLibrary2 PR #629, branch BL-17059-staging-api-switch (preflight report)","Date: 2026-11-20","URL: "+URL_,"",answer(0),"",answer(1)].join("\n");
+  }
+  var out = document.getElementById('out'), status = document.getElementById('status');
+  function refresh(){ out.textContent = text(); }
+  document.addEventListener('input', refresh); document.addEventListener('change', refresh); refresh();
+  document.getElementById('copy').addEventListener('click', function(){
+    var t = text();
+    function fallback(){ var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy'); status.textContent=" Copied";}catch(e){status.textContent=" Select the text below and copy it";} document.body.removeChild(ta); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){status.textContent=" Copied";}, fallback); } else fallback();
+  });
+  var send = document.getElementById('send'), endpoint = window.DECIDER_ENDPOINT;
+  if(!endpoint) send.hidden = true;
+  send.addEventListener('click', function(){
+    send.disabled = true; send.textContent = "Sending...";
+    fetch(endpoint,{method:"POST",headers:{"Content-Type":"text/plain"},body:text()}).then(function(r){
+      if(!r.ok) throw new Error(r.status); send.textContent = "Sent"; status.textContent = " Sent to Claude";
+    }).catch(function(e){ send.disabled=false; send.textContent="Send to Claude"; status.textContent=" Couldn't send ("+e.message+"). Use Copy answers."; });
+  });
+})();
+</script>
+</body>
+</html>
