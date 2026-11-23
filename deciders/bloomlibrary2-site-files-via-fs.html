@@ -6,6 +6,8 @@
 <title>Preflight PR 628</title>
 <style>
 :root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ground:#1F1E1C;--card:#2A2926;--line:#3A3833;--ink:#ECE9E2;--muted:#A8A39A;--accent:#E08A6C;--accent-strong:#F0A486;--accent-tint:#3A2A23}}
+:root[data-theme="dark"]{--ground:#1F1E1C;--card:#2A2926;--line:#3A3833;--ink:#ECE9E2;--muted:#A8A39A;--accent:#E08A6C;--accent-strong:#F0A486;--accent-tint:#3A2A23}
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{max-width:900px;margin:0 auto;padding:24px 16px 64px}
@@ -14,15 +16,13 @@ h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
 h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
 h3{font:600 15px/1.3 system-ui,sans-serif;margin:12px 0 4px}
 a{color:var(--accent-strong)}
-code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+code{font:13px ui-monospace,Consolas,monospace;background:var(--accent-tint);padding:1px 4px;border-radius:4px;overflow-wrap:anywhere}
 .sum{margin:0 0 10px;color:var(--muted)}
 .chips,.links{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
 .chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px}
-.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
 .chip.link{text-decoration:none;font-weight:600}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:16px 0}
 .card ul{margin:6px 0;padding-left:20px}
-.callout{border-left:3px solid var(--accent);background:var(--accent-tint);padding:8px 12px;border-radius:6px;margin:8px 0}
 .tw{overflow-x:auto}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px}
@@ -34,31 +34,25 @@ th{color:var(--muted);font-weight:600}
 <main>
 <header>
 <h1>Preflight: serve book downloads through /v1/fs</h1>
-<p class="sum">Second run, against your reworked branch. It is clean, no decisions are waiting, and it is ready for your own review. The one thing that matters is deploy order: bloom-core-supabase #15 goes to production first.</p>
+<p class="sum">Third run. It is clean, no decisions are waiting, and it is ready for your own review. The local review caught that a "+"-for-space change from earlier today would have made Bloom Reader keep duplicate books; it is reverted.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
 <span class="chip">Mergeable</span>
 <span class="chip">Bots: quiet</span>
 <span class="chip">0 decisions waiting</span>
-<span class="chip warn">Deploy bloom-core-supabase #15 first</span>
 </div>
 <div class="links">
 <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">PR #628</a>
 <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/files" target="_blank" rel="noopener">Files changed</a>
 <a class="chip link" href="https://github.com/BloomBooks/BloomLibrary2/pull/628/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17059" target="_blank" rel="noopener">BL-17059</a>
 <a class="chip link" href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin review</a>
 <a class="chip link" href="https://reviewable.io/reviews/bloombooks/bloomlibrary2/628" target="_blank" rel="noopener">Reviewable</a>
-<a class="chip link" href="https://github.com/BloomBooks/bloom-core-supabase/pull/15" target="_blank" rel="noopener">bloom-core-supabase #15</a>
 </div>
 </header>
 
 <section class="card">
 <h2>What this PR is about</h2>
-<div class="callout"><b>Deploy bloom-core-supabase #15 to the production worker before this PR goes live.</b> Besides caching versioned URLs, #15 makes <code>download=1</code> send the file's real name. Checked on 2026-11-20:
-<ul>
-<li>On <code>staging-api</code>, which runs #15, "А+А" saves as <code>А+А.bloomd</code>, and the PDF downloads.</li>
-<li>Production ignores <code>download=1</code>. If #628 ships first, titles with a literal <code>+</code> or <code>%</code> save as <code>А%2BА.*</code>, where S3 gets this right today, and PDFs open in the browser.</li>
-</ul></div>
 <h3>Purpose</h3>
 <p>The site's book downloads (PDF, ePUB, BloomPUB/.bloomd, .bloomSource) now come through <code>api.bloomlibrary.org/v1/fs</code> instead of straight from S3, with a version in the URL. This is always on, with no flags.</p>
 <ul>
@@ -70,9 +64,9 @@ th{color:var(--muted);font-weight:600}
 <ul>
 <li><code>FsUrl.ts</code> builds <code>/v1/fs/{upload|harvest}/{bookId}/{path}?v={epochMs}</code>, with the <code>dev-</code> buckets for sandbox books.</li>
 <li>The PDF is versioned by <code>lastUploaded</code>. Harvested files are versioned by <code>harvestStartedAt</code>, and are offered only once the harvest is Done.</li>
-<li>Names are encoded for the fs function's double decode.</li>
+<li>Names are encoded for the fs function's double decode, with spaces as <code>%20</code> as before, so Bloom Reader keeps the file names it already used.</li>
 <li>There is no S3 fallback: with no fs URL, the download isn't offered.</li>
-<li>All three download buttons get their link from <code>getArtifactDownload</code>, which adds <code>download=1</code> and the file name.</li>
+<li>All three download buttons get their link from <code>getArtifactDownloadUrl</code>, which adds <code>download=1</code> so the server names the file; the links' <code>download</code> attribute is empty.</li>
 <li>Reading online and shellbooks are unchanged.</li>
 </ul>
 </section>
@@ -81,11 +75,11 @@ th{color:var(--muted);font-weight:600}
 <h2>Quality gate</h2>
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
-<tr><td>Typecheck (tsc)</td><td>No errors in the changed files. Errors elsewhere in the repo predate this PR.</td></tr>
-<tr><td>Lint (eslint, pre-commit hook)</td><td>Pass</td></tr>
-<tr><td>TypeScript tests (vitest 3.2.7)</td><td>Pass: <span class="numeral">135</span> tests related to the changed files, at HEAD</td></tr>
-<tr><td>C# / other stacks</td><td>N/A: none in this repo</td></tr>
-<tr><td>End-to-end</td><td>N/A: no e2e suite covers downloads; live checks are listed in the PR</td></tr>
+<tr><td>Typecheck (tsc)</td><td>No errors in the changed files. The 22 errors elsewhere in the repo predate this PR.</td></tr>
+<tr><td>Lint (eslint)</td><td>Pass</td></tr>
+<tr><td>TypeScript tests (vitest 3.2.7)</td><td>Pass: <span class="numeral">140</span> tests related to the changed files, at HEAD</td></tr>
+<tr><td>C# / other stacks</td><td>Not run: none in this repo</td></tr>
+<tr><td>End-to-end</td><td>Not run: no e2e suite covers downloads; live checks are listed in the PR</td></tr>
 <tr><td>Merge with master</td><td>Already up to date</td></tr>
 <tr><td>Repo checks</td><td>None declared</td></tr>
 </table></div>
@@ -93,18 +87,18 @@ th{color:var(--muted);font-weight:600}
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>The walkaround moved the three buttons' shared download steps into <code>getArtifactDownload</code>, so a new button can't forget <code>download=1</code>. It also renamed <code>getDownloadUrl</code> to <code>getHarvestedFileUrl</code>. The app-hosted button now asks for the file size only when it shows the button. One bug fix: a <code>baseUrl</code> with no name folder used to give a PDF link to <code>…/undefined.pdf</code>; now there is no link. The PR description now has the deploy-order warning (<a href="https://github.com/BloomBooks/BloomLibrary2/commit/0ddc479e" target="_blank" rel="noopener">0ddc479e</a>, <a href="https://github.com/BloomBooks/BloomLibrary2/commit/86596344" target="_blank" rel="noopener">86596344</a>).</p>
+<p>Spaces in download links are back to <code>%20</code>: master has written them that way since BL-13338, so the "+" version would have given Bloom Reader new file names and duplicate books. A test now checks Bloom Reader's file name against master's link. The walkaround dropped the links' file name in favor of an empty <code>download</code> attribute, since the server's name wins either way, and builds a button's link only when the button is shown and enabled. Checked in Chrome at <a href="https://github.com/BloomBooks/BloomLibrary2/commit/27050f4b" target="_blank" rel="noopener">27050f4b</a>.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
-<tr><td>Local review (light sub-agent pass)</td><td>Clean: no bugs. Two notes set aside. The HEAD size request is already covered by a live check. Preview links opening in the same tab happens on localhost only.</td></tr>
-<tr><td>Walkaround (+ /simplify, 4 reviewers)</td><td>3 changes (the download helper, the rename, and the PDF fix above), no proposals. Skipped as out of scope: the thumbnail URL that freeLearningIO builds by hand.</td></tr>
-<tr><td><a href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin</a></td><td>Complete on 86596344: no bugs and no new flags. It marks the earlier rollout flag resolved itself.</td></tr>
-<tr><td>Greptile</td><td>Complete on 86596344 (re-triggered: it had not seen <code>download=1</code> or this run's changes). Medium impact, "safe to merge with the documented worker deployment order"; no inline findings.</td></tr>
-<tr><td>Reviewable</td><td>No open discussions. The old Devin thread is now marked resolved there too. Its files are waiting for your review.</td></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: the "+"-for-space encoding didn't match master's <code>%20</code> links.</td></tr>
+<tr><td>Walkaround (+ /simplify, 4 reviewers)</td><td>6 changes, no proposals. Set aside as out of scope: the hand-built thumbnail URL in freeLearningIO, moving thumbnails and read-online to fs, and the server's double decode.</td></tr>
+<tr><td><a href="https://devinreview.com/BloomBooks/BloomLibrary2/pull/628" target="_blank" rel="noopener">Devin</a></td><td>Complete on 27050f4b: no bugs. One Investigate flag about a stale line in the PR description, answered and resolved; one repeat of a flag resolved on Nov 13.</td></tr>
+<tr><td>Greptile</td><td>Complete on 27050f4b (re-triggered): "The PR appears safe to merge", no inline findings.</td></tr>
+<tr><td>Reviewable</td><td>No open discussions. Its files wait for your review at the latest revision.</td></tr>
 <tr><td>CI</td><td>No CI workflow runs on PRs in this repo.</td></tr>
 </table></div>
 </section>
@@ -112,8 +106,9 @@ th{color:var(--muted);font-weight:600}
 <section class="card">
 <h2>Worth knowing</h2>
 <ul>
-<li>The production API now answers curl's default user agent with <b>403</b> (a Cloudflare rule); browsers get 200. Scripts or monitors that fetch book files need a browser-like user agent.</li>
-<li>There is no YouTrack card for this work, so no card link and no test ideas.</li>
+<li>Titles with a literal "+" or "%" still get <code>%2B</code>/<code>%25</code> in Bloom Reader's file name. You decided to leave it; it is in the test ideas as known.</li>
+<li>The production API answers curl's default user agent with <b>403</b> (a Cloudflare rule); browsers get 200.</li>
+<li>The dev harvester's clock was 4 hours slow until today, so a few dev books carry wrong harvest times. Downloads still work.</li>
 </ul>
 </section>
 </main>
