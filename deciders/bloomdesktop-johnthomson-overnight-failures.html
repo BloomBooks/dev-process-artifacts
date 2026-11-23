@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nightly e2e fixes</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+
+.top{max-width:1400px;margin:0 auto;padding:24px 16px 0}
+.top h1{font:600 24px/1.25 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.sum{margin:0 0 10px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;text-decoration:none;color:var(--ink)}
+.chip a{color:inherit;text-decoration:none}
+.chip.ok{border-color:#9CC9A6;background:#EEF7F0}
+.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
+.links .chip{color:var(--accent-strong)}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:24px;max-width:1400px;margin:0 auto;padding:16px 16px 64px}
+.layout>*{min-width:0}
+.layout main{max-width:none;margin:0;padding:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card h3{font:600 15px/1.35 Georgia,"Times New Roman",serif;margin:14px 0 4px}
+.card p{margin:0 0 8px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.pass{color:#2E7D46}
+.muted{color:var(--muted)}
+.numeral{font-variant-numeric:tabular-nums}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-23","about":"BloomDesktop PR #8615, branch JohnThomson/overnight-failures: fixes for five nightly e2e failures (BL-17149, BL-17150, BL-17158, BL-17160, BL-17161)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-overnight-failures.html","questions":[{"title":"copy-page.spec.ts failed once locally: a thumbnail click that Bloom ignored","context":["<p>During preflight's e2e check, <code>copy-page.spec.ts<\/code> › \"copying a page preserves everything, within and between books\" failed once and then passed on the next run, with no code change between. Nothing in this PR is on its path. The test selects another book, switches to the Edit tab and at once clicks a page's thumbnail (<code>selectPage<\/code>, line 181). The thumbnail never became selected within 60 seconds.<\/p>","<p>The likely cause, not confirmed from a trace (the local results were overwritten by the rerun): the click arrived while Bloom was still loading the newly opened book's page, and Bloom refuses a page change in that state (<code>goToPage<\/code>'s comment says so, and Devin flagged the same race in this PR's rename test, fixed by waiting with <code>waitForEditTabSettled<\/code>). <code>selectPage<\/code> clicks once without waiting for the Edit tab to settle, so every caller is exposed. The nightly has not failed this way yet; under the no-flaky-tests rule it is a race to fix now, not to wait on.<\/p>"],"options":[{"label":"Make selectPage wait for the Edit tab to settle before it clicks","recommended":true,"why":"Recommended because it closes the race for every caller of selectPage at once, the same remedy goToPage already uses, and lets the one-off wait in new-book-title-rename.spec.ts go.","effort":"~3 lines in helpers/pageThumbnails.ts; then run the specs that call selectPage at the nightly size; low risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\overnight-failures (branch JohnThomson/overnight-failures, PR #8615), make selectPage in src/BloomE2E/helpers/pageThumbnails.ts call waitForEditTabSettled(page) before clicking the thumbnail (Bloom refuses a page change while it is loading a page), remove the now-redundant waitForEditTabSettled before selectPage in tests/new-book-title-rename.spec.ts, run copy-page.spec.ts several times and the other selectPage callers once at BLOOM_E2E_VIEWPORT=nightly, and re-run preflight."},{"label":"Investigate first: reproduce copy-page with a trace before changing anything","why":"Confirms the cause before a helper every test uses changes.","effort":"an hour or more of repeated runs; no code until the cause is seen","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\overnight-failures, run src/BloomE2E/tests/copy-page.spec.ts repeatedly at BLOOM_E2E_VIEWPORT=nightly with traces kept until it fails, read the trace around selectPage (line 181) to confirm whether Bloom refused the click while loading, and report the cause before changing code."}],"leaveAsIs":"copy-page.spec.ts can fail when its thumbnail click lands while the Edit tab is still loading another book.","codeComment":true},{"title":"Should goToPage wait for Bloom to have the page before it leaves it?","context":["<p>BL-17160's cause was a test leaving a page within about 50 ms of a change, before the page had sent Bloom its snapshot; a save uses the last snapshot, so the change was not saved. This PR fixes it in the one spec (<code>inline-images-crop.spec.ts<\/code>) by waiting for the snapshot stream to go idle. The walkaround's review points out the same window is open wherever a test changes the page without typing and then calls <code>goToPage<\/code>: <code>inline-images.spec.ts<\/code> clicks Undo (line 373) and, in the next test, goes to another page and reads the saved file (lines 411-413) with nothing in between that waits. It has not failed yet.<\/p>","<p>Typing already waits by default (<code>typeInGroup<\/code>'s <code>thenWaitForBloomToHaveIt<\/code>). The general fix is for <code>goToPage<\/code> to wait for the snapshot stream before it jumps, when the frame holds an editable page. It has 246 callers in 63 specs, so it needs a whole-suite run to check nothing depends on leaving early or waits forever on a page that never goes idle.<\/p>"],"options":[{"label":"Have goToPage wait for the snapshot stream before jumping","why":"Closes the window for every test that saves by changing pages, the way typing already is closed.","effort":"~15 lines in helpers/bookMaking.ts (a tolerant waitForSnapshotStreamIdle); needs a full e2e run (~2-3 hours locally); moderate risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\overnight-failures (or a new branch off master), make goToPage in src/BloomE2E/helpers/bookMaking.ts wait for the page's snapshot stream to be idle before asking for the jump, skipping the wait when the page frame has no editable page or no editablePageBundle; drop the explicit wait this PR added to inline-images-crop.spec.ts; run the whole e2e suite at BLOOM_E2E_VIEWPORT=nightly."},{"label":"Fix only the known case in inline-images.spec.ts","recommended":true,"why":"Recommended because it closes the one place that reads the saved file after an un-awaited change, at no risk, and keeps this PR small; the general change can be its own card.","effort":"2 lines in tests/inline-images.spec.ts; run that spec once; low risk","instruction":"In C:\\Users\\JohnThomson\\orca\\workspaces\\BloomDesktop\\overnight-failures (branch JohnThomson/overnight-failures, PR #8615), in src/BloomE2E/tests/inline-images.spec.ts add await waitForSnapshotStreamIdle(page) after the Undo near line 373 (before the next test leaves the page and reads the saved file near lines 411-413), run that spec at BLOOM_E2E_VIEWPORT=nightly, and re-run preflight. Then make a YouTrack card proposing that goToPage wait for the snapshot stream."}],"leaveAsIs":"tests that change a page without typing and then call goToPage can save the page as it was just before the change.","codeComment":false},{"title":"Next step","options":[{"label":"Do my choices above, then re-run preflight","recommended":true,"why":"Recommended because both open items are small test changes that belong with this PR.","effort":"as chosen above","instruction":"Carry out the choices above on branch JohnThomson/overnight-failures (PR #8615) and re-run preflight."},{"label":"Stop here; I will review PR #8615 as it is","why":"Leaves the two open items for later cards.","effort":"none","instruction":"Make no further changes to PR #8615; record the two open items as YouTrack cards instead."}],"leaveAsIs":"nothing further happens until I say."}]}</script>
+</head>
+<body>
+<header class="top">
+<h1>Preflight: five nightly e2e fixes</h1>
+<p class="sum">Fixes five tests that fail in the nightly e2e run: one by a change to Bloom, four by corrections to the tests. Every reviewer has finished; two small test questions are open.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8615" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip warn">2 decisions waiting</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8615" target="_blank" rel="noopener">PR #8615</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8615/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8615/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17149" target="_blank" rel="noopener">BL-17149</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17150" target="_blank" rel="noopener">BL-17150</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17158" target="_blank" rel="noopener">BL-17158</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17160" target="_blank" rel="noopener">BL-17160</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17161" target="_blank" rel="noopener">BL-17161</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8615" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<div class="layout">
+<section class="report">
+
+<section class="card">
+<h2>What this PR is about</h2>
+<p>Five tests have been failing in the nightly e2e run. Each cause below was confirmed from the nightly's trace or by reproducing the failure at the nightly's window size.</p>
+<h3>(1/5) Text scrolled to the top went under the controls bar (BL-17149)</h3>
+<p><b>Problem:</b> 18 inline-image tests could not right-click a block's text in the nightly-sized window. <b>Cause:</b> the controls bar added by All Pages editing (BL-16929) is fixed across the top of the page frame, and the page scrolls under it; a block taller than the window, scrolled into view, has its first line under the bar. <b>Fix (Bloom):</b> the page gets <code>scroll-padding-top</code> the height of the bar, so anything scrolled into view (the caret's line, a focused element) stops below it.</p>
+<h3>(2/5) A fully scrolled text box looked 2 px short at 150% (BL-17150)</h3>
+<p><b>Cause:</b> the helper measured the text from its glyphs, which stand a little above their lines; the box really was at its end. <b>Fix (test):</b> judge the end by the box's own scroll range.</p>
+<h3>(3/5) New table cells show only L1 now (BL-17158)</h3>
+<p><b>Cause:</b> since BL-17105 a new cell shows L1 only, by design; this spec still expected every content language. <b>Fix (test):</b> tick L2 in the column's Languages menu, as <code>tables-extended</code> does.</p>
+<h3>(4/5) The crop test left the page before Bloom had its Undo (BL-17160)</h3>
+<p><b>Cause:</b> a save uses the page's last snapshot; the test changed pages 10 ms before the snapshot of the undone page went out. <b>Fix (test):</b> wait for the snapshot stream to be idle first.</p>
+<h3>(5/5) The rename test broke on Bloom's own reload (BL-17161)</h3>
+<p><b>Cause:</b> Bloom reloads the cover from the renamed folder on purpose (BL-17055), and the poll's read landed mid-reload. <b>Fix (test):</b> wait for the page from the new folder, treat an interrupted read as "not yet" through one shared helper, and let the Edit tab settle before changing pages.</p>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (front end, e2e)</td><td class="pass">passed</td></tr>
+<tr><td>Lint, Prettier</td><td class="pass">passed <span class="muted">(one unused-import warning that was already there)</span></td></tr>
+<tr><td>Merge with master</td><td class="pass">already up to date</td></tr>
+<tr><td>TypeScript unit tests (vitest, related)</td><td class="pass"><span class="numeral">874 passed</span></td></tr>
+<tr><td>E2E repo check, nightly window size</td><td class="pass"><span class="numeral">60/60</span> inline-images-*, <span class="numeral">49/50</span> changed specs + overflow-marks, copy-page, tables-extended; rename and copy-page then <span class="numeral">4/4</span> on the final code <span class="muted">(copy-page failed once; see the first decision)</span></td></tr>
+<tr><td>C# tests</td><td>not run — no C# in the diff</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>Committed the five fixes, folded the two reload checks into one helper (<code>readUnlessDocumentReplaced</code>) during the walkaround, and fixed the one thing Devin raised. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8615/commits" target="_blank" rel="noopener">Commits</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><td>Local review</td><td>Light sub-agent pass: clean, no findings.</td></tr>
+<tr><td>Walkaround</td><td>One change: a single helper for reads that a frame reload interrupts. One proposal (goToPage waiting for the snapshot) is the second decision.</td></tr>
+<tr><td>Devin</td><td>Complete. No bugs; one Investigate flag, fixed and <a href="https://github.com/BloomBooks/BloomDesktop/pull/8615#discussion_r4671448880" target="_blank" rel="noopener">resolved on its thread</a>; its re-review repeats that flag against code that already has the fix.</td></tr>
+<tr><td>Greptile</td><td>Complete on <code>6ef8500</code>: no actionable issues. The only later commit is the three-line answer to Devin.</td></tr>
+<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+<tr><td>Repo check (e2e at nightly size)</td><td>Passed on the final code; see the quality gate.</td></tr>
+</table></div>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>The BL-17149 fix is the only product change: <code>scroll-padding-top</code> on the Edit tab page's <code>&lt;html&gt;</code>. It changes how far a scroll-into-view goes on every Edit page, not scrolling a user does, and is not saved with the book.</li>
+<li>BL-17145 (PDF &amp; Print's Print button never appeared) did not reproduce and is not in this PR; it stays in Incoming with a note.</li>
+</ul>
+</section>
+</section>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
+</div>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
