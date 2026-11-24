@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fast page clicks</title>
+<title>Nightly e2e fixes</title>
 <style>
 :root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
 *{box-sizing:border-box}
@@ -65,20 +65,21 @@ th{color:var(--muted);font-weight:600}
 @media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-24","about":"BloomDesktop PR #8618, branch JohnThomson/rapid-page-clicks: a page click made while another page loads is no longer lost","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-rapid-page-clicks.html","questions":[{"title":"Should this fix have a YouTrack card?","context":["<p>No card covers this bug: it was found when the whole e2e suite was run for PR #8615, and another agent traced the cause. The branch has no card id, so preflight posted no PR link and no test-ideas comment, and testers have nothing telling them to check it. A user-visible change to Edit-tab navigation would normally have a card on the current Bloom Kanban sprint.<\/p>"],"options":[{"label":"Make a card and link the PR","recommended":true,"why":"Recommended because the change is user-visible (quick page clicks now land on the last page clicked) and testers need the test ideas.","effort":"a few minutes; no code","instruction":"Create a YouTrack card on the current Bloom Kanban sprint (Type Bug) for 'Clicking quickly through the page list can leave the Edit tab on an earlier page than the one clicked last', describing the cause and fix from PR #8618 (https://github.com/BloomBooks/BloomDesktop/pull/8618); post the PR link on it, add the card id to the PR title, and run add-test-ideas for it."}],"leaveAsIs":"the fix has no card; the PR stands alone.","codeComment":false},{"title":"Next step","options":[{"label":"Do my choice above; then I will review the PR","recommended":true,"why":"Recommended because nothing else is open.","effort":"as chosen above","instruction":"Carry out the choice above for PR #8618, then leave it for John's own review."}],"leaveAsIs":"nothing further happens until I say."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-24","about":"BloomDesktop PR #8618, branch JohnThomson/rapid-page-clicks (BL-17173): a page click made while another page loads is no longer lost","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-rapid-page-clicks.html","questions":[{"title":"Next step","options":[{"label":"I will review the PR, then run /request-peer-review","recommended":true,"why":"Recommended because nothing is open: the walkaround is recorded at HEAD and every reviewer has finished.","effort":"none from the agent","instruction":"Nothing to do; John reviews PR #8618 and then runs /request-peer-review."}],"leaveAsIs":"nothing further happens until I say."}]}</script>
 </head>
 <body>
 <header class="top">
 <h1>Preflight: a page click made while another page loads</h1>
-<p class="sum">Clicking quickly through the page list could leave the Edit tab on an earlier page than the one clicked last. Fixed, with every reviewer finished and the e2e spec passing 10 runs out of 10. One question is open: whether to give it a card.</p>
+<p class="sum">Clicking quickly through the page list could leave the Edit tab on an earlier page than the one clicked last (BL-17173). Fixed, with e2e tests that make a click land during a load on any machine. Bloom now carries no test hook for them: the tests hold the page's load report themselves. Nothing waits on you but your own review.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8618" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
 <span class="chip ok">Bots quiet</span>
-<span class="chip warn">1 decision waiting</span>
+<span class="chip ok">No decisions waiting</span>
 </div>
 <div class="chips links">
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8618" target="_blank" rel="noopener">PR #8618</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17173" target="_blank" rel="noopener">BL-17173</a>
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8618/files" target="_blank" rel="noopener">Files changed</a>
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8618/commits" target="_blank" rel="noopener">Commits</a>
 <a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8618" target="_blank" rel="noopener">Devin review</a>
@@ -99,6 +100,7 @@ th{color:var(--muted);font-weight:600}
 <li>The load under way is never abandoned: an abandoned load could report itself late and be taken for a later load of the same page, whose edits Bloom would then refuse (Devin found this in a simpler version).</li>
 <li>The click is dropped if the user has left the tab or clicked another page since, and when the AI image editor is about to open on the page that loaded. It survives a reload of that page after a book rename.</li>
 <li>The page list is told the click is on its way, so All Pages keeps its wait cursor.</li>
+<li>New e2e spec <code>page-clicks-while-a-page-loads.spec.ts</code>: leaving the Edit tab while a click is remembered, and a click made while the page after a folder-renaming save loads. Its helper <code>clickPageWhileAnotherLoads</code> holds back the first page's load report with the suite's existing <code>holdNextRequest</code>, so the second click always lands during the load, and checks Bloom remembered it.</li>
 </ul>
 </section>
 
@@ -107,27 +109,34 @@ th{color:var(--muted);font-weight:600}
 <div class="tw"><table>
 <tr><th>Check</th><th>Result</th></tr>
 <tr><td>C# build</td><td class="pass">passed</td></tr>
-<tr><td>C# tests, related (<code>EditingStateMachineTests</code>, <code>PageListApiTests</code>, <code>EditingModel*</code>)</td><td class="pass"><span class="numeral">58 passed</span></td></tr>
+<tr><td>C# tests, related (<code>EditingStateMachineTests</code>, <code>PageListApiTests</code>)</td><td class="pass"><span class="numeral">40 passed</span></td></tr>
+<tr><td>E2E typecheck, prettier</td><td class="pass">passed</td></tr>
 <tr><td>Merge with master</td><td class="pass">merged, clean</td></tr>
-<tr><td>E2E: <code>all-pages-typing-after-a-page-change.spec.ts</code>, 10 runs, nightly window size, on <code>fa1107fae6</code></td><td class="pass"><span class="numeral">140/140 passed</span></td></tr>
-<tr><td>TypeScript tests</td><td>not run — no TypeScript in the diff</td></tr>
+<tr><td>Repo check: changed specs at the nightly window size (<code>page-clicks-while-a-page-loads</code>, <code>new-book-title-rename</code>), on <code>153fe84eb1</code></td><td class="pass"><span class="numeral">5/5 passed</span></td></tr>
+<tr><td>E2E: <code>page-clicks-while-a-page-loads.spec.ts</code> repeated, nightly window size</td><td class="pass"><span class="numeral">10/10</span> on <code>153fe84eb1</code>, <span class="numeral">4/4</span> on <code>32c0eb97b5</code></td></tr>
+<tr><td>E2E: <code>all-pages-typing-after-a-page-change.spec.ts</code>, 10 runs, on <code>fa1107fae6</code></td><td class="pass"><span class="numeral">140/140 passed</span></td></tr>
 </table></div>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Wrote the fix; tried a simpler version (go straight to the clicked page) and went back after Devin showed it could lose edits; then fixed what the reviewers found about leaving the tab, the AI image editor and rename reloads. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8618/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<ul>
+<li>The walkaround's <code>/simplify</code> pass found that the C# test hook (<code>e2e/holdPageLoads</code>) did what the suite's <code>holdNextRequest</code> already does from the test side: a page reports its load with exactly one request. The hook is gone from Bloom; the hold now happens in the test, which is also closer to a slow page (the report goes unanswered, so the page does not start sending its content early).</li>
+<li><code>failedRequestsUnder</code> moved to <code>helpers/failedRequests.ts</code>, shared by the two rename specs; the new spec's copy had lost the "asked for by which frame" detail.</li>
+<li>Devin: a missing load report would have stalled a test for its whole five-minute timeout; the helper now fails after 60 seconds naming the page.</li>
+<li>Smaller: <code>waitForEditTabSettled</code> uses <code>getEditTabState</code>; the new spec's header no longer claims the quick-click tests always reach a remembered click.</li>
+</ul>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
-<tr><td>Local review</td><td>Light sub-agent pass: two findings (leaving the tab; the AI image editor), fixed.</td></tr>
-<tr><td>Walkaround</td><td>Reuses <code>JumpToPage</code>; one place clears the remembered page. No proposals.</td></tr>
-<tr><td>Devin</td><td>Complete on <code>fa1107fae6</code>. One severe bug and one rename race, both fixed; three flags answered on their threads; its last round only repeats them, plus one flag answered as not a problem.</td></tr>
-<tr><td>Greptile</td><td>Complete on <code>6f7ddc1dd3</code>: one finding (rename reload), fixed. The two later commits are small fixes answering reviews.</td></tr>
+<tr><td>Local review</td><td>Light sub-agent pass: clean; one coverage note (the rename test covers a click during the load after the rename-save, not the same-page reload branch).</td></tr>
+<tr><td>Walkaround</td><td>Recorded at HEAD. <code>/simplify</code>: 6 changes applied (above); 2 skipped: the rename test's setup sanity checks and its frame-URL check stay, as the repo asks for sanity checks and the URL check gives the clearest failure message.</td></tr>
+<tr><td>Devin</td><td>Complete on <code>32c0eb97b5</code> (HEAD). This run brought three new flags: a missing load report stalled a test (fixed); the PR description still named the removed hook (it had already been updated); a report landing in the poll's last second counts as a timeout (answered as not a problem, since the limit is only a fail-fast). The rest repeat findings answered on their threads.</td></tr>
+<tr><td>Greptile</td><td>Complete on <code>6f7ddc1dd3</code>: one finding (rename reload), fixed. It reviews again when the PR leaves draft.</td></tr>
 <tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
-<tr><td>Repo check</td><td>Did not apply: the diff changes no e2e spec. The spec above was run anyway.</td></tr>
+<tr><td>Reviewable</td><td>Every discussion resolved; the threads were already resolved on GitHub.</td></tr>
 </table></div>
 </section>
 
@@ -136,6 +145,7 @@ th{color:var(--muted);font-weight:600}
 <ul>
 <li>The page that was loading is shown briefly before the clicked one.</li>
 <li>EditingModel's part needs a live page load, so it is covered by the e2e spec rather than unit tests; the unit tests cover the state machine and the page list's reply.</li>
+<li>The only test-facing change left in Bloom is one field, <code>pageToGoToOnceLoaded</code>, on the <code>--e2e</code>-only <code>e2e/editState</code> reply.</li>
 </ul>
 </section>
 </section>
