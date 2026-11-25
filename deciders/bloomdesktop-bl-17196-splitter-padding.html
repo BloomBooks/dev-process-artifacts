@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-25","about":"BloomDesktop PR 8672, branch BL-17196-splitter-padding (card BL-17196): grab a horizontal origami splitter from the text box padding below it","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17196-splitter-padding.html","questions":[{"title":"Should this PR come with a test of the grab band?","context":["No test checks the change. It is a CSS rule, but what it does is behaviour: where a press on the page lands. Both bugs this run fixed were of that kind: the band was missing until the line had been hovered, and it stopped 3px short of the text. A test in a real browser would have caught both.","Vitest's <code>browser<\/code> project runs <code>*.browser.spec.ts<\/code> files in headless Edge with real layout, so a test can build a page fragment with the origami stylesheets and ask <code>document.elementFromPoint<\/code> what a press at a given point would hit."],"options":[{"label":"Write a browser test of where presses land","recommended":true,"why":"Recommended because both bugs found in this PR were exactly this kind of miss, and nothing else would catch a regression before a user does.","effort":"one new spec file, ~80 lines, no product code","instruction":"In D:\\bloom\\BL-17196-splitter-padding (BloomDesktop, branch BL-17196-splitter-padding, PR 8672), add src/BloomBrowserUI/bookEdit/css/origamiSplitterBand.browser.spec.ts (vitest browser project). It builds a .bloom-page > .marginBox holding a top-level .split-pane.horizontal-percent with a picture pane on top and a .bloom-translationGroup in the bottom pane, imports origami.less, origamiEditing.less and the basePage rule's padding (set --topLevel-text-padding-top: 1em), leaves data-splitter-label off the divider, and asserts with elementFromPoint that a point just below the divider's border and a point just above the .bloom-editable both hit the divider, and a point inside the .bloom-editable does not. Then update the PR description's Automated Tests section."},{"label":"No test needed: checked in a running Bloom","why":"An agent hit-tested the band's edges in a running Bloom at the current commit, and the rule is unlikely to change.","effort":"no code; records the reason in the PR description","instruction":"In BloomDesktop PR 8672 (branch BL-17196-splitter-padding), set the Automated Tests section's line to: Test of the change: none — developer's decision: checked in a running Bloom; a CSS hit area that is unlikely to change."}],"leaveAsIs":"the PR has no test of the change, and its Test of the change line stays awaiting the developer's decision, so the PR can't be promoted yet."},{"title":"Automate the four test-idea items that are waiting for a test?","context":["The test ideas on the card list four checks that a test should do and none does yet, so a tester does them for now: a press in the band on a page whose line was never hovered starts a drag; a press in the text still goes to the text; the band is absent for a picture below the line, a left/right split and a nested split; and with a theme that gives text boxes less top padding, the band shrinks to match.","All four fit in the browser test from the previous question, as more cases in the same file. The drag itself (that the split moves) would need the split-pane script loaded too."],"options":[{"label":"Write these tests","recommended":true,"why":"Recommended because each is a fixed geometric fact about where presses land, which a test checks better than a person and keeps checking.","effort":"~60 more lines in the same spec, plus loading split-pane for the drag case","instruction":"In D:\\bloom\\BL-17196-splitter-padding (branch BL-17196-splitter-padding, PR 8672), extend src/BloomBrowserUI/bookEdit/css/origamiSplitterBand.browser.spec.ts with: a picture in the bottom pane (no band), a vertical-percent split (no band), a horizontal split nested inside a pane (no band), and --topLevel-text-padding-top: 0.5em (band ends where the text starts); and a drag case that loads split-pane, presses in the band and moves the mouse, and checks the divider's bottom percentage changed. Then move those items from 'Waiting for an automated test' to 'Already checked' in the test-ideas comment on BL-17196."}],"leaveAsIs":"the four items stay on the card under Waiting for an automated test, where a tester does them."},{"title":"While the Motion tool is open, a press in the band does nothing","context":["With the Motion tool active, Bloom refuses to drag splitters (so the line can't be moved by accident while setting up motion). The band still covers the top padding of the text box, so a press there now neither drags nor puts the cursor in the text. Before this PR, that press put the cursor at the start of the text.","A CSS-only rule can't see that the Motion tool is open: nothing on the page marks it. Hiding the band then would take a class that the toolbox sets while the Motion tool is active."],"leaveAsIsRecommended":"Leaving it is recommended: the Motion tool is about the picture, and a user who wants the cursor in the text clicks in the text itself, which still works.","options":[{"label":"Hide the band while the Motion tool is active","why":"Gives that press back to the text box.","effort":"~10 lines of TypeScript in the toolbox plus one CSS selector; low risk","instruction":"In D:\\bloom\\BL-17196-splitter-padding (branch BL-17196-splitter-padding, PR 8672), have the Motion tool add a class to the edit page's body while it is the running tool and remove it when it stops, and add :not(.<that class> *) handling so the .horizontal-divider:before band in src/BloomBrowserUI/bookEdit/css/origamiEditing.less does not show while it is set."}],"leaveAsIs":"while the Motion tool is open, a press in the top padding of the text box below a splitter does nothing.","codeComment":true},{"title":"Next step","context":["What should happen once these are answered?"],"options":[{"label":"Do what I chose, then run preflight again","recommended":true,"why":"Recommended so the new commits get the reviewers and the report refreshed.","effort":"","instruction":"Carry out the decisions above on BloomDesktop PR 8672 (branch BL-17196-splitter-padding), then run /preflight again on that branch."},{"label":"Discuss first","why":"","effort":"","instruction":"Before changing anything on BloomDesktop PR 8672, discuss these answers with me."}],"leaveAsIs":"nothing further happens until asked."}]}</script>
+<style>
+main{max-width:none;margin:0;padding:0}
+.rhead{max-width:1400px;margin:0 auto;padding:24px 16px 0}
+.rhead h1{font:600 24px/1.3 Georgia,"Times New Roman",serif;margin:0 0 6px}
+.sum{color:var(--muted);margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px}
+.chip.warn{border-color:var(--accent);background:var(--accent-tint)}
+.chip.link{color:var(--accent-strong);text-decoration:none}
+.layout{max-width:1400px;margin:0 auto;padding:16px 16px 64px;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+.layout>*{min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card h3{font:600 15px/1.3 system-ui,sans-serif;margin:12px 0 4px}
+.card p,.card ul{margin:0 0 10px}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px}
+th{color:var(--muted);font-weight:600}
+</style><title>BL-17196 preflight</title></head>
+<body>
+<header class="rhead">
+<h1>Preflight: grab a horizontal splitter from the text box padding below it</h1>
+<p class="sum">BloomDesktop branch <code>BL-17196-splitter-padding</code> at <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/commit/4dfc767d5766c2ced98c6b7af5ee69ba5a2a0d7c" target="_blank" rel="noopener">4dfc767d57</a>, 2026-11-25. Gates green, every reviewer finished, four questions open.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip">Mergeable</span><span class="chip">Bots quiet</span><span class="chip warn">4 questions for you</span>
+</div>
+<div class="chips links">
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8672" target="_blank" rel="noopener">PR #8672</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8672/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip link" href="https://github.com/BloomBooks/BloomDesktop/pull/8672/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip link" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17196" target="_blank" rel="noopener">BL-17196</a>
+<a class="chip link" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8672" target="_blank" rel="noopener">Devin review</a>
+</div>
+</header>
+<div class="layout">
+<aside class="report">
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Purpose</h3>
+<p>In Edit mode, the only place to grab a horizontal origami splitter is its 3px dashed line. When a text box sits just below the splitter, the text box's empty top padding (16px at the default 1em) looks like part of the gap, but pressing there only puts the cursor in the text box. This PR makes that padding grab the splitter too.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>A transparent <code>::before</code> on the divider of a top-level horizontal split covers the top padding of the text box in the lower pane. Hovering it shows the resize cursor and percentage label, and pressing there starts the drag, because a pseudo-element's mouse events go to the divider. The divider's <code>offsetHeight</code>, which <code>split-pane.ts</code> uses to place the panes, does not change.</li>
+<li>It applies only where <code>basePage.less</code> gives that text box its top padding: a text box directly in the bottom pane of a top-level horizontal split. Its height is that same <code>--topLevel-text-padding-top</code>, resolved at the text box's 12pt, and it starts below the divider's 3px border so that it ends where the text starts. Vertical splitters, nested splits and a picture below the splitter keep the 3px line, and the band does not extend upward, where it would cover the crop control of a picture above.</li>
+<li>The band does not wait for <code>data-splitter-label</code>, which <code>split-pane.ts</code> adds only when the mouse enters the divider, so it works on a page whose splitter line nobody has hovered yet.</li>
+<li><code>basePage.less</code> now points to the rule that copies its selector and padding.</li>
+</ul>
+<p>Code: <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/4dfc767d5766c2ced98c6b7af5ee69ba5a2a0d7c/src/BloomBrowserUI/bookEdit/css/origamiEditing.less#L98-L122" target="_blank" rel="noopener">origamiEditing.less:98</a>, <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/blob/4dfc767d5766c2ced98c6b7af5ee69ba5a2a0d7c/src/content/bookLayout/basePage.less#L928-L929" target="_blank" rel="noopener">basePage.less:928</a>.</p>
+</section>
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Less compile (both changed files)</td><td>passed</td></tr>
+<tr><td>Prettier</td><td>passed</td></tr>
+<tr><td>TypeScript typecheck and ESLint</td><td>not run: no TypeScript in the diff</td></tr>
+<tr><td>TypeScript tests (vitest)</td><td>not run: no test imports either changed .less file</td></tr>
+<tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
+<tr><td>Repo check: e2e specs at the nightly's window size</td><td>did not apply: the diff changes no e2e spec</td></tr>
+<tr><td>Merge with master</td><td>clean, up to date</td></tr>
+<tr><td>CI (pr-automation)</td><td>passed</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>What changed this run</h2>
+<p>Fixed two bugs in the band: it was missing until the line had been hovered once (found by the local review), and it stopped 3px short of the text (found by Devin). Added a pointer in <code>basePage.less</code> to the rule that copies it, merged master, and opened the draft PR. <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8672/commits" target="_blank" rel="noopener">Commits</a>.</p>
+</section>
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>1 finding, fixed: the band needed <code>data-splitter-label</code>, which only a hover on the line adds.</td></tr>
+<tr><td>Walkaround</td><td>2 changes: a pointer comment in <code>basePage.less</code> and a shorter comment on the selector. <code>/simplify</code> ran; its rewording of the rule's opening comment and the copied <code>12pt</code> were left as they are.</td></tr>
+<tr><td>Devin</td><td>Complete. 1 bug on d4d647c3ac, <a target="_blank" rel="noopener" href="https://github.com/BloomBooks/BloomDesktop/pull/8672#discussion_r4700064863" target="_blank" rel="noopener">a 3px dead strip</a>: fixed and resolved; the re-review of 4dfc767d57 is clean.</td></tr>
+<tr><td>Greptile</td><td>Complete on d4d647c3ac: no actionable defects. It has not reviewed 4dfc767d57, which changes only the band's <code>top</code> to answer Devin.</td></tr>
+<tr><td>CI</td><td>Complete: passed.</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>Checked in a running Bloom at 4dfc767d57: presses just below the border and just above the text land on the splitter, and a press in the text lands in the text. A full drag from the band worked at d4d647c3ac. Not checked: a theme whose padding is 0.5em, or other page sizes.</li>
+</ul>
+</section>
+</aside>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main></div>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
