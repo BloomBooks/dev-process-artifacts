@@ -62,18 +62,18 @@ th{color:var(--muted);font-weight:600}
 .numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
 </style>
 <!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
-<script type="application/json" id="decider-form">{"date":"2026-11-24","about":"BloomBooks/BloomDesktop PR #8629, branch JohnThomson/BL-16900-unify-undo-stack (BL-16900: Ctrl+Z after table operations), preflight run of 2026-11-24 (second)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-16900-unify-undo-stack.html","context":["Your earlier answers are done: typing is undone in the box typed in most recently (in time order with table changes), the two e2e tests are written, and the separate Ctrl+Y binding is gone. One question came out of that work."],"questions":[{"title":"Ctrl+Y after Ctrl+Z took back typing in another box","context":["Ctrl+Z (and the Undo button) can now take back typing in a box other than the one with the cursor: \"type in a new row, click another cell, Ctrl+Z\". Pressing Ctrl+Y straight after does nothing. That redo is held by the other box's CKEditor, and the page's Ctrl+Y only asks the focused box's CKEditor and the shared stack. Clicking back into the box that was typed in and pressing Ctrl+Y does bring it back.","The Undo button already left typing in this state before this PR (there is no Redo button). Stage 3 moves typing onto the shared stack, which gives it one redo for every box."],"options":[{"label":"Make Ctrl+Y redo in the box whose typing was last undone","why":"Ctrl+Y would undo the last undo wherever it was, matching Ctrl+Z.","effort":"~25 lines in undo/ckeditorChanges.ts and undo/undoKeys.ts plus unit and e2e tests; moderate risk, on the Ctrl+Y path for all typing","instruction":"In the BloomDesktop worktree for branch JohnThomson/BL-16900-unify-undo-stack (PR #8629): remember which CKEditor the stack's CKEditor provider last undid in (undoCkeditorTyping in bookEdit/undo/ckeditorChanges.ts); in bookEdit/undo/undoKeys.ts, when Ctrl+Y finds no redo on the stack and none in the focused box, but that editor (still in the page) has a redo, claim the key and redo there. Forget it once any new change is recorded. Add unit tests and an e2e test in tables-extended.spec.ts (type in a new row, click another cell, Ctrl+Z, Ctrl+Y, the typing is back), and re-run preflight."}],"leaveAsIs":"Ctrl+Y after Ctrl+Z took back typing in another box does nothing until the person clicks back into that box, until Stage 3.","leaveAsIsRecommended":"Recommended: leave it to Stage 3. Nothing is lost (Ctrl+Y works from the box that was typed in), the Undo button has always left typing this way, and Stage 3 gives typing one redo for every box instead of a second special case on the key handler.","codeComment":true},{"title":"Next step","context":["Everything else on the PR is settled: gates green, every reviewer finished, every review thread answered and resolved."],"options":[{"label":"Implement my choice above (if any) and re-run preflight; otherwise I'll do my own final review","recommended":true,"why":"Recommended because with the Ctrl+Y item left to Stage 3, the PR is ready for your own review before it goes to a colleague.","effort":"none, or the Ctrl+Y work","instruction":"If the Ctrl+Y item above asks for work, do it on branch JohnThomson/BL-16900-unify-undo-stack (PR #8629) and re-run preflight; otherwise record the decision on the PR description and stop."},{"label":"Discuss first","effort":"no code","instruction":"Before changing anything on PR #8629, discuss with me."}],"leaveAsIs":"nothing more happens on PR #8629 until asked."}]}</script>
+<script type="application/json" id="decider-form">{"date":"2026-11-25","about":"BloomBooks/BloomDesktop PR #8629, branch JohnThomson/BL-16900-unify-undo-stack (BL-16900: Ctrl+Z after table operations), preflight of 2026-11-24 (updated after Greptile's finding)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-johnthomson-bl-16900-unify-undo-stack.html","context":["No decisions are open. The Ctrl+Y question was answered (left until Stage 3), and Greptile's finding when the PR left draft (the ten-box limit) is fixed as you asked."],"questions":[{"title":"Next step","context":["The PR is back in draft after Greptile's finding. With the fix pushed and Devin clean, it can go to peer review."],"options":[{"label":"Run request-peer-review","recommended":true,"why":"Recommended because every check is green and nothing is open.","effort":"no code","instruction":"Run request-peer-review for PR #8629 (branch JohnThomson/BL-16900-unify-undo-stack)."}],"leaveAsIs":"PR #8629 stays in draft until asked."}]}</script>
 </head>
 <body>
 <main>
 <header class="top">
 <h1>Make Ctrl+Z undo table operations</h1>
-<p class="sum">Preflight of BloomDesktop PR #8629 (BL-16900), second run, 2026-11-24. Your decisions are implemented; gates green, every reviewer finished and every thread resolved. One question remains.</p>
+<p class="sum">Preflight of BloomDesktop PR #8629 (BL-16900), updated 2026-11-24 after Greptile's finding on leaving draft, now fixed. Gates green, every reviewer finished, every thread resolved, no decisions open.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8629" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
 <span class="chip ok">Bots quiet</span>
-<span class="chip wait">1 decision waiting</span>
+<span class="chip ok">No decisions waiting</span>
 </div>
 <div class="chips links">
 <a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8629" target="_blank" rel="noopener">PR #8629</a>
@@ -98,7 +98,7 @@ th{color:var(--muted);font-weight:600}
 <h3>What the PR does</h3>
 <ul>
 <li>The page's undo keys live in <code>undo/undoKeys.ts</code>: Ctrl+Z is taken for any entry on the stack, and for typing in a box other than the focused one; one Ctrl+Y handler replaces the separate binding.</li>
-<li>The undo of typing goes to the box whose typing is newest, wherever the focus is (<code>undo/ckeditorChanges.ts</code>). Each box's latest change has its place in the order the stack's entries share, so typing and table changes are undone in time order. A first paste or cut is recorded once CKEditor has saved it. No typing undo in Change Layout mode.</li>
+<li>The undo of typing goes to the box whose typing is newest, wherever the focus is (<code>undo/ckeditorChanges.ts</code>). Each box's latest change has its place in the order the stack's entries share, so typing and table changes are undone in time order. A first paste or cut is recorded once CKEditor has saved it, and every box with typing keeps its place, however many change. No typing undo in Change Layout mode.</li>
 <li><code>restoreState</code> no longer sets the markup type.</li>
 </ul>
 </section>
@@ -110,15 +110,15 @@ th{color:var(--muted);font-weight:600}
 <tr><td>Typecheck</td><td>Pass (front end and e2e). Full <code>tsc</code> errors are all ones master has too.</td></tr>
 <tr><td>Lint</td><td>Pass, <span class="numeral">0</span> errors in changed files</td></tr>
 <tr><td>Merge with master</td><td>Clean merge at d62cab4 (master's BL-17105 and BL-16728 work)</td></tr>
-<tr><td>TypeScript unit tests (vitest), related</td><td>Pass: <span class="numeral">610</span> on the merged code, across undo, inline images, tables, BloomField and reader tools</td></tr>
+<tr><td>TypeScript unit tests (vitest), related</td><td>Pass: <span class="numeral">610</span> on the merged code, and <span class="numeral">562</span> related again after the last fix (undo, inline images, tables, BloomField, reader tools)</td></tr>
 <tr><td>C# tests</td><td>Not run: no C# in this PR's diff</td></tr>
-<tr><td>E2E repo check (nightly window size)</td><td>Pass: <span class="numeral">46/46</span> in <code>tables-extended</code>, <code>inline-images-undo-keyboard</code>, <code>undo-routing</code> and <code>inline-images-decodable-reader</code>, headless, on the merged code (d62cab4)</td></tr>
+<tr><td>E2E repo check (nightly window size)</td><td>Pass: <span class="numeral">46/46</span> in <code>tables-extended</code>, <code>inline-images-undo-keyboard</code>, <code>undo-routing</code> and <code>inline-images-decodable-reader</code>, headless, on the merged code (d62cab4). The last fix (no limit on the list of boxes) changes behaviour only past ten boxes and has a unit test.</td></tr>
 </table></div>
 </section>
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Merged master and re-ran the gate and the e2e specs on the merged code. The decided changes, the fixes for Devin's and Greptile's findings, and five walkaround passes landed in the commits since the first report: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8629/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>Merged master, squashed the branch for peer review, and removed the limit on the list of boxes that Greptile flagged when the PR left draft (eb03174). Earlier, the decided changes, the fixes for Devin's and Greptile's findings, and five walkaround passes landed: <a href="https://github.com/BloomBooks/BloomDesktop/pull/8629/commits" target="_blank" rel="noopener">Commits</a>.</p>
 </section>
 
 <section class="card">
@@ -126,9 +126,9 @@ th{color:var(--muted);font-weight:600}
 <div class="tw"><table>
 <tr><th>Reviewer</th><th>Outcome</th></tr>
 <tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
-<tr><td>Walkaround</td><td>Recorded for the current code with <code>/simplify</code> run; its last proposal (Ctrl+Y across boxes) is the decision on the right.</td></tr>
-<tr><td>Devin</td><td>Complete on d62cab4, nothing new. Over the day it raised five bugs and four flags, each with its own thread, now all fixed or answered and resolved; its incremental reviews keep re-listing them against old line numbers.</td></tr>
-<tr><td>Greptile</td><td>Complete on 08e871c (the last commit with this PR's own code): "no new actionable issue". Its one finding (a first cut) was fixed and resolved.</td></tr>
+<tr><td>Walkaround</td><td>Recorded for the current code; <code>/simplify</code> ran on every round that added code. Its last proposal (Ctrl+Y across boxes) was decided: left until Stage 3.</td></tr>
+<tr><td>Devin</td><td>Complete on eb03174, nothing new. Over the day it raised five bugs and four flags, each with its own thread, now all fixed or answered and resolved; its incremental reviews keep re-listing them against old line numbers.</td></tr>
+<tr><td>Greptile</td><td>Reviewed the squashed commit when the PR left draft and found one bug (the ten-box limit), fixed in eb03174 and resolved. Its earlier finding (a first cut) was fixed too. It reviews again when the PR next leaves draft.</td></tr>
 <tr><td>CI</td><td><code>pr-automation</code> passes. Reviewable waits on a human reviewer.</td></tr>
 </table></div>
 </section>
