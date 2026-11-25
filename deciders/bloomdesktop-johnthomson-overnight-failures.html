@@ -70,7 +70,7 @@ th{color:var(--muted);font-weight:600}
 <body>
 <header class="top">
 <h1>Preflight: five nightly e2e fixes</h1>
-<p class="sum">Fixes five tests that fail in the nightly e2e run: one by a change to Bloom, four by corrections to the tests, which also make every way a test leaves a page wait for Bloom. The whole suite passes apart from one existing Bloom bug, fixed separately in PR #8618. Master is merged in, each card has its test ideas, and both of your decisions are carried out: the settle wait returns at once on a settled tab, and two duplicate waits are gone. Nothing is waiting on you but your review of the files those changed.</p>
+<p class="sum">Fixes five tests that fail in the nightly e2e run: one by a change to Bloom, four by corrections to the tests, which also make every way a test leaves a page wait for Bloom. The whole suite passes apart from one existing Bloom bug, fixed separately in PR #8618. Master is merged in again and each card has its test ideas. Two duplicate waits are gone. The faster settle wait was tried and taken out again at your choice: it could return in the moment after a click and before the reload that click starts. So the Bloom code is back to what you reviewed. Nothing is waiting on you.</p>
 <div class="chips">
 <!-- pr-state:begin --><span class="chip" data-pr-state="draft"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8615" target="_blank" rel="noopener">Draft PR</a></span><!-- pr-state:end -->
 <span class="chip ok">Mergeable</span>
@@ -119,8 +119,8 @@ th{color:var(--muted);font-weight:600}
 <tr><td>Whole e2e suite, nightly window size, on <code>12948536a3</code></td><td><span class="numeral">404 passed, 1 failed</span> (8 more in that serial file did not run). The failure, "clicking quickly through five pages (All Pages)", is an existing Bloom bug that uses none of this PR's helpers; it is being fixed on its own branch.</td></tr>
 <tr><td><code>copy-page.spec.ts</code>, 10 runs</td><td class="pass"><span class="numeral">10/10</span></td></tr>
 <tr><td>Repo check: changed specs (<code>new-book-title-rename</code>, <code>tables-cell-overflow</code>) at nightly size, on <code>502a8647c2</code></td><td class="pass"><span class="numeral">13/13 passed</span></td></tr>
-<tr><td>Whole e2e suite again, nightly window size, on <code>bad4b533e2</code> (the faster settle wait)</td><td><span class="numeral">407 passed, 1 failed</span>: the same fast-click test as before (PR #8618); the 9 after it in that serial file did not run.</td></tr>
-<tr><td>Changed specs plus <code>saved-book-stays-clean</code>, on <code>5d2c5b0164</code> (Stopwatch timing)</td><td class="pass"><span class="numeral">58/58 passed</span></td></tr>
+<tr><td>Whole e2e suite again, nightly window size, on <code>bad4b533e2</code> (includes the two duplicate-wait removals)</td><td><span class="numeral">407 passed, 1 failed</span>: the same fast-click test as before (PR #8618); the 9 after it in that serial file did not run.</td></tr>
+<tr><td>Master merged again (<code>fd6f3faa9a</code>, import lists only). Master's new <code>content-languages.spec.ts</code>, which leans on the settle wait, at nightly size on <code>b16e366187</code></td><td class="pass"><span class="numeral">1/1 passed</span> <span class="muted">(it failed with the faster wait, on <code>eb63fef800</code>)</span></td></tr>
 <tr><td>C# build</td><td class="pass">passed</td></tr>
 <tr><td>C# tests</td><td>none reach the changed code (the Edit tab's page-load timestamp, read only by the e2e endpoint); the e2e runs above exercise it</td></tr>
 </table></div>
@@ -128,15 +128,15 @@ th{color:var(--muted);font-weight:600}
 
 <section class="card">
 <h2>What changed this run</h2>
-<p>Merged master; linked all five cards from the description and posted test ideas on each. Carried out both decisions: Bloom now notes when a page last reported it had loaded (timed with a Stopwatch, after Devin), <code>e2e/editState</code> reports how long ago that was, and <code>waitForEditTabSettled</code> returns at once when it is 1.5 s or more; the duplicate waits in <code>tables-extended</code> and <code>all-pages-follows-the-book</code> are gone. Squashed into one commit before the decisions. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8615/commits" target="_blank" rel="noopener">Commits</a>.</p>
+<p>Merged master again (only two import lists conflicted). The light review and <code>/simplify</code> showed that the faster settle wait could return before a reload that a click had just started, in master's new <code>content-languages</code> test and in shared helpers. At your choice it is reverted, together with its Stopwatch follow-up; the two duplicate-wait removals stay. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8615/commits" target="_blank" rel="noopener">Commits</a>.</p>
 </section>
 
 <section class="card">
 <h2>Reviewer outcomes</h2>
 <div class="tw"><table>
-<tr><td>Local review</td><td>Light sub-agent pass on the merged code: clean. It confirmed no new wait can hide a save-speed failure (no test checks saving speed, and the tests about saving on leaving save before the new waits run).</td></tr>
-<tr><td>Walkaround</td><td>Recorded at HEAD. The decisions' 30 lines: the wait lost its cross-poll state and the announcement count it replaced is gone from Bloom; no further changes.</td></tr>
-<tr><td>Devin</td><td>Complete on <code>5d2c5b0164</code> (HEAD): no bugs. One new finding on the decisions' code (a clock change could skew the quiet time), fixed with a Stopwatch; one informational note (zero before the first load, which the wait never reads); the rest repeat flags answered earlier.</td></tr>
+<tr><td>Local review</td><td>Light sub-agent pass on the merged code: the merge resolution is clean; it found the faster settle wait's gap in master's new <code>content-languages</code> test, which led to the revert.</td></tr>
+<tr><td>Walkaround</td><td>Recorded at HEAD. <code>/simplify</code> ran on the content-languages patch; its altitude reviewer found the same gap in shared helpers, so the speed-up was reverted instead. The revert adds no code; nothing further to change.</td></tr>
+<tr><td>Devin</td><td>Complete on <code>b16e366187</code> (HEAD): no bugs. Two new Investigate flags, answered and resolved: master's content-languages reload wait (not this PR's code) and the 1.5 s per <code>selectPage</code> (your choice). The rest are about the reverted code or repeat answered flags.</td></tr>
 <tr><td>Greptile</td><td>Complete on <code>12948536a3</code>: no actionable issues. It does not review draft pushes; the merge changed none of this PR's code.</td></tr>
 <tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
 <tr><td>Repo check (e2e at nightly size)</td><td>Passed: the changed specs, 13/13, on the merged code; the whole suite earlier, as above.</td></tr>
