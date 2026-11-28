@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL-17229 preflight report</title>
+<style>
+:root{--bg:#faf8f4;--card:#fff;--ink:#22201c;--muted:#6b665d;--line:#e4dfd5;--accent:#2f6f6a;--ok:#2f7a3a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+.layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:24px;max-width:1300px;margin:0 auto;padding:24px 16px 64px}
+.layout>*{min-width:0}
+@media (max-width:900px){.layout{grid-template-columns:minmax(0,1fr)}}
+header{max-width:1300px;margin:0 auto;padding:24px 16px 0}
+h1{font:600 24px/1.3 Georgia,"Times New Roman",serif;margin:0 0 6px}
+h2{font:600 18px/1.3 Georgia,"Times New Roman",serif;margin:0 0 10px}
+h3{font:600 15px/1.3 system-ui,sans-serif;margin:14px 0 4px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.card p{margin:0 0 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;font-size:13px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px;text-decoration:none;color:var(--ink)}
+.chip.ok{border-color:var(--ok);color:var(--ok)}
+.links .chip{color:var(--accent)}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;vertical-align:top;padding:6px 8px;border-top:1px solid var(--line)}
+.numeral{font-variant-numeric:tabular-nums;font-family:ui-monospace,Consolas,monospace;font-size:13px}
+a{color:var(--accent)}
+ul{margin:0 0 8px;padding-left:20px}
+</style>
+</head>
+<body>
+<header>
+<h1>BL-17229 — the fatal error dialog starved of its message</h1>
+<p>Preflight, Greenhouse work item 524: clean, with no decisions waiting.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="ready">Ready for review</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 decisions</span>
+</div>
+<div class="chips links">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8803" target="_blank" rel="noopener">PR #8803</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8803/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8803/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17229" target="_blank" rel="noopener">BL-17229</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8803" target="_blank" rel="noopener">Devin</a>
+</div>
+</header>
+<div class="layout">
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>The nightly test of the fake fatal book titles still failed after #8774. The "Bloom encountered an error and needs to quit" dialog opened with Submit and Quit, but its message stayed empty and its details said "Loading...". A person who clicks Edit just as the Collections tab appears, on a book whose opening raises a problem, can meet the same empty dialog.</p>
+<h3>Cause</h3>
+<p>The dialog is raised inside the tab switch's API request, which holds Bloom's main API lock while the dialog shows. On the slow runner, the Collections tab was still being drawn when Edit was clicked. Every book button there asks Bloom for the editable collection's name, and that request waited for the lock. Ten of them waiting held the browser's six connections to Bloom, so the dialog's request for its message never got out.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>The collection-name request no longer waits for the main API lock. It only reads a folder name, so it is answered at once even while a dialog holds the lock.</li>
+<li>A new e2e test makes the slow runner's order happen every time. It holds the book buttons' questions until the dialog asks for its message, sends them on first, and checks that the dialog shows its message. Without the fix it fails just as the nightly did.</li>
+</ul>
+</section>
+<section class="card">
+<h2>Quality gate</h2>
+<div class="tw"><table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>TypeScript typecheck (BloomE2E)</td><td>passed</td></tr>
+<tr><td>Formatting (Prettier, CSharpier)</td><td>passed</td></tr>
+<tr><td>C# build</td><td>passed</td></tr>
+<tr><td>C# tests</td><td>not run — no unit test reaches the changed endpoint; the e2e spec is its test</td></tr>
+<tr><td>Front-end tests (vitest)</td><td>not run — no front-end code in the diff</td></tr>
+<tr><td>E2E: fake-error-reports.spec.ts at the nightly window size (repo check)</td><td><span class="numeral">40 of 40 passed (10 runs of each of the 4 tests)</span></td></tr>
+<tr><td>Merge with master</td><td>clean</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>What changed this run</h2>
+<p>This run wrote the fix and its test, merged master, and reworked the test after Devin's review so that it sets up the contention itself and checks that it did. See the <a href="https://github.com/BloomBooks/BloomDesktop/pull/8803/commits" target="_blank" rel="noopener">commits</a>.</p>
+</section>
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<div class="tw"><table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+<tr><td>Walkaround and /simplify</td><td>Two passes. Changes kept: a shared title helper in the spec, one release helper for the held requests, shared <code>bloomPages</code>, and a fixed order in the test. Skipped: deeper fixes to the lock or the tab switch, which go beyond this card.</td></tr>
+<tr><td>Devin</td><td>Complete for 9e97484a6e. No bugs. Two Investigate flags on the first commit were fixed. A third, about the test's scope, was answered on <a href="https://github.com/BloomBooks/BloomDesktop/pull/8803#discussion_r4727817834" target="_blank" rel="noopener">its thread</a>. All threads are resolved.</td></tr>
+<tr><td>Greptile</td><td>Complete on the first commit: "safe to merge", no findings. The later commit changes only the test, in answer to Devin.</td></tr>
+<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+</table></div>
+</section>
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>The Collections tab's other requests that wait for the lock can still take five of the six connections while a fatal dialog shows. That leaves the dialog one, which is enough. The PR description's Risk section names the deeper fixes.</li>
+</ul>
+</section>
+</div>
+<div>
+<section class="card">
+<h2>Decisions</h2>
+<p>None. The pull request is ready for a person's review.</p>
+</section>
+</div>
+</div>
+</body>
+</html>
