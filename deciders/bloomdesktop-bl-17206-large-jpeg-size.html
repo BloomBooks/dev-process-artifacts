@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17206</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#faf8f4;--card:#fff;--line:#e4dfd6;--ink:#2b2822;--muted:#6b655b;--accent:#2f6f5e;--ok:#2f6f5e}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+main{max-width:860px;margin:0 auto;display:grid;gap:16px}
+h1,h2{font-family:Georgia,"Times New Roman",serif;font-weight:600}
+h1{font-size:1.5rem}h2{font-size:1.1rem;margin-bottom:8px}
+section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;min-width:0}
+p+p,p+ul,ul+p{margin-top:8px}ul{padding-left:20px}
+a{color:var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:.85rem;background:#f3f0ea}
+.links{margin-top:8px;font-size:.9rem;display:flex;flex-wrap:wrap;gap:14px}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+td{border-top:1px solid var(--line);padding:6px 8px;vertical-align:top}
+td:first-child{font-weight:600;white-space:nowrap}
+.ok{color:var(--ok);font-weight:600}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.88em}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<main>
+<section>
+<h1>Preflight: BL-17206 the meddler test's photo is under a megabyte without a GPU</h1>
+<div class="chips"><span class="chip" id="pr-state">PR: draft at report time</span><span class="chip">Branch BL-17206-large-jpeg-size</span><span class="chip">HEAD d39279e7ec</span><span class="chip">No decisions waiting</span></div>
+<div class="links"><a href="https://github.com/BloomBooks/BloomDesktop/pull/8778">PR 8778</a><a href="https://github.com/BloomBooks/BloomDesktop/pull/8778/files">Files changed</a><a href="https://issues.bloomlibrary.org/youtrack/issue/BL-17206">BL-17206</a><a href="https://app.devin.ai/review/BloomBooks/BloomDesktop/pull/8778">Devin review</a></div>
+</section>
+<section>
+<h2>What this PR is about</h2>
+<p><strong>This PR changes only tests.</strong></p>
+<p><strong>Problem.</strong> Both tests in <code>file-meddler-large-image.spec.ts</code> (Test Case ID 257) have failed every night since they were added. They stop at their own setup check that the photo they paste is over 1,000,000 bytes: on the runner it is <span class="num">822,306</span> bytes. Bloom is never reached.</p>
+<p><strong>Cause.</strong> The fault is in the test. <code>makeJpegFile</code> draws the photo on a browser canvas, and Chromium dithers canvas gradients only when it draws on a GPU, so the photo compresses much better on a machine without one. With Bloom's WebView2 started with <code>--disable-gpu</code>, this machine wrote the 6000×3375 photo in exactly the runner's <span class="num">822,306</span> bytes (<span class="num">1,362,156</span> with its GPU). Bloom shrinks a picture by its pixel size, so the byte count matters only to the test's own idea of "large".</p>
+<p><strong>Fix.</strong></p>
+<ul>
+<li>The spec's photo is now 8000×4500: <span class="num">1,336,949</span> bytes without a GPU and <span class="num">2,310,321</span> with one. It is still 16:9 and still far larger than anything Bloom keeps.</li>
+<li>The setup check's message now says what it checks ("over a megabyte").</li>
+<li><code>makeJpegFile</code>'s doc comment records that its file size depends on the GPU.</li>
+</ul>
+</section>
+<section>
+<h2>Quality gate</h2>
+<table>
+<tr><td>Typecheck (BloomE2E)</td><td class="ok">passed</td></tr>
+<tr><td>Prettier</td><td class="ok">passed</td></tr>
+<tr><td>Lint</td><td>not run: <code>src/BloomE2E</code> has no lint configuration</td></tr>
+<tr><td>Repo check: e2e specs at the nightly size</td><td class="ok">passed: <code>file-meddler-large-image.spec.ts</code> 2/2, twice with the GPU off and once with it on, at d39279e7ec</td></tr>
+<tr><td>C# and front-end tests</td><td>not run: no C# or front-end code in the diff</td></tr>
+<tr><td>Test of the change</td><td>none, test-only change: <code>file-meddler-large-image.spec.ts</code> is its own check</td></tr>
+</table>
+</section>
+<section>
+<h2>What changed this run</h2>
+<p>First run: the fix, the PR and the reviews.</p>
+</section>
+<section>
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><td>Local review (light)</td><td class="ok">clean</td></tr>
+<tr><td>Walkaround</td><td>2 changes (the photo's byte-size note moved to <code>makeJpegFile</code>; the setup message corrected), 0 proposals; <code>/simplify</code> ran</td></tr>
+<tr><td>Devin</td><td class="ok">complete at d39279e7ec: no bugs, no flags</td></tr>
+<tr><td>Greptile</td><td class="ok">complete at d39279e7ec: no findings</td></tr>
+<tr><td>CI</td><td class="ok">all checks finished, none failed</td></tr>
+</table>
+</section>
+</main>
+</body>
+</html>
