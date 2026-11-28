@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Preflight BL-17229</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#faf8f4;color:#2a2723;font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px 16px}
+main{max-width:1180px;margin:0 auto}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600}
+h1{font-size:24px;margin-bottom:6px}
+h2{font-size:18px;margin-bottom:10px}
+h3{font-size:15px;margin:12px 0 4px}
+p{margin:6px 0}
+ul{margin:6px 0 6px 20px}
+a{color:#1f5f8b}
+.summary{color:#555;margin-bottom:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chip{display:inline-block;border:1px solid #d9d3c7;background:#fff;border-radius:999px;padding:2px 10px;font-size:13px}
+.ok{border-color:#9cc59c;background:#eef7ee}
+.grid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:16px;margin-top:16px}
+.grid>div{min-width:0}
+.card{background:#fff;border:1px solid #e3ddd1;border-radius:8px;padding:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td,th{border-top:1px solid #eee7da;padding:6px 8px;text-align:left;vertical-align:top}
+th{font-weight:600}
+.numeral{font-family:ui-monospace,Consolas,monospace;font-variant-numeric:tabular-nums}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:#f3efe7;padding:0 3px;border-radius:3px}
+@media (max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<main>
+<h1>Preflight: BL-17229</h1>
+<p class="summary">A test-only fix. Every reviewer has finished with nothing left open, the changed spec passes at the final commit, and nothing waits on a person.</p>
+<div class="chips">
+<!-- pr-state:begin --><span class="chip" data-pr-state="draft">Draft PR</span><!-- pr-state:end -->
+<span class="chip ok">Mergeable</span>
+<span class="chip ok">Bots quiet</span>
+<span class="chip ok">0 decisions waiting</span>
+</div>
+<div class="chips">
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8774" target="_blank" rel="noopener">PR #8774</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8774/files" target="_blank" rel="noopener">Files changed</a>
+<a class="chip" href="https://github.com/BloomBooks/BloomDesktop/pull/8774/commits" target="_blank" rel="noopener">Commits</a>
+<a class="chip" href="https://issues.bloomlibrary.org/youtrack/issue/BL-17229" target="_blank" rel="noopener">BL-17229</a>
+<a class="chip" href="https://devinreview.com/BloomBooks/BloomDesktop/pull/8774" target="_blank" rel="noopener">Devin review</a>
+</div>
+
+<div class="grid">
+<div>
+<section class="card">
+<h2>What this PR is about</h2>
+<h3>Problem</h3>
+<p>In the nightly, the Test Case 52 test "books with the fake fatal titles show the fatal report dialog, and Bloom quits" timed out. Bloom showed its fatal report dialog, but the message stayed empty and the diagnostic section said "Loading..." for good. The test failed the same way on this machine three times out of three.</p>
+<h3>Cause</h3>
+<p>The test raised the dialog with <code>switchTab</code>, which then polls Bloom from inside its page to see whether the Edit tab is active. The tab switch holds Bloom's main API lock while the dialog shows, so that poll waits behind it, joining five requests from Bloom's own pages. Six waiting requests fill the browser's connections to Bloom, so the dialog's own requests never leave the browser. The same heading request sent from Node got its answer at once.</p>
+<h3>What the PR does</h3>
+<ul>
+<li>Splits the click out of <code>switchTab</code> as <code>clickTab</code>; <code>switchTab</code> behaves as before.</li>
+<li>The fake-error test raises each dialog with <code>clickTab</code> and waits for the Edit tab after the dialog closes.</li>
+<li>The doc comment of <code>doThroughOneProblemDialog</code> says when a page call after the dialog starves it.</li>
+</ul>
+</section>
+
+<section class="card">
+<h2>Quality gate</h2>
+<table>
+<tr><th>Check</th><th>Result</th></tr>
+<tr><td>Typecheck (src/BloomE2E, tsc)</td><td>passed</td></tr>
+<tr><td>Lint / formatting</td><td>no lint script in src/BloomE2E; Prettier clean</td></tr>
+<tr><td>Merge with master</td><td>clean</td></tr>
+<tr><td>E2E (Playwright): <code>fake-error-reports.spec.ts</code></td><td><span class="numeral">30 passed</span> (10 repetitions, CI-like); <span class="numeral">3 passed</span> once more at the final commit, nightly window size</td></tr>
+<tr><td>TypeScript unit tests (vitest)</td><td>not run: no product TypeScript in the diff</td></tr>
+<tr><td>C# tests</td><td>not run: no C# in the diff</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>What changed this run</h2>
+<p>First run: committed the fix, merged master, opened the draft PR, and reworded one doc comment after Devin's flag. <a href="https://github.com/BloomBooks/BloomDesktop/pull/8774/commits" target="_blank" rel="noopener">Commits</a>.</p>
+</section>
+
+<section class="card">
+<h2>Reviewer outcomes</h2>
+<table>
+<tr><th>Reviewer</th><th>Outcome</th></tr>
+<tr><td>Local review (light sub-agent pass)</td><td>Clean, no findings.</td></tr>
+<tr><td>Walkaround</td><td>/simplify ran: one change (shorter doc comments). One idea, sending test API calls from Node rather than through the page, is outside this card; see below.</td></tr>
+<tr><td>Devin</td><td>Complete at <code>fbfd239</code>: no bugs, one Investigate flag, <a href="https://github.com/BloomBooks/BloomDesktop/pull/8774#discussion_r4724854901" target="_blank" rel="noopener">answered and resolved</a>.</td></tr>
+<tr><td>Greptile</td><td>Complete at <code>c956071</code>: no actionable issues. It has not reviewed the later comment-only commit.</td></tr>
+<tr><td>CI</td><td>Complete: pr-automation passed.</td></tr>
+<tr><td>Repo check: e2e specs at the nightly window size</td><td>Passed: <code>fake-error-reports.spec.ts</code>, 3 of 3.</td></tr>
+</table>
+</section>
+
+<section class="card">
+<h2>Worth knowing</h2>
+<ul>
+<li>A deeper fix is possible but outside this card: send the test helpers' API calls from Node (as <code>closeReactDialogFromNode</code> already does) so that no test call can ever take one of the browser's connections to Bloom. It touches every e2e test and would need a full-suite run.</li>
+<li>Bloom leaves only one connection free while a dialog raised by a tab switch is showing. Bloom works with that today, but it has no margin.</li>
+</ul>
+</section>
+</div>
+
+<div>
+<section class="card">
+<h2>Decisions</h2>
+<p>None. Nothing waits on a person.</p>
+</section>
+</div>
+</div>
+</main>
+</body>
+</html>
