@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Decisions</title>
+<style>
+:root{--ground:#FAF9F5;--card:#FFFFFF;--line:#E8E4DA;--ink:#2F2F2F;--muted:#6B6760;--accent:#D97757;--accent-strong:#B4532F;--accent-tint:#FBEEE8}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+::selection{background:var(--accent-tint)}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h2{font:600 19px/1.3 Georgia,"Times New Roman",serif;margin:0 0 8px}
+.ctx,.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:18px}
+.ctx p,.q p{margin:0 0 10px}
+.ctx p:last-child{margin:0}
+a{color:var(--accent-strong)}
+code{font:13px ui-monospace,Consolas,monospace;background:#F3F0E8;padding:1px 4px;border-radius:4px}
+label.opt{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid transparent;border-radius:8px;margin:4px 0;cursor:pointer}
+label.opt.rec{background:var(--accent-tint)}
+label.opt.chosen{outline:1px solid var(--accent)}
+label.opt input{margin-top:4px}
+.tag{display:inline-block;font-size:12px;font-weight:600;color:var(--accent-strong);background:var(--accent-tint);border:1px solid var(--accent);border-radius:999px;padding:0 8px;margin-left:6px}
+.eff{color:var(--muted);font-size:13.5px}
+.row{display:flex;gap:8px 16px;align-items:center;flex-wrap:wrap}
+.row label.opt{margin:0}
+.row .comment{margin-left:auto;display:flex;gap:6px;align-items:center;cursor:pointer;padding:0 10px}
+input[type=radio],input[type=checkbox]{accent-color:var(--accent-strong)}
+input:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+textarea.notes{width:100%;min-height:54px;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font:inherit;background:var(--ground);color:var(--ink)}
+.count{text-align:right;color:var(--muted);font-size:13.5px;min-height:20px}
+.bar{display:flex;align-items:center;gap:10px}
+.status{flex:1;color:var(--muted);font-size:13.5px}
+button{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid var(--accent-strong);cursor:pointer}
+button.secondary{background:var(--card);color:var(--accent-strong)}
+button.primary{background:var(--accent-strong);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+button.done svg{margin-right:6px}
+#copy:not(.done){padding:8px 10px}
+#out{width:100%;min-height:200px;margin-top:10px;font:13px ui-monospace,Consolas,monospace}
+</style>
+<!-- build-form.mjs puts the form's JSON here; see SKILL.md, "The form's JSON". -->
+<script type="application/json" id="decider-form">{"date":"2026-11-28","about":"BloomDesktop, branch BL-17232-save-as-hook, PR #8772 (preflight report)","url":"https://bloombooks.github.io/dev-process-artifacts/deciders/bloomdesktop-bl-17232-save-as-hook.html","context":["<!-- pr-state:begin --><span class=\"chip\" data-pr-state=\"draft\">Draft PR<\/span><!-- pr-state:end --> · mergeable · bots quiet · 2 questions for you","<a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8772\" target=\"_blank\" rel=\"noopener\">PR #8772<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8772/files\" target=\"_blank\" rel=\"noopener\">Files changed<\/a> · <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8772/commits\" target=\"_blank\" rel=\"noopener\">Commits<\/a> · <a href=\"https://issues.bloomlibrary.org/youtrack/issue/BL-17232\" target=\"_blank\" rel=\"noopener\">BL-17232<\/a> · <a href=\"https://devinreview.com/BloomBooks/BloomDesktop/pull/8772\" target=\"_blank\" rel=\"noopener\">Devin review<\/a>","<b>Problem.<\/b> E2e tests answer Bloom's native \"choose a file\" and \"choose a folder\" dialogs by telling Bloom the path in advance (<code>e2e/nextFileToChoose<\/code>), so the dialog never opens. Save As did not take that answer, so TC-401, TC-660's Bloom Pack test and TC-394 typed into the real Windows dialog over UI Automation, which on the CI runner handed Bloom the dialog's own suggested name instead (BL-17232). The keystroke-by-keystroke fix in #8770 still depended on how Windows' dialog behaves on each machine.","<b>What the PR does.<\/b> Save As (<code>MiscUtils.GetOutputFilePathOutsideCollectionFolder<\/code>, which every save goes through) answers with the supplied path under <code>--e2e<\/code>, with the checks the real dialog makes, and Bloom's refusal of a place inside the collection still runs on it. The supplied path lives in a new <code>E2eDialogAnswer<\/code> class, which also keeps the name Save As would have suggested, read through <code>e2e/lastSuggestedFileName<\/code>. <code>e2e/nextFileToChoose<\/code> no longer waits for the server's lock, and the test helper sends it from Node, so a test can answer the second Save As while Bloom's refusal message shows. The three tests supply the path instead of typing it; <code>answerSaveAsDialog<\/code> is gone; TC-401 and TC-394 now run under <code>--dont-disturb<\/code>. <code>AGENTS.md<\/code>, the <code>add-e2e-test<\/code> skill and <code>AUTOMATION-DEBT.md<\/code> tell agents to use the hook, and to add it to any dialog it does not cover.","<b>Quality gate.<\/b> TypeScript typecheck (BloomE2E): pass. C# build: pass. C# tests, <code>BloomOpenFileDialogTests<\/code>: 9 of 9 pass. Front-end (BloomBrowserUI) tests: not run, no front-end code in the diff. E2E, the repo's check at the nightly window size: the five specs that the diff changes or reaches passed 2 of 2 each on the nightly's runner setup at HEAD (<a href=\"https://github.com/BloomBooks/BloomDesktop/actions/runs/46156708139\" target=\"_blank\" rel=\"noopener\">bot-verify run 46156708139<\/a>, 12 of 12). Merged with master; no conflicts left.","<b>This run.<\/b> Built the whole PR: the Save As hook, the docs, then Devin's five findings, and a merge with master, which brought a new test (TC-394) that used the removed keystroke helper and now reads the suggested name from Bloom instead. <a href=\"https://github.com/BloomBooks/BloomDesktop/pull/8772/commits\" target=\"_blank\" rel=\"noopener\">Commits<\/a>.","<b>Reviewers.<\/b> Local review (light sub-agent pass): clean. Walkaround with /simplify, three passes: the Save As dialog code moved into its own method, the supplied path into its own class, <code>armFileChooser<\/code> into <code>helpers/nativeDialogs.ts<\/code>, Node-side requests into one <code>apiPostFromNode<\/code>, plus comment and doc fixes; one proposal, below. Devin: complete; five findings, all fixed and resolved on the PR; its last review only repeated them. Greptile: complete, no findings on the current code. CI: pass.","<b>Worth knowing.<\/b> A person's Save As is untested by automation now, by design: the tests never show the dialog. The test ideas on the card ask a tester to save a PDF and an ePUB through the real dialog once."],"questions":[{"title":"Send every e2e API call from Node?","context":["<p>The e2e helpers call Bloom's API by running <code>fetch<\/code> inside a Bloom page (<code>apiGet<\/code>, <code>apiPost<\/code> in <code>src/BloomE2E/helpers/api.ts<\/code>). The file's header says that is required because Bloom refuses a request from Node. That is true only for <code>127.0.0.1<\/code>: a request from Node to <code>localhost<\/code> is accepted, and this PR's new <code>apiPostFromNode<\/code>, like <code>closeReactDialogFromNode<\/code> before it, relies on that.<\/p>","<p>Going through the page has a known hazard: while a modal dialog holds Bloom's UI thread, the browser's few connections to Bloom can all be waiting, so a request from the page never leaves. This PR moved the two calls that hit it to Node. Moving every call to Node would remove the hazard everywhere and the special case with it, but it changes how every e2e test talks to Bloom.<\/p>"],"options":[{"label":"Do it in its own follow-up PR","recommended":true,"why":"Recommended because it is simpler code with one way to call Bloom, and it touches every e2e test's API calls, which deserves its own review and a full e2e run.","effort":"~30 lines in helpers/api.ts plus its header and a README line; needs the whole e2e suite run once","instruction":"In BloomBooks/BloomDesktop, on a new branch off master, change the private request() in src/BloomE2E/helpers/api.ts to send each call from Node with node:http to host localhost (port from page.url()), fold apiPostFromNode into apiPost, update the file header and the helpers/api.ts line in src/BloomE2E/README.md, run the whole e2e suite once, and open a draft PR."},{"label":"Do it in this PR","effort":"same size; this PR then also needs a whole-suite e2e run","instruction":"In D:\\bloom.worktrees\\BL-17232-save-as-hook (branch BL-17232-save-as-hook, PR 8772), change the private request() in src/BloomE2E/helpers/api.ts to send each call from Node with node:http to host localhost, fold apiPostFromNode into apiPost, update the header and README line, and run the whole e2e suite once before pushing."}],"leaveAsIs":"most e2e API calls keep going through the page; only the two made during a modal go from Node."},{"title":"Automate the PDF file-name check that TC-156 leaves manual?","context":["<p><code>custom-language-name.spec.ts<\/code> (Test Case 156, \"Custom Language Name Display\") says that one part of the manual case stays manual: the file name that Save PDF... proposes, because only the Windows Save As dialog showed it. With this PR, a test can arm the save path and read the name Bloom would have suggested from <code>e2e/lastSuggestedFileName<\/code>, as TC-394 now does for an ePUB.<\/p>"],"options":[{"label":"Add it to this PR","recommended":true,"why":"Recommended because it is small, it uses exactly what this PR adds, and it takes one more item off a person's list.","effort":"~20 lines in custom-language-name.spec.ts, plus one e2e run of that spec","instruction":"In D:\\bloom.worktrees\\BL-17232-save-as-hook (branch BL-17232-save-as-hook, PR 8772), extend src/BloomE2E/tests/custom-language-name.spec.ts to publish the book as a PDF: arm a save path in the test's output folder with armFileChooser, click Save PDF..., poll e2e/lastSuggestedFileName until it holds the expected name, and drop the header's sentence that says this stays manual. Run that spec once at the nightly window size, then commit and push."},{"label":"Leave it for a follow-up","effort":"no code now","instruction":"Create a YouTrack card in the Bloom tracker: automate the PDF file-name check that custom-language-name.spec.ts (Test Case 156) leaves manual, using armFileChooser and e2e/lastSuggestedFileName (added in PR 8772)."}],"leaveAsIs":"the proposed PDF file name in Test Case 156 stays a manual check."},{"title":"Next step","context":["<p>The PR stays a draft until you have looked at it.<\/p>"],"options":[{"label":"Carry out my answers above","recommended":true,"why":"Recommended because both items have a clear course once you pick it.","effort":"depends on the answers","instruction":"Carry out the answers above on PR 8772 (D:\\bloom.worktrees\\BL-17232-save-as-hook), then rerun preflight."},{"label":"Discuss first","effort":"none","instruction":"Do nothing yet; discuss the open items with me first."}],"leaveAsIs":"nothing more happens on this PR until you ask."}]}</script>
+</head>
+<body>
+<main>
+<div id="questions"></div>
+<div id="copyback">
+<div class="count" id="count"></div>
+<div class="bar">
+<div class="status" id="status"></div>
+<button class="secondary" id="copy" type="button" title="Copy answers" aria-label="Copy answers"></button>
+<button class="primary" id="send" type="button" disabled>Send to Claude</button>
+</div>
+<textarea id="out" readonly hidden></textarea>
+</div>
+</main>
+<script>
+(async () => {
+const FORM = JSON.parse(document.getElementById("decider-form").textContent);
+const Q = FORM.questions;
+let sending = false;
+let sent = false;   // the answers as they stand went to Claude; any change to them clears it
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>';
+const COPY = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>';
+const host = document.getElementById("questions");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+if (FORM.context && FORM.context.length) {
+  const block = document.createElement("section");
+  block.className = "ctx";
+  block.innerHTML = FORM.context.map(p => `<p>${p}</p>`).join("");
+  host.appendChild(block);
+}
+
+// Context paragraphs are HTML that the agent wrote; labels and the rest are plain text.
+Q.forEach((q, qi) => {
+  const card = document.createElement("section");
+  card.className = "q";
+  const name = "q" + qi;
+  let h = `<h2>${esc(q.title)}</h2>` + (q.context || []).map(p => `<p>${p}</p>`).join("");
+  if (q.leaveAsIsRecommended) h += `<p>${q.leaveAsIsRecommended}</p>`;
+  (q.options || []).forEach((o, i) => {
+    h += `<label class="opt${o.recommended ? " rec" : ""}"><input type="radio" name="${name}" value="${i}" data-q="${qi}">` +
+      `<span>${esc(o.label)}${o.recommended ? '<span class="tag">Recommended</span>' : ""}` +
+      `${o.why ? " " + esc(o.why) : ""}${o.effort ? ` <span class="eff">(${esc(o.effort)})</span>` : ""}</span></label>`;
+  });
+  h += `<div class="row"><label class="opt${q.leaveAsIsRecommended ? " rec" : ""}"><input type="radio" name="${name}" value="leave" data-q="${qi}">` +
+    `<span>Leave as is${q.leaveAsIsRecommended ? '<span class="tag">Recommended</span>' : ""}</span></label>` +
+    `<label class="opt"><input type="radio" name="${name}" value="other" data-q="${qi}"><span>Other:</span></label>`;
+  if (q.codeComment) h += `<label class="comment"><input type="checkbox" data-q="${qi}" data-kind="comment"> Leave comment</label>`;
+  h += `</div><textarea class="notes" data-q="${qi}" data-kind="notes" placeholder="Notes"></textarea>`;
+  card.innerHTML = h;
+  host.appendChild(card);
+});
+
+const chosen = qi => { const r = document.querySelector(`input[name="q${qi}"]:checked`); return r ? r.value : null; };
+const notes = qi => document.querySelector(`textarea[data-q="${qi}"]`).value.trim();
+const answered = qi => { const c = chosen(qi); return c !== null && !(c === "other" && !notes(qi)); };
+
+function serialize() {
+  const lines = ["Decisions from a decider form", `About: ${FORM.about}`, `Date: ${FORM.date}`];
+  if (FORM.url) lines.push(`Form: ${FORM.url}`);
+  lines.push("");
+  Q.forEach((q, qi) => {
+    lines.push(q.title);
+    const c = chosen(qi), n = notes(qi);
+    if (!answered(qi)) {
+      lines.push(`No decision yet — ask again later about: ${q.title}`);
+      if (n) lines.push(`Notes: ${n}`);
+    } else if (c === "other") {
+      lines.push(`Other: ${n}`);
+    } else {
+      lines.push(c === "leave" ? `Leave as is — take no action on: ${q.leaveAsIs}` : q.options[+c].instruction);
+      if (n) lines.push(`Notes: ${n}`);
+    }
+    const cb = document.querySelector(`input[data-kind="comment"][data-q="${qi}"]`);
+    if (cb && cb.checked) lines.push("Also record this decision as a code comment near the code it concerns.");
+    lines.push("");
+  });
+  return lines.join("\n").trim();
+}
+
+const statusEl = document.getElementById("status");
+const countEl = document.getElementById("count");
+const sendBtn = document.getElementById("send");
+function refresh() {
+  const left = Q.filter((_, qi) => !answered(qi)).length;
+  countEl.textContent = left ? `${left} unanswered` : "";
+  sendBtn.disabled = sending || (!sent && Q.every((_, qi) => chosen(qi) === null));
+  document.querySelectorAll("label.opt").forEach(l => l.classList.toggle("chosen", l.querySelector("input").checked));
+}
+// After a copy or a send, the buttons say so ("Copied", an outlined "Sent") until the answers
+// change, when they go back to copying and sending the new answers.
+const copyBtn = document.getElementById("copy");
+function showCopy(done) {
+  copyBtn.classList.toggle("done", done);
+  copyBtn.innerHTML = done ? CHECK + "Copied" : COPY;
+}
+function showSent(done) {
+  sent = done;
+  sendBtn.className = done ? "secondary done" : "primary";
+  sendBtn.innerHTML = done ? CHECK + "Sent" : "Send to Claude";
+}
+function answersChanged() {
+  showCopy(false);
+  if (sent) showSent(false);
+}
+showCopy(false);
+document.addEventListener("change", e => {
+  answersChanged();
+  const t = e.target;
+  if (t.type !== "radio") { refresh(); return; }
+  const ta = document.querySelector(`textarea[data-q="${t.dataset.q}"]`);
+  ta.placeholder = t.value === "other" ? "What should happen instead?" : "Notes";
+  if (t.value === "other") ta.focus();
+  refresh();
+});
+document.addEventListener("input", e => { if (e.target.id !== "out") answersChanged(); refresh(); });
+
+document.getElementById("copy").addEventListener("click", async () => {
+  try {
+    const out = document.getElementById("out");
+    out.value = serialize();
+    out.hidden = false;
+    out.select();
+    try { await navigator.clipboard.writeText(out.value); statusEl.textContent = ""; showCopy(true); return; } catch {}
+    out.select();
+    if (document.execCommand("copy")) { statusEl.textContent = ""; showCopy(true); return; }
+    statusEl.textContent = "Couldn't copy automatically — the text is selected below; press Ctrl+C (⌘C on Mac).";
+  } catch {
+    statusEl.textContent = "Couldn't copy automatically — select the text below and copy it.";
+  }
+});
+
+// Two ways back to the session: claude-decider.mjs's endpoint when it serves the page, or the
+// Artifact comments capability when the page is a published Artifact. Neither: Copy only.
+const endpoint = window.DECIDER_ENDPOINT;
+let comments = null;
+if (!endpoint) { try { comments = await window.claude?.use?.("comments"); } catch {} }
+if (!endpoint && !comments) sendBtn.hidden = true;
+const COMMENT_ERRORS = {
+  consent_required: "This page hasn't been allowed to comment yet.",
+  forbidden: "This page may not post comments.",
+  claude_unavailable: "Claude couldn't be reached, and nothing was posted.",
+};
+const UNAVAILABLE = {
+  writers_only: "Only an editor of this page can send to Claude.",
+  no_session: "No Claude session is watching this page.",
+  off: "Sending to Claude is turned off for this page.",
+};
+
+sendBtn.addEventListener("click", async () => {
+  if (sent) return;
+  const text = serialize();
+  sending = true;
+  sendBtn.disabled = true;
+  sendBtn.textContent = "Sending…";
+  statusEl.textContent = "Sending your answers to Claude…";
+  try {
+    if (endpoint) {
+      const r = await fetch(endpoint, { method: "POST", headers: { "content-type": "text/plain; charset=utf-8" }, body: text });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      statusEl.textContent = "";
+      showSent(true);
+    } else {
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > 4096) { statusEl.textContent = `The answers are ${bytes} bytes, over the 4096 a comment holds. Shorten your notes, or use the copy button.`; return; }
+      const state = await comments.canSendToClaude();
+      if (state !== "available") { statusEl.textContent = `${UNAVAILABLE[state] || "Can't send: " + state + "."} Use the copy button.`; return; }
+      const anchor = await comments.anchorFor(document.getElementById("copyback"));
+      await comments.sendToClaude({ anchor, text });
+      statusEl.textContent = "Claude's reply will appear in the comment on this section.";
+      showSent(true);
+    }
+  } catch (e) {
+    if (e && e.code === "forbidden") sendBtn.hidden = true;
+    statusEl.textContent = `${(e && COMMENT_ERRORS[e.code]) || "Couldn't send (" + ((e && (e.code || e.message)) || e) + ")."} Use the copy button.`;
+  } finally {
+    sending = false;
+    if (!sent) showSent(false);
+    refresh();
+  }
+});
+refresh();
+})();
+</script>
+</body>
+</html>
